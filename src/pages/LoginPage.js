@@ -32,7 +32,7 @@ const LoginPage = () => {
     useEffect(() => {
         if (!isLoginView && regUsername.includes('@') && regUsername.includes('.')) {
             const timer = setTimeout(() => {
-                fetch('http://localhost:8080/api/auth/check-username', {
+                fetch('My-finance-app-env.eba-uim2wfxt.ap-south-1.elasticbeanstalk.com/api/auth/check-username', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: regUsername }),
@@ -75,7 +75,7 @@ const LoginPage = () => {
         const user = { name: regName, username: regUsername, password: regPassword };
 
         try {
-            const response = await fetch('http://localhost:8080/api/auth/register', {
+            const response = await fetch('My-finance-app-env.eba-uim2wfxt.ap-south-1.elasticbeanstalk.com/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
@@ -102,7 +102,7 @@ const LoginPage = () => {
 
         try {
             console.log('3. Attempting fetch request to login API.'); // <-- Debugging log
-            const response = await fetch('http://localhost:8080/api/auth/login', {
+            const response = await fetch('My-finance-app-env.eba-uim2wfxt.ap-south-1.elasticbeanstalk.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: loginUsername, password: loginPassword })
