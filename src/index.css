@@ -1,0 +1,158 @@
+/* ---------------------------
+   Tailwind Core Setup
+---------------------------- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------
+   Global Defaults
+---------------------------- */
+body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #1f2937; }
+
+/* ---------------------------
+   Design Tokens (CSS Variables)
+---------------------------- */
+:root {
+    --sky-700: #0369a1;
+    --sky-600: #0284c7;
+    --sky-500: #0ea5e9;
+    --sky-400: #38bdf8;
+    --sky-200: #bae6fd;
+    --sky-100: #e0f2fe;
+
+    --green-600: #16a34a;
+    --green-100: #dcfce7;
+
+    --danger-red: #DC2626;
+    --danger-red-dark: #B91C1C;
+    --danger-red-pale: #FEE2E2;
+
+    --primary-darker: var(--sky-700);
+    --primary-dark: var(--sky-600);
+    --primary-medium: var(--sky-500);
+    --primary-light: var(--sky-400);
+    --primary-pale: var(--sky-100);
+
+    --primary-button: var(--sky-500);
+    --primary-button-hover: var(--sky-600);
+}
+
+/* ---------------------------
+   Custom Utilities
+---------------------------- */
+
+/* Hero Gradient Background */
+.hero-silver-gradient {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 70%, #e5e7eb 100%);
+}
+
+/* Typography */
+.page-main-title,
+.section-title {
+  color: var(--primary-darker);
+}
+
+.page-subtitle {
+  color: var(--primary-dark);
+}
+
+.header-logo-text {
+  color: var(--primary-dark);
+}
+
+/* Navigation Link Styles */
+.nav-link-active {
+  color: var(--primary-dark) !important;
+  font-weight: 600;
+}
+
+.nav-link-hover:hover {
+  color: var(--primary-dark);
+}
+
+.mobile-nav-link-active {
+  color: var(--primary-dark);
+  background-color: var(--primary-pale);
+}
+
+/* Buttons */
+.action-button {
+  background-color: var(--primary-button);
+}
+
+.action-button:hover {
+  background-color: var(--primary-button-hover);
+}
+
+.cta-button-primary {
+  background-color: var(--primary-button);
+}
+
+.cta-button-primary:hover {
+  background-color: var(--primary-button-hover);
+}
+
+/* Auth Input Fields */
+.auth-input {
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  width: 100%;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: var(--primary-medium);
+  box-shadow: 0 0 0 2px var(--sky-100);
+}
+
+/* Service Card Hover Animation */
+.service-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+              0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Dashboard Sidebar Styling */
+.sidebar-active {
+  background-color: var(--primary-pale);
+  color: var(--primary-darker);
+  font-weight: 600;
+}
+
+.sidebar-link:hover {
+  background-color: #f3f4f6;
+}
+
+/* Pulse Dot Animation (used for alerts or online indicators) */
+@keyframes pulse-dot {
+  0% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
+  }
+  100% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+}
+
+.pulse {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  background-color: var(--danger-red);
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+}
