@@ -4,7 +4,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import PrivateRoute from './components/PrivateRoute';
 import DashboardLayout from './layouts/DashboardLayout';
-
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import VisionPage from './pages/VisionPage';
