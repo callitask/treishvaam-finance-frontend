@@ -13,7 +13,7 @@ const ContactPage = () => {
         e.preventDefault();
         setStatus('Sending...');
         try {
-            const response = await fetch('http://finance-backend-prod.eba-qekuazk3.eu-north-1.elasticbeanstalk.com/api/contact', {
+            const response = await fetch('https://treishfin.udaybhai.com/api/contact', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),

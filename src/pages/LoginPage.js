@@ -18,7 +18,7 @@ const LoginPage = () => {
     useEffect(() => {
         if (!isLoginView && regUsername.includes('@') && regUsername.includes('.')) {
             const timer = setTimeout(() => {
-                fetch('http://finance-backend-prod.eba-qekuazk3.eu-north-1.elasticbeanstalk.com/api/auth/check-username', {
+                fetch('https://treishfin.udaybhai.com/api/auth/check-username', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: regUsername }),
@@ -42,7 +42,7 @@ const LoginPage = () => {
         }
         const user = { name: regName, username: regUsername, password: regPassword };
         try {
-            const response = await fetch('http://finance-backend-prod.eba-qekuazk3.eu-north-1.elasticbeanstalk.com/api/auth/register', {
+            const response = await fetch('https://treishfin.udaybhai.com/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
@@ -63,7 +63,7 @@ const LoginPage = () => {
         e.preventDefault();
         setStatusMessage('Logging in...');
         try {
-            const response = await fetch('http://finance-backend-prod.eba-qekuazk3.eu-north-1.elasticbeanstalk.com/api/auth/login', {
+            const response = await fetch('https://treishfin.udaybhai.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: loginUsername, password: loginPassword })
