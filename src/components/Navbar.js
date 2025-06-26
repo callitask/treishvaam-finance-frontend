@@ -33,12 +33,12 @@ const Navbar = () => {
               <NavLink to="/blog" className={getNavLinkClass}>Blog</NavLink>
               <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
               {token ? (
-                 <>
-                   <NavLink to="/dashboard" className={getNavLinkClass}>Dashboard</NavLink>
-                   <button onClick={handleLogout} className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
-                 </>
+                   <>
+                      <NavLink to="/dashboard" className={getNavLinkClass}>Dashboard</NavLink>
+                      <button onClick={handleLogout} className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
+                   </>
               ) : (
-                 <NavLink to="/login" className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Login</NavLink>
+                   <NavLink to="/login" className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Login</NavLink>
               )}
             </nav>
             <div className="md:hidden">
@@ -56,8 +56,8 @@ const Navbar = () => {
             <NavLink to="/contact" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Contact</NavLink>
              {token ? (
                 <>
-                   <NavLink to="/dashboard" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Dashboard</NavLink>
-                   <button onClick={handleLogout} className="block w-full text-left mx-4 my-3 action-button text-white text-center font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
+                  <NavLink to="/dashboard" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Dashboard</NavLink>
+                  <button onClick={handleLogout} className="block w-full text-left mx-4 my-3 action-button text-white text-center font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
                 </>
              ) : (
                 <NavLink to="/login" className="block mx-4 my-3 action-button text-white text-center font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300" onClick={() => setMobileMenuOpen(false)}>Login</NavLink>

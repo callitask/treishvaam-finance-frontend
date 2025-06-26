@@ -1,17 +1,17 @@
 /* ---------------------------
-   Tailwind Core Setup
+    Tailwind Core Setup
 ---------------------------- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ---------------------------
-   Global Defaults
+    Global Defaults
 ---------------------------- */
 body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #1f2937; }
 
 /* ---------------------------
-   Design Tokens (CSS Variables)
+    Design Tokens (CSS Variables)
 ---------------------------- */
 :root {
     --sky-700: #0369a1;
@@ -39,7 +39,7 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #1f29
 }
 
 /* ---------------------------
-   Custom Utilities
+    Custom Utilities
 ---------------------------- */
 
 /* Hero Gradient Background */
@@ -156,3 +156,5 @@ body { font-family: 'Inter', sans-serif; background-color: #f9fafb; color: #1f29
   border-radius: 50%;
   animation: pulse-dot 2s infinite;
 }
+
+

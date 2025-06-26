@@ -80,8 +80,6 @@ const LoginPage = () => {
         }
     };
 
-    const validationClass = usernameExists === true ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : usernameExists === false ? 'border-green-500 focus:border-green-500 focus:ring-green-200' : 'border-gray-300';
-
     return (
         <div className="min-h-screen hero-silver-gradient flex items-center justify-center p-4">
             <div className="container mx-auto flex items-center justify-center lg:justify-between">
@@ -109,11 +107,52 @@ const LoginPage = () => {
                                 <h2 className="text-center text-3xl font-bold section-title">Create a new account</h2>
                                 <form onSubmit={handleRegister} className="mt-8 space-y-6">
                                     <input value={regName} onChange={(e) => setRegName(e.target.value)} name="name" type="text" required className="auth-input" placeholder="Full Name" />
-                                    <div>
-                                        <input value={regUsername} onChange={(e) => setRegUsername(e.target.value)} name="email" type="email" required className={`auth-input ${validationClass}`} placeholder="Email address" />
-                                        {usernameExists === true && <p className="text-red-500 text-xs mt-1">Email already exists.</p>}
-                                        {usernameExists === false && <p className="text-green-500 text-xs mt-1">Email is available!</p>}
+                                    <div className="relative">
+                                        <input
+                                            value={regUsername}
+                                            onChange={(e) => setRegUsername(e.target.value)}
+                                            name="email"
+                                            type="email"
+                                            required
+                                            className={`auth-input pr-10 ${
+                                                usernameExists === true
+                                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+                                                    : usernameExists === false
+                                                    ? 'border-green-500 focus:border-green-500 focus:ring-green-200'
+                                                    : 'border-gray-300'
+                                            }`}
+                                            placeholder="Email address"
+                                            autoComplete="off"
+                                            style={{
+                                                boxShadow:
+                                                    usernameExists === true
+                                                        ? '0 0 0 2px #f87171'
+                                                        : usernameExists === false
+                                                        ? '0 0 0 2px #4ade80'
+                                                        : undefined,
+                                                transition: 'box-shadow 0.2s',
+                                            }}
+                                        />
+                                        {/* Icon for error or success */}
+                                        {usernameExists === true && (
+                                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500">
+                                                {/* Red X icon */}
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                            </span>
+                                        )}
+                                        {usernameExists === false && (
+                                            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
+                                                {/* Green check icon */}
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                                            </span>
+                                        )}
                                     </div>
+                                    {usernameExists === true && (
+                                        <p className="text-red-500 text-xs mt-1 font-semibold">Email already taken.</p>
+                                    )}
+                                    {usernameExists === false && (
+                                        <p className="text-green-500 text-xs mt-1 font-semibold flex items-center gap-1">Email is available!</p>
+                                    )}
                                     <input value={regPassword} onChange={(e) => setRegPassword(e.target.value)} name="password" type="password" required className="auth-input" placeholder="Password" />
                                     <button type="submit" className="w-full py-3 px-4 rounded-lg text-white font-semibold cta-button-primary transition duration-300">Register</button>
                                 </form>
