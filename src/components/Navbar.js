@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -9,8 +9,20 @@ const Navbar = () => {
     const { token, logout } = useAuth();
     const navigate = useNavigate();
 
-    const getNavLinkClass = ({ isActive }) => `nav-link-hover transition duration-300 ${isActive ? 'nav-link-active' : ''}`;
-    const getMobileNavLinkClass = ({ isActive }) => `block px-6 py-3 text-gray-700 mobile-nav-link-hover transition duration-300 ${isActive ? 'mobile-nav-link-active' : ''}`;
+    // Standard Tailwind classes for a cleaner look
+    const getLinkClass = ({ isActive }) => 
+        `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
+            isActive 
+                ? 'bg-sky-100 text-sky-700' 
+                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+        }`;
+
+    const getMobileLinkClass = ({ isActive }) => 
+        `block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
+            isActive 
+                ? 'bg-sky-100 text-sky-700' 
+                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+        }`;
 
     const handleLogout = () => {
         logout();
@@ -18,51 +30,79 @@ const Navbar = () => {
         setMobileMenuOpen(false);
     };
 
+    const closeMobileMenu = () => setMobileMenuOpen(false);
+
     return (
         <header className="bg-white shadow-md sticky top-0 z-50">
-          <div className="container mx-auto px-6 py-3 flex justify-between items-center">
-            <NavLink to="/" className="flex items-center">
-              <LazyLoadImage alt="Logo" effect="blur" src="/logo.png" className="h-10 md:h-12 mr-2" />
-              <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
-            </NavLink>
-            <nav className="hidden md:flex space-x-6 items-center">
-              <NavLink to="/" className={getNavLinkClass}>Home</NavLink>
-              <NavLink to="/about" className={getNavLinkClass}>About Us</NavLink>
-              <NavLink to="/vision" className={getNavLinkClass}>Our Vision</NavLink>
-              <NavLink to="/education" className={getNavLinkClass}>Education</NavLink>
-              <NavLink to="/blog" className={getNavLinkClass}>Blog</NavLink>
-              <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
-              {token ? (
-                   <>
-                      <NavLink to="/dashboard" className={getNavLinkClass}>Dashboard</NavLink>
-                      <button onClick={handleLogout} className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
-                   </>
-              ) : (
-                   <NavLink to="/login" className="action-button text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Login</NavLink>
-              )}
-            </nav>
-            <div className="md:hidden">
-              <button onClick={() => setMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-700 nav-link-hover focus:outline-none">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-              </button>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+                <div className="flex items-center">
+                    <Link to="/" className="flex-shrink-0 flex items-center">
+                        <LazyLoadImage alt="Logo" effect="blur" src="/logo.png" className="h-12 w-12 mr-2" />
+                        <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
+                    </Link>
+                    <nav className="hidden md:block ml-10">
+                        <div className="flex items-baseline space-x-4">
+                            <NavLink to="/" className={getLinkClass} end>Home</NavLink>
+                            <NavLink to="/about" className={getLinkClass}>About</NavLink>
+                            <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
+                            <NavLink to="/education" className={getLinkClass}>Learn</NavLink>
+                            <NavLink to="/blog" className={getLinkClass}>Blog</NavLink>
+                            <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
+                        </div>
+                    </nav>
+                </div>
+                <div className="hidden md:block">
+                    <div className="ml-4 flex items-center md:ml-6">
+                        {token ? (
+                            <>
+                                <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
+                                <button onClick={handleLogout} className="ml-4 text-sm font-medium text-gray-700 hover:text-sky-600 transition duration-300">Logout</button>
+                            </>
+                        ) : (
+                            <Link to="/login" className="ml-4 px-4 py-2 rounded-md text-sm font-medium text-white cta-button-primary hover:bg-sky-700 transition duration-300">Login</Link>
+                        )}
+                    </div>
+                </div>
+                <div className="-mr-2 flex md:hidden">
+                    {/* Mobile menu button */}
+                    <button onClick={() => setMobileMenuOpen(!isMobileMenuOpen)} type="button" className="bg-white rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500" aria-expanded="false">
+                        <span className="sr-only">Open main menu</span>
+                        {isMobileMenuOpen ? (
+                            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        ) : (
+                            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                        )}
+                    </button>
+                </div>
             </div>
           </div>
-          <div className={`md:hidden ${isMobileMenuOpen ? 'block' : 'hidden'} bg-white shadow-lg`}>
-            <NavLink to="/" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Home</NavLink>
-            <NavLink to="/about" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>About Us</NavLink>
-            <NavLink to="/vision" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Our Vision</NavLink>
-            <NavLink to="/education" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Education</NavLink>
-            <NavLink to="/blog" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Blog</NavLink>
-            <NavLink to="/contact" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Contact</NavLink>
-             {token ? (
-                <>
-                  <NavLink to="/dashboard" className={getMobileNavLinkClass} onClick={() => setMobileMenuOpen(false)}>Dashboard</NavLink>
-                  <button onClick={handleLogout} className="block w-full text-left mx-4 my-3 action-button text-white text-center font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300">Logout</button>
-                </>
-             ) : (
-                <NavLink to="/login" className="block mx-4 my-3 action-button text-white text-center font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300" onClick={() => setMobileMenuOpen(false)}>Login</NavLink>
-             )}
-          </div>
+
+          {/* Mobile menu, show/hide based on menu state. */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden" id="mobile-menu">
+                <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                    <NavLink to="/" className={getMobileLinkClass} onClick={closeMobileMenu} end>Home</NavLink>
+                    <NavLink to="/about" className={getMobileLinkClass} onClick={closeMobileMenu}>About</NavLink>
+                    <NavLink to="/vision" className={getMobileLinkClass} onClick={closeMobileMenu}>Vision</NavLink>
+                    <NavLink to="/education" className={getMobileLinkClass} onClick={closeMobileMenu}>Learn</NavLink>
+                    <NavLink to="/blog" className={getMobileLinkClass} onClick={closeMobileMenu}>Blog</NavLink>
+                    <NavLink to="/contact" className={getMobileLinkClass} onClick={closeMobileMenu}>Contact</NavLink>
+                </div>
+                <div className="pt-4 pb-3 border-t border-gray-200">
+                    <div className="px-2 space-y-1">
+                        {token ? (
+                            <>
+                                <NavLink to="/dashboard" className={getMobileLinkClass} onClick={closeMobileMenu}>Dashboard</NavLink>
+                                <button onClick={handleLogout} className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">Logout</button>
+                            </>
+                        ) : (
+                            <Link to="/login" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white cta-button-primary hover:bg-sky-700" onClick={closeMobileMenu}>Login</Link>
+                        )}
+                    </div>
+                </div>
+            </div>
+          )}
         </header>
     );
 };

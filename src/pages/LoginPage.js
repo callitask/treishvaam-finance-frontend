@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
@@ -12,10 +12,11 @@ const LoginPage = () => {
     const [regPassword, setRegPassword] = useState('');
     const [usernameExists, setUsernameExists] = useState(null);
     const [statusMessage, setStatusMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const auth = useAuth();
 
-    useEffect(() => {
+    /*useEffect(() => {
         if (!isLoginView && regUsername.includes('@') && regUsername.includes('.')) {
             const timer = setTimeout(() => {
                 fetch('https://treishfin.udaybhai.com/api/auth/check-username', {
@@ -31,52 +32,83 @@ const LoginPage = () => {
         } else {
             setUsernameExists(null);
         }
-    }, [regUsername, isLoginView]);
+    }, [regUsername, isLoginView]);*/
+
+    const checkUsername = async () => {
+        if (regUsername.includes('@') && regUsername.includes('.')) {
+            try {
+                const response = await fetch('https://treishfin.udaybhai.com/api/auth/check-username', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: regUsername }),
+                });
+                const data = await response.json();
+                setUsernameExists(data.exists);
+            } catch (error) {
+                setStatusMessage('Could not verify email.');
+            }
+        } else {
+            setUsernameExists(null);
+        }
+    };
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        setStatusMessage('Registering...');
         if (usernameExists) {
             setStatusMessage('This email is already registered.');
             return;
         }
+        setIsLoading(true);
+        setStatusMessage('');
         const user = { name: regName, username: regUsername, password: regPassword };
         try {
             const response = await fetch('https://treishfin.udaybhai.com/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
+                body: JSON.stringify(user),
             });
+
+            const data = await response.json();
+
             if (response.ok) {
-                setStatusMessage('Registration successful! Please log in.');
-                setIsLoginView(true);
+                setStatusMessage('Registration successful! Please sign in.');
+                //setIsLoginView(true); // Switch to login view
+                // You might want to clear the form here too
+                setRegName('');
+                setRegUsername('');
+                setRegPassword('');
             } else {
-                const errorData = await response.text();
-                setStatusMessage(`Registration failed: ${errorData}`);
+                setStatusMessage(data.message || 'Registration failed. Please try again.');
             }
         } catch (error) {
-            setStatusMessage('Error during registration.');
+            setStatusMessage('An error occurred. Please try again later.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        setStatusMessage('Logging in...');
+        setIsLoading(true);
+        setStatusMessage('');
         try {
             const response = await fetch('https://treishfin.udaybhai.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username: loginUsername, password: loginPassword })
             });
+            const data = await response.json();
+
             if (response.ok) {
-                const data = await response.json();
                 auth.login(data.token);
                 navigate('/dashboard');
             } else {
-                setStatusMessage('Invalid username or password.');
+                setStatusMessage(data.message || 'Login failed. Please check your credentials.');
             }
         } catch (error) {
-            setStatusMessage('Login failed. Please check the server.');
+            setStatusMessage('An error occurred during login. Please try again.');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -96,7 +128,9 @@ const LoginPage = () => {
                                 <form onSubmit={handleLogin} className="mt-8 space-y-6">
                                     <input value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} name="email" type="email" required className="auth-input" placeholder="Email address" />
                                     <input value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} name="password" type="password" required className="auth-input" placeholder="Password" />
-                                    <button type="submit" className="w-full py-3 px-4 rounded-lg text-white font-semibold cta-button-primary transition duration-300">Sign in</button>
+                                    <button type="submit" disabled={isLoading} className="w-full py-3 px-4 rounded-lg text-white font-semibold cta-button-primary transition duration-300 disabled:opacity-50">
+                                        {isLoading && isLoginView ? 'Signing in...' : 'Sign in'}
+                                    </button>
                                 </form>
                                 <div className="mt-6 text-center text-sm text-gray-600">
                                     Not a member? <button onClick={() => { setIsLoginView(false); setStatusMessage(''); }} className="font-medium text-sky-600 hover:text-sky-500">Register now</button>
@@ -154,7 +188,9 @@ const LoginPage = () => {
                                         <p className="text-green-500 text-xs mt-1 font-semibold flex items-center gap-1">Email is available!</p>
                                     )}
                                     <input value={regPassword} onChange={(e) => setRegPassword(e.target.value)} name="password" type="password" required className="auth-input" placeholder="Password" />
-                                    <button type="submit" className="w-full py-3 px-4 rounded-lg text-white font-semibold cta-button-primary transition duration-300">Register</button>
+                                    <button type="submit" disabled={isLoading || usernameExists === true} className="w-full py-3 px-4 rounded-lg text-white font-semibold cta-button-primary transition duration-300 disabled:opacity-50">
+                                        {isLoading && !isLoginView ? 'Registering...' : 'Register'}
+                                    </button>
                                 </form>
                                 <div className="mt-6 text-center text-sm text-gray-600">
                                     Already have an account? <button onClick={() => { setIsLoginView(true); setStatusMessage(''); }} className="font-medium text-sky-600 hover:text-sky-500">Sign in</button>
@@ -170,5 +206,3 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
-
-
