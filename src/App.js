@@ -1,5 +1,6 @@
+// src/App.js
 import React from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Outlet } from 'react-router-dom'; // Removed Navigate
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
