@@ -1,200 +1,125 @@
-import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import apiClient from '../services/api';
+
+// Import the new editor and its dependencies
+import { EditorState, convertToRaw, ContentState } from 'draft-js';
+import { Editor } from 'react-draft-wysiwyg';
+import draftToHtml from 'draftjs-to-html';
+import htmlToDraft from 'html-to-draftjs';
+import 'react-draft-wysiwyg/dist/react-draft-wysiwyg.css';
+
+
+const categories = ['Stocks', 'Crypto', 'Trading', 'News'];
 
 const BlogEditorPage = () => {
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [summary, setSummary] = useState('');
-  const [category, setCategory] = useState('Market News');
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [image, setImage] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState({ type: '', text: '' });
-  const { token } = useAuth();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  
+  // Editor state now uses the new library's state management
+  const [editorState, setEditorState] = useState(EditorState.createEmpty());
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImage(file);
-      setImagePreview(URL.createObjectURL(file));
+  const [title, setTitle] = useState('');
+  const [author, setAuthor] = useState('Admin');
+  const [category, setCategory] = useState(categories[0]);
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (id) {
+      setIsLoading(true);
+      apiClient.get(`/posts/${id}`)
+        .then(response => {
+          const post = response.data;
+          setTitle(post.title);
+          setAuthor(post.author);
+          setCategory(post.category || categories[0]);
+          setIsFeatured(post.isFeatured || false);
+          
+          // Convert the saved HTML back into the editor's format
+          const contentBlock = htmlToDraft(post.content || '');
+          if (contentBlock) {
+            const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
+            const newEditorState = EditorState.createWithContent(contentState);
+            setEditorState(newEditorState);
+          }
+        })
+        .catch(err => setError('Failed to load post.'))
+        .finally(() => setIsLoading(false));
     }
+  }, [id]);
+
+  const onEditorStateChange = (newEditorState) => {
+    setEditorState(newEditorState);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setStatusMessage({ type: '', text: '' });
-
-    if (!image) {
-      setStatusMessage({ type: 'error', text: 'A featured image is required.' });
-      setIsLoading(false);
-      return;
-    }
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('content', content);
-    formData.append('summary', summary);
-    formData.append('category', category);
-    formData.append('isFeatured', isFeatured);
-    formData.append('image', image);
+    setError('');
+    
+    // Convert the editor's content to HTML before saving
+    const content = draftToHtml(convertToRaw(editorState.getCurrentContent()));
+    const postData = { title, content, author, category, isFeatured };
 
     try {
-      const response = await fetch('http://localhost:8080/api/blog/posts', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (response.ok) {
-        setStatusMessage({ type: 'success', text: 'Post published successfully!' });
-        // Reset form
-        setTitle('');
-        setContent('');
-        setSummary('');
-        setCategory('Market News');
-        setIsFeatured(false);
-        setImage(null);
-        setImagePreview('');
+      if (id) {
+        await apiClient.put(`/posts/${id}`, postData);
       } else {
-        const errorData = await response.json();
-        setStatusMessage({ type: 'error', text: errorData.message || 'Failed to publish post.' });
+        await apiClient.post('/posts', postData);
       }
-    } catch (error) {
-      setStatusMessage({ type: 'error', text: 'An error occurred. Please try again.' });
+      navigate('/dashboard/manage-posts');
+    } catch (err) {
+      setError('Failed to save the post. Please try again.');
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const categories = [
-    "Market News",
-    "Technical Analysis",
-    "Crypto",
-    "Commodities",
-    "Forex",
-    "Personal Finance",
-  ];
+  
+  if (isLoading && id) return <p>Loading post for editing...</p>;
 
   return (
-    <div className="container mx-auto">
-      {statusMessage.text && (
-        <div className={`p-4 mb-4 rounded-lg ${
-          statusMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {statusMessage.text}
+    <div className="p-8">
+      <h1 className="text-3xl font-bold mb-6">{id ? 'Edit Blog Post' : 'Create New Blog Post'}</h1>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div>
+          <label className="block text-lg font-medium">Title</label>
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md" required />
         </div>
-      )}
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Blog Post Editor</h1>
-      
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Main Content Column */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">Post Title</label>
-            <input
-              type="text"
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="Enter a compelling title"
-              required
-            />
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">Full Post Content</label>
-            <textarea
-              id="content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows="15"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="Write your blog post here... You can use Markdown."
-              required
-            ></textarea>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-2">Post Summary / Excerpt</label>
-            <textarea
-              id="summary"
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              rows="4"
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-sky-500"
-              placeholder="A short summary that will appear in post previews."
-              required
-            ></textarea>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-lg font-medium">Author</label>
+              <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md" required />
+            </div>
+            <div>
+              <label className="block text-lg font-medium">Category</label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md">
+                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+            </div>
         </div>
-
-        {/* Sidebar Column */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Publishing</h3>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full cta-button-primary text-white font-semibold py-3 px-6 rounded-lg transition duration-300 hover:bg-sky-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Publishing...' : 'Publish Post'}
-            </button>
-            <button
-              type="button"
-              disabled={isLoading}
-              className="w-full mt-3 bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-lg transition duration-300 hover:bg-gray-300 disabled:opacity-50"
-            >
-              Save as Draft
-            </button>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500"
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label htmlFor="featuredImage" className="block text-sm font-medium text-gray-700 mb-2">Featured Image</label>
-            <input
-              type="file"
-              id="featuredImage"
-              onChange={handleImageChange}
-              accept="image/png, image/jpeg, image/webp"
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
-            />
-            {imagePreview && (
-              <div className="mt-4">
-                <img src={imagePreview} alt="Image preview" className="w-full h-auto rounded-lg object-cover" />
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white p-6 rounded-xl shadow-md">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Mark as Featured Post</span>
-            </label>
-          </div>
+        <div className="flex items-center">
+            <input type="checkbox" id="isFeatured" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+            <label htmlFor="isFeatured" className="ml-2 block text-sm text-gray-900">Mark as Featured Post</label>
+        </div>
+        <div>
+          <label className="block text-lg font-medium">Content</label>
+          {/* The new Editor component */}
+          <Editor
+            editorState={editorState}
+            onEditorStateChange={onEditorStateChange}
+            wrapperClassName="wrapper-class"
+            editorClassName="editor-class border p-2 min-h-[200px] bg-white"
+            toolbarClassName="toolbar-class border"
+          />
+        </div>
+        {error && <p className="text-red-500">{error}</p>}
+        <div>
+          <button type="submit" disabled={isLoading} className="px-6 py-2 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-300">
+            {isLoading ? 'Saving...' : (id ? 'Update Post' : 'Publish Post')}
+          </button>
         </div>
       </form>
     </div>
