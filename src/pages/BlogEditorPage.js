@@ -2,13 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
 
-// Import the modern editor and its dependencies
-import { EditorState, convertToRaw, ContentState } from 'draft-js';
-import { Editor } from 'react-draft-wysiwyg';
-import draftToHtml from 'draftjs-to-html';
-import htmlToDraft from 'html-to-draftjs';
-import 'react-draft-wysiwyg/dist/react-draft-wysiwyg.css';
-
+// Import the new editor and its CSS
+import SunEditor from 'suneditor-react';
+import 'suneditor/dist/css/suneditor.min.css'; 
 
 const categories = ['Stocks', 'Crypto', 'Trading', 'News'];
 
@@ -16,35 +12,40 @@ const BlogEditorPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  const [editorState, setEditorState] = useState(EditorState.createEmpty());
   const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
   const [author, setAuthor] = useState('Admin');
   const [category, setCategory] = useState(categories[0]);
   const [isFeatured, setIsFeatured] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // This is the new function to handle image uploads
-  const uploadImageCallBack = (file) => {
-    return new Promise(
-      (resolve, reject) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        apiClient.post('/upload', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
+  // This is the function that connects the editor's upload button to our backend
+  const handleImageUploadBefore = (files, info, uploadHandler) => {
+    const formData = new FormData();
+    formData.append('file', files[0]);
+
+    apiClient.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then(response => {
+      // The editor expects the response in this specific format
+      const res = {
+        result: [
+          {
+            url: response.data.url,
+            name: files[0].name,
+            size: files[0].size,
           },
-        })
-        .then(response => {
-          resolve({ data: { link: response.data.url } });
-        })
-        .catch(error => {
-          console.error("Image upload failed", error);
-          reject(error);
-        });
-      }
-    );
-  }
+        ],
+      };
+      uploadHandler(res);
+    })
+    .catch(error => {
+      console.error("Image upload failed", error);
+      uploadHandler(error.toString());
+    });
+  };
 
   useEffect(() => {
     if (id) {
@@ -56,29 +57,18 @@ const BlogEditorPage = () => {
           setAuthor(post.author);
           setCategory(post.category || categories[0]);
           setIsFeatured(post.isFeatured || false);
-          
-          const contentBlock = htmlToDraft(post.content || '');
-          if (contentBlock) {
-            const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
-            const newEditorState = EditorState.createWithContent(contentState);
-            setEditorState(newEditorState);
-          }
+          setContent(post.content || '');
         })
         .catch(err => setError('Failed to load post.'))
         .finally(() => setIsLoading(false));
     }
   }, [id]);
 
-  const onEditorStateChange = (newEditorState) => {
-    setEditorState(newEditorState);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
-    const content = draftToHtml(convertToRaw(editorState.getCurrentContent()));
     const postData = { title, content, author, category, isFeatured };
 
     try {
@@ -124,15 +114,22 @@ const BlogEditorPage = () => {
         </div>
         <div>
           <label className="block text-lg font-medium">Content</label>
-          <Editor
-            editorState={editorState}
-            onEditorStateChange={onEditorStateChange}
-            wrapperClassName="wrapper-class"
-            editorClassName="editor-class border p-2 min-h-[200px] bg-white"
-            toolbarClassName="toolbar-class border"
-            toolbar={{
-              options: ['inline', 'blockType', 'fontSize', 'list', 'textAlign', 'link', 'image', 'history'],
-              image: { uploadCallback: uploadImageCallBack, alt: { present: true, mandatory: false }, previewImage: true },
+          <SunEditor
+            setContents={content}
+            onChange={setContent}
+            onImageUploadBefore={handleImageUploadBefore}
+            setOptions={{
+              height: 200,
+              buttonList: [
+                ['undo', 'redo'],
+                ['font', 'fontSize', 'formatBlock'],
+                ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                ['removeFormat'],
+                ['outdent', 'indent'],
+                ['align', 'horizontalRule', 'list', 'lineHeight'],
+                ['table', 'link', 'image'],
+                ['fullScreen', 'showBlocks', 'codeView'],
+              ],
             }}
           />
         </div>
