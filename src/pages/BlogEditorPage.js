@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
 
-// Import the new editor and its dependencies
+// Import the modern editor and its dependencies
 import { EditorState, convertToRaw, ContentState } from 'draft-js';
 import { Editor } from 'react-draft-wysiwyg';
 import draftToHtml from 'draftjs-to-html';
@@ -16,15 +16,35 @@ const BlogEditorPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Editor state now uses the new library's state management
   const [editorState, setEditorState] = useState(EditorState.createEmpty());
-
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('Admin');
   const [category, setCategory] = useState(categories[0]);
   const [isFeatured, setIsFeatured] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // This is the new function to handle image uploads
+  const uploadImageCallBack = (file) => {
+    return new Promise(
+      (resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        apiClient.post('/upload', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        })
+        .then(response => {
+          resolve({ data: { link: response.data.url } });
+        })
+        .catch(error => {
+          console.error("Image upload failed", error);
+          reject(error);
+        });
+      }
+    );
+  }
 
   useEffect(() => {
     if (id) {
@@ -37,7 +57,6 @@ const BlogEditorPage = () => {
           setCategory(post.category || categories[0]);
           setIsFeatured(post.isFeatured || false);
           
-          // Convert the saved HTML back into the editor's format
           const contentBlock = htmlToDraft(post.content || '');
           if (contentBlock) {
             const contentState = ContentState.createFromBlockArray(contentBlock.contentBlocks);
@@ -59,7 +78,6 @@ const BlogEditorPage = () => {
     setIsLoading(true);
     setError('');
     
-    // Convert the editor's content to HTML before saving
     const content = draftToHtml(convertToRaw(editorState.getCurrentContent()));
     const postData = { title, content, author, category, isFeatured };
 
@@ -106,13 +124,16 @@ const BlogEditorPage = () => {
         </div>
         <div>
           <label className="block text-lg font-medium">Content</label>
-          {/* The new Editor component */}
           <Editor
             editorState={editorState}
             onEditorStateChange={onEditorStateChange}
             wrapperClassName="wrapper-class"
             editorClassName="editor-class border p-2 min-h-[200px] bg-white"
             toolbarClassName="toolbar-class border"
+            toolbar={{
+              options: ['inline', 'blockType', 'fontSize', 'list', 'textAlign', 'link', 'image', 'history'],
+              image: { uploadCallback: uploadImageCallBack, alt: { present: true, mandatory: false }, previewImage: true },
+            }}
           />
         </div>
         {error && <p className="text-red-500">{error}</p>}
