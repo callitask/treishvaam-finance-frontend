@@ -1,8 +1,13 @@
+// treishvaam-finance-frontend/src/pages/BlogPage.js
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import apiClient from '../services/api';
+import { getPosts } from '../apiConfig';
 import DOMPurify from 'dompurify';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+
+// Note: If you haven't already, please install these required packages by running:
+// npm install dompurify react-lazy-load-image-component
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
@@ -16,7 +21,7 @@ const BlogPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
           try {
-            const response = await apiClient.get('/posts');
+            const response = await getPosts();
             const sortedPosts = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             setPosts(sortedPosts);
           } catch (err) {
@@ -32,23 +37,26 @@ const BlogPage = () => {
     const filteredPosts = useMemo(() => {
         let filtered = posts;
         if (selectedCategory && selectedCategory !== "All") {
+            // This assumes your post object has a 'category' property
             filtered = filtered.filter(p => p.category === selectedCategory);
         }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(p =>
                 p.title.toLowerCase().includes(term) ||
-                p.content.toLowerCase().includes(term)
+                (p.content && p.content.toLowerCase().includes(term))
             );
         }
         return filtered;
     }, [posts, selectedCategory, searchTerm]);
 
-    const featuredArticle = filteredPosts.find(p => p.isFeatured) || filteredPosts[0];
-    const regularArticles = filteredPosts.filter(p => p !== featuredArticle);
+    const featuredArticle = filteredPosts.find(p => p.isFeatured) || (filteredPosts.length > 0 ? filteredPosts[0] : null);
+    const regularArticles = filteredPosts.filter(p => p.id !== (featuredArticle ? featuredArticle.id : null));
 
     const createMarkup = (html) => {
-        return { __html: DOMPurify.sanitize(html) };
+        const cleanHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+        // This function is for dangerouslySetInnerHTML, so we return the object structure it expects.
+        return { __html: cleanHtml.substring(0, 150) + '...' };
     };
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
@@ -60,7 +68,8 @@ const BlogPage = () => {
                 <div className="container mx-auto px-6 text-center">
                     <div className="max-w-3xl mx-auto">
                         <h1 className="text-4xl md:text-5xl font-bold mb-2 inline-block">
-                            <span style={{ color: 'var(--text-black)' }}>Financial </span><span style={{ color: 'var(--primary-darker)' }}>News & Analysis</span>
+                            <span style={{ color: 'var(--text-black, #111827)' }}>Financial </span>
+                            <span style={{ color: 'var(--primary-darker, #0284c7)' }}>News & Analysis</span>
                         </h1>
                         <p className="text-lg md:text-xl text-gray-700">Stay ahead with timely market developments, expert analysis, and strategic insights tailored for your <strong className="font-semibold">trading</strong> journey.</p>
                     </div>
@@ -90,48 +99,40 @@ const BlogPage = () => {
 
             <section className="pt-0 pb-4 md:pt-0 md:pb-6 bg-white">
                 <div className="container mx-auto px-6">
-                    <div className="p-3 rounded-lg mb-8 flex items-center shadow" style={{ backgroundColor: 'var(--danger-red-pale)' }}>
-                        <span className="breaking-button relative inline-flex items-center text-white text-xs font-bold uppercase px-3 py-1 rounded-md mr-2" style={{ backgroundColor: 'var(--danger-red)' }}><span className="pulse"></span>BREAKING</span>
-                        <p className="text-sm flex-grow" style={{ color: 'var(--danger-red-dark)' }}>Market Alert: Major tech stocks surge 3% following AI partnership announcements. <Link to="#" className="font-semibold hover:underline" style={{ color: 'var(--danger-red)' }}>Read full analysis</Link></p>
+                    <div className="p-3 rounded-lg mb-8 flex items-center shadow" style={{ backgroundColor: 'var(--danger-red-pale, #fee2e2)' }}>
+                        <span className="breaking-button relative inline-flex items-center text-white text-xs font-bold uppercase px-3 py-1 rounded-md mr-2" style={{ backgroundColor: 'var(--danger-red, #ef4444)' }}><span className="pulse"></span>BREAKING</span>
+                        <p className="text-sm flex-grow" style={{ color: 'var(--danger-red-dark, #b91c1c)' }}>Market Alert: Major tech stocks surge 3% following AI partnership announcements. <Link to="#" className="font-semibold hover:underline" style={{ color: 'var(--danger-red, #ef4444)' }}>Read full analysis</Link></p>
                     </div>
 
                     {featuredArticle && (
-                        <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex">
+                        <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex" style={{maxHeight: '300px'}}>
                             <div className="md:w-1/2">
                                 <Link to={`/blog/${featuredArticle.id}`}>
-                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={`https://placehold.co/600x400/7DD3FC/0369a1?text=${featuredArticle.category}`} className="h-full w-full object-cover" />
+                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={featuredArticle.postThumbnailUrl || `https://placehold.co/600x400/7DD3FC/0369a1?text=Featured`} className="h-full w-full object-cover" />
                                 </Link>
                             </div>
                             <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
-                                <span className="text-xs font-semibold px-2 py-1 rounded-full inline-block mb-2 self-start bg-gray-100 text-gray-800 border">{featuredArticle.category}</span>
                                 <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3"><Link to={`/blog/${featuredArticle.id}`} className="hover:text-sky-600 transition">{featuredArticle.title}</Link></h2>
-                                <div className="text-sm md:text-base mb-4 text-gray-700" dangerouslySetInnerHTML={createMarkup(featuredArticle.content.substring(0, 150) + '...')} />
+                                <div className="text-sm md:text-base mb-4 text-gray-700" dangerouslySetInnerHTML={createMarkup(featuredArticle.content)} />
                                 <div className="flex items-center text-xs text-gray-500 mb-4">
-                                    <LazyLoadImage src={`https://placehold.co/32x32/E0F2FE/0369a1?text=${featuredArticle.author.substring(0,2)}`} alt={featuredArticle.author} className="w-6 h-6 rounded-full mr-2" effect="blur" />
-                                    <span>{featuredArticle.author} </span><span className="mx-2">|</span><span>{new Date(featuredArticle.createdAt).toLocaleDateString()}</span>
+                                    <span>{new Date(featuredArticle.createdAt).toLocaleDateString()}</span>
                                 </div>
                                 <Link to={`/blog/${featuredArticle.id}`} className="font-semibold py-2 px-6 rounded-lg text-center self-start text-sm text-white bg-sky-500 transition duration-300 hover:bg-sky-600">Read Full Article</Link>
                             </div>
                         </div>
                     )}
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-5">
                         {regularArticles.length > 0 ? (
                             regularArticles.map((article) => (
                                 <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
                                     <Link to={`/blog/${article.id}`}>
-                                        <LazyLoadImage alt={article.title} effect="blur" src={`https://placehold.co/400x250/BAE6FD/0369a1?text=${article.category}`} className="h-48 w-full object-cover" />
+                                        <LazyLoadImage alt={article.title} effect="blur" src={article.postThumbnailUrl || `https://placehold.co/400x250/BAE6FD/0369a1?text=Thumbnail`} className="h-32 w-full object-cover" />
                                     </Link>
-                                    <div className="p-6 flex flex-col flex-grow">
-                                        <div className="mb-3">
-                                            <span className="text-xs font-semibold px-2 py-1 rounded-full inline-block mr-2 bg-gray-100 text-gray-800 border">{article.category}</span>
-                                            <span className="text-xs text-gray-500">{new Date(article.createdAt).toLocaleDateString()}</span>
-                                        </div>
-                                        <h3 className="text-xl font-bold text-gray-900 mb-2"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
-                                        <div className="text-sm text-gray-600 mb-3 flex-grow" dangerouslySetInnerHTML={createMarkup(article.content.substring(0, 100) + '...')} />
+                                    <div className="p-4 flex flex-col flex-grow">
+                                        <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
                                         <div className="flex items-center text-xs text-gray-500 mt-auto pt-3 border-t border-gray-100">
-                                            <LazyLoadImage src={`https://placehold.co/32x32/E0F2FE/0ea5e9?text=${article.author.substring(0,2)}`} alt={article.author} className="w-6 h-6 rounded-full mr-2" effect="blur" />
-                                            <span>{article.author}</span>
+                                            <span>{new Date(article.createdAt).toLocaleDateString()}</span>
                                         </div>
                                     </div>
                                 </div>
