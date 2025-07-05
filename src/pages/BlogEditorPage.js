@@ -1,147 +1,158 @@
+// treishvaam-finance-frontend/src/pages/BlogEditorPage.js
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import apiClient from '../services/api';
-
-// Import the new editor and its CSS
+import { getPost, createPost, updatePost } from '../apiConfig';
 import SunEditor from 'suneditor-react';
-import 'suneditor/dist/css/suneditor.min.css'; 
-
-const categories = ['Stocks', 'Crypto', 'Trading', 'News'];
+import 'suneditor/dist/css/suneditor.min.css';
 
 const BlogEditorPage = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
-  
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [author, setAuthor] = useState('Admin');
-  const [category, setCategory] = useState(categories[0]);
-  const [isFeatured, setIsFeatured] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [title, setTitle] = useState('');
+    const [content, setContent] = useState('');
+    const [postThumbnail, setPostThumbnail] = useState(null);
+    const [coverImage, setCoverImage] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-  // This is the function that connects the editor's upload button to our backend
-  const handleImageUploadBefore = (files, info, uploadHandler) => {
-    const formData = new FormData();
-    formData.append('file', files[0]);
+    useEffect(() => {
+        if (id) {
+            setLoading(true);
+            const fetchPost = async () => {
+                try {
+                    const response = await getPost(id);
+                    setTitle(response.data.title);
+                    setContent(response.data.content);
+                } catch (err) {
+                    setError('Failed to fetch post data.');
+                    console.error(err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchPost();
+        } else {
+            setTitle('');
+            setContent('');
+            setPostThumbnail(null);
+            setCoverImage(null);
+            setError(null);
+        }
+    }, [id]);
 
-    apiClient.post('/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    .then(response => {
-      // The editor expects the response in this specific format
-      const res = {
-        result: [
-          {
-            url: response.data.url,
-            name: files[0].name,
-            size: files[0].size,
-          },
-        ],
-      };
-      uploadHandler(res);
-    })
-    .catch(error => {
-      console.error("Image upload failed", error);
-      uploadHandler(error.toString());
-    });
-  };
+    const handleContentChange = (newContent) => {
+        setContent(newContent);
+    };
 
-  useEffect(() => {
-    if (id) {
-      setIsLoading(true);
-      apiClient.get(`/posts/${id}`)
-        .then(response => {
-          const post = response.data;
-          setTitle(post.title);
-          setAuthor(post.author);
-          setCategory(post.category || categories[0]);
-          setIsFeatured(post.isFeatured || false);
-          setContent(post.content || '');
-        })
-        .catch(err => setError('Failed to load post.'))
-        .finally(() => setIsLoading(false));
-    }
-  }, [id]);
+    const handleFileChange = (setter) => (e) => {
+        setter(e.target.files[0]);
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-    
-    const postData = { title, content, author, category, isFeatured };
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        const postData = { title, content, postThumbnail, coverImage };
 
-    try {
-      if (id) {
-        await apiClient.put(`/posts/${id}`, postData);
-      } else {
-        await apiClient.post('/posts', postData);
-      }
-      navigate('/dashboard/manage-posts');
-    } catch (err) {
-      setError('Failed to save the post. Please try again.');
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  if (isLoading && id) return <p>Loading post for editing...</p>;
+        try {
+            if (id) {
+                await updatePost(id, postData);
+            } else {
+                await createPost(postData);
+            }
+            navigate('/manage-posts');
+        } catch (err) {
+            setError('Failed to save the post. Please check the details and try again.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">{id ? 'Edit Blog Post' : 'Create New Blog Post'}</h1>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div>
-          <label className="block text-lg font-medium">Title</label>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md" required />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-lg font-medium">Author</label>
-              <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md" required />
+    return (
+        <div className="flex h-screen bg-gray-50 overflow-hidden">
+            {/* Left Column for Controls */}
+            <div className="w-96 flex-shrink-0 p-6 bg-white shadow-xl flex flex-col">
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">{id ? 'Edit Post' : 'Create New Post'}</h1>
+                
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">{error}</div>}
+
+                <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col flex-grow min-h-0">
+                    {/* Scrollable area for form fields */}
+                    <div className="flex-grow space-y-6 overflow-y-auto pr-3">
+                        <div>
+                            <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
+                            <input
+                                type="text"
+                                id="title"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+                                required
+                            />
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="postThumbnail" className="block text-sm font-medium text-gray-700">Post Thumbnail</label>
+                            <input
+                                type="file"
+                                id="postThumbnail"
+                                onChange={handleFileChange(setPostThumbnail)}
+                                className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                            />
+                            {id && <p className="text-xs text-gray-500 mt-1">Leave blank to keep the existing thumbnail.</p>}
+                        </div>
+
+                        <div>
+                            <label htmlFor="coverImage" className="block text-sm font-medium text-gray-700">Cover Image</label>
+                            <input
+                                type="file"
+                                id="coverImage"
+                                onChange={handleFileChange(setCoverImage)}
+                                className="mt-1 block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"
+                            />
+                            {id && <p className="text-xs text-gray-500 mt-1">Leave blank to keep the existing cover image.</p>}
+                        </div>
+                    </div>
+
+                    {/* Non-scrolling save button at the bottom */}
+                    <div className="flex-shrink-0 mt-auto pt-6">
+                        <button
+                            type="submit"
+                            form="blog-editor-form"
+                            disabled={loading}
+                            className="w-full inline-flex justify-center py-3 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-sky-400"
+                        >
+                            {loading ? 'Saving...' : 'Save Post'}
+                        </button>
+                    </div>
+                </form>
             </div>
-            <div>
-              <label className="block text-lg font-medium">Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2 mt-1 border rounded-md">
-                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-              </select>
+
+            {/* Right Column for SunEditor */}
+            <div className="flex-grow p-6 flex flex-col">
+                <div className="w-full h-full">
+                    <SunEditor
+                        setContents={content}
+                        onChange={handleContentChange}
+                        setOptions={{
+                            height: '100%', // Fills the parent div's height
+                            buttonList: [
+                                ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'],
+                                ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                                ['removeFormat'], ['outdent', 'indent'],
+                                ['align', 'horizontalRule', 'list', 'lineHeight'],
+                                ['table', 'link', 'image'],
+                                ['fullScreen', 'showBlocks', 'codeView'],
+                            ],
+                        }}
+                    />
+                </div>
             </div>
         </div>
-        <div className="flex items-center">
-            <input type="checkbox" id="isFeatured" checked={isFeatured} onChange={(e) => setIsFeatured(e.target.checked)} className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
-            <label htmlFor="isFeatured" className="ml-2 block text-sm text-gray-900">Mark as Featured Post</label>
-        </div>
-        <div>
-          <label className="block text-lg font-medium">Content</label>
-          <SunEditor
-            setContents={content}
-            onChange={setContent}
-            onImageUploadBefore={handleImageUploadBefore}
-            setOptions={{
-              height: 200,
-              buttonList: [
-                ['undo', 'redo'],
-                ['font', 'fontSize', 'formatBlock'],
-                ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
-                ['removeFormat'],
-                ['outdent', 'indent'],
-                ['align', 'horizontalRule', 'list', 'lineHeight'],
-                ['table', 'link', 'image'],
-                ['fullScreen', 'showBlocks', 'codeView'],
-              ],
-            }}
-          />
-        </div>
-        {error && <p className="text-red-500">{error}</p>}
-        <div>
-          <button type="submit" disabled={isLoading} className="px-6 py-2 font-bold text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-green-300">
-            {isLoading ? 'Saving...' : (id ? 'Update Post' : 'Publish Post')}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
+    );
 };
 
 export default BlogEditorPage;
+
