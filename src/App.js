@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom'; // Import Navigate
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './layouts/MainLayout';
@@ -33,15 +33,21 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
+        {/* Redirect for old /manage-posts path */}
+        {/* MODIFIED: Added a redirect for /manage-posts */}
+        <Route path="/manage-posts" element={<Navigate to="/dashboard/manage-posts" replace />} />
+
         {/* Private Admin Routes */}
         <Route 
           path="/dashboard" 
           element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
         >
-          <Route index element={<ManagePostsPage />} />
-          <Route path="create-post" element={<BlogEditorPage />} />
-          <Route path="edit-post/:id" element={<BlogEditorPage />} />
-          <Route path="manage-posts" element={<ManagePostsPage />} />
+          {/* Explicitly set index to ManagePostsPage */}
+          <Route index element={<ManagePostsPage />} /> 
+          <Route path="blog/new" element={<BlogEditorPage />} /> 
+          <Route path="blog/edit/:id" element={<BlogEditorPage />} /> 
+          {/* Keep explicit manage-posts route for direct access if needed */}
+          <Route path="manage-posts" element={<ManagePostsPage />} /> 
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

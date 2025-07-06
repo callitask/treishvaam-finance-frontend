@@ -1,62 +1,123 @@
-import React, { useState, useEffect } from 'react';
-import apiClient from '../services/api';
+// src/pages/ManagePostsPage.js
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getPosts, deletePost, API_URL } from '../apiConfig'; // Import API_URL and relevant functions
 
 const ManagePostsPage = () => {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+    const [posts, setPosts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-  const fetchPosts = async () => {
-    try {
-      const response = await apiClient.get('/posts');
-      setPosts(response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchPosts = async () => {
+        try {
+            setLoading(true);
+            const response = await getPosts();
+            setPosts(response.data);
+            setError(null);
+        } catch (err) {
+            console.error("Failed to fetch posts:", err);
+            setError("Failed to load posts.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+    useEffect(() => {
+        fetchPosts();
+    }, []);
 
-  const handleDelete = async (postId) => {
-    if (window.confirm('Are you sure you want to delete this post?')) {
-      try {
-        await apiClient.delete(`/posts/${postId}`);
-        fetchPosts(); // Refresh the list
-      } catch (err) {
-        alert('Failed to delete post.');
-      }
-    }
-  };
+    const handleDelete = async (id) => {
+        if (window.confirm("Are you sure you want to delete this post?")) {
+            try {
+                await deletePost(id);
+                setPosts(posts.filter(post => post.id !== id));
+            } catch (err) {
+                console.error("Failed to delete post:", err);
+                setError("Failed to delete post.");
+            }
+        }
+    };
 
-  if (loading) return <p className="p-8">Loading posts...</p>;
+    if (loading) return <div className="text-center py-10">Loading posts...</div>;
+    if (error) return <div className="text-center py-10 text-red-500">{error}</div>;
 
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold mb-6">My Blog Posts</h1>
-      <div className="bg-white shadow-md rounded-lg">
-        <ul className="divide-y divide-gray-200">
-          {posts.length > 0 ? posts.map(post => (
-            <li key={post.id} className="p-4 flex justify-between items-center">
-              <div>
-                <p className="font-semibold">{post.title} {post.isFeatured && <span className="text-xs bg-yellow-200 text-yellow-800 font-bold px-2 py-1 rounded-full ml-2">Featured</span>}</p>
-                <p className="text-sm text-gray-500">Published on: {new Date(post.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div className="space-x-2">
-                <Link to={`/dashboard/edit-post/${post.id}`} className="px-3 py-1 text-sm text-white bg-yellow-500 rounded hover:bg-yellow-600">Edit</Link>
-                <button onClick={() => handleDelete(post.id)} className="px-3 py-1 text-sm text-white bg-red-600 rounded hover:bg-red-700">Delete</button>
-              </div>
-            </li>
-          )) : (
-            <li className="p-4 text-center text-gray-500">You haven't created any posts yet.</li>
-          )}
-        </ul>
-      </div>
-    </div>
-  );
+    return (
+        <div className="container mx-auto px-4 py-8">
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">Manage Blog Posts</h1>
+            <div className="flex justify-end mb-6">
+                {/* MODIFIED: Updated link to match the new route in App.js */}
+                <Link to="/dashboard/blog/new" className="px-6 py-2 bg-sky-500 text-white font-semibold rounded-lg hover:bg-sky-600 transition duration-300">
+                    Create New Post
+                </Link>
+            </div>
+            {posts.length === 0 ? (
+                <p className="text-center text-gray-600">No posts found. Start by creating a new one!</p>
+            ) : (
+                <div className="overflow-x-auto bg-white rounded-lg shadow">
+                    <table className="min-w-full leading-normal">
+                        <thead>
+                            <tr>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    Title
+                                </th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    Category
+                                </th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    Author
+                                </th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    Featured
+                                </th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                    Created At
+                                </th>
+                                <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {posts.map((post) => (
+                                <tr key={post.id}>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <div className="flex items-center">
+                                            {post.imageUrl && (
+                                                <div className="flex-shrink-0 w-10 h-10">
+                                                    <img className="w-full h-full rounded-full object-cover" src={`${API_URL}${post.imageUrl}`} alt={post.title} />
+                                                </div>
+                                            )}
+                                            <div className="ml-3">
+                                                <p className="text-gray-900 whitespace-no-wrap">{post.title}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <p className="text-gray-900 whitespace-no-wrap">{post.category}</p>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <p className="text-gray-900 whitespace-no-wrap">{post.author}</p>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <span className={`relative inline-block px-3 py-1 font-semibold leading-tight ${post.isFeatured ? 'text-green-900' : 'text-gray-900'}`}>
+                                            <span aria-hidden="true" className={`absolute inset-0 ${post.isFeatured ? 'bg-green-200 opacity-50' : 'bg-gray-200 opacity-50'} rounded-full`}></span>
+                                            <span className="relative">{post.isFeatured ? 'Yes' : 'No'}</span>
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                        <p className="text-gray-900 whitespace-no-wrap">{new Date(post.createdAt).toLocaleDateString()}</p>
+                                    </td>
+                                    <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
+                                        {/* MODIFIED: Updated link to match the new route in App.js */}
+                                        <Link to={`/dashboard/blog/edit/${post.id}`} className="text-indigo-600 hover:text-indigo-900 mr-3">Edit</Link>
+                                        <button onClick={() => handleDelete(post.id)} className="text-red-600 hover:text-red-900">Delete</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default ManagePostsPage;

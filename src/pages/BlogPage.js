@@ -99,7 +99,10 @@ const BlogPage = () => {
                         <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex" style={{maxHeight: '300px'}}>
                             <div className="md:w-1/2">
                                 <Link to={`/blog/${featuredArticle.id}`}>
-                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={`${API_URL}${featuredArticle.postThumbnailUrl}`} className="h-full w-full object-cover" />
+                                    {/* --- MODIFICATION START --- */}
+                                    {/* Changed featuredArticle.postThumbnailUrl to featuredArticle.imageUrl */}
+                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={`${API_URL}${featuredArticle.imageUrl}`} className="h-full w-full object-cover" />
+                                    {/* --- MODIFICATION END --- */}
                                 </Link>
                             </div>
                             <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
@@ -116,7 +119,10 @@ const BlogPage = () => {
                         {regularArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
                                 <Link to={`/blog/${article.id}`}>
-                                    <LazyLoadImage alt={article.title} effect="blur" src={`${API_URL}${article.postThumbnailUrl}`} className="h-32 w-full object-cover" />
+                                    {/* --- MODIFICATION START --- */}
+                                    {/* Changed article.postThumbnailUrl to article.imageUrl */}
+                                    <LazyLoadImage alt={article.title} effect="blur" src={`${API_URL}${article.imageUrl}`} className="h-32 w-full object-cover" />
+                                    {/* --- MODIFICATION END --- */}
                                 </Link>
                                 <div className="p-4 flex flex-col flex-grow">
                                     <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>

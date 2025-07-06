@@ -1,6 +1,6 @@
-
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import apiClient from '../services/api';
+// MODIFIED: Changed import from '../services/api' to '../apiConfig'
+import api from '../apiConfig'; // Use the consolidated API instance
 import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext();
@@ -33,7 +33,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await apiClient.post('/auth/login', { email, password });
+      // MODIFIED: Use the imported 'api' instance directly
+      const response = await api.post('/auth/login', { email, password });
       const { token } = response.data;
       const decoded = jwtDecode(token);
 

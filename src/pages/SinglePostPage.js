@@ -38,7 +38,10 @@ const SinglePostPage = () => {
         backgroundColor: '#f3f4f6',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundImage: `url(${API_URL}${post.coverImageUrl})`,
+        // --- MODIFICATION START ---
+        // Changed post.coverImageUrl to post.imageUrl to match backend model
+        backgroundImage: `url(${API_URL}${post.imageUrl})`, 
+        // --- MODIFICATION END ---
     };
 
     return (
