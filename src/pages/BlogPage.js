@@ -1,13 +1,9 @@
-// treishvaam-finance-frontend/src/pages/BlogPage.js
-
+// src/pages/BlogPage.js
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getPosts } from '../apiConfig';
+import { getPosts, API_URL } from '../apiConfig'; // Import API_URL
 import DOMPurify from 'dompurify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-
-// Note: If you haven't already, please install these required packages by running:
-// npm install dompurify react-lazy-load-image-component
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
@@ -37,7 +33,6 @@ const BlogPage = () => {
     const filteredPosts = useMemo(() => {
         let filtered = posts;
         if (selectedCategory && selectedCategory !== "All") {
-            // This assumes your post object has a 'category' property
             filtered = filtered.filter(p => p.category === selectedCategory);
         }
         if (searchTerm) {
@@ -55,7 +50,6 @@ const BlogPage = () => {
 
     const createMarkup = (html) => {
         const cleanHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-        // This function is for dangerouslySetInnerHTML, so we return the object structure it expects.
         return { __html: cleanHtml.substring(0, 150) + '...' };
     };
 
@@ -75,7 +69,6 @@ const BlogPage = () => {
                     </div>
                 </div>
             </section>
-
             <section className="bg-white pt-0 pb-0">
                 <div className="container mx-auto px-6 flex flex-col items-center">
                     <form className="w-full max-w-3xl flex items-center gap-2 justify-center mb-2" onSubmit={e => e.preventDefault()}>
@@ -96,19 +89,17 @@ const BlogPage = () => {
                     </div>
                 </div>
             </section>
-
             <section className="pt-0 pb-4 md:pt-0 md:pb-6 bg-white">
                 <div className="container mx-auto px-6">
                     <div className="p-3 rounded-lg mb-8 flex items-center shadow" style={{ backgroundColor: 'var(--danger-red-pale, #fee2e2)' }}>
                         <span className="breaking-button relative inline-flex items-center text-white text-xs font-bold uppercase px-3 py-1 rounded-md mr-2" style={{ backgroundColor: 'var(--danger-red, #ef4444)' }}><span className="pulse"></span>BREAKING</span>
                         <p className="text-sm flex-grow" style={{ color: 'var(--danger-red-dark, #b91c1c)' }}>Market Alert: Major tech stocks surge 3% following AI partnership announcements. <Link to="#" className="font-semibold hover:underline" style={{ color: 'var(--danger-red, #ef4444)' }}>Read full analysis</Link></p>
                     </div>
-
                     {featuredArticle && (
                         <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex" style={{maxHeight: '300px'}}>
                             <div className="md:w-1/2">
                                 <Link to={`/blog/${featuredArticle.id}`}>
-                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={featuredArticle.postThumbnailUrl || `https://placehold.co/600x400/7DD3FC/0369a1?text=Featured`} className="h-full w-full object-cover" />
+                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={`${API_URL}${featuredArticle.postThumbnailUrl}`} className="h-full w-full object-cover" />
                                 </Link>
                             </div>
                             <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
@@ -121,25 +112,20 @@ const BlogPage = () => {
                             </div>
                         </div>
                     )}
-
                     <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-5">
-                        {regularArticles.length > 0 ? (
-                            regularArticles.map((article) => (
-                                <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
-                                    <Link to={`/blog/${article.id}`}>
-                                        <LazyLoadImage alt={article.title} effect="blur" src={article.postThumbnailUrl || `https://placehold.co/400x250/BAE6FD/0369a1?text=Thumbnail`} className="h-32 w-full object-cover" />
-                                    </Link>
-                                    <div className="p-4 flex flex-col flex-grow">
-                                        <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
-                                        <div className="flex items-center text-xs text-gray-500 mt-auto pt-3 border-t border-gray-100">
-                                            <span>{new Date(article.createdAt).toLocaleDateString()}</span>
-                                        </div>
+                        {regularArticles.map((article) => (
+                            <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
+                                <Link to={`/blog/${article.id}`}>
+                                    <LazyLoadImage alt={article.title} effect="blur" src={`${API_URL}${article.postThumbnailUrl}`} className="h-32 w-full object-cover" />
+                                </Link>
+                                <div className="p-4 flex flex-col flex-grow">
+                                    <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
+                                    <div className="flex items-center text-xs text-gray-500 mt-auto pt-3 border-t border-gray-100">
+                                        <span>{new Date(article.createdAt).toLocaleDateString()}</span>
                                     </div>
                                 </div>
-                            ))
-                        ) : (
-                            !featuredArticle && <div className="col-span-full text-center text-gray-500 py-12 text-lg">No articles found.</div>
-                        )}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
