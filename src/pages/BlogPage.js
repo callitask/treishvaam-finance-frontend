@@ -4,8 +4,89 @@ import { Link } from 'react-router-dom';
 import { getPosts, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
+
+// Helper function to create a plain text snippet from HTML
+const createSnippet = (html, length = 100) => {
+    if (!html) return '';
+    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
+    const plainText = doc.body.textContent || "";
+    return plainText.substring(0, length) + (plainText.length > length ? '...' : '');
+};
+
+// Helper function to format date and time dynamically
+const formatDateTime = (dateString) => {
+    if (!dateString || isNaN(new Date(dateString))) {
+        return 'Date not available';
+    }
+    return new Intl.DateTimeFormat('en-US', { 
+        dateStyle: 'long', 
+        timeStyle: 'short' 
+    }).format(new Date(dateString));
+};
+
+// --- Intelligent PostCard Component ---
+const PostCard = ({ article }) => {
+    const [isPortrait, setIsPortrait] = useState(false);
+    const hasThumbnail = article.thumbnailUrl;
+
+    const handleImageLoad = (event) => {
+        const { naturalWidth, naturalHeight } = event.target;
+        if (naturalHeight > naturalWidth) {
+            setIsPortrait(true);
+        }
+    };
+    
+    const CardContent = () => (
+        <div className="flex flex-col flex-grow p-4">
+            <div className="text-xs text-gray-500 mb-2">
+                <span>By Treishvaam Finance</span>
+                <span className="mx-2">|</span>
+                <span>{formatDateTime(article.createdAt)}</span>
+            </div>
+            <h3 className="text-lg font-bold mb-2 text-gray-900">
+                <Link to={`/blog/${article.id}`} className="hover:text-sky-700 transition-colors">
+                    {article.title}
+                </Link>
+            </h3>
+            <p className="text-sm text-gray-700 mb-4">
+                {createSnippet(article.content, 120)}
+            </p>
+            <Link to={`/blog/${article.id}`} className="font-semibold text-sky-600 hover:text-sky-800 self-start mt-auto">
+                Read More
+            </Link>
+        </div>
+    );
+
+    return (
+        <div className="break-inside-avoid mb-4 border border-gray-200">
+            {!hasThumbnail ? (
+                 <CardContent />
+            ) : (
+                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
+                    <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'}`}>
+                        <Link to={`/blog/${article.id}`}>
+                            <LazyLoadImage
+                                alt={article.title}
+                                effect="blur"
+                                src={`${API_URL}${article.thumbnailUrl}`}
+                                className="w-full h-auto"
+                                onLoad={handleImageLoad}
+                            />
+                        </Link>
+                    </div>
+                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
+                        <CardContent />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -16,42 +97,29 @@ const BlogPage = () => {
 
     useEffect(() => {
         const fetchPosts = async () => {
-          try {
-            const response = await getPosts();
-            const sortedPosts = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            setPosts(sortedPosts);
-          } catch (err) {
-            setError('Failed to fetch blog posts.');
-            console.error(err);
-          } finally {
-            setLoading(false);
-          }
+            try {
+                const response = await getPosts();
+                setPosts(response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+            } catch (err) {
+                setError('Failed to fetch blog posts.');
+            } finally {
+                setLoading(false);
+            }
         };
         fetchPosts();
     }, []);
 
     const filteredPosts = useMemo(() => {
         let filtered = posts;
-        if (selectedCategory && selectedCategory !== "All") {
+        if (selectedCategory !== "All") {
             filtered = filtered.filter(p => p.category === selectedCategory);
         }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            filtered = filtered.filter(p =>
-                p.title.toLowerCase().includes(term) ||
-                (p.content && p.content.toLowerCase().includes(term))
-            );
+            filtered = filtered.filter(p => p.title.toLowerCase().includes(term) || (p.content && p.content.toLowerCase().includes(term)));
         }
         return filtered;
     }, [posts, selectedCategory, searchTerm]);
-
-    const featuredArticle = filteredPosts.find(p => p.isFeatured) || (filteredPosts.length > 0 ? filteredPosts[0] : null);
-    const regularArticles = filteredPosts.filter(p => p.id !== (featuredArticle ? featuredArticle.id : null));
-
-    const createMarkup = (html) => {
-        const cleanHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
-        return { __html: cleanHtml.substring(0, 150) + '...' };
-    };
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
@@ -62,93 +130,50 @@ const BlogPage = () => {
                 <div className="container mx-auto px-6 text-center">
                     <div className="max-w-3xl mx-auto">
                         <h1 className="text-4xl md:text-5xl font-bold mb-2 inline-block">
-                            <span style={{ color: 'var(--text-black, #111827)' }}>Financial </span>
-                            <span style={{ color: 'var(--primary-darker, #0284c7)' }}>News & Analysis</span>
+                            <span>Financial </span>
+                            <span className="text-sky-600">News & Analysis</span>
                         </h1>
                         <p className="text-lg md:text-xl text-gray-700">Stay ahead with timely market developments, expert analysis, and strategic insights tailored for your <strong className="font-semibold">trading</strong> journey.</p>
                     </div>
                 </div>
             </section>
-            <section className="bg-white pt-0 pb-0">
-                <div className="container mx-auto px-6 flex flex-col items-center">
-                    <form className="w-full max-w-3xl flex items-center gap-2 justify-center mb-2" onSubmit={e => e.preventDefault()}>
-                        <div className="relative flex-grow">
-                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                                <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                            </span>
-                            <input
-                                type="text"
-                                id="search-financial-news"
-                                name="searchFinancialNews"
-                                placeholder="Search financial news..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="search-input py-2.5 pl-10 pr-4 border border-black text-black w-full focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 text-sm rounded-none shadow-sm"
-                                aria-label="Search financial news"
-                                autoComplete="off"
-                            />
-                        </div>
-                        <button type="submit" className="px-6 py-2 bg-sky-500 text-white font-semibold hover:bg-sky-600 transition rounded-none">Search</button>
-                    </form>
-                    <div className="mt-0 mb-6 flex flex-wrap justify-center gap-2 md:gap-3">
-                        {allCategories.map(cat => (
-                            <button key={cat} className={`filter-button px-4 py-2 text-sm rounded-md transition-colors duration-200 border ${selectedCategory === cat ? 'active' : ''}`} onClick={() => setSelectedCategory(cat)}>
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </section>
-            <section className="pt-0 pb-4 md:pt-0 md:pb-6 bg-white">
+
+            <section className="bg-white pt-0 pb-12">
                 <div className="container mx-auto px-6">
-                    <div className="p-3 rounded-lg mb-8 flex items-center shadow" style={{ backgroundColor: 'var(--danger-red-pale, #fee2e2)' }}>
-                        <span className="breaking-button relative inline-flex items-center text-white text-xs font-bold uppercase px-3 py-1 rounded-md mr-2" style={{ backgroundColor: 'var(--danger-red, #ef4444)' }}><span className="pulse"></span>BREAKING</span>
-                        <p className="text-sm flex-grow" style={{ color: 'var(--danger-red-dark, #b91c1c)' }}>Market Alert: Major tech stocks surge 3% following AI partnership announcements. <Link to="#" className="font-semibold hover:underline" style={{ color: 'var(--danger-red, #ef4444)' }}>Read full analysis</Link></p>
-                    </div>
-                    {featuredArticle && (
-                        <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex items-stretch">
-                            <div className="md:w-1/2">
-                                <Link to={`/blog/${featuredArticle.id}`} className="block w-full h-full">
-                                    <LazyLoadImage
-                                        alt={featuredArticle.title}
-                                        effect="blur"
-                                        src={featuredArticle.thumbnailUrl ? `${API_URL}${featuredArticle.thumbnailUrl}` : 'https://placehold.co/600x400/e2e8f0/64748b?text=Image'}
-                                        className="w-full h-full object-cover"
-                                    />
-                                </Link>
-                            </div>
-                            <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
-                                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3"><Link to={`/blog/${featuredArticle.id}`} className="hover:text-sky-600 transition">{featuredArticle.title}</Link></h2>
-                                <div className="text-sm md:text-base mb-4 text-gray-700" dangerouslySetInnerHTML={createMarkup(featuredArticle.content)} />
-                                <div className="flex items-center text-xs text-gray-500 mb-4">
-                                    <span>{new Date(featuredArticle.createdAt).toLocaleDateString()}</span>
-                                </div>
-                                <Link to={`/blog/${featuredArticle.id}`} className="font-semibold py-2 px-6 rounded-lg text-center self-start text-sm text-white bg-sky-500 transition duration-300 hover:bg-sky-600">Read Full Article</Link>
-                            </div>
+                    <div className="mb-10 flex flex-col items-center">
+                         <form className="w-full max-w-3xl flex items-center gap-2 justify-center mb-4" onSubmit={e => e.preventDefault()}>
+                             <div className="relative flex-grow">
+                                 <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                     <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                                 </span>
+                                 <input
+                                     type="text"
+                                     placeholder="Search financial news..."
+                                     value={searchTerm}
+                                     onChange={e => setSearchTerm(e.target.value)}
+                                     className="search-input py-2.5 pl-10 pr-4 border border-gray-400 text-black w-full focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500 text-sm rounded-none shadow-sm"
+                                 />
+                             </div>
+                             <button type="submit" className="px-6 py-2.5 bg-sky-500 text-white font-semibold hover:bg-sky-600 transition rounded-none text-sm">Search</button>
+                         </form>
+                        <div className="flex flex-wrap justify-center gap-2">
+                            {allCategories.map(cat => (
+                                <button key={cat} className={`filter-button px-3 py-1.5 text-sm rounded-none transition-colors duration-200 border ${selectedCategory === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-400 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
+                                    {cat}
+                                </button>
+                            ))}
                         </div>
-                    )}
-                    <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-5">
-                        {regularArticles.map((article) => (
-                            <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
-                                <Link to={`/blog/${article.id}`}>
-                                    <LazyLoadImage
-                                        alt={article.title}
-                                        effect="blur"
-                                        src={article.thumbnailUrl ? `${API_URL}${article.thumbnailUrl}` : 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Thumbnail'}
-                                        className="h-32 w-full object-cover"
-                                        style={{ aspectRatio: '1 / 1' }}
-                                        width="300"
-                                        height="300"
-                                    />
-                                </Link>
-                                <div className="p-4 flex flex-col flex-grow">
-                                    <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
-                                    <div className="flex items-center text-xs text-gray-500 mt-auto pt-3 border-t border-gray-100">
-                                        <span>{new Date(article.createdAt).toLocaleDateString()}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
+                    </div>
+
+                    {/* --- Masonry Column Layout --- */}
+                    <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
+                        {filteredPosts.length > 0 ? (
+                            filteredPosts.map((article) => (
+                                <PostCard key={article.id} article={article} />
+                            ))
+                        ) : (
+                            <p className="text-center p-10">No posts found.</p>
+                        )}
                     </div>
                 </div>
             </section>
