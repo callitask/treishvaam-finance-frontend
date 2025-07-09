@@ -1,7 +1,7 @@
 // src/pages/SinglePostPage.js
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPost, API_URL } from '../apiConfig'; // Import API_URL
+import { getPost, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 
 const SinglePostPage = () => {
@@ -35,13 +35,11 @@ const SinglePostPage = () => {
 
     const coverImageStyle = {
         height: '400px',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#f3f4f6', // Default gray banner
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        // --- MODIFICATION START ---
-        // Changed post.coverImageUrl to post.imageUrl to match backend model
-        backgroundImage: `url(${API_URL}${post.imageUrl})`, 
-        // --- MODIFICATION END ---
+        // MODIFIED: Use post.coverImageUrl if available, otherwise fallback to 'none' for background
+        backgroundImage: post.coverImageUrl ? `url(${API_URL}${post.coverImageUrl})` : 'none',
     };
 
     return (
