@@ -1,7 +1,7 @@
 // src/pages/BlogPage.js
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getPosts, API_URL } from '../apiConfig'; // Import API_URL
+import { getPosts, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 
@@ -76,7 +76,17 @@ const BlogPage = () => {
                             <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
                                 <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                             </span>
-                            <input type="text" placeholder="Search financial news..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="search-input py-2.5 pl-10 pr-4 border border-black text-black w-full focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 text-sm rounded-none shadow-sm" />
+                            <input
+                                type="text"
+                                id="search-financial-news"
+                                name="searchFinancialNews"
+                                placeholder="Search financial news..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="search-input py-2.5 pl-10 pr-4 border border-black text-black w-full focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-500 text-sm rounded-none shadow-sm"
+                                aria-label="Search financial news"
+                                autoComplete="off"
+                            />
                         </div>
                         <button type="submit" className="px-6 py-2 bg-sky-500 text-white font-semibold hover:bg-sky-600 transition rounded-none">Search</button>
                     </form>
@@ -96,13 +106,15 @@ const BlogPage = () => {
                         <p className="text-sm flex-grow" style={{ color: 'var(--danger-red-dark, #b91c1c)' }}>Market Alert: Major tech stocks surge 3% following AI partnership announcements. <Link to="#" className="font-semibold hover:underline" style={{ color: 'var(--danger-red, #ef4444)' }}>Read full analysis</Link></p>
                     </div>
                     {featuredArticle && (
-                        <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex" style={{maxHeight: '300px'}}>
+                        <div className="rounded-xl shadow-lg overflow-hidden mb-10 md:flex items-stretch">
                             <div className="md:w-1/2">
-                                <Link to={`/blog/${featuredArticle.id}`}>
-                                    {/* --- MODIFICATION START --- */}
-                                    {/* Changed featuredArticle.postThumbnailUrl to featuredArticle.imageUrl */}
-                                    <LazyLoadImage alt={featuredArticle.title} effect="blur" src={`${API_URL}${featuredArticle.imageUrl}`} className="h-full w-full object-cover" />
-                                    {/* --- MODIFICATION END --- */}
+                                <Link to={`/blog/${featuredArticle.id}`} className="block w-full h-full">
+                                    <LazyLoadImage
+                                        alt={featuredArticle.title}
+                                        effect="blur"
+                                        src={featuredArticle.thumbnailUrl ? `${API_URL}${featuredArticle.thumbnailUrl}` : 'https://placehold.co/600x400/e2e8f0/64748b?text=Image'}
+                                        className="w-full h-full object-cover"
+                                    />
                                 </Link>
                             </div>
                             <div className="md:w-1/2 p-6 md:p-8 flex flex-col justify-center">
@@ -119,10 +131,15 @@ const BlogPage = () => {
                         {regularArticles.map((article) => (
                             <div key={article.id} className="bg-white rounded-xl shadow-lg overflow-hidden flex flex-col">
                                 <Link to={`/blog/${article.id}`}>
-                                    {/* --- MODIFICATION START --- */}
-                                    {/* Changed article.postThumbnailUrl to article.imageUrl */}
-                                    <LazyLoadImage alt={article.title} effect="blur" src={`${API_URL}${article.imageUrl}`} className="h-32 w-full object-cover" />
-                                    {/* --- MODIFICATION END --- */}
+                                    <LazyLoadImage
+                                        alt={article.title}
+                                        effect="blur"
+                                        src={article.thumbnailUrl ? `${API_URL}${article.thumbnailUrl}` : 'https://placehold.co/400x300/e2e8f0/64748b?text=No+Thumbnail'}
+                                        className="h-32 w-full object-cover"
+                                        style={{ aspectRatio: '1 / 1' }}
+                                        width="300"
+                                        height="300"
+                                    />
                                 </Link>
                                 <div className="p-4 flex flex-col flex-grow">
                                     <h3 className="text-md font-bold text-gray-900 mb-2 flex-grow"><Link to={`/blog/${article.id}`} className="hover:text-sky-600 transition">{article.title} </Link></h3>
