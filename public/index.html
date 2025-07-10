@@ -11,6 +11,11 @@
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!-- Preload logo for LCP optimization -->
+    <link rel="preload" as="image" href="/logo.png" type="image/png" />
+    <!-- Optimize Google Fonts for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>TreishFin. Treishvaam Finance | Empowering Your Financial Journey</title>
     
     <script type="application/ld+json">

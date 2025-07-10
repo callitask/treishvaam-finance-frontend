@@ -1,5 +1,5 @@
 // src/pages/BlogPage.js
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { getPosts, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
@@ -37,7 +37,7 @@ const formatDateTime = (dateString) => {
 };
 
 // --- Intelligent PostCard Component ---
-const PostCard = ({ article }) => {
+const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = article.thumbnailUrl;
     const isFeatured = article.featured;
@@ -49,9 +49,15 @@ const PostCard = ({ article }) => {
         }
     };
 
-    const CardContent = () => (
+    const CardContent = ({ showFeaturedTag }) => (
         <div className="flex flex-col flex-grow p-4">
-            <div className="text-xs text-gray-500 mb-2">
+            {showFeaturedTag && (
+                <div className="mb-2">
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider inline-block" style={{letterSpacing: '0.08em'}}>Featured</span>
+                </div>
+            )}
+            <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
+                {/* If featured tag is shown, add left margin for spacing */}
                 <span>By Treishvaam Finance</span>
                 <span className="mx-2">|</span>
                 <span>{formatDateTime(article.createdAt)}</span>
@@ -72,22 +78,18 @@ const PostCard = ({ article }) => {
 
     return (
         <div className="break-inside-avoid mb-4 border border-gray-200 relative">
-            {isFeatured && (
-                <div className="absolute top-2 left-2 z-10">
-                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
-                </div>
-            )}
+            {/* For posts with no thumbnail and featured, show tag inline above content */}
             {!hasThumbnail ? (
-                 <CardContent />
+                <CardContent showFeaturedTag={isFeatured} />
             ) : (
-                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
+                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}> 
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
                             <LazyLoadImage
                                 alt={article.title}
                                 effect="blur"
                                 src={`${API_URL}${article.thumbnailUrl}`}
-                                className="w-full h-auto rounded-t-lg"
+                                className="w-full h-auto rounded-t-lg object-contain"
                                 onLoad={handleImageLoad}
                             />
                         </Link>
@@ -97,14 +99,14 @@ const PostCard = ({ article }) => {
                             </div>
                         )}
                     </div>
-                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
+                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}> 
                         <CardContent />
                     </div>
                 </div>
             )}
         </div>
     );
-};
+});
 
 
 const BlogPage = () => {
