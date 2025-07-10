@@ -23,11 +23,7 @@ const Navbar = () => {
                 : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
         }`;
 
-    const handleLogout = () => {
-        logout();
-        navigate('/');
-        setMobileMenuOpen(false);
-    };
+    // Removed unused handleLogout to fix CI build error
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
