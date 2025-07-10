@@ -15,6 +15,7 @@ import BlogEditorPage from './pages/BlogEditorPage';
 import ManagePostsPage from './pages/ManagePostsPage';
 import SettingsPage from './pages/SettingsPage';
 import SinglePostPage from './pages/SinglePostPage';
+import DashboardPage from './pages/DashboardPage'; // Import DashboardPage
 
 function App() {
   return (
@@ -42,12 +43,11 @@ function App() {
           path="/dashboard" 
           element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
         >
-          {/* Explicitly set index to ManagePostsPage */}
-          <Route index element={<ManagePostsPage />} /> 
-          <Route path="blog/new" element={<BlogEditorPage />} /> 
-          <Route path="blog/edit/:id" element={<BlogEditorPage />} /> 
-          {/* Keep explicit manage-posts route for direct access if needed */}
-          <Route path="manage-posts" element={<ManagePostsPage />} /> 
+          {/* Explicitly set index to DashboardPage, manage-posts is a separate route */}
+          <Route index element={<DashboardPage />} />
+          <Route path="manage-posts" element={<ManagePostsPage />} />
+          <Route path="blog/new" element={<BlogEditorPage />} />
+          <Route path="blog/edit/:id" element={<BlogEditorPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>

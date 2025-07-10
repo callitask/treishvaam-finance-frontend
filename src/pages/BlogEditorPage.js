@@ -50,6 +50,7 @@ const BlogEditorPage = () => {
     const [coverPreview, setCoverPreview] = useState('');
     const coverCropCanvasRef = useRef(null);
 
+    const [createdAt, setCreatedAt] = useState('');
     useEffect(() => {
         if (id) {
             getPost(id)
@@ -58,12 +59,14 @@ const BlogEditorPage = () => {
                     setTitle(post.title);
                     setContent(post.content);
                     setCategory(post.category);
-                    // Match backend field name 'featured'
-                    setIsFeatured(post.featured); 
+                    setIsFeatured(post.featured);
+                    setCreatedAt(post.createdAt || new Date().toISOString());
                     if (post.thumbnailUrl) setThumbPreview(`${API_URL}${post.thumbnailUrl}`);
                     if (post.coverImageUrl) setCoverPreview(`${API_URL}${post.coverImageUrl}`);
                 })
                 .catch(() => setError('Failed to fetch post data.'));
+        } else {
+            setCreatedAt(new Date().toISOString());
         }
     }, [id]);
 
@@ -124,6 +127,24 @@ const BlogEditorPage = () => {
         return undefined;
     }
 
+    // Helper for date/time formatting
+    const formatDateTime = (dateString) => {
+        let dateToFormat = dateString;
+        if (!dateToFormat || isNaN(new Date(dateToFormat))) {
+            dateToFormat = new Date().toISOString();
+        }
+        const dateObj = new Date(dateToFormat);
+        if (isNaN(dateObj)) return 'Date not available';
+        return dateObj.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    };
+
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
             {modalState.isOpen && 
@@ -142,69 +163,67 @@ const BlogEditorPage = () => {
                     }}
                 />
             }
-            <div className="flex flex-row flex-grow overflow-hidden">
-                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 overflow-y-auto">
-                    <h1 className="text-2xl font-bold mb-6 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
+            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
+                {/* Left Column: Form */}
+                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col">
+                    <h1 className="text-2xl font-bold mb-2 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
+                    <div className="text-xs text-gray-500 mb-4">{formatDateTime(createdAt)}</div>
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                    
-                    <form id="blog-editor-form" onSubmit={handleSubmit} className="space-y-6">
+                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
                         <div>
                             <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
                             <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200" required />
                         </div>
-
                         <div>
                             <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
                             <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
                                 {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                             </select>
                         </div>
-
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Thumbnail (Any Size)</label>
                             {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto object-contain border rounded mb-2"/>}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
-
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Cover Image (16:9)</label>
                             {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto object-contain border rounded mb-2"/>}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
-                        
-                        <div>
+                        <div className="flex items-center justify-between">
                             <label className="flex items-center text-gray-700">
                                 <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
                                 <span className="ml-2">Mark as Featured Post</span>
                             </label>
                         </div>
+                        <button type="submit" form="blog-editor-form" className="bg-sky-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-sky-700 transition duration-300 mt-2">
+                            {id ? 'Update Post' : 'Publish Post'}
+                        </button>
                     </form>
                 </div>
-
+                {/* Right Column: SunEditor */}
                 <div className="w-full md:w-2/3 p-6 flex flex-col h-full">
                     <label className="block text-gray-700 font-semibold mb-2">Content</label>
-                    <div className="flex-grow h-full overflow-y-auto">
+                    <div className="flex-grow h-full">
                         <SunEditor
                             setContents={content}
                             onChange={setContent}
                             onImageUploadBefore={handleImageUploadBefore}
                             setOptions={{
+                                minHeight: '300px',
                                 height: '100%',
+                                maxHeight: '70vh',
+                                resizingBar: false,
                                 buttonList: [
                                     ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'], ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'], ['removeFormat'],
                                     ['fontColor', 'hiliteColor'], ['outdent', 'indent'], ['align', 'horizontalRule', 'list', 'lineHeight'],
                                     ['table', 'link', 'image', 'video'], ['fullScreen', 'showBlocks', 'codeView'], ['preview', 'print'],
                                 ],
                             }}
+                            width="100%"
                         />
                     </div>
                 </div>
-            </div>
-
-            <div className="flex-shrink-0 bg-white bg-opacity-75 backdrop-blur-sm border-t border-gray-200 px-6 py-3 flex justify-end">
-                <button type="submit" form="blog-editor-form" className="bg-sky-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-sky-700 transition duration-300">
-                    {id ? 'Update Post' : 'Publish Post'}
-                </button>
             </div>
         </div>
     );
