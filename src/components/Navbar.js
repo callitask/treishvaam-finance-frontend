@@ -6,8 +6,7 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const { auth, logout } = useAuth();
-    const navigate = useNavigate();
+    const { auth } = useAuth();
 
     const getLinkClass = ({ isActive }) =>
         `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
