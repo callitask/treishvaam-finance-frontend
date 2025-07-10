@@ -19,19 +19,28 @@ const createSnippet = (html, length = 100) => {
 
 // Helper function to format date and time dynamically
 const formatDateTime = (dateString) => {
-    if (!dateString || isNaN(new Date(dateString))) {
-        return 'Date not available';
+    let dateToFormat = dateString;
+    if (!dateToFormat || isNaN(new Date(dateToFormat))) {
+        // fallback to now if missing or invalid
+        dateToFormat = new Date().toISOString();
     }
-    return new Intl.DateTimeFormat('en-US', { 
-        dateStyle: 'long', 
-        timeStyle: 'short' 
-    }).format(new Date(dateString));
+    const dateObj = new Date(dateToFormat);
+    if (isNaN(dateObj)) return 'Date not available';
+    return dateObj.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+    });
 };
 
 // --- Intelligent PostCard Component ---
 const PostCard = ({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = article.thumbnailUrl;
+    const isFeatured = article.featured;
 
     const handleImageLoad = (event) => {
         const { naturalWidth, naturalHeight } = event.target;
@@ -39,7 +48,7 @@ const PostCard = ({ article }) => {
             setIsPortrait(true);
         }
     };
-    
+
     const CardContent = () => (
         <div className="flex flex-col flex-grow p-4">
             <div className="text-xs text-gray-500 mb-2">
@@ -62,21 +71,31 @@ const PostCard = ({ article }) => {
     );
 
     return (
-        <div className="break-inside-avoid mb-4 border border-gray-200">
+        <div className="break-inside-avoid mb-4 border border-gray-200 relative">
+            {isFeatured && (
+                <div className="absolute top-2 left-2 z-10">
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
+                </div>
+            )}
             {!hasThumbnail ? (
                  <CardContent />
             ) : (
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
-                    <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'}`}>
+                    <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
                             <LazyLoadImage
                                 alt={article.title}
                                 effect="blur"
                                 src={`${API_URL}${article.thumbnailUrl}`}
-                                className="w-full h-auto"
+                                className="w-full h-auto rounded-t-lg"
                                 onLoad={handleImageLoad}
                             />
                         </Link>
+                        {isFeatured && (
+                            <div className="absolute top-2 left-2 z-10">
+                                <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
+                            </div>
+                        )}
                     </div>
                     <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
                         <CardContent />

@@ -53,11 +53,8 @@ const Navbar = () => {
                     </div>
                     <div className="hidden md:block">
                         <div className="ml-4 flex items-center md:ml-6">
-                            {auth.token ? (
-                                <>
-                                    <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
-                                    <button onClick={handleLogout} className="ml-4 text-sm font-medium text-gray-700 hover:text-sky-600 transition duration-300">Logout</button>
-                                </>
+                            {auth.isAuthenticated ? (
+                                <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
                             ) : (
                                 <Link to="/login" className="ml-4 px-4 py-2 rounded-md text-sm font-medium text-white cta-button-primary hover:bg-sky-700 transition duration-300">Login</Link>
                             )}
@@ -88,11 +85,8 @@ const Navbar = () => {
                         </div>
                         <div className="pt-4 pb-3 border-t border-gray-200">
                             <div className="px-2 space-y-1">
-                                {auth.token ? (
-                                    <>
-                                        <NavLink to="/dashboard" className={getMobileLinkClass} onClick={closeMobileMenu}>Dashboard</NavLink>
-                                        <button onClick={handleLogout} className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900">Logout</button>
-                                    </>
+                                {auth.isAuthenticated ? (
+                                    <NavLink to="/dashboard" className={getMobileLinkClass} onClick={closeMobileMenu}>Dashboard</NavLink>
                                 ) : (
                                     <Link to="/login" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white cta-button-primary hover:bg-sky-700" onClick={closeMobileMenu}>Login</Link>
                                 )}
