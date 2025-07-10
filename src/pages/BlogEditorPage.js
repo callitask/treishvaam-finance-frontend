@@ -1,14 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-
-// Import editor and its CSS
-import SunEditor from 'suneditor-react';
-import 'suneditor/dist/css/suneditor.min.css'; 
-
-import ReactCrop from 'react-image-crop';
+import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
+import ReactCrop from 'react-image-crop';
 import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
 
+const SunEditor = React.lazy(() => import('suneditor-react'));
 const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
 
 // --- Helper Functions ---
@@ -205,23 +202,25 @@ const BlogEditorPage = () => {
                 <div className="w-full md:w-2/3 p-6 flex flex-col h-full">
                     <label className="block text-gray-700 font-semibold mb-2">Content</label>
                     <div className="flex-grow h-full">
-                        <SunEditor
-                            setContents={content}
-                            onChange={setContent}
-                            onImageUploadBefore={handleImageUploadBefore}
-                            setOptions={{
-                                minHeight: '300px',
-                                height: '100%',
-                                maxHeight: '70vh',
-                                resizingBar: false,
-                                buttonList: [
-                                    ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'], ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'], ['removeFormat'],
-                                    ['fontColor', 'hiliteColor'], ['outdent', 'indent'], ['align', 'horizontalRule', 'list', 'lineHeight'],
-                                    ['table', 'link', 'image', 'video'], ['fullScreen', 'showBlocks', 'codeView'], ['preview', 'print'],
-                                ],
-                            }}
-                            width="100%"
-                        />
+                        <Suspense fallback={<div>Loading editor...</div>}>
+                            <SunEditor
+                                setContents={content}
+                                onChange={setContent}
+                                onImageUploadBefore={handleImageUploadBefore}
+                                setOptions={{
+                                    minHeight: '300px',
+                                    height: '100%',
+                                    maxHeight: '70vh',
+                                    resizingBar: false,
+                                    buttonList: [
+                                        ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'], ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'], ['removeFormat'],
+                                        ['fontColor', 'hiliteColor'], ['outdent', 'indent'], ['align', 'horizontalRule', 'list', 'lineHeight'],
+                                        ['table', 'link', 'image', 'video'], ['fullScreen', 'showBlocks', 'codeView'], ['preview', 'print'],
+                                    ],
+                                }}
+                                width="100%"
+                            />
+                        </Suspense>
                     </div>
                 </div>
             </div>

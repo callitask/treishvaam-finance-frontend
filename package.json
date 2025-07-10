@@ -50,4 +50,11 @@
       "last 1 safari version"
     ]
   }
+  ,
+  "overrides": {
+    "react-quill": {
+      "react": "$react",
+      "react-dom": "$react-dom"
+    }
+  }
 }
