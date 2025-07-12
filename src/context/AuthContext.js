@@ -38,18 +38,22 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // MODIFIED: Use the imported 'api' instance directly
       const response = await api.post('/auth/login', { email, password });
       const { token } = response.data;
       const decoded = jwtDecode(token);
 
       localStorage.setItem('token', token);
       setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
-      return true;
+      return { success: true };
     } catch (error) {
-      console.error('Login failed:', error);
+      let message = 'Login failed. Please try again.';
+      if (error.response && error.response.data && error.response.data.message) {
+        message = error.response.data.message;
+      } else if (error.message) {
+        message = error.message;
+      }
       setAuth({ token: null, user: null, isAuthenticated: false });
-      return false;
+      return { success: false, message };
     }
   };
 

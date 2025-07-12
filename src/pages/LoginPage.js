@@ -18,11 +18,11 @@ const LoginPage = () => {
         setError('');
         setIsLoading(true);
         try {
-            const success = await login(email, password);
-            if (success) {
+            const result = await login(email, password);
+            if (result.success) {
                 navigate('/dashboard');
             } else {
-                setError('Login failed. Please check your credentials.');
+                setError(result.message || 'Login failed. Please check your credentials.');
             }
         } catch (err) {
             console.error('Login error:', err);
