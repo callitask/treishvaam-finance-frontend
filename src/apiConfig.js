@@ -8,7 +8,6 @@ export const API_URL = 'https://backend.treishvaamgroup.com';
 const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
-    // --- THIS IS THE SECRET HEADER THAT WAS ADDED ---
     'X-Internal-Secret': 'YourSuperSecretValue123!@#'
   }
 });
@@ -33,17 +32,21 @@ export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 
+// --- FIX: This function now correctly merges the default headers ---
 export const createPost = (formData) => {
   return api.post('/posts', formData, {
     headers: {
+      ...api.defaults.headers.common, // Includes the default headers
       'Content-Type': 'multipart/form-data',
     },
   });
 };
 
+// --- FIX: This function is also updated for consistency ---
 export const updatePost = (id, formData) => {
   return api.put(`/posts/${id}`, formData, {
     headers: {
+      ...api.defaults.headers.common, // Includes the default headers
       'Content-Type': 'multipart/form-data',
     },
   });
