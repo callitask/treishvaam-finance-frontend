@@ -33,21 +33,27 @@ export const getPost = (id) => api.get(`/posts/${id}`);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 
 // --- FIX: This function now correctly merges the default headers ---
+
 export const createPost = (formData) => {
+  const token = localStorage.getItem('token');
   return api.post('/posts', formData, {
     headers: {
-      ...api.defaults.headers.common, // Includes the default headers
       'Content-Type': 'multipart/form-data',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Internal-Secret': 'YourSuperSecretValue123!@#',
     },
   });
 };
 
 // --- FIX: This function is also updated for consistency ---
+
 export const updatePost = (id, formData) => {
+  const token = localStorage.getItem('token');
   return api.put(`/posts/${id}`, formData, {
     headers: {
-      ...api.defaults.headers.common, // Includes the default headers
       'Content-Type': 'multipart/form-data',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'X-Internal-Secret': 'YourSuperSecretValue123!@#',
     },
   });
 };
