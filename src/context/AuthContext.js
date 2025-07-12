@@ -18,15 +18,20 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        if (decoded.exp * 1000 > Date.now()) {
-            setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
+        // Check for token expiry and required fields
+        if (decoded.exp && decoded.exp * 1000 > Date.now() && decoded.sub) {
+          setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
         } else {
-            localStorage.removeItem('token');
+          localStorage.removeItem('token');
+          setAuth({ token: null, user: null, isAuthenticated: false });
         }
       } catch (error) {
         console.error("Invalid token:", error);
         localStorage.removeItem('token');
+        setAuth({ token: null, user: null, isAuthenticated: false });
       }
+    } else {
+      setAuth({ token: null, user: null, isAuthenticated: false });
     }
     setLoading(false);
   }, []);
