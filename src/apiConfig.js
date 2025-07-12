@@ -7,6 +7,10 @@ export const API_URL = 'https://backend.treishvaamgroup.com';
 // Create a single Axios instance for all API requests
 const api = axios.create({
   baseURL: `${API_URL}/api`,
+  headers: {
+    // --- THIS IS THE SECRET HEADER THAT WAS ADDED ---
+    'X-Internal-Secret': 'YourSuperSecretValue123!@#'
+  }
 });
 
 // Interceptor to add the JWT token to every request if it exists
