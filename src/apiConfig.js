@@ -1,8 +1,8 @@
 // src/apiConfig.js
 import axios from 'axios';
 
-// Export the base URL so it can be used elsewhere
-export const API_URL = 'http://localhost:8080';
+// The live backend URL
+export const API_URL = 'https://backend.treishvaamgroup.com';
 
 // Create a single Axios instance for all API requests
 const api = axios.create({
@@ -29,7 +29,6 @@ export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 
-// This function now correctly sends the FormData object directly from the editor.
 export const createPost = (formData) => {
   return api.post('/posts', formData, {
     headers: {
@@ -38,7 +37,6 @@ export const createPost = (formData) => {
   });
 };
 
-// This function also sends the FormData object directly for updates.
 export const updatePost = (id, formData) => {
   return api.put(`/posts/${id}`, formData, {
     headers: {
