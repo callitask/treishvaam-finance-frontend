@@ -8,7 +8,7 @@ export const API_URL = 'https://backend.treishvaamgroup.com';
 const api = axios.create({
   baseURL: `${API_URL}/api`,
   headers: {
-    'X-Internal-Secret': 'YourSuperSecretValue123!@#'
+    'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
   }
 });
 
@@ -40,7 +40,7 @@ export const createPost = (formData) => {
     headers: {
       'Content-Type': 'multipart/form-data',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Internal-Secret': 'YourSuperSecretValue123!@#',
+      'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm',
     },
   });
 };
@@ -53,7 +53,7 @@ export const updatePost = (id, formData) => {
     headers: {
       'Content-Type': 'multipart/form-data',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      'X-Internal-Secret': 'YourSuperSecretValue123!@#',
+      'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm',
     },
   });
 };
