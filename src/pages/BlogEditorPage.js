@@ -120,23 +120,7 @@ const BlogEditorPage = () => {
         return undefined;
     }
 
-    // Helper for date/time formatting
-    const formatDateTime = (dateString) => {
-        let dateToFormat = dateString;
-        if (!dateToFormat || isNaN(new Date(dateToFormat))) {
-            dateToFormat = new Date().toISOString();
-        }
-        const dateObj = new Date(dateToFormat);
-        if (isNaN(dateObj)) return 'Date not available';
-        return dateObj.toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        });
-    };
+    // ...existing code...
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
