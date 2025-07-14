@@ -81,27 +81,22 @@ const BlogEditorPage = () => {
         e.preventDefault();
         try {
             const formData = new FormData();
+            // Append each field as required by backend
+            formData.append('title', title);
+            formData.append('content', content);
+            formData.append('category', category);
+            formData.append('featured', isFeatured);
 
-            // CORRECTED: The key is now 'featured' to match the backend model.
-            const postData = { 
-                title, 
-                content, 
-                category, 
-                featured: isFeatured // Use 'featured' instead of 'isFeatured'
-            };
-            const postBlob = new Blob([JSON.stringify(postData)], { type: 'application/json' });
-            formData.append('post', postBlob);
-
+            // Append images if present
             if (thumbCropCanvasRef.current) {
                 const thumbBlob = await canvasToBlob(thumbCropCanvasRef.current);
-                if (thumbBlob) formData.append('postThumbnail', thumbBlob, 'thumbnail.png');
+                if (thumbBlob) formData.append('thumbnail', thumbBlob, 'thumbnail.png');
             }
-
             if (coverCropCanvasRef.current) {
                 const coverBlob = await canvasToBlob(coverCropCanvasRef.current);
                 if (coverBlob) formData.append('coverImage', coverBlob, 'cover.png');
             }
-            
+
             if (id) {
                 await updatePost(id, formData);
             } else {
