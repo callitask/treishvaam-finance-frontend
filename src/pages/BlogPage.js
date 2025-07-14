@@ -39,8 +39,11 @@ const formatDateTime = (dateString) => {
 // --- Intelligent PostCard Component ---
 const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
-    const hasThumbnail = article.thumbnailUrl;
+    const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
+
+    // FIX: Construct full image URL
+    const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${article.thumbnailUrl}` : null;
 
     const handleImageLoad = (event) => {
         const { naturalWidth, naturalHeight } = event.target;
@@ -85,13 +88,16 @@ const PostCard = memo(({ article }) => {
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}> 
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
-                            <LazyLoadImage
-                                alt={article.title}
-                                effect="blur"
-                                src={`${API_URL}${article.thumbnailUrl}`}
-                                className="w-full h-auto rounded-t-lg object-contain"
-                                onLoad={handleImageLoad}
-                            />
+                            {/* FIX: Only render image if thumbnailUrl exists and use fullThumbnailUrl */}
+                            {fullThumbnailUrl && (
+                                <LazyLoadImage
+                                    alt={article.title}
+                                    effect="blur"
+                                    src={fullThumbnailUrl}
+                                    className="w-full h-auto rounded-t-lg object-contain"
+                                    onLoad={handleImageLoad}
+                                />
+                            )}
                         </Link>
                         {isFeatured && (
                             <div className="absolute top-2 left-2 z-10">
