@@ -80,9 +80,9 @@ const ManagePostsPage = () => {
                                 <tr key={post.id}>
                                     <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                         <div className="flex items-center">
-                                            {post.imageUrl && (
+                                            {post.thumbnailUrl && (
                                                 <div className="flex-shrink-0 w-10 h-10">
-                                                    <img className="w-full h-full rounded-full object-cover" src={`${API_URL}${post.imageUrl}`} alt={post.title} />
+                                                    <img className="w-full h-full rounded-full object-cover" src={`${API_URL}${post.thumbnailUrl}`} alt={post.title} />
                                                 </div>
                                             )}
                                             <div className="ml-3">
