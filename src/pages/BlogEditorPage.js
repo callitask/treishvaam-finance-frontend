@@ -159,12 +159,12 @@ const BlogEditorPage = () => {
                         </div>
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Thumbnail (Any Size)</label>
-                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto object-contain border rounded mb-2"/>}
+                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="image-preview" />}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Cover Image (16:9)</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto object-contain border rounded mb-2"/>}
+                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="image-preview" />}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
                         <div className="flex items-center justify-between">
