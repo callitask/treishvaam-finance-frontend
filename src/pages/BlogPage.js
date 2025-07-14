@@ -67,7 +67,7 @@ const PostCard = memo(({ article }) => {
                     {article.title}
                 </Link>
             </h3>
-            <p className="text-sm text-gray-700 mb-4">
+            <p className="text-sm text-gray-700 mb-4 break-words post-preview-content">
                 {createSnippet(article.content, 120)}
             </p>
             <Link to={`/blog/${article.id}`} className="font-semibold text-sky-600 hover:text-sky-800 self-start mt-auto">
