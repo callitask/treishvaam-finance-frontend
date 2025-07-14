@@ -144,7 +144,7 @@ const BlogEditorPage = () => {
             }
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
                 {/* Left Column: Form */}
-                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col">
+                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
                     <h1 className="text-2xl font-bold mb-2 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
                     <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
@@ -161,12 +161,52 @@ const BlogEditorPage = () => {
                         </div>
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Thumbnail (Any Size)</label>
-                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="image-preview" />}
+                            {thumbPreview && (
+                                <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                    <img
+                                        src={thumbPreview}
+                                        alt="Thumbnail Preview"
+                                        style={{
+                                            display: 'block',
+                                            maxWidth: '300px',
+                                            maxHeight: '180px',
+                                            width: '100%',
+                                            height: 'auto',
+                                            aspectRatio: '16/9',
+                                            objectFit: 'contain',
+                                            marginTop: '1rem',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            background: '#f8fafc'
+                                        }}
+                                    />
+                                </div>
+                            )}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Cover Image (16:9)</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="image-preview" />}
+                            {coverPreview && (
+                                <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                    <img
+                                        src={coverPreview}
+                                        alt="Cover Preview"
+                                        style={{
+                                            display: 'block',
+                                            maxWidth: '400px',
+                                            maxHeight: '225px',
+                                            width: '100%',
+                                            height: 'auto',
+                                            aspectRatio: '16/9',
+                                            objectFit: 'contain',
+                                            marginTop: '1rem',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '0.5rem',
+                                            background: '#f8fafc'
+                                        }}
+                                    />
+                                </div>
+                            )}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
                         <div className="flex items-center justify-between">
