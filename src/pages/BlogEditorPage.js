@@ -75,6 +75,8 @@ const BlogEditorPage = () => {
             });
             reader.readAsDataURL(e.target.files[0]);
         }
+        // FIX: Allow re-selecting the same file
+        e.target.value = null;
     };
     
     const handleSubmit = async (e) => {
