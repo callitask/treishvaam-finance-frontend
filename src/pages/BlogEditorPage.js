@@ -1,3 +1,4 @@
+import imageCompression from 'browser-image-compression';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
@@ -67,13 +68,30 @@ const BlogEditorPage = () => {
         }
     }, [id]);
 
-    const onSelectFile = (e, type) => {
+    // Compress image before cropping/upload
+    const compressImage = async (file) => {
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        try {
+            console.log(`Original file size: ${file.size / 1024 / 1024} MB`);
+            const compressedFile = await imageCompression(file, options);
+            console.log(`Compressed file size: ${compressedFile.size / 1024 / 1024} MB`);
+            return compressedFile;
+        } catch (error) {
+            console.error("Error during compression:", error);
+            return file;
+        }
+    };
+
+    // Update file input handler to compress before cropping
+    const onSelectFile = async (e, type) => {
         if (e.target.files && e.target.files.length > 0) {
+            const originalFile = e.target.files[0];
+            const compressedFile = await compressImage(originalFile);
             const reader = new FileReader();
             reader.addEventListener('load', () => {
                 setModalState({ isOpen: true, type, src: reader.result?.toString() || '' });
             });
-            reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(compressedFile);
         }
         // FIX: Allow re-selecting the same file
         e.target.value = null;
