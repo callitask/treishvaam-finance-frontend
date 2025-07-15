@@ -15,6 +15,24 @@ const BlogEditorPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
+
+import imageCompression from 'browser-image-compression';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import 'suneditor/dist/css/suneditor.min.css';
+import 'react-image-crop/dist/ReactCrop.css';
+import ReactCrop from 'react-image-crop';
+import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
+
+const SunEditor = React.lazy(() => import('suneditor-react'));
+const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
+
+const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
+
+const BlogEditorPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('News');
@@ -97,47 +115,43 @@ const BlogEditorPage = () => {
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
-
-            // --- FIX: Using the correct localStorage key 'token' ---
+            
             const authToken = localStorage.getItem('token');
-            const fetchOptions = {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
-                }
+            const headers = {
+                'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
             };
             if (authToken) {
-                fetchOptions.headers['Authorization'] = `Bearer ${authToken}`;
+                headers['Authorization'] = `Bearer ${authToken}`;
             }
-            fetch(`${API_URL}/api/files/upload`, fetchOptions)
-                .then(res => {
-                    if (!res.ok) {
-                        throw new Error(`Server error: ${res.status}`);
-                    }
-                    return res.json();
-                })
-                .then(result => {
+            fetch(`${API_URL}/api/files/upload`, {
+                method: 'POST',
+                body: formData,
+                headers: headers
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Server responded with status: ${res.status}`);
+                }
+                return res.json();
+            })
+            .then(result => {
+                if (result && result.data) {
                     const response = {
-                        result: [
-                            {
-                                url: `${API_URL}${result.data}`,
-                                name: 'image.jpg'
-                            }
-                        ]
+                        result: [{
+                            url: `${API_URL}${result.data}`,
+                            name: result.data.split('/').pop() || 'image.jpg'
+                        }]
                     };
                     sunEditorUploadHandler(response);
-                })
-                .catch(err => {
-                    console.error("Image upload failed:", err.message);
-                    // Provide user-friendly feedback on failure
-                    if (err.message.includes('403')) {
-                        alert('You do not have permission to upload files. Please log in as an admin.');
-                    } else {
-                        alert('File upload failed. Please try again.');
-                    }
-                    sunEditorUploadHandler();
-                });
+                } else {
+                    throw new Error("Server response did not include image data.");
+                }
+            })
+            .catch(err => {
+                console.error("Image upload failed:", err.message);
+                alert(`Image upload failed: ${err.message}`);
+                sunEditorUploadHandler(); 
+            });
         }
         setModalState({ isOpen: false, type: null, src: '' });
     };
