@@ -133,45 +133,26 @@ const BlogEditorPage = () => {
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
-
-            const authToken = localStorage.getItem('token');
-            const headers = {
-                'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
-            };
-
-            if (authToken) {
-                headers['Authorization'] = `Bearer ${authToken}`;
-            }
-
-            fetch(`${API_URL}/api/files/upload`, {
-                method: 'POST',
-                body: formData,
-                headers: headers
-            })
-            .then(res => {
-                if (!res.ok) {
-                    throw new Error(`Server responded with status: ${res.status}`);
-                }
-                return res.json();
-            })
-            .then(result => {
-                if (result && result.data) {
-                    const response = {
-                        result: [{
-                            url: `${API_URL}${result.data}`,
-                            name: result.data.split('/').pop() || 'image.jpg'
-                        }]
-                    };
-                    sunEditorUploadHandler(response);
-                } else {
-                    throw new Error("Server response did not include the image data.");
-                }
-            })
-            .catch(err => {
-                console.error("Image upload failed:", err.message);
-                alert(`Image upload failed. ${err.message}`);
-                sunEditorUploadHandler();
-            });
+            uploadFile(formData)
+                .then(res => {
+                    const result = res.data;
+                    if (result && result.data) {
+                        const response = {
+                            result: [{
+                                url: `${API_URL}${result.data}`,
+                                name: result.data.split('/').pop() || 'image.jpg'
+                            }]
+                        };
+                        sunEditorUploadHandler(response);
+                    } else {
+                        throw new Error("Server response did not include the image data.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Image upload failed:", err);
+                    alert("Image upload failed. Please try again.");
+                    sunEditorUploadHandler();
+                });
         }
         setModalState({ isOpen: false, type: null, src: '' });
     };
