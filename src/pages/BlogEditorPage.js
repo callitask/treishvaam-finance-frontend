@@ -99,19 +99,22 @@ const BlogEditorPage = () => {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
             const authToken = localStorage.getItem('authToken');
-            fetch(`${API_URL}/api/files/upload`, {
+            const fetchOptions = {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${authToken}` },
                 body: formData,
-            })
-            .then(res => res.json())
-            .then(result => {
-                sunEditorUploadHandler(result);
-            })
-            .catch(err => {
-                console.error(err);
-                sunEditorUploadHandler();
-            });
+            };
+            if (authToken) {
+                fetchOptions.headers = { 'Authorization': `Bearer ${authToken}` };
+            }
+            fetch(`${API_URL}/api/files/upload`, fetchOptions)
+                .then(res => res.json())
+                .then(result => {
+                    sunEditorUploadHandler(result);
+                })
+                .catch(err => {
+                    console.error(err);
+                    sunEditorUploadHandler();
+                });
         }
         setModalState({ isOpen: false, type: null, src: '' });
     };
