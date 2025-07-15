@@ -33,6 +33,24 @@ const BlogEditorPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
 
+
+import imageCompression from 'browser-image-compression';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import 'suneditor/dist/css/suneditor.min.css';
+import 'react-image-crop/dist/ReactCrop.css';
+import ReactCrop from 'react-image-crop';
+import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
+
+const SunEditor = React.lazy(() => import('suneditor-react'));
+const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
+
+const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
+
+const BlogEditorPage = () => {
+    const { id } = useParams();
+    const navigate = useNavigate();
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('News');
@@ -115,14 +133,16 @@ const BlogEditorPage = () => {
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
-            
+
             const authToken = localStorage.getItem('token');
             const headers = {
                 'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
             };
+
             if (authToken) {
                 headers['Authorization'] = `Bearer ${authToken}`;
             }
+
             fetch(`${API_URL}/api/files/upload`, {
                 method: 'POST',
                 body: formData,
@@ -144,13 +164,13 @@ const BlogEditorPage = () => {
                     };
                     sunEditorUploadHandler(response);
                 } else {
-                    throw new Error("Server response did not include image data.");
+                    throw new Error("Server response did not include the image data.");
                 }
             })
             .catch(err => {
                 console.error("Image upload failed:", err.message);
-                alert(`Image upload failed: ${err.message}`);
-                sunEditorUploadHandler(); 
+                alert(`Image upload failed. ${err.message}`);
+                sunEditorUploadHandler();
             });
         }
         setModalState({ isOpen: false, type: null, src: '' });
@@ -180,8 +200,8 @@ const BlogEditorPage = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            {modalState.isOpen && 
-                <CropModal 
+            {modalState.isOpen &&
+                <CropModal
                     src={modalState.src}
                     type={modalState.type}
                     onClose={() => setModalState({isOpen: false, type: null, src: ''})}
