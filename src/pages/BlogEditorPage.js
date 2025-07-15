@@ -99,17 +99,17 @@ const BlogEditorPage = () => {
             formData.append('file', compressedFile, 'image.jpg');
 
             // --- FIX: Using the correct localStorage key 'token' ---
-            const authToken = localStorage.getItem('token'); 
-            
+            const authToken = localStorage.getItem('token');
             const fetchOptions = {
                 method: 'POST',
                 body: formData,
-                headers: {} 
+                headers: {
+                    'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
+                }
             };
             if (authToken) {
                 fetchOptions.headers['Authorization'] = `Bearer ${authToken}`;
             }
-            
             fetch(`${API_URL}/api/files/upload`, fetchOptions)
                 .then(res => {
                     if (!res.ok) {
