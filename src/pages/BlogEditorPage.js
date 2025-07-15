@@ -1,4 +1,3 @@
-
 import imageCompression from 'browser-image-compression';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -106,15 +105,32 @@ const BlogEditorPage = () => {
             if (authToken) {
                 fetchOptions.headers = { 'Authorization': `Bearer ${authToken}` };
             }
+            
+            // --- MODIFIED BLOCK ---
+            // This section now handles server errors and formats the success response correctly.
             fetch(`${API_URL}/api/files/upload`, fetchOptions)
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`Server error: ${res.status}`);
+                    }
+                    return res.json();
+                })
                 .then(result => {
-                    sunEditorUploadHandler(result);
+                    const response = {
+                        result: [
+                            {
+                                url: `${API_URL}${result.data}`,
+                                name: 'image.jpg'
+                            }
+                        ]
+                    };
+                    sunEditorUploadHandler(response);
                 })
                 .catch(err => {
-                    console.error(err);
+                    console.error("Image upload failed:", err.message);
                     sunEditorUploadHandler();
                 });
+            // --- END OF MODIFIED BLOCK ---
         }
         setModalState({ isOpen: false, type: null, src: '' });
     };
