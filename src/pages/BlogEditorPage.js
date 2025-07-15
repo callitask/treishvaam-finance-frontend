@@ -97,17 +97,19 @@ const BlogEditorPage = () => {
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
-            const authToken = localStorage.getItem('authToken');
+
+            // --- FIX: Using the correct localStorage key 'token' ---
+            const authToken = localStorage.getItem('token'); 
+            
             const fetchOptions = {
                 method: 'POST',
                 body: formData,
+                headers: {} 
             };
             if (authToken) {
-                fetchOptions.headers = { 'Authorization': `Bearer ${authToken}` };
+                fetchOptions.headers['Authorization'] = `Bearer ${authToken}`;
             }
             
-            // --- MODIFIED BLOCK ---
-            // This section now handles server errors and formats the success response correctly.
             fetch(`${API_URL}/api/files/upload`, fetchOptions)
                 .then(res => {
                     if (!res.ok) {
@@ -128,9 +130,14 @@ const BlogEditorPage = () => {
                 })
                 .catch(err => {
                     console.error("Image upload failed:", err.message);
+                    // Provide user-friendly feedback on failure
+                    if (err.message.includes('403')) {
+                        alert('You do not have permission to upload files. Please log in as an admin.');
+                    } else {
+                        alert('File upload failed. Please try again.');
+                    }
                     sunEditorUploadHandler();
                 });
-            // --- END OF MODIFIED BLOCK ---
         }
         setModalState({ isOpen: false, type: null, src: '' });
     };
