@@ -1,7 +1,3 @@
-...existing code...
-import imageCompression from 'browser-image-compression';
-import React, { useState, useRef, useEffect, Suspense } from 'react';
-
 import imageCompression from 'browser-image-compression';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -264,4 +260,6 @@ function canvasPreview(image, canvas, crop) {
     ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, image.naturalWidth, image.naturalHeight);
     ctx.restore();
 }
+
+export default BlogEditorPage;
 
