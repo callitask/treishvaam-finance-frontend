@@ -1,3 +1,4 @@
+...existing code...
 import imageCompression from 'browser-image-compression';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
