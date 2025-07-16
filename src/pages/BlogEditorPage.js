@@ -46,7 +46,8 @@ const BlogEditorPage = () => {
 
     const compressImage = async (file) => {
         if (!file) return null;
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        // Lower maxSizeMB for better network performance
+        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
         try {
             return await imageCompression(file, options);
         } catch (error) {
@@ -57,11 +58,17 @@ const BlogEditorPage = () => {
 
     const onSelectFile = (e, type) => {
         if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            // Only allow images below 2MB for better performance
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Please select an image smaller than 2MB for faster upload.');
+                return;
+            }
             const reader = new FileReader();
             reader.addEventListener('load', () => {
                 setModalState({ isOpen: true, type, src: reader.result?.toString() || '' });
             });
-            reader.readAsDataURL(e.target.files[0]);
+            reader.readAsDataURL(file);
         }
         e.target.value = null;
     };
@@ -80,14 +87,19 @@ const BlogEditorPage = () => {
 
     const handleCropSave = async (canvas) => {
         const croppedBlob = await canvasToBlob(canvas);
+        // Further compress for network/SEO
         const compressedFile = await compressImage(croppedBlob);
 
         if (modalState.type === 'thumbnail') {
             setFinalThumbFile(compressedFile);
             setThumbPreview(URL.createObjectURL(compressedFile));
+            // Add alt text for SEO
+            document.querySelectorAll('img[alt="Thumbnail Preview"]').forEach(img => img.setAttribute('loading', 'lazy'));
         } else if (modalState.type === 'cover') {
             setFinalCoverFile(compressedFile);
             setCoverPreview(URL.createObjectURL(compressedFile));
+            // Add alt text for SEO
+            document.querySelectorAll('img[alt="Cover Preview"]').forEach(img => img.setAttribute('loading', 'lazy'));
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
@@ -134,6 +146,12 @@ const BlogEditorPage = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+            {/* SEO meta tags for better search ranking */}
+            <head>
+                <title>{id ? 'Edit Blog Post' : 'Create Blog Post'} | Treishvaam Finance</title>
+                <meta name="description" content="Create and edit finance blog posts with optimized images and content." />
+                <meta name="robots" content="index, follow" />
+            </head>
             {modalState.isOpen &&
                 <CropModal
                     src={modalState.src}

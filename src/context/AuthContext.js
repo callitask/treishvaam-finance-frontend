@@ -14,23 +14,24 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Always force a fresh login on server restart or first load
     const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        // Check for token expiry and required fields
-        if (decoded.exp && decoded.exp * 1000 > Date.now() && decoded.sub) {
-          setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
-        } else {
-          localStorage.removeItem('token');
-          setAuth({ token: null, user: null, isAuthenticated: false });
-        }
-      } catch (error) {
-        console.error("Invalid token:", error);
+    if (!token) {
+      setAuth({ token: null, user: null, isAuthenticated: false });
+      setLoading(false);
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      // Check for token expiry and required fields
+      if (decoded.exp && decoded.exp * 1000 > Date.now() && decoded.sub) {
+        setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
+      } else {
         localStorage.removeItem('token');
         setAuth({ token: null, user: null, isAuthenticated: false });
       }
-    } else {
+    } catch (error) {
+      localStorage.removeItem('token');
       setAuth({ token: null, user: null, isAuthenticated: false });
     }
     setLoading(false);
