@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
+import { getPost, createPost, updatePost, uploadFile, API_URL } from '../apiConfig';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
@@ -135,18 +135,9 @@ const BlogEditorPage = () => {
             formData.append('file', compressedFile, 'image.jpg');
             uploadFile(formData)
                 .then(res => {
-                    const result = res.data;
-                    if (result && result.data) {
-                        const response = {
-                            result: [{
-                                url: `${API_URL}${result.data}`,
-                                name: result.data.split('/').pop() || 'image.jpg'
-                            }]
-                        };
-                        sunEditorUploadHandler(response);
-                    } else {
-                        throw new Error("Server response did not include the image data.");
-                    }
+                    // The backend now returns the exact format the editor needs.
+                    // We just pass it directly to the handler.
+                    sunEditorUploadHandler(res.data);
                 })
                 .catch(err => {
                     console.error("Image upload failed:", err);
