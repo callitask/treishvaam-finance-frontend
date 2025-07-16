@@ -40,8 +40,6 @@ const Navbar = () => {
                                 <NavLink to="/" className={getLinkClass} end>Home</NavLink>
                                 <NavLink to="/about" className={getLinkClass}>About</NavLink>
                                 <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
-                                <NavLink to="/education" className={getLinkClass}>Learn</NavLink>
-                                <NavLink to="/blog" className={getLinkClass}>Blog</NavLink>
                                 <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
                             </div>
                         </nav>
