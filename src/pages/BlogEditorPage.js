@@ -135,7 +135,12 @@ const BlogEditorPage = () => {
             formData.append('file', compressedFile, 'image.jpg');
             uploadFile(formData)
                 .then(res => {
-                    // The backend now returns the exact format the editor needs.
+                    // --- DEBUGGING STEP ---
+                    // This will print the exact response from the server to your browser's console.
+                    console.log("Server Response Received:", JSON.stringify(res.data, null, 2)); 
+                    // --- END DEBUGGING STEP ---
+
+                    // The backend should now return the exact format the editor needs.
                     // We just pass it directly to the handler.
                     sunEditorUploadHandler(res.data);
                 })
