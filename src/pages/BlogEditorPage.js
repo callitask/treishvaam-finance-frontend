@@ -14,55 +14,16 @@ const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => re
 const BlogEditorPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-
-
-import imageCompression from 'browser-image-compression';
-import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import 'suneditor/dist/css/suneditor.min.css';
-import 'react-image-crop/dist/ReactCrop.css';
-import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
-
-const SunEditor = React.lazy(() => import('suneditor-react'));
-const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
-
-const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
-
-const BlogEditorPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
-
-import imageCompression from 'browser-image-compression';
-import React, { useState, useRef, useEffect, Suspense } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import 'suneditor/dist/css/suneditor.min.css';
-import 'react-image-crop/dist/ReactCrop.css';
-import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, API_URL } from '../apiConfig';
-
-const SunEditor = React.lazy(() => import('suneditor-react'));
-const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
-
-const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
-
-const BlogEditorPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('News');
     const [isFeatured, setIsFeatured] = useState(false);
     const [error, setError] = useState('');
     const [createdAt, setCreatedAt] = useState('');
-
     const [thumbPreview, setThumbPreview] = useState('');
     const [coverPreview, setCoverPreview] = useState('');
     const [finalThumbFile, setFinalThumbFile] = useState(null);
     const [finalCoverFile, setFinalCoverFile] = useState(null);
-
     const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '' });
     const [sunEditorUploadHandler, setSunEditorUploadHandler] = useState(null);
 
@@ -133,16 +94,21 @@ const BlogEditorPage = () => {
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
+
             uploadFile(formData)
                 .then(res => {
-                    // --- DEBUGGING STEP ---
-                    // This will print the exact response from the server to your browser's console.
-                    console.log("Server Response Received:", JSON.stringify(res.data, null, 2)); 
-                    // --- END DEBUGGING STEP ---
-
-                    // The backend should now return the exact format the editor needs.
-                    // We just pass it directly to the handler.
-                    sunEditorUploadHandler(res.data);
+                    const result = res.data;
+                    if (result && result.data) {
+                        const response = {
+                            result: [{
+                                url: `${API_URL}${result.data}`,
+                                name: result.data.split('/').pop() || 'image.jpg'
+                            }]
+                        };
+                        sunEditorUploadHandler(response);
+                    } else {
+                        throw new Error("Server response did not include image data.");
+                    }
                 })
                 .catch(err => {
                     console.error("Image upload failed:", err);
