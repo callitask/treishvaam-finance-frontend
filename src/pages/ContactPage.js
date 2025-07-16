@@ -1,8 +1,25 @@
 import React, { useState } from 'react';
+import { API_URL } from '../apiConfig';
 
 const ContactPage = () => {
     const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
     const [status, setStatus] = useState('');
+    const [contactInfo, setContactInfo] = useState({ email: '', phone: '' });
+
+    React.useEffect(() => {
+        // Fetch contact info from backend
+        fetch(`${API_URL}/contact-info`)
+            .then(res => res.json())
+            .then(data => {
+                setContactInfo({
+                    email: data.email || 'treishvaam@gmail.com',
+                    phone: data.phone || '+91-701-145-1058',
+                });
+            })
+            .catch(() => {
+                setContactInfo({ email: 'treishvaam@gmail.com', phone: '+91-701-145-1058' });
+            });
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -13,7 +30,7 @@ const ContactPage = () => {
         e.preventDefault();
         setStatus('Sending...');
         try {
-            const response = await fetch('https://treishfin.udaybhai.com/api/contact', {
+            const response = await fetch(`${API_URL}/api/contact`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
@@ -69,42 +86,26 @@ const ContactPage = () => {
                 </form>
               </div>
               <div className="flex flex-col space-y-8">
-                <div className="bg-white p-8 rounded-xl shadow-lg">
-                  <h2 className="text-2xl md:text-3xl font-bold section-title mb-6">Our Contact Information</h2>
-                  <div className="space-y-6">
-                    <div className="flex items-start">
-                        <div className="contact-info-icon-bg contact-info-icon-text flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full mr-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                          </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900">General Inquiries</h3>
-                            <p className="text-gray-600">treishvaam@gmail.com</p>
-                        </div>
+                <div className="bg-white p-8 rounded-xl shadow-lg flex flex-col items-center justify-center">
+                  <h2 className="text-2xl md:text-3xl font-bold section-title mb-6 text-center">Contact Information</h2>
+                  <div className="flex flex-col md:flex-row gap-8 w-full justify-center items-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="contact-info-icon-bg contact-info-icon-text flex items-center justify-center w-14 h-14 rounded-full mb-2 bg-sky-100 text-sky-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Email</h3>
+                      <p className="text-gray-600">{contactInfo.email}</p>
                     </div>
-                    <div className="flex items-start">
-                        <div className="contact-info-icon-bg contact-info-icon-text flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full mr-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.135a11.249 11.249 0 005.405 5.405l1.135-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                          </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Phone Support</h3>
-                            <p className="text-gray-600">+91-701-145-1058</p>
-                        </div>
-                    </div>
-                    <div className="flex items-start">
-                        <div className="contact-info-icon-bg contact-info-icon-text flex-shrink-0 flex items-center justify-center w-12 h-12 rounded-full mr-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                          </svg>
-                        </div>
-                        <div>
-                            <h3 className="text-lg font-semibold text-gray-900">Our Location</h3>
-                            <p className="text-gray-600">123 Finance St, Moneyville, FL, 12345</p>
-                        </div>
+                    <div className="flex flex-col items-center justify-center">
+                      <div className="contact-info-icon-bg contact-info-icon-text flex items-center justify-center w-14 h-14 rounded-full mb-2 bg-sky-100 text-sky-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.135a11.249 11.249 0 005.405 5.405l1.135-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Phone</h3>
+                      {/* Phone removed as requested */}
                     </div>
                   </div>
                 </div>
@@ -116,5 +117,3 @@ const ContactPage = () => {
     );
 };
 export default ContactPage;
-
-
