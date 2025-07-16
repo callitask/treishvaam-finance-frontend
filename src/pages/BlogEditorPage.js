@@ -1,6 +1,9 @@
 ...existing code...
 import imageCompression from 'browser-image-compression';
 import React, { useState, useRef, useEffect, Suspense } from 'react';
+
+import imageCompression from 'browser-image-compression';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -49,10 +52,7 @@ const BlogEditorPage = () => {
         if (!file) return null;
         const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
         try {
-            console.log(`Original file size: ${file.size / 1024 / 1024} MB`);
-            const compressedFile = await imageCompression(file, options);
-            console.log(`Compressed file size: ${compressedFile.size / 1024 / 1024} MB`);
-            return compressedFile;
+            return await imageCompression(file, options);
         } catch (error) {
             console.error("Error during compression:", error);
             return file;
@@ -98,17 +98,11 @@ const BlogEditorPage = () => {
 
             uploadFile(formData)
                 .then(res => {
-                    const result = res.data;
-                    if (result && result.data) {
-                        const response = {
-                            result: [{
-                                url: `${API_URL}${result.data}`,
-                                name: result.data.split('/').pop() || 'image.jpg'
-                            }]
-                        };
-                        sunEditorUploadHandler(response);
+                    const serverResponse = res.data;
+                    if (serverResponse && serverResponse.result && serverResponse.result.length > 0) {
+                        sunEditorUploadHandler(serverResponse);
                     } else {
-                        throw new Error("Server response did not include image data.");
+                        throw new Error("Server response was successful but not in the expected format.");
                     }
                 })
                 .catch(err => {
@@ -198,7 +192,6 @@ const BlogEditorPage = () => {
                                 onChange={setContent}
                                 onImageUploadBefore={handleImageUploadBefore}
                                 setOptions={{
-                                    minHeight: '300px',
                                     height: '100%',
                                     buttonList: [
                                         ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'], ['bold', 'underline', 'italic', 'strike'], ['removeFormat'],
@@ -272,4 +265,3 @@ function canvasPreview(image, canvas, crop) {
     ctx.restore();
 }
 
-export default BlogEditorPage;
