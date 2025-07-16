@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 export const API_URL = 'https://backend.treishvaamgroup.com';
@@ -25,8 +26,6 @@ export const getPost = (id) => api.get(`/posts/${id}`);
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 export const createPost = (formData) => api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-
-// Centralized function for file uploads
 export const uploadFile = (formData) => api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
 export default api;
