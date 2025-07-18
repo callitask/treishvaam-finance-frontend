@@ -4,10 +4,46 @@ import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, uploadFile, API_URL } from '../apiConfig';
+import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL } from '../apiConfig';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
-const allCategories = ['News', 'Stocks', 'Crypto', 'Trading'];
+
+const TagsInput = ({ tags, setTags }) => {
+    const [inputValue, setInputValue] = useState('');
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            const newTag = inputValue.trim();
+            if (newTag && !tags.includes(newTag)) {
+                setTags([...tags, newTag]);
+            }
+            setInputValue('');
+        }
+    };
+    const removeTag = (tagToRemove) => {
+        setTags(tags.filter(tag => tag !== tagToRemove));
+    };
+    return (
+        <div>
+            <div className="flex flex-wrap gap-2 mb-2">
+                {tags.map(tag => (
+                    <div key={tag} className="bg-sky-100 text-sky-800 text-sm font-semibold px-2 py-1 rounded-full flex items-center">
+                        <span>{tag}</span>
+                        <button type="button" onClick={() => removeTag(tag)} className="ml-2 text-sky-600 hover:text-sky-900">&times;</button>
+                    </div>
+                ))}
+            </div>
+            <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Add tags (press Enter or comma)"
+                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200"
+            />
+        </div>
+    );
+};
 
 const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
 
@@ -16,10 +52,14 @@ const BlogEditorPage = () => {
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [category, setCategory] = useState('News');
+    const [category, setCategory] = useState('');
     const [isFeatured, setIsFeatured] = useState(false);
+    const [tags, setTags] = useState([]);
     const [error, setError] = useState('');
     const [createdAt, setCreatedAt] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState('');
     const [thumbPreview, setThumbPreview] = useState('');
     const [coverPreview, setCoverPreview] = useState('');
     const [finalThumbFile, setFinalThumbFile] = useState(null);
@@ -28,47 +68,61 @@ const BlogEditorPage = () => {
     const [sunEditorUploadHandler, setSunEditorUploadHandler] = useState(null);
 
     useEffect(() => {
-        if (id) {
-            getPost(id).then(res => {
-                const post = res.data;
-                setTitle(post.title);
-                setContent(post.content);
-                setCategory(post.category);
-                setIsFeatured(post.featured);
-                setCreatedAt(post.createdAt || new Date().toISOString());
-                if (post.thumbnailUrl) setThumbPreview(`${API_URL}${post.thumbnailUrl}`);
-                if (post.coverImageUrl) setCoverPreview(`${API_URL}${post.coverImageUrl}`);
-            }).catch(() => setError('Failed to fetch post data.'));
-        } else {
-            setCreatedAt(new Date().toISOString());
-        }
+        const fetchInitialData = async () => {
+            try {
+                const categoriesRes = await getCategories();
+                setCategories(categoriesRes.data || []);
+
+                if (id) {
+                    const postRes = await getPost(id);
+                    const post = postRes.data;
+                    setTitle(post.title);
+                    setContent(post.content);
+                    setCategory(post.category || (categoriesRes.data[0]?.name || ''));
+                    setTags(post.tags || []);
+                    setIsFeatured(post.featured);
+                    setCreatedAt(post.createdAt || new Date().toISOString());
+                    if (post.thumbnailUrl) setThumbPreview(`${API_URL}${post.thumbnailUrl}`);
+                    if (post.coverImageUrl) setCoverPreview(`${API_URL}${post.coverImageUrl}`);
+                } else {
+                    setCategory(categoriesRes.data[0]?.name || '');
+                    setCreatedAt(new Date().toISOString());
+                }
+            } catch (err) {
+                setError('Failed to load initial data.');
+            }
+        };
+        fetchInitialData();
     }, [id]);
+
+    const handleAddNewCategory = async () => {
+        if (!newCategoryName || categories.find(c => c.name.toLowerCase() === newCategoryName.toLowerCase())) {
+            alert('Category name cannot be empty or a duplicate.');
+            return;
+        }
+        try {
+            const newCategory = { name: newCategoryName };
+            const response = await addCategory(newCategory);
+            setCategories([...categories, response.data]);
+            setCategory(response.data.name);
+            setNewCategoryName('');
+            setShowNewCategoryInput(false);
+        } catch (err) {
+            setError('Failed to add new category.');
+        }
+    };
 
     const compressImage = async (file) => {
         if (!file) return null;
-        // Lower maxSizeMB for better network performance
-        const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1280, useWebWorker: true };
-        try {
-            return await imageCompression(file, options);
-        } catch (error) {
-            console.error("Error during compression:", error);
-            return file;
-        }
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        try { return await imageCompression(file, options); } catch (e) { return file; }
     };
 
     const onSelectFile = (e, type) => {
         if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0];
-            // Only allow images below 2MB for better performance
-            if (file.size > 2 * 1024 * 1024) {
-                alert('Please select an image smaller than 2MB for faster upload.');
-                return;
-            }
             const reader = new FileReader();
-            reader.addEventListener('load', () => {
-                setModalState({ isOpen: true, type, src: reader.result?.toString() || '' });
-            });
-            reader.readAsDataURL(file);
+            reader.addEventListener('load', () => setModalState({ isOpen: true, type, src: reader.result?.toString() || '' }));
+            reader.readAsDataURL(e.target.files[0]);
         }
         e.target.value = null;
     };
@@ -78,44 +132,27 @@ const BlogEditorPage = () => {
         if (!file) return;
         setSunEditorUploadHandler(() => uploadHandler);
         const reader = new FileReader();
-        reader.addEventListener('load', () => {
-            setModalState({ isOpen: true, type: 'suneditor', src: reader.result?.toString() || '' });
-        });
+        reader.addEventListener('load', () => setModalState({ isOpen: true, type: 'suneditor', src: reader.result?.toString() || '' }));
         reader.readAsDataURL(file);
         return false;
     };
 
     const handleCropSave = async (canvas) => {
         const croppedBlob = await canvasToBlob(canvas);
-        // Further compress for network/SEO
         const compressedFile = await compressImage(croppedBlob);
-
         if (modalState.type === 'thumbnail') {
             setFinalThumbFile(compressedFile);
             setThumbPreview(URL.createObjectURL(compressedFile));
-            // Add alt text for SEO
-            document.querySelectorAll('img[alt="Thumbnail Preview"]').forEach(img => img.setAttribute('loading', 'lazy'));
         } else if (modalState.type === 'cover') {
             setFinalCoverFile(compressedFile);
             setCoverPreview(URL.createObjectURL(compressedFile));
-            // Add alt text for SEO
-            document.querySelectorAll('img[alt="Cover Preview"]').forEach(img => img.setAttribute('loading', 'lazy'));
         } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
             const formData = new FormData();
             formData.append('file', compressedFile, 'image.jpg');
-
             uploadFile(formData)
-                .then(res => {
-                    const serverResponse = res.data;
-                    if (serverResponse && serverResponse.result && serverResponse.result.length > 0) {
-                        sunEditorUploadHandler(serverResponse);
-                    } else {
-                        throw new Error("Server response was successful but not in the expected format.");
-                    }
-                })
+                .then(res => sunEditorUploadHandler(res.data))
                 .catch(err => {
-                    console.error("Image upload failed:", err);
-                    alert("Image upload failed. Please try again.");
+                    alert("Image upload failed in editor.");
                     sunEditorUploadHandler();
                 });
         }
@@ -130,8 +167,12 @@ const BlogEditorPage = () => {
             formData.append('content', content);
             formData.append('category', category);
             formData.append('featured', isFeatured);
+            tags.forEach(tag => formData.append('tags', tag));
             if (finalThumbFile) formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
             if (finalCoverFile) formData.append('coverImage', finalCoverFile, 'cover.jpg');
+            
+            // The createdAt line is now removed, the backend handles all timestamps.
+            
             if (id) {
                 await updatePost(id, formData);
             } else {
@@ -139,27 +180,13 @@ const BlogEditorPage = () => {
             }
             navigate('/dashboard/manage-posts');
         } catch (err) {
-            setError('Failed to save the post. Please check the data and try again.');
-            console.error(err);
+            setError('Failed to save the post.');
         }
     };
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            {/* SEO meta tags for better search ranking */}
-            <head>
-                <title>{id ? 'Edit Blog Post' : 'Create Blog Post'} | Treishvaam Finance</title>
-                <meta name="description" content="Create and edit finance blog posts with optimized images and content." />
-                <meta name="robots" content="index, follow" />
-            </head>
-            {modalState.isOpen &&
-                <CropModal
-                    src={modalState.src}
-                    type={modalState.type}
-                    onClose={() => setModalState({isOpen: false, type: null, src: ''})}
-                    onSave={handleCropSave}
-                />
-            }
+            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({isOpen: false, type: null, src: ''})} onSave={handleCropSave} />}
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
                     <h1 className="text-2xl font-bold mb-2 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
@@ -168,31 +195,43 @@ const BlogEditorPage = () => {
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
                         <div>
                             <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
-                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200" required />
+                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
                         </div>
                         <div>
                             <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
-                            <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
-                                {allCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                            </select>
+                            <div className="flex items-center gap-2">
+                                <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
+                                    <option value="">Select a category</option>
+                                    {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                                </select>
+                                <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
+                            </div>
+                            {showNewCategoryInput && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
+                                    <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
+                                </div>
+                            )}
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-semibold mb-2">Thumbnail (Any Size)</label>
-                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" style={{ display: 'block', maxWidth: '300px', maxHeight: '180px', width: '100%', height: 'auto', aspectRatio: '16/9', objectFit: 'contain', marginTop: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#f8fafc' }} />}
+                            <label className="block text-gray-700 font-semibold mb-2">Tags</label>
+                            <TagsInput tags={tags} setTags={setTags} />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-semibold mb-2">Thumbnail</label>
+                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-gray-50" />}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-semibold mb-2">Cover Image (16:9)</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" style={{ display: 'block', maxWidth: '400px', maxHeight: '225px', width: '100%', height: 'auto', aspectRatio: '16/9', objectFit: 'contain', marginTop: '1rem', border: '1px solid #e2e8f0', borderRadius: '0.5rem', background: '#f8fafc' }} />}
+                            <label className="block text-gray-700 font-semibold mb-2">Cover Image</label>
+                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-gray-50" />}
                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
                         </div>
-                        <div className="flex items-center justify-between">
-                            <label className="flex items-center text-gray-700">
-                                <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-                                <span className="ml-2">Mark as Featured Post</span>
-                            </label>
+                        <div className="flex items-center">
+                            <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
+                            <span className="ml-2 text-gray-700">Mark as Featured</span>
                         </div>
-                        <button type="submit" form="blog-editor-form" className="bg-sky-600 text-white font-bold py-2 px-8 rounded-lg hover:bg-sky-700 transition duration-300 mt-2">
+                        <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
                             {id ? 'Update Post' : 'Publish Post'}
                         </button>
                     </form>
@@ -201,20 +240,7 @@ const BlogEditorPage = () => {
                     <label className="block text-gray-700 font-semibold mb-2">Content</label>
                     <div className="flex-grow h-full">
                         <Suspense fallback={<div>Loading editor...</div>}>
-                            <SunEditor
-                                setContents={content}
-                                onChange={setContent}
-                                onImageUploadBefore={handleImageUploadBefore}
-                                setOptions={{
-                                    height: '100%',
-                                    buttonList: [
-                                        ['undo', 'redo'], ['font', 'fontSize', 'formatBlock'], ['bold', 'underline', 'italic', 'strike'], ['removeFormat'],
-                                        ['fontColor', 'hiliteColor'], ['outdent', 'indent'], ['align', 'horizontalRule', 'list', 'lineHeight'],
-                                        ['table', 'link', 'image', 'video'], ['fullScreen', 'showBlocks', 'codeView'], ['preview', 'print'],
-                                    ],
-                                }}
-                                width="100%"
-                            />
+                            <SunEditor setContents={content} onChange={setContent} onImageUploadBefore={handleImageUploadBefore} setOptions={{ height: '100%', buttonList: [['undo', 'redo'],['font', 'fontSize', 'formatBlock'],['bold', 'underline', 'italic', 'strike'],['fontColor', 'hiliteColor'],['align', 'list'],['table', 'link', 'image'],['fullScreen', 'codeView']] }} />
                         </Suspense>
                     </div>
                 </div>
@@ -229,23 +255,18 @@ const CropModal = ({ src, type, onClose, onSave }) => {
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState();
     const aspect = type === 'cover' ? 16 / 9 : (type === 'thumbnail' ? 1/1 : undefined);
-
     useEffect(() => {
         if (completedCrop?.width && imgRef.current && canvasRef.current) {
             canvasPreview(imgRef.current, canvasRef.current, completedCrop);
         }
     }, [completedCrop]);
-
     const handleSave = () => {
-        if (canvasRef.current) {
-            onSave(canvasRef.current);
-        }
+        if (canvasRef.current) onSave(canvasRef.current);
     };
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
-                <h3 className="text-xl font-bold mb-4">Crop Your Image</h3>
+                <h3 className="text-xl font-bold mb-4">Crop Image</h3>
                 <div style={{maxHeight: '60vh', overflowY: 'auto'}}>
                     <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
                         <img ref={imgRef} alt="Crop" src={src} />
@@ -254,7 +275,7 @@ const CropModal = ({ src, type, onClose, onSave }) => {
                 <canvas ref={canvasRef} className="hidden" />
                 <div className="flex justify-end gap-4 mt-4">
                     <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Save Crop</button>
+                    <button onClick={handleSave} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Save</button>
                 </div>
             </div>
         </div>
@@ -280,4 +301,3 @@ function canvasPreview(image, canvas, crop) {
 }
 
 export default BlogEditorPage;
-

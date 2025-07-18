@@ -1,11 +1,13 @@
 // src/pages/BlogPage.js
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
-import { getPosts, API_URL } from '../apiConfig';
+import axios from 'axios'; // Import axios directly
+import { API_URL } from '../apiConfig'; // Keep API_URL for constructing paths
 import DOMPurify from 'dompurify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 
+// This will be replaced by dynamic categories in a future step
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
 // Helper function to create a plain text snippet from HTML
@@ -21,7 +23,6 @@ const createSnippet = (html, length = 100) => {
 const formatDateTime = (dateString) => {
     let dateToFormat = dateString;
     if (!dateToFormat || isNaN(new Date(dateToFormat))) {
-        // fallback to now if missing or invalid
         dateToFormat = new Date().toISOString();
     }
     const dateObj = new Date(dateToFormat);
@@ -42,7 +43,6 @@ const PostCard = memo(({ article }) => {
     const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
 
-    // FIX: Construct full image URL
     const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${article.thumbnailUrl}` : null;
 
     const handleImageLoad = (event) => {
@@ -56,11 +56,10 @@ const PostCard = memo(({ article }) => {
         <div className="flex flex-col flex-grow p-4">
             {showFeaturedTag && (
                 <div className="mb-2">
-                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider inline-block" style={{letterSpacing: '0.08em'}}>Featured</span>
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
                 </div>
             )}
             <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
-                {/* If featured tag is shown, add left margin for spacing */}
                 <span>By Treishvaam Finance</span>
                 <span className="mx-2">|</span>
                 <span>{formatDateTime(article.createdAt)}</span>
@@ -81,14 +80,12 @@ const PostCard = memo(({ article }) => {
 
     return (
         <div className="break-inside-avoid mb-4 border border-gray-200 relative">
-            {/* For posts with no thumbnail and featured, show tag inline above content */}
             {!hasThumbnail ? (
                 <CardContent showFeaturedTag={isFeatured} />
             ) : (
-                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}> 
+                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
-                            {/* FIX: Only render image if thumbnailUrl exists and use fullThumbnailUrl */}
                             {fullThumbnailUrl && (
                                 <LazyLoadImage
                                     alt={article.title}
@@ -105,7 +102,7 @@ const PostCard = memo(({ article }) => {
                             </div>
                         )}
                     </div>
-                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}> 
+                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
                         <CardContent />
                     </div>
                 </div>
@@ -125,10 +122,12 @@ const BlogPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const response = await getPosts();
+                // --- FIX: Use a direct, unauthenticated axios call to prevent the 403 error ---
+                const response = await axios.get(`${API_URL}/api/posts`);
                 setPosts(response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
             } catch (err) {
                 setError('Failed to fetch blog posts.');
+                console.error(err);
             } finally {
                 setLoading(false);
             }
