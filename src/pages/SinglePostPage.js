@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPost, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
+import { Helmet } from 'react-helmet-async';
 
 const SinglePostPage = () => {
     const { id } = useParams();
@@ -43,27 +44,32 @@ const SinglePostPage = () => {
     };
 
     return (
-        <article className="bg-gray-50">
-            <header className="relative">
-                <div style={coverImageStyle}>
-                    <div className="absolute inset-0 bg-black opacity-20"></div>
-                </div>
-            </header>
-            <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
-                <div className="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-4xl mx-auto">
-                    <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{post.title}</h1>
-                    <p className="text-gray-500 mb-8">
-                        Published on: {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
-                    <div 
-                        className="prose lg:prose-xl max-w-none"
-                        dangerouslySetInnerHTML={createMarkup(post.content)}
-                    >
+        <>
+            <Helmet>
+                <title>{post.title ? `${post.title} | Treishfin` : 'Post | Treishfin'}</title>
+                {post.title && <meta name="description" content={`Read the latest on ${post.title}. An article from Treishfin about ${post.category || ''}.`} />}
+            </Helmet>
+            <article className="bg-gray-50">
+                <header className="relative">
+                    <div style={coverImageStyle}>
+                        <div className="absolute inset-0 bg-black opacity-20"></div>
+                    </div>
+                </header>
+                <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
+                    <div className="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-4xl mx-auto">
+                        <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{post.title}</h1>
+                        <p className="text-gray-500 mb-8">
+                            Published on: {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                        <div 
+                            className="prose lg:prose-xl max-w-none"
+                            dangerouslySetInnerHTML={createMarkup(post.content)}
+                        />
                     </div>
                 </div>
-            </div>
-        </article>
+            </article>
+        </>
     );
-};
+}
 
 export default SinglePostPage;
