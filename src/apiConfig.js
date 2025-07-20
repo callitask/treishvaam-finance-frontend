@@ -22,6 +22,8 @@ api.interceptors.request.use(config => {
 // Post APIs
 export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
+// Add this new function
+export const getLatestPostHeadline = () => api.get('/posts/latest-headline');
 export const createPost = (formData) => api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deletePost = (id) => api.delete(`/posts/${id}`);

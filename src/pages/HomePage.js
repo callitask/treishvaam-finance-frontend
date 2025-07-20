@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+import { getLatestPostHeadline } from '../apiConfig';
 
 // --- New Professional Icons ---
 
@@ -15,8 +17,45 @@ const RetirementIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg
 
 
 const HomePage = () => {
+    const [latestPostTitle, setLatestPostTitle] = useState('');
+
+    useEffect(() => {
+        const fetchLatestHeadline = async () => {
+            try {
+                const response = await getLatestPostHeadline();
+                if (response.data && response.data.title) {
+                    setLatestPostTitle(response.data.title);
+                }
+            } catch (error) {
+                console.error("Failed to fetch latest post headline:", error);
+            }
+        };
+        fetchLatestHeadline();
+    }, []);
+
+    const defaultTitle = "Treishfin | Daily Financial News, Market Updates & Analysis";
+    const defaultDescription = "Your trusted source for daily financial news, market updates, and expert analysis.";
+    const dynamicDescription = latestPostTitle || defaultDescription;
+
     return (
         <>
+            <Helmet>
+                <title>{defaultTitle}</title>
+                <meta name="description" content={dynamicDescription} />
+                {/* Open Graph / Facebook / LinkedIn Meta Tags */}
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content="https://treishfin.treishvaamgroup.com/" />
+                <meta property="og:title" content={defaultTitle} />
+                <meta property="og:description" content={dynamicDescription} />
+                <meta property="og:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+                {/* Twitter Meta Tags */}
+                <meta property="twitter:card" content="summary_large_image" />
+                <meta property="twitter:url" content="https://treishfin.treishvaamgroup.com/" />
+                <meta property="twitter:title" content={defaultTitle} />
+                <meta property="twitter:description" content={dynamicDescription} />
+                <meta property="twitter:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+            </Helmet>
+            {/* ...existing code... */}
             <section className="hero-silver-gradient py-20 md:py-32 relative overflow-hidden">
                 <div className="container mx-auto px-6 text-center relative z-10">
                     <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight page-main-title">Treish your Finance.</h1>

@@ -5,6 +5,7 @@ import { API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import { Helmet } from 'react-helmet-async';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
@@ -113,7 +114,6 @@ const BlogPage = () => {
         const fetchPosts = async () => {
             try {
                 const response = await axios.get(`${API_URL}/api/posts`);
-                // This line correctly sorts the posts, so the newest is always first.
                 const sortedPosts = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 setPosts(sortedPosts);
             } catch (err) {
@@ -142,14 +142,18 @@ const BlogPage = () => {
 
     return (
         <>
+            <Helmet>
+                <title>Blog | Treishfin</title>
+            </Helmet>
+
             <section className="bg-white py-12 md:py-16">
                 <div className="container mx-auto px-6 text-center">
                     <div className="max-w-3xl mx-auto">
-                        <h1 className="text-4xl md:text-5xl font-bold mb-2 inline-block">
+                        <h1 className="text-4xl md:text-5xl font-bold mb-2">
                             <span>Financial </span>
                             <span className="text-sky-600">News & Analysis</span>
                         </h1>
-                        <p className="text-lg md:text-xl text-gray-700">Stay ahead with timely market developments, expert analysis, and strategic insights tailored for your <strong className="font-semibold">trading</strong> journey.</p>
+                        <p className="text-lg md:text-xl text-gray-700">Stay ahead with timely market developments, expert analysis, and strategic insights for your trading journey.</p>
                     </div>
                 </div>
             </section>
@@ -181,6 +185,7 @@ const BlogPage = () => {
                         </div>
                     </div>
 
+                    {/* --- FIX: Restored Masonry Column Layout --- */}
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
                         {filteredPosts.length > 0 ? (
                             filteredPosts.map((article) => (
