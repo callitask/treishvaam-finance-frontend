@@ -1,6 +1,7 @@
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
+import { Helmet } from 'react-helmet-async';
 
 // --- Icon Components (Cleaned and separated for clarity) ---
 const IntegrityIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
@@ -34,7 +35,10 @@ const coreValues = [
 const AboutPage = () => {
     return (
         <>
-            {/* --- Compact Hero Section --- */}
+            <Helmet>
+                <title>About Us | Treishfin</title>
+            </Helmet>
+            
             <section className="hero-silver-gradient py-16 md:py-20">
                 <div className="container mx-auto px-6 text-center">
                     <h1 className="text-5xl font-extrabold tracking-tight text-gray-900 mb-2" style={{ fontFamily: 'Montserrat, sans-serif' }}>
@@ -62,12 +66,9 @@ const AboutPage = () => {
                 </div>
             </section>
 
-            {/* --- Symmetrical Three-Column Section --- */}
             <section className="py-16 md:py-24 bg-white">
                 <div className="container mx-auto px-6">
                     <div className="grid lg:grid-cols-3 gap-8 items-stretch">
-
-                        {/* Column 1: Our Story */}
                         <div className="flex flex-col bg-gray-50 p-8 rounded-xl shadow-md border border-gray-100">
                             <h2 className="text-3xl font-bold text-sky-900 mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>Our Story</h2>
                             <div className="text-gray-700 space-y-4 flex-grow" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -80,7 +81,6 @@ const AboutPage = () => {
                             </div>
                         </div>
 
-                        {/* Column 2: The Founder's Journey */}
                         <div className="flex flex-col bg-gray-50 p-8 rounded-xl shadow-md border border-gray-100">
                             <h2 className="text-3xl font-bold text-sky-900 mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>The Founder's Journey</h2>
                             <div className="text-gray-700 space-y-4 flex-grow" style={{ fontFamily: 'Inter, sans-serif' }}>
@@ -93,7 +93,6 @@ const AboutPage = () => {
                             </div>
                         </div>
 
-                        {/* Column 3: Our Core Values */}
                         <div className="flex flex-col bg-gray-50 p-8 rounded-xl shadow-md border border-gray-100">
                             <h2 className="text-3xl font-bold text-sky-900 mb-4" style={{ fontFamily: 'Montserrat, sans-serif' }}>Our Core Values</h2>
                             <div className="space-y-5 mt-2 flex-grow">
@@ -110,7 +109,6 @@ const AboutPage = () => {
                                 ))}
                             </div>
                         </div>
-
                     </div>
                 </div>
             </section>
