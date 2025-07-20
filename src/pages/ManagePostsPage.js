@@ -38,12 +38,11 @@ const ManagePostsPage = () => {
     };
 
     const formatDisplayDate = (dateValue) => {
-        if (!dateValue) return 'No Date from Server';
+        if (!dateValue) return 'No date available';
         const date = new Date(dateValue);
-        if (isNaN(date.getTime())) return 'Invalid Date from Server';
+        if (isNaN(date.getTime())) return 'No date available';
         
-        // --- FIX: Use browser's default locale for local timezone display ---
-        return date.toLocaleString(undefined, {
+        return date.toLocaleString('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
@@ -76,7 +75,17 @@ const ManagePostsPage = () => {
                         {posts.map(post => (
                             <tr key={post.id}>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">{post.title}</p>
+                                    {/* --- FIX: Re-added the thumbnail image display --- */}
+                                    <div className="flex items-center">
+                                        {post.thumbnailUrl && (
+                                            <div className="flex-shrink-0 w-10 h-10">
+                                                <img className="w-full h-full rounded-full object-cover" src={`${API_URL}${post.thumbnailUrl}`} alt="Thumbnail" />
+                                            </div>
+                                        )}
+                                        <div className="ml-3">
+                                            <p className="text-gray-900 whitespace-no-wrap">{post.title}</p>
+                                        </div>
+                                    </div>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     <p className="text-gray-900 whitespace-no-wrap">{post.category}</p>
