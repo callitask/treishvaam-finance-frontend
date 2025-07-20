@@ -22,17 +22,17 @@ api.interceptors.request.use(config => {
 // Post APIs
 export const getPosts = () => api.get('/posts');
 export const getPost = (id) => api.get(`/posts/${id}`);
-// Add this new function
 export const getLatestPostHeadline = () => api.get('/posts/latest-headline');
 export const createPost = (formData) => api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 export const uploadFile = (formData) => api.post('/files/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 
-// --- NEW: Category APIs ---
+// Category APIs
 export const getCategories = () => api.get('/categories');
 export const addCategory = (categoryData) => api.post('/categories', categoryData);
 
+// Auth API
 export const login = (credentials) => api.post('/auth/login', credentials);
 
 export default api;
