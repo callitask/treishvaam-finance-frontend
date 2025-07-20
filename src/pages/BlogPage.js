@@ -143,7 +143,13 @@ const BlogPage = () => {
     return (
         <>
             <Helmet>
-                <title>Blog | Treishfin</title>
+                <title>Financial News & Analysis Blog | Treishfin</title>
+                <meta name="description" content="Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance. Your source for insights on stocks, crypto, and trading." />
+                <meta property="og:title" content="Financial News & Analysis Blog | Treishfin" />
+                <meta property="og:description" content="Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance." />
+                <meta property="og:url" content="https://treishfin.treishvaamgroup.com/blog" />
+                <meta property="og:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+                <meta property="og:type" content="website" />
             </Helmet>
 
             <section className="bg-white py-12 md:py-16">
@@ -185,7 +191,6 @@ const BlogPage = () => {
                         </div>
                     </div>
 
-                    {/* --- FIX: Restored Masonry Column Layout --- */}
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
                         {filteredPosts.length > 0 ? (
                             filteredPosts.map((article) => (
