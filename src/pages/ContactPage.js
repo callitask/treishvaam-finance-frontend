@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_URL } from '../apiConfig';
+import { Helmet } from 'react-helmet-async';
 
 const ContactPage = () => {
     const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
@@ -50,6 +51,9 @@ const ContactPage = () => {
 
     return (
       <>
+        <Helmet>
+            <title>Contact Us | Treishfin</title>
+        </Helmet>
         <section className="hero-silver-gradient py-20 md:py-24">
           <div className="container mx-auto px-6 text-center">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight page-main-title">Contact Us</h1>

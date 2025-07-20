@@ -1,8 +1,12 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 
 const VisionPage = () => {
     return (
         <>
+            <Helmet>
+                <title>Our Vision | Treishfin</title>
+            </Helmet>
             <section className="hero-silver-gradient py-20 md:py-24 flex items-center justify-center">
                 <div className="container mx-auto px-6 text-center">
                     <h1 className="text-4xl md:text-5xl font-bold page-main-title gradient-text">Our Vision for the Future</h1>
@@ -53,5 +57,3 @@ const VisionPage = () => {
 }
 
 export default VisionPage;
-
-
