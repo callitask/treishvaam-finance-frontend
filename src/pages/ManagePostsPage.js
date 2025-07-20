@@ -11,7 +11,6 @@ const ManagePostsPage = () => {
         const fetchPosts = async () => {
             try {
                 const response = await getPosts();
-                // Sort by updatedAt, falling back to createdAt to handle old data
                 const sortedPosts = response.data.sort((a, b) => {
                     const dateA = new Date(a.updatedAt || a.createdAt);
                     const dateB = new Date(b.updatedAt || b.createdAt);
@@ -43,7 +42,8 @@ const ManagePostsPage = () => {
         const date = new Date(dateValue);
         if (isNaN(date.getTime())) return 'Invalid Date from Server';
         
-        return date.toLocaleString('en-US', {
+        // --- FIX: Use browser's default locale for local timezone display ---
+        return date.toLocaleString(undefined, {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
