@@ -56,11 +56,38 @@ const SinglePostPage = () => {
     const metaDescription = createSnippet(post.content);
     const metaImage = post.coverImageUrl ? `${API_URL}${post.coverImageUrl}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
 
+    // Define the Article Schema data
+    const articleSchema = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": post.title,
+        "image": [metaImage],
+        "datePublished": post.createdAt,
+        "dateModified": post.updatedAt || post.createdAt,
+        "author": [{
+            "@type": "Organization",
+            "name": "Treishvaam Finance",
+            "url": "https://treishfin.treishvaamgroup.com/"
+        }],
+        "publisher": {
+            "@type": "Organization",
+            "name": "Treishfin",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://treishfin.treishvaamgroup.com/logo512.png"
+            }
+        },
+        "description": metaDescription
+    };
+
     return (
         <>
             <Helmet>
                 <title>{`${post.title} | Treishfin`}</title>
                 <meta name="description" content={metaDescription} />
+                <meta name="keywords" content={`${post.category}, ${post.tags ? post.tags.join(', ') : ''}, Treishvaam Finance, treishfin`} />
+                
+                {/* Open Graph / Social Media Tags */}
                 <meta property="og:title" content={`${post.title} | Treishfin`} />
                 <meta property="og:description" content={metaDescription} />
                 <meta property="og:url" content={pageUrl} />
@@ -68,6 +95,11 @@ const SinglePostPage = () => {
                 <meta property="og:type" content="article" />
                 <meta property="article:published_time" content={post.createdAt} />
                 <meta property="article:author" content="Treishvaam Finance" />
+
+                {/* Article Schema Script */}
+                <script type="application/ld+json">
+                    {JSON.stringify(articleSchema)}
+                </script>
             </Helmet>
             <article className="bg-gray-50">
                 <header className="relative">
