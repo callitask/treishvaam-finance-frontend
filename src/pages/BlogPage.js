@@ -9,24 +9,23 @@ import { Helmet } from 'react-helmet-async';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
-// --- FIX: Add a robust function to handle inconsistent URL formats ---
 const normalizeImageUrl = (url) => {
     if (!url) return '';
-    // Ensure the path starts with a single slash
     let normalized = url.startsWith('/') ? url : `/${url}`;
-    // Ensure it includes the '/uploads/' path if it's just a filename
     if (!normalized.includes('/uploads/')) {
         normalized = `/uploads${normalized}`;
     }
     return normalized;
 };
 
-const createSnippet = (html, length = 100) => {
+const createSnippet = (html, length = 155) => {
     if (!html) return '';
-    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
+    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: false } });
     const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
     const plainText = doc.body.textContent || "";
-    return plainText.substring(0, length) + (plainText.length > length ? '...' : '');
+    if (plainText.length <= length) return plainText;
+    const trimmed = plainText.substring(0, length);
+    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
 const formatDateTime = (dateString) => {
@@ -47,7 +46,6 @@ const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
-    // --- FIX: Use the normalizeImageUrl function to build the correct URL ---
     const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${normalizeImageUrl(article.thumbnailUrl)}` : null;
 
     const handleImageLoad = (event) => {
@@ -118,6 +116,7 @@ const PostCard = memo(({ article }) => {
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
+    const [latestFeaturedPost, setLatestFeaturedPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedCategory, setSelectedCategory] = useState("All");
@@ -129,6 +128,11 @@ const BlogPage = () => {
                 const response = await axios.get(`${API_URL}/api/posts`);
                 const sortedPosts = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                 setPosts(sortedPosts);
+
+                // Find the latest featured post for SEO tags
+                const featured = sortedPosts.find(p => p.featured);
+                setLatestFeaturedPost(featured || (sortedPosts.length > 0 ? sortedPosts[0] : null));
+
             } catch (err) {
                 setError('Failed to fetch blog posts.');
             } finally {
@@ -150,20 +154,30 @@ const BlogPage = () => {
         return filtered;
     }, [posts, selectedCategory, searchTerm]);
 
+    // --- Dynamic SEO & Open Graph Meta Tags ---
+    const siteName = "Treishfin · Treishvaam Finance";
+    const pageTitle = latestFeaturedPost ? `${siteName} · ${latestFeaturedPost.title}` : `${siteName} | Financial News & Analysis`;
+    const pageDescription = latestFeaturedPost ? createSnippet(latestFeaturedPost.content) : "Your trusted source for daily financial news, market updates, and expert analysis.";
+    const imageUrl = latestFeaturedPost && latestFeaturedPost.thumbnailUrl ? `${API_URL}${normalizeImageUrl(latestFeaturedPost.thumbnailUrl)}` : "https://treishfin.treishvaamgroup.com/logo512.png";
+    const pageUrl = "https://treishfin.treishvaamgroup.com/"; // Main site URL
+
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
 
     return (
         <>
             <Helmet>
-                <title>Financial News & Analysis Blog | Treishfin</title>
-                <meta name="description" content="Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance. Your source for insights on stocks, crypto, and trading." />
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
                 <meta name="keywords" content="financial news, latest news, market updates, stock analysis, crypto news, trading insights, Treishvaam, Treishvaam Finance" />
-                <meta property="og:title" content="Financial News & Analysis Blog | Treishfin" />
-                <meta property="og:description" content="Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance." />
-                <meta property="og:url" content="https://treishfin.treishvaamgroup.com/blog" />
-                <meta property="og:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+                
+                {/* Open Graph Tags for Social Sharing */}
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+                <meta property="og:url" content={pageUrl} />
                 <meta property="og:type" content="website" />
+                <meta property="og:site_name" content="Treishvaam Finance" />
             </Helmet>
 
             <section className="bg-white py-12 md:py-16">

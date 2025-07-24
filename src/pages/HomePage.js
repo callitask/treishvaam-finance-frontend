@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { getLatestPostHeadline } from '../apiConfig';
+import api from '../apiConfig'; // Using the authenticated API instance
+import DOMPurify from 'dompurify';
 
-// --- Icon Components ---
+// --- Icon Components (no changes needed here) ---
 const ExpertIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>;
 const StructuredIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>;
 const SecureIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 20.417l4.5-4.5a2 2 0 012.828 0l1.414 1.414a2 2 0 002.828 0l4.5-4.5a12.02 12.02 0 00-2.433-8.617z" /></svg>;
@@ -11,46 +12,67 @@ const InvestingIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg"
 const AnalysisIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>;
 const RetirementIcon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 
+// Helper function to create a snippet from HTML content
+const createSnippet = (html, length = 155) => {
+    if (!html) return '';
+    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: false } });
+    const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
+    const plainText = doc.body.textContent || "";
+    if (plainText.length <= length) return plainText;
+    const trimmed = plainText.substring(0, length);
+    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
+};
+
 const HomePage = () => {
-    const [latestPostTitle, setLatestPostTitle] = useState('');
+    const [latestPost, setLatestPost] = useState(null);
 
     useEffect(() => {
-        const fetchLatestHeadline = async () => {
+        const fetchLatestPost = async () => {
             try {
-                const response = await getLatestPostHeadline();
-                if (response.data && response.data.title) {
-                    setLatestPostTitle(response.data.title);
+                // Fetch all posts and find the latest featured one
+                const response = await api.get('/api/posts');
+                const featuredPosts = response.data.filter(p => p.featured);
+                if (featuredPosts.length > 0) {
+                    const sortedPosts = featuredPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    setLatestPost(sortedPosts[0]);
                 }
             } catch (error) {
-                console.error("Failed to fetch latest post headline:", error);
+                console.error("Failed to fetch latest post:", error);
             }
         };
-
-        fetchLatestHeadline();
+        fetchLatestPost();
     }, []);
 
-    const defaultTitle = "Treishfin | Daily Financial News, Market Updates & Analysis";
-    // --- THIS IS THE UPDATED DESCRIPTION ---
-    const defaultDescription = "Your trusted source for daily financial news, market updates, and expert analysis. Treishvaam Finance provides insights and education to build your financial confidence.";
-    const dynamicDescription = latestPostTitle || defaultDescription;
+    // --- Dynamic SEO & Open Graph Meta Tags ---
+    const siteName = "Treishfin · Treishvaam Finance";
+    const pageTitle = latestPost ? `${siteName} · ${latestPost.title}` : `${siteName} | Financial News & Analysis`;
+    const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for daily financial news, market updates, and expert analysis. Treishvaam Finance provides insights and education to build your financial confidence.";
+    const imageUrl = latestPost && latestPost.thumbnailUrl ? `https://backend.treishvaamgroup.com/uploads/${latestPost.thumbnailUrl.split('/').pop()}` : "https://treishfin.treishvaamgroup.com/logo512.png";
+    const pageUrl = "https://treishfin.treishvaamgroup.com/";
 
     return (
         <>
             <Helmet>
-                <title>{defaultTitle}</title>
-                <meta name="description" content={dynamicDescription} />
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
                 <meta name="keywords" content="Treishvaam, treishfin, Treishvaam Finance, financial news, latest news, financial planning, market analysis, stock market, crypto, trading" />
+                
+                {/* Open Graph Tags for Social Sharing */}
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+                <meta property="og:url" content={pageUrl} />
                 <meta property="og:type" content="website" />
-                <meta property="og:url" content="https://treishfin.treishvaamgroup.com/" />
-                <meta property="og:title" content={defaultTitle} />
-                <meta property="og:description" content={dynamicDescription} />
-                <meta property="og:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+                <meta property="og:site_name" content="Treishvaam Finance" />
+
+                {/* Twitter Card Tags */}
                 <meta property="twitter:card" content="summary_large_image" />
-                <meta property="twitter:url" content="https://treishfin.treishvaamgroup.com/" />
-                <meta property="twitter:title" content={defaultTitle} />
-                <meta property="twitter:description" content={dynamicDescription} />
-                <meta property="twitter:image" content="https://treishfin.treishvaamgroup.com/logo512.png" />
+                <meta property="twitter:url" content={pageUrl} />
+                <meta property="twitter:title" content={pageTitle} />
+                <meta property="twitter:description" content={pageDescription} />
+                <meta property="twitter:image" content={imageUrl} />
             </Helmet>
+
             <section className="hero-silver-gradient py-20 md:py-32 relative overflow-hidden">
                 <div className="container mx-auto px-6 text-center relative z-10">
                     <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight page-main-title">Treish your Finance.</h1>

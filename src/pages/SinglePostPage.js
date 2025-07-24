@@ -3,9 +3,8 @@ import { useParams } from 'react-router-dom';
 import { getPost } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import AuthImage from '../components/AuthImage'; // --- FIX: Import the AuthImage component ---
+import AuthImage from '../components/AuthImage';
 
-// Helper function to create a snippet from HTML content
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
     const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: false } });
@@ -16,12 +15,9 @@ const createSnippet = (html, length = 155) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
-// --- FIX: Add the same URL normalization function ---
 const normalizeImageUrl = (url) => {
     if (!url) return '';
-    if (url.includes('/uploads/')) {
-        return url;
-    }
+    if (url.includes('/uploads/')) return url;
     return `/uploads/${url}`;
 };
 
@@ -38,7 +34,6 @@ const SinglePostPage = () => {
                 setPost(response.data);
             } catch (err) {
                 setError('Failed to fetch post.');
-                console.error(err);
             } finally {
                 setLoading(false);
             }
@@ -54,57 +49,30 @@ const SinglePostPage = () => {
         return { __html: DOMPurify.sanitize(htmlContent, { USE_PROFILES: { html: true } }) };
     };
 
+    // --- SEO & Open Graph Meta Tags ---
+    const siteName = "Treishfin · Treishvaam Finance";
+    const pageTitle = `${siteName} · ${post.title}`;
+    const pageDescription = createSnippet(post.content);
     const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.id}`;
-    const metaDescription = createSnippet(post.content);
-    // Use the normalized URL for meta tags
-    const metaImage = post.coverImageUrl ? `https://backend.treishvaamgroup.com${normalizeImageUrl(post.coverImageUrl)}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
-
-    // Define the Article Schema data
-    const articleSchema = {
-        "@context": "https://schema.org",
-        "@type": "NewsArticle",
-        "headline": post.title,
-        "image": [metaImage],
-        "datePublished": post.createdAt,
-        "dateModified": post.updatedAt || post.createdAt,
-        "author": [{
-            "@type": "Organization",
-            "name": "Treishvaam Finance",
-            "url": "https://treishfin.treishvaamgroup.com/"
-        }],
-        "publisher": {
-            "@type": "Organization",
-            "name": "Treishfin",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://treishfin.treishvaamgroup.com/logo512.png"
-            }
-        },
-        "description": metaDescription
-    };
+    const imageUrl = post.thumbnailUrl ? `https://backend.treishvaamgroup.com${normalizeImageUrl(post.thumbnailUrl)}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
 
     return (
         <>
             <Helmet>
-                <title>{`${post.title} | Treishfin`}</title>
-                <meta name="description" content={metaDescription} />
-                <meta name="keywords" content={`${post.category}, ${post.tags ? post.tags.join(', ') : ''}, Treishvaam Finance, treishfin`} />
-                
-                <meta property="og:title" content={`${post.title} | Treishfin`} />
-                <meta property="og:description" content={metaDescription} />
-                <meta property="og:url" content={pageUrl} />
-                <meta property="og:image" content={metaImage} />
-                <meta property="og:type" content="article" />
-                <meta property="article:published_time" content={post.createdAt} />
-                <meta property="article:author" content="Treishvaam Finance" />
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
 
-                <script type="application/ld+json">
-                    {JSON.stringify(articleSchema)}
-                </script>
+                {/* Open Graph Tags for Social Sharing */}
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+                <meta property="og:url" content={pageUrl} />
+                <meta property="og:type" content="article" />
+                <meta property="og:site_name" content="Treishvaam Finance" />
             </Helmet>
+            
             <article className="bg-gray-50">
                 <header className="relative h-[400px] bg-gray-200">
-                    {/* --- FIX: Use the AuthImage component for the cover image --- */}
                     {post.coverImageUrl && (
                         <AuthImage 
                             src={normalizeImageUrl(post.coverImageUrl)}
