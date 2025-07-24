@@ -227,23 +227,37 @@ const BlogEditorPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const postData = {
-                title,
-                content,
-                category,
-                tags,
-                featured: isFeatured,
-                thumbnailAltText,
-                thumbnailTitle,
-                coverImageAltText,
-                coverImageTitle
-            };
-    
             const formData = new FormData();
-            formData.append('post', JSON.stringify(postData));
 
-            if (finalThumbFile) formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
-            if (finalCoverFile) formData.append('coverImage', finalCoverFile, 'cover.jpg');
+            // Append all the post fields directly to the FormData object
+            formData.append('title', title);
+            formData.append('content', content);
+            formData.append('category', category);
+            formData.append('featured', isFeatured);
+            
+            // Append each tag separately
+            if (tags && tags.length > 0) {
+                tags.forEach(tag => formData.append('tags', tag));
+            } else {
+                // If there are no tags, we should still send an empty value
+                // if the backend expects the field to be present.
+                // Based on your controller, it's not required, but this is good practice.
+                formData.append('tags', ''); 
+            }
+
+            // The backend controller doesn't currently handle these SEO fields.
+            // They should be added to the BlogPost entity and controller to be saved.
+            // formData.append('thumbnailAltText', thumbnailAltText);
+            // formData.append('thumbnailTitle', thumbnailTitle);
+            // formData.append('coverImageAltText', coverImageAltText);
+            // formData.append('coverImageTitle', coverImageTitle);
+
+            if (finalThumbFile) {
+                formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
+            }
+            if (finalCoverFile) {
+                formData.append('coverImage', finalCoverFile, 'cover.jpg');
+            }
             
             if (id) {
                 await updatePost(id, formData);
