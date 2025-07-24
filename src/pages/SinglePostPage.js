@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPost, API_URL } from '../apiConfig';
+import { getPost } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
+import AuthImage from '../components/AuthImage'; // --- FIX: Import the AuthImage component ---
 
 // Helper function to create a snippet from HTML content
 const createSnippet = (html, length = 155) => {
@@ -13,6 +14,15 @@ const createSnippet = (html, length = 155) => {
     if (plainText.length <= length) return plainText;
     const trimmed = plainText.substring(0, length);
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
+};
+
+// --- FIX: Add the same URL normalization function ---
+const normalizeImageUrl = (url) => {
+    if (!url) return '';
+    if (url.includes('/uploads/')) {
+        return url;
+    }
+    return `/uploads/${url}`;
 };
 
 const SinglePostPage = () => {
@@ -44,17 +54,10 @@ const SinglePostPage = () => {
         return { __html: DOMPurify.sanitize(htmlContent, { USE_PROFILES: { html: true } }) };
     };
 
-    const coverImageStyle = {
-        height: '400px',
-        backgroundColor: '#f3f4f6',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundImage: post.coverImageUrl ? `url(${API_URL}${post.coverImageUrl})` : 'none',
-    };
-
     const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.id}`;
     const metaDescription = createSnippet(post.content);
-    const metaImage = post.coverImageUrl ? `${API_URL}${post.coverImageUrl}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
+    // Use the normalized URL for meta tags
+    const metaImage = post.coverImageUrl ? `https://backend.treishvaamgroup.com${normalizeImageUrl(post.coverImageUrl)}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
 
     // Define the Article Schema data
     const articleSchema = {
@@ -87,7 +90,6 @@ const SinglePostPage = () => {
                 <meta name="description" content={metaDescription} />
                 <meta name="keywords" content={`${post.category}, ${post.tags ? post.tags.join(', ') : ''}, Treishvaam Finance, treishfin`} />
                 
-                {/* Open Graph / Social Media Tags */}
                 <meta property="og:title" content={`${post.title} | Treishfin`} />
                 <meta property="og:description" content={metaDescription} />
                 <meta property="og:url" content={pageUrl} />
@@ -96,16 +98,21 @@ const SinglePostPage = () => {
                 <meta property="article:published_time" content={post.createdAt} />
                 <meta property="article:author" content="Treishvaam Finance" />
 
-                {/* Article Schema Script */}
                 <script type="application/ld+json">
                     {JSON.stringify(articleSchema)}
                 </script>
             </Helmet>
             <article className="bg-gray-50">
-                <header className="relative">
-                    <div style={coverImageStyle}>
-                        <div className="absolute inset-0 bg-black opacity-20"></div>
-                    </div>
+                <header className="relative h-[400px] bg-gray-200">
+                    {/* --- FIX: Use the AuthImage component for the cover image --- */}
+                    {post.coverImageUrl && (
+                        <AuthImage 
+                            src={normalizeImageUrl(post.coverImageUrl)}
+                            alt={post.coverImageAltText || post.title}
+                            className="w-full h-full object-cover"
+                        />
+                    )}
+                    <div className="absolute inset-0 bg-black opacity-20"></div>
                 </header>
                 <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
                     <div className="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-4xl mx-auto">

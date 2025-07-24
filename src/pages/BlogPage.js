@@ -9,6 +9,18 @@ import { Helmet } from 'react-helmet-async';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
+// --- FIX: Add a robust function to handle inconsistent URL formats ---
+const normalizeImageUrl = (url) => {
+    if (!url) return '';
+    // Ensure the path starts with a single slash
+    let normalized = url.startsWith('/') ? url : `/${url}`;
+    // Ensure it includes the '/uploads/' path if it's just a filename
+    if (!normalized.includes('/uploads/')) {
+        normalized = `/uploads${normalized}`;
+    }
+    return normalized;
+};
+
 const createSnippet = (html, length = 100) => {
     if (!html) return '';
     const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
@@ -35,7 +47,8 @@ const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
-    const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${article.thumbnailUrl}` : null;
+    // --- FIX: Use the normalizeImageUrl function to build the correct URL ---
+    const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${normalizeImageUrl(article.thumbnailUrl)}` : null;
 
     const handleImageLoad = (event) => {
         const { naturalWidth, naturalHeight } = event.target;
@@ -88,14 +101,14 @@ const PostCard = memo(({ article }) => {
                                 />
                             )}
                         </Link>
-                        {isFeatured && (
+                        {isFeatured && !isPortrait && (
                             <div className="absolute top-2 left-2 z-10">
                                 <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
                             </div>
                         )}
                     </div>
                     <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
-                        <CardContent />
+                        <CardContent showFeaturedTag={isFeatured && isPortrait} />
                     </div>
                 </div>
             )}

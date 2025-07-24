@@ -142,8 +142,11 @@ const BlogEditorPage = () => {
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCreatedAt(post.createdAt || new Date().toISOString());
-                    if (post.thumbnailUrl) setThumbPreview(`${API_URL}${post.thumbnailUrl}`);
-                    if (post.coverImageUrl) setCoverPreview(`${API_URL}${post.coverImageUrl}`);
+                    
+                    // --- FIX: Correctly construct the image URL ---
+                    if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
+                    if (post.coverImageUrl) setCoverPreview(`${API_URL}/${post.coverImageUrl}`);
+
                     setThumbnailAltText(post.thumbnailAltText || '');
                     setThumbnailTitle(post.thumbnailTitle || '');
                     setCoverImageAltText(post.coverImageAltText || '');
@@ -228,30 +231,15 @@ const BlogEditorPage = () => {
         e.preventDefault();
         try {
             const formData = new FormData();
-
-            // Append all the post fields directly to the FormData object
             formData.append('title', title);
             formData.append('content', content);
             formData.append('category', category);
             formData.append('featured', isFeatured);
-            
-            // Append each tag separately
             if (tags && tags.length > 0) {
                 tags.forEach(tag => formData.append('tags', tag));
             } else {
-                // If there are no tags, we should still send an empty value
-                // if the backend expects the field to be present.
-                // Based on your controller, it's not required, but this is good practice.
                 formData.append('tags', ''); 
             }
-
-            // The backend controller doesn't currently handle these SEO fields.
-            // They should be added to the BlogPost entity and controller to be saved.
-            // formData.append('thumbnailAltText', thumbnailAltText);
-            // formData.append('thumbnailTitle', thumbnailTitle);
-            // formData.append('coverImageAltText', coverImageAltText);
-            // formData.append('coverImageTitle', coverImageTitle);
-
             if (finalThumbFile) {
                 formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
             }
