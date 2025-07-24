@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getPosts, deletePost, API_URL } from '../apiConfig';
+import { getPosts, deletePost } from '../apiConfig';
+import AuthImage from '../components/AuthImage'; // Import the new component
+
+// --- FIX: Add a function to handle inconsistent URL formats ---
+const normalizeImageUrl = (url) => {
+    if (!url) return '';
+    // If the URL already contains '/uploads/', use it as is.
+    // Otherwise, prepend the necessary path.
+    if (url.includes('/uploads/')) {
+        return url;
+    }
+    // This handles cases where the URL is just the filename.
+    // You might need to adjust the base path if it's different.
+    return `/uploads/${url}`;
+};
+
 
 const ManagePostsPage = () => {
     const [posts, setPosts] = useState([]);
@@ -75,14 +90,19 @@ const ManagePostsPage = () => {
                         {posts.map(post => (
                             <tr key={post.id}>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    {/* --- FIX: Re-added the thumbnail image display --- */}
                                     <div className="flex items-center">
-                                        {post.thumbnailUrl && (
-                                            <div className="flex-shrink-0 w-10 h-10">
-                                                <img className="w-full h-full rounded-full object-cover" src={`${API_URL}${post.thumbnailUrl}`} alt="Thumbnail" />
-                                            </div>
-                                        )}
-                                        <div className="ml-3">
+                                        <div className="flex-shrink-0 w-10 h-10 mr-3">
+                                            {post.thumbnailUrl ? (
+                                                <AuthImage 
+                                                    src={normalizeImageUrl(post.thumbnailUrl)}
+                                                    alt={post.title || 'Thumbnail'}
+                                                    className="w-full h-full rounded-full object-cover" 
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full bg-gray-200 rounded-full"></div>
+                                            )}
+                                        </div>
+                                        <div className="ml-0">
                                             <p className="text-gray-900 whitespace-no-wrap">{post.title}</p>
                                         </div>
                                     </div>
