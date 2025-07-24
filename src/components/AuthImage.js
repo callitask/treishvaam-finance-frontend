@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import api from '../apiConfig'; // Ensure this path is correct
+import api from '../apiConfig'; // Adjust if your apiConfig is elsewhere
 
 const AuthImage = ({ src, alt, ...props }) => {
     const [imageSrc, setImageSrc] = useState('');
     const [error, setError] = useState(false);
 
     useEffect(() => {
+        let objectUrl; // Use a local variable to hold the URL
+
         const fetchImage = async () => {
             if (src) {
                 // Reset state for new src
@@ -16,8 +18,8 @@ const AuthImage = ({ src, alt, ...props }) => {
                         responseType: 'blob'
                     });
                     const imageBlob = new Blob([response.data]);
-                    const imageUrl = URL.createObjectURL(imageBlob);
-                    setImageSrc(imageUrl);
+                    objectUrl = URL.createObjectURL(imageBlob);
+                    setImageSrc(objectUrl);
                 } catch (err) {
                     console.error(`Failed to fetch image: ${src}`, err);
                     setError(true);
@@ -27,15 +29,16 @@ const AuthImage = ({ src, alt, ...props }) => {
 
         fetchImage();
 
+        // The cleanup function now closes over the local 'objectUrl' variable
         return () => {
-            if (imageSrc) {
-                URL.revokeObjectURL(imageSrc);
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [src]);
+    }, [src]); // The effect correctly depends only on 'src'
 
     if (error) {
-        // Render a broken image placeholder if the fetch fails
+        // Render a placeholder if the fetch fails
         return <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center"><span className="text-red-500 text-xs">Error</span></div>;
     }
 
@@ -44,6 +47,7 @@ const AuthImage = ({ src, alt, ...props }) => {
         return <div className="w-full h-full bg-gray-200 rounded-full animate-pulse"></div>;
     }
 
+    // Render the image once the source is available
     return <img src={imageSrc} alt={alt} {...props} />;
 };
 
