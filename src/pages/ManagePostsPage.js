@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getPosts, deletePost } from '../apiConfig';
+// --- MODIFICATION: Import the correct function ---
+import { getAllPostsForAdmin as getPosts, deletePost } from '../apiConfig';
 import AuthImage from '../components/AuthImage';
 import ShareModal from '../components/ShareModal';
 import { FaShareAlt, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
@@ -98,19 +99,19 @@ const ManagePostsPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const response = await getPosts();
-                const sortedPosts = response.data.sort((a, b) => {
-                    const dateA = new Date(a.updatedAt || a.createdAt);
-                    const dateB = new Date(b.updatedAt || b.createdAt);
-                    return dateB - dateA;
-                });
+                const response = await getPosts(); // This now calls getAllPostsForAdmin
+                const sortedPosts = response.data.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
                 setPosts(sortedPosts);
             } catch (err) {
-                setError('Failed to fetch posts.');
+                setError('Failed to fetch posts. Ensure you are logged in with admin rights.');
                 console.error(err);
             }
         };
+
         fetchPosts();
+        const intervalId = setInterval(fetchPosts, 30000); // Re-fetch every 30 seconds
+
+        return () => clearInterval(intervalId); // Cleanup
     }, []);
 
     const { publishedPosts, scheduledPosts } = useMemo(() => {
@@ -118,7 +119,8 @@ const ManagePostsPage = () => {
         const scheduled = posts.filter(post => !post.published);
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [posts]);
-
+    
+    // ... rest of the component (handleDelete, etc.) remains the same
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this post?')) {
             try {
@@ -140,10 +142,8 @@ const ManagePostsPage = () => {
         setIsShareModalOpen(false);
         setSelectedPost(null);
     };
-
-    const handleShareToLinkedIn = async (shareData) => {
-        // Existing share logic remains unchanged
-    };
+    
+    const handleShareToLinkedIn = async (shareData) => { /* ... */ };
 
     return (
         <>
