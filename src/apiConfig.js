@@ -4,9 +4,6 @@ export const API_URL = 'https://backend.treishvaamgroup.com';
 
 const api = axios.create({
     baseURL: `${API_URL}/api`,
-    headers: {
-        'X-Internal-Secret': 'Qw8vZp3rT6sB1eXy9uKj4LmN2aSd5FgH7pQwErTyUiOpAsDfGhJkLzXcVbNmQwErTyUiOpAsDfGhJkLzXcVbNm'
-    }
 });
 
 api.interceptors.request.use(config => {
@@ -19,8 +16,13 @@ api.interceptors.request.use(config => {
     return Promise.reject(error);
 });
 
-// Post APIs
-export const getPosts = () => api.get('/posts');
+// --- MODIFICATION START ---
+// The public getPosts now correctly points to the public endpoint
+export const getPosts = () => api.get('/posts'); 
+// A new function for the admin dashboard
+export const getAllPostsForAdmin = () => api.get('/posts/admin/all'); 
+// --- MODIFICATION END ---
+
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const getLatestPostHeadline = () => api.get('/posts/latest-headline');
 export const createPost = (formData) => api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
