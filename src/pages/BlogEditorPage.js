@@ -8,6 +8,7 @@ import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
+// --- NO CHANGES TO TagsInput, canvasToBlob, canvasPreview, or CropModal ---
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
     const handleKeyDown = (e) => {
@@ -121,11 +122,11 @@ const BlogEditorPage = () => {
     const [finalCoverFile, setFinalCoverFile] = useState(null);
     const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '' });
     const [sunEditorUploadHandler, setSunEditorUploadHandler] = useState(null);
-
     const [thumbnailAltText, setThumbnailAltText] = useState('');
     const [thumbnailTitle, setThumbnailTitle] = useState('');
     const [coverImageAltText, setCoverImageAltText] = useState('');
     const [coverImageTitle, setCoverImageTitle] = useState('');
+    const [scheduledTime, setScheduledTime] = useState('');
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -143,7 +144,6 @@ const BlogEditorPage = () => {
                     setIsFeatured(post.featured);
                     setCreatedAt(post.createdAt || new Date().toISOString());
                     
-                    // --- FIX: Correctly construct the image URL ---
                     if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
                     if (post.coverImageUrl) setCoverPreview(`${API_URL}/${post.coverImageUrl}`);
 
@@ -152,12 +152,17 @@ const BlogEditorPage = () => {
                     setCoverImageAltText(post.coverImageAltText || '');
                     setCoverImageTitle(post.coverImageTitle || '');
 
+                    if (post.scheduledTime) {
+                        const localDateTime = new Date(post.scheduledTime).toISOString().slice(0, 16);
+                        setScheduledTime(localDateTime);
+                    }
                 } else {
                     setCategory(categoriesRes.data[0]?.name || '');
                     setCreatedAt(new Date().toISOString());
                 }
             } catch (err) {
-                setError('Failed to load initial data.');
+                setError('Failed to load initial data. Check permissions or network.');
+                console.error(err);
             }
         };
         fetchInitialData();
@@ -247,6 +252,10 @@ const BlogEditorPage = () => {
                 formData.append('coverImage', finalCoverFile, 'cover.jpg');
             }
             
+            if (scheduledTime) {
+                formData.append('scheduledTime', new Date(scheduledTime).toISOString());
+            }
+
             if (id) {
                 await updatePost(id, formData);
             } else {
@@ -269,6 +278,7 @@ const BlogEditorPage = () => {
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
                     
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
+                        {/* Title, Category, Tags sections remain the same */}
                         <div>
                             <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
                             <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
@@ -293,41 +303,58 @@ const BlogEditorPage = () => {
                             <label className="block text-gray-700 font-semibold mb-2">Tags</label>
                             <TagsInput tags={tags} setTags={setTags} />
                         </div>
-
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
-                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
-                            <div>
-                                <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                            </div>
-                            <div>
-                                <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                            </div>
-                        </div>
-
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
-                            <div>
-                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                            </div>
-                            <div>
-                                <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                            </div>
-                        </div>
                         
+                        {/* SEO sections remain the same */}
+                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                             <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
+                             {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
+                             <div>
+                                 <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                                 <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
+                             </div>
+                             <div>
+                                 <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                                 <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
+                             </div>
+                         </div>
+                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                             <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
+                             {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
+                             <div>
+                                 <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                                 <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
+                             </div>
+                             <div>
+                                 <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                                 <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
+                             </div>
+                         </div>
+
+                        {/* --- ADDED THIS SECTION --- */}
+                        <div>
+                            <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
+                            <input
+                                type="datetime-local"
+                                id="scheduledTime"
+                                value={scheduledTime}
+                                onChange={e => setScheduledTime(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
+                        </div>
+
                         <div className="flex items-center">
                             <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
                             <span className="ml-2 text-gray-700">Mark as Featured</span>
                         </div>
+
                         <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                            {id ? 'Update Post' : 'Publish Post'}
+                            {id 
+                                ? 'Update Post' 
+                                : (scheduledTime ? 'Schedule Post' : 'Publish Post')
+                            }
                         </button>
                     </form>
                 </div>
