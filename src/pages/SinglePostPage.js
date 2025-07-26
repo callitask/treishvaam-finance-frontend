@@ -4,6 +4,7 @@ import { getPost } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import AuthImage from '../components/AuthImage';
+import ShareButtons from '../components/ShareButtons';
 
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
@@ -92,6 +93,10 @@ const SinglePostPage = () => {
                             className="prose lg:prose-xl max-w-none"
                             dangerouslySetInnerHTML={createMarkup(post.content)}
                         />
+                        {/* --- ADDED SHARE BUTTONS SECTION --- */}
+                        <div className="border-t border-gray-200 mt-12 pt-8">
+                            <ShareButtons url={pageUrl} title={post.title} summary={pageDescription} />
+                        </div>
                     </div>
                 </div>
             </article>
