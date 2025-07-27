@@ -1,27 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { getPost } from '../apiConfig';
+import { useParams, Link } from 'react-router-dom';
+import { getPost, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import AuthImage from '../components/AuthImage';
 import ShareButtons from '../components/ShareButtons';
+import { FaUserCircle } from 'react-icons/fa';
 
+// --- UTILITY FUNCTIONS ---
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
-    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: false } });
-    const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
-    const plainText = doc.body.textContent || "";
+    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
     if (plainText.length <= length) return plainText;
     const trimmed = plainText.substring(0, length);
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
 const normalizeImageUrl = (url) => {
-    if (!url) return '';
-    if (url.includes('/uploads/')) return url;
-    return `/uploads/${url}`;
+    if (!url) return null;
+    return url.startsWith('/uploads/') ? url : `/uploads/${url}`;
 };
 
+const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+    });
+};
+
+// --- MAIN COMPONENT ---
 const SinglePostPage = () => {
     const { id } = useParams();
     const [post, setPost] = useState(null);
@@ -40,63 +49,89 @@ const SinglePostPage = () => {
             }
         };
         fetchPost();
+        window.scrollTo(0, 0); // Scroll to top on new post load
     }, [id]);
 
-    if (loading) return <div className="text-center py-10">Loading post...</div>;
-    if (error) return <div className="text-center py-10 text-red-500">{error}</div>;
-    if (!post) return <div className="text-center py-10">Post not found.</div>;
+    if (loading) return <div className="text-center py-20">Loading post...</div>;
+    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
+    if (!post) return <div className="text-center py-20">Post not found.</div>;
 
-    const createMarkup = (htmlContent) => {
-        return { __html: DOMPurify.sanitize(htmlContent, { USE_PROFILES: { html: true } }) };
-    };
+    const createMarkup = (htmlContent) => ({
+        __html: DOMPurify.sanitize(htmlContent, { USE_PROFILES: { html: true } })
+    });
 
-    // --- SEO & Open Graph Meta Tags ---
-    const siteName = "Treishfin · Treishvaam Finance";
-    const pageTitle = `${siteName} · ${post.title}`;
+    const pageTitle = `Treishvaam Finance · ${post.title}`;
     const pageDescription = createSnippet(post.content);
     const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.id}`;
-    const imageUrl = post.thumbnailUrl ? `https://backend.treishvaamgroup.com${normalizeImageUrl(post.thumbnailUrl)}` : 'https://treishfin.treishvaamgroup.com/logo512.png';
+    const imageUrl = post.coverImageUrl ? `${API_URL}${normalizeImageUrl(post.coverImageUrl)}` : '/logo512.png';
 
     return (
         <>
             <Helmet>
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
-
-                {/* Open Graph Tags for Social Sharing */}
                 <meta property="og:title" content={pageTitle} />
                 <meta property="og:description" content={pageDescription} />
                 <meta property="og:image" content={imageUrl} />
                 <meta property="og:url" content={pageUrl} />
                 <meta property="og:type" content="article" />
-                <meta property="og:site_name" content="Treishvaam Finance" />
             </Helmet>
             
-            <article className="bg-gray-50">
-                <header className="relative h-[400px] bg-gray-200">
+            <article className="bg-white">
+                {/* --- MODERN HEADER --- */}
+                <header className="relative h-[60vh] min-h-[400px] text-white">
                     {post.coverImageUrl && (
                         <AuthImage 
                             src={normalizeImageUrl(post.coverImageUrl)}
-                            alt={post.coverImageAltText || post.title}
+                            alt={post.title}
                             className="w-full h-full object-cover"
                         />
                     )}
-                    <div className="absolute inset-0 bg-black opacity-20"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
+                    <div className="absolute bottom-0 left-0 p-8 md:p-12">
+                        <Link to={`/blog?category=${post.category}`} className="bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider hover:bg-sky-600 transition">
+                            {post.category}
+                        </Link>
+                        <h1 className="text-3xl md:text-5xl font-extrabold mt-4 leading-tight shadow-text">{post.title}</h1>
+                        <div className="flex items-center mt-4 text-sm">
+                            <FaUserCircle className="mr-2" />
+                            <span>By {post.author}</span>
+                            <span className="mx-2">|</span>
+                            <span>Published on {formatDate(post.updatedAt || post.createdAt)}</span>
+                        </div>
+                    </div>
                 </header>
-                <div className="container mx-auto px-4 -mt-32 relative z-10 pb-16">
-                    <div className="bg-white p-8 md:p-12 rounded-lg shadow-xl max-w-4xl mx-auto">
-                        <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4">{post.title}</h1>
-                        <p className="text-gray-500 mb-8">
-                            Published on: {new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                        </p>
+
+                {/* --- TWO-COLUMN LAYOUT --- */}
+                <div className="container mx-auto px-4 py-12">
+                    <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-12">
+                        
+                        {/* Left Column: Main Content */}
                         <div 
-                            className="prose lg:prose-xl max-w-none"
+                            className="w-full lg:w-2/3 prose lg:prose-lg max-w-none"
                             dangerouslySetInnerHTML={createMarkup(post.content)}
                         />
-                        {/* --- ADDED SHARE BUTTONS SECTION --- */}
-                        <div className="border-t border-gray-200 mt-12 pt-8">
-                            <ShareButtons url={pageUrl} title={post.title} summary={pageDescription} />
-                        </div>
+
+                        {/* Right Column: Sticky Sidebar */}
+                        <aside className="w-full lg:w-1/3 lg:sticky top-28 self-start">
+                            <div className="bg-gray-50 p-6 rounded-lg">
+                                <h3 className="text-lg font-bold mb-4 border-b pb-2">Share this Article</h3>
+                                <ShareButtons url={pageUrl} title={post.title} summary={pageDescription} />
+
+                                {post.tags && post.tags.length > 0 && (
+                                    <>
+                                        <h3 className="text-lg font-bold mt-8 mb-4 border-b pb-2">Tags</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {post.tags.map(tag => (
+                                                <span key={tag} className="bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1 rounded-full">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </aside>
                     </div>
                 </div>
             </article>
