@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-// --- MODIFICATION: Import the correct function ---
 import { getAllPostsForAdmin as getPosts, deletePost } from '../apiConfig';
 import AuthImage from '../components/AuthImage';
 import ShareModal from '../components/ShareModal';
@@ -45,40 +44,22 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 w-10 h-10 mr-4">
-                                        {post.thumbnailUrl ? (
-                                            <AuthImage 
-                                                src={normalizeImageUrl(post.thumbnailUrl)}
-                                                alt={post.title || 'Thumbnail'}
-                                                className="w-full h-full rounded-full object-cover" 
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full bg-gray-200 rounded-full"></div>
-                                        )}
+                                        {post.thumbnailUrl && <AuthImage src={normalizeImageUrl(post.thumbnailUrl)} alt={post.title} className="w-full h-full rounded-full object-cover" />}
                                     </div>
-                                    <p className="text-gray-900 font-medium whitespace-no-wrap">{post.title}</p>
+                                    <p className="text-gray-900 font-medium">{post.title}</p>
                                 </div>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">{post.category}</span>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <p className="text-gray-900 whitespace-no-wrap">
-                                    {formatDisplayDate(isScheduled ? post.scheduledTime : (post.updatedAt || post.createdAt))}
-                                </p>
+                                <p className="text-gray-900">{formatDisplayDate(isScheduled ? post.scheduledTime : (post.updatedAt || post.createdAt))}</p>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center space-x-4">
-                                    {!isScheduled && (
-                                        <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600 flex items-center" title="Share Post">
-                                            <FaShareAlt />
-                                        </button>
-                                    )}
-                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.id}`)} className="text-gray-500 hover:text-sky-600" title="Edit Post">
-                                        <FaEdit />
-                                    </button>
-                                    <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete Post">
-                                        <FaTrash />
-                                    </button>
+                                    {!isScheduled && <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600" title="Share"><FaShareAlt /></button>}
+                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.id}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
+                                    <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete"><FaTrash /></button>
                                 </div>
                             </td>
                         </tr>
@@ -96,31 +77,39 @@ const ManagePostsPage = () => {
     const [selectedPost, setSelectedPost] = useState(null);
     const [activeTab, setActiveTab] = useState('published');
 
-    useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const response = await getPosts(); // This now calls getAllPostsForAdmin
-                const sortedPosts = response.data.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-                setPosts(sortedPosts);
-            } catch (err) {
-                setError('Failed to fetch posts. Ensure you are logged in with admin rights.');
-                console.error(err);
-            }
-        };
-
-        fetchPosts();
-        const intervalId = setInterval(fetchPosts, 30000); // Re-fetch every 30 seconds
-
-        return () => clearInterval(intervalId); // Cleanup
+    const fetchPosts = useCallback(async () => {
+        try {
+            const response = await getPosts();
+            const sortedPosts = response.data.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+            setPosts(sortedPosts);
+        } catch (err) {
+            setError('Failed to fetch posts.');
+        }
     }, []);
+
+    useEffect(() => {
+        fetchPosts();
+        const intervalId = setInterval(fetchPosts, 30000); // Fallback polling
+        return () => clearInterval(intervalId);
+    }, [fetchPosts]);
 
     const { publishedPosts, scheduledPosts } = useMemo(() => {
         const published = posts.filter(post => post.published);
         const scheduled = posts.filter(post => !post.published);
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [posts]);
-    
-    // ... rest of the component (handleDelete, etc.) remains the same
+
+    // --- SMART TIMER FOR INSTANT UPDATES ---
+    useEffect(() => {
+        const now = Date.now();
+        const timers = scheduledPosts
+            .map(post => new Date(post.scheduledTime).getTime() - now)
+            .filter(delay => delay > 0)
+            .map(delay => setTimeout(fetchPosts, delay + 1000)); // refetch 1s after due
+
+        return () => timers.forEach(clearTimeout); // Cleanup timers
+    }, [scheduledPosts, fetchPosts]);
+
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this post?')) {
             try {
@@ -128,7 +117,6 @@ const ManagePostsPage = () => {
                 setPosts(posts.filter(post => post.id !== id));
             } catch (err) {
                 setError('Failed to delete the post.');
-                console.error(err);
             }
         }
     };
@@ -142,55 +130,35 @@ const ManagePostsPage = () => {
         setIsShareModalOpen(false);
         setSelectedPost(null);
     };
-    
-    const handleShareToLinkedIn = async (shareData) => { /* ... */ };
+
+    const handleShareToLinkedIn = async () => { /* ... */ };
 
     return (
         <>
             <div className="container mx-auto p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-3xl font-bold text-gray-800">Manage Posts</h1>
-                    <Link to="/dashboard/blog/new" className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition duration-300 flex items-center">
+                    <Link to="/dashboard/blog/new" className="bg-sky-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-700 transition flex items-center">
                         <FaPlus className="mr-2" /> Create New Post
                     </Link>
                 </div>
                 <div className="mb-4 border-b border-gray-200">
                     <nav className="flex space-x-4" aria-label="Tabs">
-                        <button
-                            onClick={() => setActiveTab('published')}
-                            className={`px-3 py-2 font-medium text-sm rounded-t-lg ${
-                                activeTab === 'published' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
+                        <button onClick={() => setActiveTab('published')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'published' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'}`}>
                             Published ({publishedPosts.length})
                         </button>
-                        <button
-                            onClick={() => setActiveTab('scheduled')}
-                            className={`px-3 py-2 font-medium text-sm rounded-t-lg ${
-                                activeTab === 'scheduled' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                        >
+                        <button onClick={() => setActiveTab('scheduled')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'scheduled' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'}`}>
                             Scheduled ({scheduledPosts.length})
                         </button>
                     </nav>
                 </div>
                 {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    {activeTab === 'published' && (
-                        <PostsTable posts={publishedPosts} handleDelete={handleDelete} handleOpenShareModal={handleOpenShareModal} />
-                    )}
-                    {activeTab === 'scheduled' && (
-                        <PostsTable posts={scheduledPosts} handleDelete={handleDelete} handleOpenShareModal={handleOpenShareModal} isScheduled={true} />
-                    )}
+                    {activeTab === 'published' && <PostsTable posts={publishedPosts} handleDelete={handleDelete} handleOpenShareModal={handleOpenShareModal} />}
+                    {activeTab === 'scheduled' && <PostsTable posts={scheduledPosts} handleDelete={handleDelete} isScheduled={true} />}
                 </div>
             </div>
-            {isShareModalOpen && selectedPost && (
-                <ShareModal 
-                    post={selectedPost}
-                    onClose={handleCloseShareModal}
-                    onShare={handleShareToLinkedIn}
-                />
-            )}
+            {isShareModalOpen && <ShareModal post={selectedPost} onClose={handleCloseShareModal} onShare={handleShareToLinkedIn} />}
         </>
     );
 };

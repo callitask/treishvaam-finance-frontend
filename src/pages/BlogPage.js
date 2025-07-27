@@ -65,7 +65,8 @@ const PostCard = memo(({ article }) => {
             <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
                 <span>By Treishvaam Finance</span>
                 <span className="mx-2">|</span>
-                <span>{formatDateTime(article.createdAt)}</span>
+                {/* Use updatedAt (publication time) with a fallback to createdAt */}
+                <span>{formatDateTime(article.updatedAt || article.createdAt)}</span>
             </div>
             <h3 className="text-lg font-bold mb-2 text-gray-900">
                 <Link to={`/blog/${article.id}`} className="hover:text-sky-700 transition-colors">
@@ -82,7 +83,7 @@ const PostCard = memo(({ article }) => {
     );
 
     return (
-        <div className="break-inside-avoid mb-4 border border-gray-200 relative">
+        <div className="break-inside-avoid mb-4 border border-gray-200 relative bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
             {!hasThumbnail ? (
                 <CardContent showFeaturedTag={isFeatured} />
             ) : (
@@ -94,7 +95,7 @@ const PostCard = memo(({ article }) => {
                                     alt={article.title}
                                     effect="blur"
                                     src={fullThumbnailUrl}
-                                    className="w-full h-auto rounded-t-lg object-contain"
+                                    className="w-full h-auto object-contain"
                                     onLoad={handleImageLoad}
                                 />
                             )}
@@ -114,9 +115,10 @@ const PostCard = memo(({ article }) => {
     );
 });
 
+
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
-    const [latestFeaturedPost, setLatestFeaturedPost] = useState(null);
+    const [latestPost, setLatestPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedCategory, setSelectedCategory] = useState("All");
@@ -126,13 +128,8 @@ const BlogPage = () => {
         const fetchPosts = async () => {
             try {
                 const response = await axios.get(`${API_URL}/api/posts`);
-                const sortedPosts = response.data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                setPosts(sortedPosts);
-
-                // Find the latest featured post for SEO tags
-                const featured = sortedPosts.find(p => p.featured);
-                setLatestFeaturedPost(featured || (sortedPosts.length > 0 ? sortedPosts[0] : null));
-
+                setPosts(response.data);
+                setLatestPost(response.data.length > 0 ? response.data[0] : null);
             } catch (err) {
                 setError('Failed to fetch blog posts.');
             } finally {
@@ -149,17 +146,14 @@ const BlogPage = () => {
         }
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
-            filtered = filtered.filter(p => p.title.toLowerCase().includes(term) || (p.content && p.content.toLowerCase().includes(term)));
+            filtered = filtered.filter(p => p.title.toLowerCase().includes(term));
         }
         return filtered;
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Dynamic SEO & Open Graph Meta Tags ---
-    const siteName = "Treishfin · Treishvaam Finance";
-    const pageTitle = latestFeaturedPost ? `${siteName} · ${latestFeaturedPost.title}` : `${siteName} | Financial News & Analysis`;
-    const pageDescription = latestFeaturedPost ? createSnippet(latestFeaturedPost.content) : "Your trusted source for daily financial news, market updates, and expert analysis.";
-    const imageUrl = latestFeaturedPost && latestFeaturedPost.thumbnailUrl ? `${API_URL}${normalizeImageUrl(latestFeaturedPost.thumbnailUrl)}` : "https://treishfin.treishvaamgroup.com/logo512.png";
-    const pageUrl = "https://treishfin.treishvaamgroup.com/"; // Main site URL
+    const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
+    const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
+    const imageUrl = latestPost?.thumbnailUrl ? `${API_URL}${normalizeImageUrl(latestPost.thumbnailUrl)}` : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
@@ -169,63 +163,46 @@ const BlogPage = () => {
             <Helmet>
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
-                <meta name="keywords" content="financial news, latest news, market updates, stock analysis, crypto news, trading insights, Treishvaam, Treishvaam Finance" />
-                
-                {/* Open Graph Tags for Social Sharing */}
                 <meta property="og:title" content={pageTitle} />
                 <meta property="og:description" content={pageDescription} />
                 <meta property="og:image" content={imageUrl} />
-                <meta property="og:url" content={pageUrl} />
-                <meta property="og:type" content="website" />
-                <meta property="og:site_name" content="Treishvaam Finance" />
             </Helmet>
 
-            <section className="bg-white py-12 md:py-16">
+            <section className="bg-white py-12">
                 <div className="container mx-auto px-6 text-center">
-                    <div className="max-w-3xl mx-auto">
-                        <h1 className="text-4xl md:text-5xl font-bold mb-2">
-                            <span>Financial </span>
-                            <span className="text-sky-600">News & Analysis</span>
-                        </h1>
-                        <p className="text-lg md:text-xl text-gray-700">Stay ahead with timely market developments, expert analysis, and strategic insights for your trading journey.</p>
-                    </div>
+                    <h1 className="text-4xl md:text-5xl font-bold mb-2">Financial <span className="text-sky-600">News & Analysis</span></h1>
+                    <p className="text-lg text-gray-700">Stay ahead with timely market developments and expert analysis.</p>
                 </div>
             </section>
 
             <section className="bg-white pt-0 pb-12">
                 <div className="container mx-auto px-6">
                     <div className="mb-10 flex flex-col items-center">
-                        <form className="w-full max-w-3xl flex items-center gap-2 justify-center mb-4" onSubmit={e => e.preventDefault()}>
-                            <div className="relative flex-grow">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
-                                </span>
-                                <input
-                                    type="text"
-                                    placeholder="Search financial news..."
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                    className="search-input py-2.5 pl-10 pr-4 border border-gray-400 text-black w-full focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-500 text-sm rounded-none shadow-sm"
-                                />
-                            </div>
-                            <button type="submit" className="px-6 py-2.5 bg-sky-500 text-white font-semibold hover:bg-sky-600 transition rounded-none text-sm">Search</button>
-                        </form>
+                        <div className="w-full max-w-3xl flex items-center gap-2 justify-center mb-4">
+                            <input
+                                type="text"
+                                placeholder="Search financial news..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="search-input py-2.5 pl-4 pr-4 border border-gray-400 w-full focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm shadow-sm"
+                            />
+                        </div>
                         <div className="flex flex-wrap justify-center gap-2">
                             {allCategories.map(cat => (
-                                <button key={cat} className={`filter-button px-3 py-1.5 text-sm rounded-none transition-colors duration-200 border ${selectedCategory === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-400 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
+                                <button key={cat} className={`filter-button px-3 py-1.5 text-sm transition-colors duration-200 border ${selectedCategory === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-400 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
                                     {cat}
                                 </button>
                             ))}
                         </div>
                     </div>
-
+                    {/* --- FIX: Restored original multi-column layout --- */}
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
                         {filteredPosts.length > 0 ? (
                             filteredPosts.map((article) => (
                                 <PostCard key={article.id} article={article} />
                             ))
                         ) : (
-                            <p className="text-center p-10">No posts found.</p>
+                            <p className="text-center p-10 col-span-full">No posts found.</p>
                         )}
                     </div>
                 </div>
