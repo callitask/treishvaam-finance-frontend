@@ -1,3 +1,5 @@
+// src/pages/BlogPage.js
+
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -5,8 +7,9 @@ import { API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
+import DevelopmentNotice from '../components/DevelopmentNotice'; // --- Task 2: Import the new notice component
 
-// ... (keep the existing helper functions: allCategories, createSnippet, formatDateTime)
+// --- Helper Functions (No changes needed) ---
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
 const createSnippet = (html, length = 155) => {
@@ -27,13 +30,26 @@ const formatDateTime = (dateString) => {
     });
 };
 
-// --- FIX: PostCard component restored to its original dynamic layout logic ---
+// --- Maintenance Component (For Server Errors) ---
+const MaintenanceComponent = () => (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 text-center p-6">
+         <div className="mb-4">
+            <svg className="w-20 h-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <h1 className="text-4xl font-bold text-gray-800 mb-3">Temporarily Unavailable</h1>
+        <p className="text-lg text-gray-600 max-w-xl">
+            Our site is currently undergoing scheduled maintenance to improve your experience. We expect to be back online shortly. Thank you for your patience.
+        </p>
+    </div>
+);
+
+
+// --- PostCard Component ---
 const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
 
-    // This handler will be triggered once the image loads, giving us its dimensions.
     const handleImageLoad = (event) => {
         const { naturalWidth, naturalHeight } = event.target;
         if (naturalHeight > naturalWidth) {
@@ -45,7 +61,7 @@ const PostCard = memo(({ article }) => {
         <div className="flex flex-col flex-grow p-4">
             {showFeaturedTag && (
                 <div className="mb-2">
-                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{ letterSpacing: '0.08em' }}>Featured</span>
                 </div>
             )}
             <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
@@ -75,17 +91,18 @@ const PostCard = memo(({ article }) => {
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
-                             <ResponsiveAuthImage
+                            <ResponsiveAuthImage
                                 baseName={article.thumbnailUrl}
                                 alt={article.title}
-                                className="w-full h-auto object-contain"
+                                // --- Task 1: Downscale image by setting max height and ensuring object-cover ---
+                                className="w-full h-auto max-h-96 object-cover" 
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                onLoad={handleImageLoad} // Pass the handler to the image component
+                                onLoad={handleImageLoad}
                             />
                         </Link>
                         {isFeatured && !isPortrait && (
                             <div className="absolute top-2 left-2 z-10">
-                                <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{letterSpacing: '0.08em'}}>Featured</span>
+                                <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{ letterSpacing: '0.08em' }}>Featured</span>
                             </div>
                         )}
                     </div>
@@ -98,7 +115,7 @@ const PostCard = memo(({ article }) => {
     );
 });
 
-// The main BlogPage component remains largely the same
+// --- BlogPage Component ---
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -112,14 +129,15 @@ const BlogPage = () => {
                 const response = await axios.get(`${API_URL}/api/posts`);
                 setPosts(response.data);
             } catch (err) {
-                setError('Failed to fetch blog posts.');
+                // Task 3: Set a generic error to trigger the maintenance message
+                setError('Failed to fetch blog posts.'); 
             } finally {
                 setLoading(false);
             }
         };
         fetchPosts();
     }, []);
-    
+
     const filteredPosts = useMemo(() => {
         let filtered = posts;
         if (selectedCategory !== "All") {
@@ -136,12 +154,13 @@ const BlogPage = () => {
 
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnailUrl 
-        ? `${API_URL}/api/uploads/${latestPost.thumbnailUrl}.webp` 
+    const imageUrl = latestPost?.thumbnailUrl
+        ? `${API_URL}/api/uploads/${latestPost.thumbnailUrl}.webp`
         : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
-    if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
+    // --- Task 3: Show the professional maintenance component on error ---
+    if (error) return <MaintenanceComponent />; 
 
     return (
         <>
@@ -152,6 +171,9 @@ const BlogPage = () => {
                 <meta property="og:description" content={pageDescription} />
                 <meta property="og:image" content={imageUrl} />
             </Helmet>
+
+            {/* --- Task 2: Render the one-time development notice --- */}
+            <DevelopmentNotice />
 
             <section className="bg-white py-12">
                 <div className="container mx-auto px-6 text-center">
