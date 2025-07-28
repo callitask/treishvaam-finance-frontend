@@ -16,13 +16,8 @@ api.interceptors.request.use(config => {
     return Promise.reject(error);
 });
 
-// --- MODIFICATION START ---
-// The public getPosts now correctly points to the public endpoint
 export const getPosts = () => api.get('/posts'); 
-// A new function for the admin dashboard
 export const getAllPostsForAdmin = () => api.get('/posts/admin/all'); 
-// --- MODIFICATION END ---
-
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const getLatestPostHeadline = () => api.get('/posts/latest-headline');
 export const createPost = (formData) => api.post('/posts', formData, { headers: { 'Content-Type': 'multipart/form-data' } });

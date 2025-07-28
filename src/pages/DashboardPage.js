@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
-// --- MODIFICATION: Import the correct function ---
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
 import { FaLinkedin, FaFileAlt, FaEye, FaPlusSquare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import AuthImage from '../components/AuthImage';
+// --- MODIFICATION START ---
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // Use our new component
+// --- MODIFICATION END ---
 
 const StatCard = ({ icon, title, value, color }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm flex items-center">
@@ -28,7 +29,7 @@ const DashboardPage = () => {
     useEffect(() => {
         const fetchPostsForStats = async () => {
             try {
-                const response = await getPosts(); // This now calls getAllPostsForAdmin
+                const response = await getPosts();
                 setPosts(response.data);
             } catch (err) {
                 setError('Could not load dashboard data.');
@@ -36,16 +37,10 @@ const DashboardPage = () => {
             }
         };
         fetchPostsForStats();
-        const intervalId = setInterval(fetchPostsForStats, 30000); // Re-fetch every 30 seconds
+        const intervalId = setInterval(fetchPostsForStats, 30000);
 
-        return () => clearInterval(intervalId); // Cleanup
+        return () => clearInterval(intervalId);
     }, []);
-    
-    // ... rest of the component is the same
-    const normalizeImageUrl = (url) => {
-        if (!url) return null;
-        return url.includes('/uploads/') ? url : `/uploads/${url}`;
-    };
 
     const recentPosts = useMemo(() => {
         return [...posts]
@@ -53,21 +48,21 @@ const DashboardPage = () => {
             .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
             .slice(0, 5);
     }, [posts]);
-    
+
     const totalPublishedPosts = useMemo(() => posts.filter(p => p.published).length, [posts]);
     const totalScheduledPosts = useMemo(() => posts.filter(p => !p.published).length, [posts]);
 
     return (
         <div className="container mx-auto p-6 md:p-8">
             <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome, {user?.name || 'Admin'}!</h1>
-            
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                 <StatCard icon={<FaFileAlt className="text-white" />} title="Published Posts" value={totalPublishedPosts} color="bg-sky-500" />
                 <StatCard icon={<FaEye className="text-white" />} title="Scheduled Posts" value={totalScheduledPosts} color="bg-amber-500" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 <div className="lg:col-span-1 space-y-6">
                     <div className="bg-white p-6 rounded-lg shadow-sm">
                         <h2 className="text-xl font-semibold mb-4 text-gray-700">Quick Actions</h2>
@@ -108,13 +103,14 @@ const DashboardPage = () => {
                                 <div key={post.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
                                     <div className="flex items-center">
                                         <div className="w-12 h-12 flex-shrink-0 mr-4">
-                                            {post.thumbnailUrl ? (
-                                                <AuthImage src={normalizeImageUrl(post.thumbnailUrl)} alt={post.title} className="w-full h-full rounded-lg object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-                                                    <FaFileAlt className="text-gray-400" />
-                                                </div>
-                                            )}
+                                            {/* --- MODIFICATION START --- */}
+                                            <ResponsiveAuthImage
+                                                baseName={post.thumbnailUrl}
+                                                alt={post.title}
+                                                className="w-full h-full rounded-lg object-cover"
+                                                sizes="48px" // Specify the exact size for the browser
+                                            />
+                                            {/* --- MODIFICATION END --- */}
                                         </div>
                                         <div>
                                             <p className="font-semibold text-gray-800">{post.title}</p>
@@ -133,7 +129,6 @@ const DashboardPage = () => {
                         )}
                     </div>
                 </div>
-
             </div>
         </div>
     );

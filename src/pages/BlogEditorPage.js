@@ -5,25 +5,34 @@ import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL } from '../apiConfig';
+// --- FIX: Import the full button list for SunEditor ---
+import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
-// --- NO CHANGES TO TagsInput, canvasToBlob, canvasPreview, or CropModal ---
+// --- FIX: Added an "Add" button to the TagsInput component ---
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
+
+    const addTag = () => {
+        const newTag = inputValue.trim();
+        if (newTag && !tags.includes(newTag)) {
+            setTags([...tags, newTag]);
+        }
+        setInputValue('');
+    };
+
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
-            const newTag = inputValue.trim();
-            if (newTag && !tags.includes(newTag)) {
-                setTags([...tags, newTag]);
-            }
-            setInputValue('');
+            addTag();
         }
     };
+
     const removeTag = (tagToRemove) => {
         setTags(tags.filter(tag => tag !== tagToRemove));
     };
+
     return (
         <div>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -34,14 +43,17 @@ const TagsInput = ({ tags, setTags }) => {
                     </div>
                 ))}
             </div>
-            <input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Add tags (press Enter or comma)"
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200"
-            />
+            <div className="flex items-center gap-2">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Add a tag"
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200"
+                />
+                <button type="button" onClick={addTag} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
+            </div>
         </div>
     );
 };
@@ -71,7 +83,7 @@ const CropModal = ({ src, type, onClose, onSave }) => {
     const canvasRef = useRef(null);
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState();
-    const aspect = type === 'cover' ? 16 / 9 : (type === 'thumbnail' ? 1/1 : undefined);
+    const aspect = type === 'cover' ? 16 / 9 : (type === 'thumbnail' ? 1 / 1 : undefined);
 
     useEffect(() => {
         if (completedCrop?.width && imgRef.current && canvasRef.current) {
@@ -87,7 +99,7 @@ const CropModal = ({ src, type, onClose, onSave }) => {
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
                 <h3 className="text-xl font-bold mb-4">Crop Image</h3>
-                <div style={{maxHeight: '60vh', overflowY: 'auto'}}>
+                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                     <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
                         <img ref={imgRef} alt="Crop" src={src} />
                     </ReactCrop>
@@ -101,7 +113,6 @@ const CropModal = ({ src, type, onClose, onSave }) => {
         </div>
     );
 };
-
 
 const BlogEditorPage = () => {
     const { id } = useParams();
@@ -128,11 +139,16 @@ const BlogEditorPage = () => {
     const [coverImageTitle, setCoverImageTitle] = useState('');
     const [scheduledTime, setScheduledTime] = useState('');
 
+    const editorRef = useRef(null);
+    const isContentLoaded = useRef(false);
+
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 const categoriesRes = await getCategories();
-                setCategories(categoriesRes.data || []);
+                if (Array.isArray(categoriesRes.data)) {
+                    setCategories(categoriesRes.data);
+                }
 
                 if (id) {
                     const postRes = await getPost(id);
@@ -143,7 +159,7 @@ const BlogEditorPage = () => {
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCreatedAt(post.createdAt || new Date().toISOString());
-                    
+
                     if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
                     if (post.coverImageUrl) setCoverPreview(`${API_URL}/${post.coverImageUrl}`);
 
@@ -157,7 +173,9 @@ const BlogEditorPage = () => {
                         setScheduledTime(localDateTime);
                     }
                 } else {
-                    setCategory(categoriesRes.data[0]?.name || '');
+                    if (categoriesRes.data && categoriesRes.data.length > 0) {
+                        setCategory(categoriesRes.data[0].name);
+                    }
                     setCreatedAt(new Date().toISOString());
                 }
             } catch (err) {
@@ -169,7 +187,8 @@ const BlogEditorPage = () => {
     }, [id]);
 
     const handleAddNewCategory = async () => {
-        if (!newCategoryName || categories.find(c => c.name.toLowerCase() === newCategoryName.toLowerCase())) {
+        const isDuplicate = categories.some(c => c && c.name && c.name.toLowerCase() === newCategoryName.toLowerCase());
+        if (!newCategoryName || isDuplicate) {
             alert('Category name cannot be empty or a duplicate.');
             return;
         }
@@ -182,6 +201,7 @@ const BlogEditorPage = () => {
             setShowNewCategoryInput(false);
         } catch (err) {
             setError('Failed to add new category.');
+            console.error("Failed to add category:", err);
         }
     };
 
@@ -234,16 +254,21 @@ const BlogEditorPage = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!editorRef.current) {
+            setError("Editor is not yet available. Please wait a moment before saving.");
+            return;
+        }
         try {
+            const editorContent = editorRef.current.getContents(true);
             const formData = new FormData();
             formData.append('title', title);
-            formData.append('content', content);
+            formData.append('content', editorContent);
             formData.append('category', category);
             formData.append('featured', isFeatured);
             if (tags && tags.length > 0) {
                 tags.forEach(tag => formData.append('tags', tag));
             } else {
-                formData.append('tags', ''); 
+                formData.append('tags', '');
             }
             if (finalThumbFile) {
                 formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
@@ -251,11 +276,9 @@ const BlogEditorPage = () => {
             if (finalCoverFile) {
                 formData.append('coverImage', finalCoverFile, 'cover.jpg');
             }
-            
             if (scheduledTime) {
                 formData.append('scheduledTime', new Date(scheduledTime).toISOString());
             }
-
             if (id) {
                 await updatePost(id, formData);
             } else {
@@ -270,15 +293,13 @@ const BlogEditorPage = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({isOpen: false, type: null, src: ''})} onSave={handleCropSave} />}
+            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '' })} onSave={handleCropSave} />}
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
                     <h1 className="text-2xl font-bold mb-2 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
                     <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                    
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
-                        {/* Title, Category, Tags sections remain the same */}
                         <div>
                             <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
                             <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
@@ -288,7 +309,12 @@ const BlogEditorPage = () => {
                             <div className="flex items-center gap-2">
                                 <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
                                     <option value="">Select a category</option>
-                                    {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+                                    {/* --- FIX: Using cat.id which is guaranteed to be unique --- */}
+                                    {categories && categories.filter(cat => cat && cat.id).map((cat) => (
+                                        <option key={cat.id} value={cat.name}>
+                                            {cat.name}
+                                        </option>
+                                    ))}
                                 </select>
                                 <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
                             </div>
@@ -303,36 +329,32 @@ const BlogEditorPage = () => {
                             <label className="block text-gray-700 font-semibold mb-2">Tags</label>
                             <TagsInput tags={tags} setTags={setTags} />
                         </div>
-                        
-                        {/* SEO sections remain the same */}
                         <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                             <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
-                             {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
-                             <div>
-                                 <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                 <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                             </div>
-                             <div>
-                                 <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                 <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                             </div>
-                         </div>
+                            <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
+                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
+                            <div>
+                                <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                                <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                            </div>
+                            <div>
+                                <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                                <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                            </div>
+                        </div>
                         <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                             <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
-                             {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                             <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100"/>
-                             <div>
-                                 <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                 <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                             </div>
-                             <div>
-                                 <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                 <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded"/>
-                             </div>
-                         </div>
-
-                        {/* --- ADDED THIS SECTION --- */}
+                            <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
+                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
+                            <div>
+                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                            </div>
+                            <div>
+                                <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                                <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                            </div>
+                        </div>
                         <div>
                             <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
                             <input
@@ -344,25 +366,38 @@ const BlogEditorPage = () => {
                             />
                             <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
                         </div>
-
                         <div className="flex items-center">
                             <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
                             <span className="ml-2 text-gray-700">Mark as Featured</span>
                         </div>
-
                         <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                            {id 
-                                ? 'Update Post' 
+                            {id
+                                ? 'Update Post'
                                 : (scheduledTime ? 'Schedule Post' : 'Publish Post')
                             }
                         </button>
                     </form>
                 </div>
-                <div className="w-full md:w-2/3 p-6 flex flex-col h-full">
+                <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
                     <label className="block text-gray-700 font-semibold mb-2">Content</label>
                     <div className="flex-grow h-full">
                         <Suspense fallback={<div>Loading editor...</div>}>
-                            <SunEditor setContents={content} onChange={setContent} onImageUploadBefore={handleImageUploadBefore} setOptions={{ height: '100%', buttonList: [['undo', 'redo'],['font', 'fontSize', 'formatBlock'],['bold', 'underline', 'italic', 'strike'],['fontColor', 'hiliteColor'],['align', 'list'],['table', 'link', 'image'],['fullScreen', 'codeView']] }} />
+                            <SunEditor
+                                getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
+                                onImageUploadBefore={handleImageUploadBefore}
+                                onLoad={() => {
+                                    if (editorRef.current && content && !isContentLoaded.current) {
+                                        editorRef.current.setContents(content);
+                                        isContentLoaded.current = true;
+                                    }
+                                }}
+                                setOptions={{
+                                    height: 'auto',
+                                    minHeight: '400px',
+                                    // --- FIX: Use the full button list to enable all features ---
+                                    buttonList: buttonList.complex
+                                }}
+                            />
                         </Suspense>
                     </div>
                 </div>

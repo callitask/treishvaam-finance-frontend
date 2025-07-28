@@ -1,54 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import api from '../apiConfig'; // Adjust if your apiConfig is elsewhere
+import React from 'react';
 
-const AuthImage = ({ src, alt, ...props }) => {
-    const [imageSrc, setImageSrc] = useState('');
-    const [error, setError] = useState(false);
-
-    useEffect(() => {
-        let objectUrl; // Use a local variable to hold the URL
-
-        const fetchImage = async () => {
-            if (src) {
-                // Reset state for new src
-                setImageSrc('');
-                setError(false);
-                try {
-                    const response = await api.get(src, {
-                        responseType: 'blob'
-                    });
-                    const imageBlob = new Blob([response.data]);
-                    objectUrl = URL.createObjectURL(imageBlob);
-                    setImageSrc(objectUrl);
-                } catch (err) {
-                    console.error(`Failed to fetch image: ${src}`, err);
-                    setError(true);
-                }
-            }
-        };
-
-        fetchImage();
-
-        // The cleanup function now closes over the local 'objectUrl' variable
-        return () => {
-            if (objectUrl) {
-                URL.revokeObjectURL(objectUrl);
-            }
-        };
-    }, [src]); // The effect correctly depends only on 'src'
-
-    if (error) {
-        // Render a placeholder if the fetch fails
-        return <div className="w-full h-full bg-gray-200 rounded-full flex items-center justify-center"><span className="text-red-500 text-xs">Error</span></div>;
+/**
+ * --- REWRITTEN FOR PERFORMANCE & CORRECTNESS ---
+ * This component is now a simple wrapper around the native <img> tag.
+ * Since the image routes are public, we don't need complex authenticated fetching.
+ * This change allows the browser to handle `src`, `srcSet`, and the `onLoad`
+ * event natively, which is more performant and fixes the masonry layout.
+ */
+const AuthImage = ({ src, srcSet, alt, onLoad, ...props }) => {
+    // If there's no src, render a placeholder to avoid broken image icons.
+    if (!src) {
+        return <div className="w-full h-full bg-gray-200 animate-pulse" {...props}></div>;
     }
 
-    if (!imageSrc) {
-        // Render a placeholder while loading
-        return <div className="w-full h-full bg-gray-200 rounded-full animate-pulse"></div>;
-    }
-
-    // Render the image once the source is available
-    return <img src={imageSrc} alt={alt} {...props} />;
+    // Render the native img tag with all props passed down.
+    return (
+        <img
+            src={src}
+            srcSet={srcSet}
+            alt={alt}
+            onLoad={onLoad} // This will now fire correctly.
+            {...props}
+        />
+    );
 };
 
 export default AuthImage;

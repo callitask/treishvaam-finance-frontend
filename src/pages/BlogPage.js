@@ -3,26 +3,15 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
 import { Helmet } from 'react-helmet-async';
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 
+// ... (keep the existing helper functions: allCategories, createSnippet, formatDateTime)
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
-
-const normalizeImageUrl = (url) => {
-    if (!url) return '';
-    let normalized = url.startsWith('/') ? url : `/${url}`;
-    if (!normalized.includes('/uploads/')) {
-        normalized = `/uploads${normalized}`;
-    }
-    return normalized;
-};
 
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
-    const sanitizedHtml = DOMPurify.sanitize(html, { USE_PROFILES: { html: false } });
-    const doc = new DOMParser().parseFromString(sanitizedHtml, 'text/html');
-    const plainText = doc.body.textContent || "";
+    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
     if (plainText.length <= length) return plainText;
     const trimmed = plainText.substring(0, length);
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
@@ -33,21 +22,18 @@ const formatDateTime = (dateString) => {
     const dateObj = new Date(dateString);
     if (isNaN(dateObj)) return 'Date not available';
     return dateObj.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
     });
 };
 
+// --- FIX: PostCard component restored to its original dynamic layout logic ---
 const PostCard = memo(({ article }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = !!article.thumbnailUrl;
     const isFeatured = article.featured;
-    const fullThumbnailUrl = article.thumbnailUrl ? `${API_URL}${normalizeImageUrl(article.thumbnailUrl)}` : null;
 
+    // This handler will be triggered once the image loads, giving us its dimensions.
     const handleImageLoad = (event) => {
         const { naturalWidth, naturalHeight } = event.target;
         if (naturalHeight > naturalWidth) {
@@ -65,7 +51,6 @@ const PostCard = memo(({ article }) => {
             <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
                 <span>By Treishvaam Finance</span>
                 <span className="mx-2">|</span>
-                {/* Use updatedAt (publication time) with a fallback to createdAt */}
                 <span>{formatDateTime(article.updatedAt || article.createdAt)}</span>
             </div>
             <h3 className="text-lg font-bold mb-2 text-gray-900">
@@ -90,15 +75,13 @@ const PostCard = memo(({ article }) => {
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
                         <Link to={`/blog/${article.id}`}>
-                            {fullThumbnailUrl && (
-                                <LazyLoadImage
-                                    alt={article.title}
-                                    effect="blur"
-                                    src={fullThumbnailUrl}
-                                    className="w-full h-auto object-contain"
-                                    onLoad={handleImageLoad}
-                                />
-                            )}
+                             <ResponsiveAuthImage
+                                baseName={article.thumbnailUrl}
+                                alt={article.title}
+                                className="w-full h-auto object-contain"
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                onLoad={handleImageLoad} // Pass the handler to the image component
+                            />
                         </Link>
                         {isFeatured && !isPortrait && (
                             <div className="absolute top-2 left-2 z-10">
@@ -115,10 +98,9 @@ const PostCard = memo(({ article }) => {
     );
 });
 
-
+// The main BlogPage component remains largely the same
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
-    const [latestPost, setLatestPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedCategory, setSelectedCategory] = useState("All");
@@ -129,7 +111,6 @@ const BlogPage = () => {
             try {
                 const response = await axios.get(`${API_URL}/api/posts`);
                 setPosts(response.data);
-                setLatestPost(response.data.length > 0 ? response.data[0] : null);
             } catch (err) {
                 setError('Failed to fetch blog posts.');
             } finally {
@@ -138,7 +119,7 @@ const BlogPage = () => {
         };
         fetchPosts();
     }, []);
-
+    
     const filteredPosts = useMemo(() => {
         let filtered = posts;
         if (selectedCategory !== "All") {
@@ -151,9 +132,13 @@ const BlogPage = () => {
         return filtered;
     }, [posts, selectedCategory, searchTerm]);
 
+    const latestPost = useMemo(() => posts.length > 0 ? posts[0] : null, [posts]);
+
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnailUrl ? `${API_URL}${normalizeImageUrl(latestPost.thumbnailUrl)}` : "/logo512.png";
+    const imageUrl = latestPost?.thumbnailUrl 
+        ? `${API_URL}/api/uploads/${latestPost.thumbnailUrl}.webp` 
+        : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
@@ -195,7 +180,6 @@ const BlogPage = () => {
                             ))}
                         </div>
                     </div>
-                    {/* --- FIX: Restored original multi-column layout --- */}
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
                         {filteredPosts.length > 0 ? (
                             filteredPosts.map((article) => (
