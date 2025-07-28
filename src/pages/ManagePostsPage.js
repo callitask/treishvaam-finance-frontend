@@ -1,14 +1,11 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAllPostsForAdmin as getPosts, deletePost } from '../apiConfig';
-import AuthImage from '../components/AuthImage';
+// --- MODIFICATION START ---
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // Use our new component
+// --- MODIFICATION END ---
 import ShareModal from '../components/ShareModal';
 import { FaShareAlt, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
-
-const normalizeImageUrl = (url) => {
-    if (!url) return '';
-    return url.includes('/uploads/') ? url : `/uploads/${url}`;
-};
 
 const formatDisplayDate = (dateValue) => {
     if (!dateValue) return 'No date available';
@@ -44,7 +41,14 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 w-10 h-10 mr-4">
-                                        {post.thumbnailUrl && <AuthImage src={normalizeImageUrl(post.thumbnailUrl)} alt={post.title} className="w-full h-full rounded-full object-cover" />}
+                                        {/* --- MODIFICATION START --- */}
+                                        <ResponsiveAuthImage
+                                            baseName={post.thumbnailUrl}
+                                            alt={post.title}
+                                            className="w-full h-full rounded-full object-cover"
+                                            sizes="40px" // Specify exact size
+                                        />
+                                        {/* --- MODIFICATION END --- */}
                                     </div>
                                     <p className="text-gray-900 font-medium">{post.title}</p>
                                 </div>
@@ -89,7 +93,7 @@ const ManagePostsPage = () => {
 
     useEffect(() => {
         fetchPosts();
-        const intervalId = setInterval(fetchPosts, 30000); // Fallback polling
+        const intervalId = setInterval(fetchPosts, 30000);
         return () => clearInterval(intervalId);
     }, [fetchPosts]);
 
@@ -99,15 +103,14 @@ const ManagePostsPage = () => {
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [posts]);
 
-    // --- SMART TIMER FOR INSTANT UPDATES ---
     useEffect(() => {
         const now = Date.now();
         const timers = scheduledPosts
             .map(post => new Date(post.scheduledTime).getTime() - now)
             .filter(delay => delay > 0)
-            .map(delay => setTimeout(fetchPosts, delay + 1000)); // refetch 1s after due
+            .map(delay => setTimeout(fetchPosts, delay + 1000));
 
-        return () => timers.forEach(clearTimeout); // Cleanup timers
+        return () => timers.forEach(clearTimeout);
     }, [scheduledPosts, fetchPosts]);
 
     const handleDelete = async (id) => {

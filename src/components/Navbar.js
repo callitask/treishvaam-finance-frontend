@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
-import { FaSignOutAlt } from 'react-icons/fa'; // Import logout icon
+// --- MODIFICATION START: LazyLoadImage is no longer needed ---
+// import { LazyLoadImage } from 'react-lazy-load-image-component';
+// import 'react-lazy-load-image-component/src/effects/blur.css';
+// --- MODIFICATION END ---
+import { FaSignOutAlt } from 'react-icons/fa';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const { auth, logout } = useAuth(); // Destructure logout function
-    const navigate = useNavigate(); // Get navigate function
+    const { auth, logout } = useAuth();
+    const navigate = useNavigate();
 
     const handleLogout = () => {
         logout();
@@ -28,7 +30,7 @@ const Navbar = () => {
                 ? 'bg-sky-100 text-sky-700'
                 : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
         }`;
-    
+
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
     return (
@@ -37,7 +39,16 @@ const Navbar = () => {
                 <div className="flex items-center justify-between h-20">
                     <div className="flex items-center">
                         <Link to="/" className="flex-shrink-0 flex items-center">
-                            <LazyLoadImage alt="Logo" effect="blur" src="/logo.png" className="h-12 w-12 mr-2" width="48" height="48" />
+                            {/* --- MODIFICATION START: Use standard img with srcset for optimal logo loading --- */}
+                            <img
+                                alt="Treishvaam Finance Logo"
+                                src="/logo-48.webp" // Fallback for old browsers
+                                srcSet="/logo-48.webp 1x, /logo-96.webp 2x" // Serve high-res logo for retina displays
+                                className="h-12 w-12 mr-2"
+                                width="48"
+                                height="48"
+                            />
+                            {/* --- MODIFICATION END --- */}
                             <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
                         </Link>
                         <nav className="hidden md:block ml-10">
@@ -46,26 +57,22 @@ const Navbar = () => {
                                 <NavLink to="/about" className={getLinkClass}>About</NavLink>
                                 <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
                                 <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
-                                {/* --- MODIFICATION START: Show Dashboard link for authenticated users --- */}
                                 {auth.isAuthenticated && (
                                     <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
                                 )}
-                                {/* --- MODIFICATION END --- */}
                             </div>
                         </nav>
                     </div>
                     <div className="hidden md:block">
                         <div className="ml-4 flex items-center md:ml-6">
                             {auth.isAuthenticated ? (
-                                // --- MODIFICATION START: Show Logout button instead of Dashboard ---
-                                <button 
-                                    onClick={handleLogout} 
+                                <button
+                                    onClick={handleLogout}
                                     className="ml-4 px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition duration-300 flex items-center"
                                 >
                                     <FaSignOutAlt className="mr-2" />
                                     Logout
                                 </button>
-                                // --- MODIFICATION END ---
                             ) : (
                                 <Link to="/login" className="ml-4 px-4 py-2 rounded-md text-sm font-medium text-white cta-button-primary hover:bg-sky-700 transition duration-300">Login</Link>
                             )}
@@ -111,4 +118,5 @@ const Navbar = () => {
         </header>
     );
 };
+
 export default Navbar;
