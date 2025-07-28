@@ -83,7 +83,7 @@ const CropModal = ({ src, type, onClose, onSave }) => {
     const canvasRef = useRef(null);
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState();
-    const aspect = type === 'cover' ? 16 / 9 : (type === 'thumbnail' ? 1 / 1 : undefined);
+    // aspect removed for freeform cropping
 
     useEffect(() => {
         if (completedCrop?.width && imgRef.current && canvasRef.current) {
@@ -100,7 +100,8 @@ const CropModal = ({ src, type, onClose, onSave }) => {
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
                 <h3 className="text-xl font-bold mb-4">Crop Image</h3>
                 <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
+                    {/* aspect prop removed for freeform cropping */}
+                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}>
                         <img ref={imgRef} alt="Crop" src={src} />
                     </ReactCrop>
                 </div>
