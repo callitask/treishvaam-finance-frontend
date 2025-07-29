@@ -33,3 +33,26 @@ export const addCategory = (categoryData) => api.post('/categories', categoryDat
 export const login = (credentials) => api.post('/auth/login', credentials);
 
 export default api;
+
+// --- MODIFICATION START: Add these new exports ---
+export const createDraft = (postData) => {
+    const token = localStorage.getItem('token');
+    return axios.post(`${API_URL}/api/posts`, postData, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+};
+
+export const updateDraft = (id, postData) => {
+    const token = localStorage.getItem('token');
+    return axios.put(`${API_URL}/api/posts/draft/${id}`, postData, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+};
+
+export const getDrafts = () => {
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/api/posts/admin/drafts`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+};
+// --- MODIFICATION END ---

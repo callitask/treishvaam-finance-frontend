@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes } from 'react-icons/fa';
+// --- MODIFICATION START: Import new icon for Drafts ---
+import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes, FaFileSignature } from 'react-icons/fa';
+// --- MODIFICATION END ---
 
-// --- Reusable NavLink for the Sidebar ---
+// --- MODIFICATION START: Improved NavLink to handle hashes for active state ---
 const NavLink = ({ to, icon, children }) => {
     const location = useLocation();
-    const isActive = location.pathname === to;
+    // This now checks the full path including the hash to correctly highlight the active link
+    const isActive = location.pathname + location.hash === to;
     return (
         <Link
             to={to}
@@ -20,15 +23,19 @@ const NavLink = ({ to, icon, children }) => {
         </Link>
     );
 };
+// --- MODIFICATION END ---
 
 const DashboardLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const sidebarContent = (
         <div className="p-4">
-            <nav className="flex-grow">
+            <nav className="flex-grow space-y-1">
                 <NavLink to="/dashboard" icon={<FaTachometerAlt />}>Dashboard</NavLink>
                 <NavLink to="/dashboard/manage-posts" icon={<FaFileAlt />}>Manage Posts</NavLink>
+                {/* --- MODIFICATION START: Add the new "Drafts" link --- */}
+                <NavLink to="/dashboard/manage-posts#drafts" icon={<FaFileSignature />}>Drafts</NavLink>
+                {/* --- MODIFICATION END --- */}
                 <NavLink to="/dashboard/blog/new" icon={<FaPlusSquare />}>Create Post</NavLink>
             </nav>
         </div>
@@ -59,11 +66,11 @@ const DashboardLayout = () => {
                 <main className="flex-1 overflow-y-auto">
                     {/* Mobile Header for the sidebar toggle */}
                     <div className="md:hidden flex items-center justify-between p-4 bg-white border-b">
-                         <h2 className="text-lg font-semibold">Dashboard Menu</h2>
-                         <button onClick={() => setIsSidebarOpen(true)} className="text-2xl text-gray-600">
+                        <h2 className="text-lg font-semibold">Dashboard Menu</h2>
+                        <button onClick={() => setIsSidebarOpen(true)} className="text-2xl text-gray-600">
                              <FaBars />
-                         </button>
-                     </div>
+                        </button>
+                    </div>
                     <Outlet />
                 </main>
             </div>

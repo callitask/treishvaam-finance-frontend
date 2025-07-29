@@ -4,13 +4,12 @@ import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL } from '../apiConfig';
-// --- FIX: Import the full button list for SunEditor ---
+// --- MODIFICATION: Import createDraft and updateDraft ---
+import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
-// --- FIX: Added an "Add" button to the TagsInput component ---
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
 
@@ -83,7 +82,6 @@ const CropModal = ({ src, type, onClose, onSave }) => {
     const canvasRef = useRef(null);
     const [crop, setCrop] = useState();
     const [completedCrop, setCompletedCrop] = useState();
-    // aspect removed for freeform cropping
 
     useEffect(() => {
         if (completedCrop?.width && imgRef.current && canvasRef.current) {
@@ -100,7 +98,6 @@ const CropModal = ({ src, type, onClose, onSave }) => {
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
                 <h3 className="text-xl font-bold mb-4">Crop Image</h3>
                 <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    {/* aspect prop removed for freeform cropping */}
                     <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}>
                         <img ref={imgRef} alt="Crop" src={src} />
                     </ReactCrop>
@@ -118,6 +115,10 @@ const CropModal = ({ src, type, onClose, onSave }) => {
 const BlogEditorPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    // --- MODIFICATION START: Add state for post ID and save status ---
+    const [postId, setPostId] = useState(id);
+    const [saveStatus, setSaveStatus] = useState('Idle'); // Can be 'Idle', 'Saving...', 'Saved', 'Error'
+    // --- MODIFICATION END ---
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('');
@@ -142,6 +143,7 @@ const BlogEditorPage = () => {
 
     const editorRef = useRef(null);
     const isContentLoaded = useRef(false);
+    const autoSaveTimer = useRef(null);
 
     useEffect(() => {
         const fetchInitialData = async () => {
@@ -151,8 +153,8 @@ const BlogEditorPage = () => {
                     setCategories(categoriesRes.data);
                 }
 
-                if (id) {
-                    const postRes = await getPost(id);
+                if (postId) { // Use postId state here
+                    const postRes = await getPost(postId);
                     const post = postRes.data;
                     setTitle(post.title);
                     setContent(post.content);
@@ -185,7 +187,47 @@ const BlogEditorPage = () => {
             }
         };
         fetchInitialData();
-    }, [id]);
+    }, [postId]); // Depend on postId state
+
+    // --- MODIFICATION START: Add auto-save logic ---
+    const handleAutoSave = async () => {
+        if (!title.trim() && !content.trim()) return; // Don't save empty drafts
+
+        setSaveStatus('Saving...');
+        try {
+            const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
+            const draftData = { title, content: editorContent };
+
+            if (postId) {
+                await updateDraft(postId, draftData);
+            } else {
+                const response = await createDraft(draftData);
+                setPostId(response.data.id); // Set the new ID
+                navigate(`/dashboard/blog/edit/${response.data.id}`, { replace: true });
+            }
+            setSaveStatus('Saved');
+        } catch (err) {
+            setSaveStatus('Error');
+            console.error("Auto-save failed:", err);
+        }
+    };
+
+    useEffect(() => {
+        // Debounce the auto-save function
+        if (autoSaveTimer.current) {
+            clearTimeout(autoSaveTimer.current);
+        }
+        autoSaveTimer.current = setTimeout(() => {
+            handleAutoSave();
+        }, 2000); // Save 2 seconds after user stops typing
+
+        return () => {
+            if (autoSaveTimer.current) {
+                clearTimeout(autoSaveTimer.current);
+            }
+        };
+    }, [title, content]); // Trigger on title or content change
+    // --- MODIFICATION END ---
 
     const handleAddNewCategory = async () => {
         const isDuplicate = categories.some(c => c && c.name && c.name.toLowerCase() === newCategoryName.toLowerCase());
@@ -280,8 +322,8 @@ const BlogEditorPage = () => {
             if (scheduledTime) {
                 formData.append('scheduledTime', new Date(scheduledTime).toISOString());
             }
-            if (id) {
-                await updatePost(id, formData);
+            if (postId) { // Use postId state here
+                await updatePost(postId, formData);
             } else {
                 await createPost(formData);
             }
@@ -297,7 +339,16 @@ const BlogEditorPage = () => {
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '' })} onSave={handleCropSave} />}
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-                    <h1 className="text-2xl font-bold mb-2 text-gray-800">{id ? 'Edit Post' : 'Create New Post'}</h1>
+                    <div className="flex justify-between items-center mb-2">
+                        <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
+                        {/* --- MODIFICATION START: Add save status indicator --- */}
+                        <div className="text-sm">
+                            {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
+                            {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
+                            {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
+                        </div>
+                        {/* --- MODIFICATION END --- */}
+                    </div>
                     <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
@@ -310,7 +361,6 @@ const BlogEditorPage = () => {
                             <div className="flex items-center gap-2">
                                 <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
                                     <option value="">Select a category</option>
-                                    {/* --- FIX: Using cat.id which is guaranteed to be unique --- */}
                                     {categories && categories.filter(cat => cat && cat.id).map((cat) => (
                                         <option key={cat.id} value={cat.name}>
                                             {cat.name}
@@ -372,7 +422,7 @@ const BlogEditorPage = () => {
                             <span className="ml-2 text-gray-700">Mark as Featured</span>
                         </div>
                         <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                            {id
+                            {postId
                                 ? 'Update Post'
                                 : (scheduledTime ? 'Schedule Post' : 'Publish Post')
                             }
@@ -384,6 +434,8 @@ const BlogEditorPage = () => {
                     <div className="flex-grow h-full">
                         <Suspense fallback={<div>Loading editor...</div>}>
                             <SunEditor
+                                // --- MODIFICATION: Add onChange handler ---
+                                onChange={setContent}
                                 getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
                                 onImageUploadBefore={handleImageUploadBefore}
                                 onLoad={() => {
@@ -395,7 +447,6 @@ const BlogEditorPage = () => {
                                 setOptions={{
                                     height: 'auto',
                                     minHeight: '400px',
-                                    // --- FIX: Use the full button list to enable all features ---
                                     buttonList: buttonList.complex
                                 }}
                             />
