@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { getAllPostsForAdmin as getPosts, deletePost } from '../apiConfig';
-// --- MODIFICATION START ---
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // Use our new component
-// --- MODIFICATION END ---
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { getAllPostsForAdmin as getPosts, deletePost, getDrafts } from '../apiConfig';
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareModal from '../components/ShareModal';
 import { FaShareAlt, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 
@@ -17,10 +15,10 @@ const formatDisplayDate = (dateValue) => {
     });
 };
 
-const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = false }) => {
+const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = false, isDraft = false }) => {
     const navigate = useNavigate();
-    if (posts.length === 0) {
-        return <p className="p-6 text-center text-gray-500">No {isScheduled ? 'scheduled' : 'published'} posts found.</p>;
+    if (!posts || posts.length === 0) {
+        return <p className="p-6 text-center text-gray-500">No {isDraft ? 'drafts' : (isScheduled ? 'scheduled' : 'published')} posts found.</p>;
     }
     return (
         <div className="overflow-x-auto">
@@ -30,7 +28,7 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
                         <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Title</th>
                         <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Category</th>
                         <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                            {isScheduled ? 'Scheduled For' : 'Last Updated'}
+                            {isDraft ? 'Last Saved' : (isScheduled ? 'Scheduled For' : 'Last Updated')}
                         </th>
                         <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -41,27 +39,20 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center">
                                     <div className="flex-shrink-0 w-10 h-10 mr-4">
-                                        {/* --- MODIFICATION START --- */}
-                                        <ResponsiveAuthImage
-                                            baseName={post.thumbnailUrl}
-                                            alt={post.title}
-                                            className="w-full h-full rounded-full object-cover"
-                                            sizes="40px" // Specify exact size
-                                        />
-                                        {/* --- MODIFICATION END --- */}
+                                        <ResponsiveAuthImage baseName={post.thumbnailUrl} alt={post.title} className="w-full h-full rounded-full object-cover" sizes="40px" />
                                     </div>
                                     <p className="text-gray-900 font-medium">{post.title}</p>
                                 </div>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">{post.category}</span>
+                                <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">{post.category || 'N/A'}</span>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <p className="text-gray-900">{formatDisplayDate(isScheduled ? post.scheduledTime : (post.updatedAt || post.createdAt))}</p>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center space-x-4">
-                                    {!isScheduled && <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600" title="Share"><FaShareAlt /></button>}
+                                    {!isScheduled && !isDraft && <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600" title="Share"><FaShareAlt /></button>}
                                     <button onClick={() => navigate(`/dashboard/blog/edit/${post.id}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
                                     <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete"><FaTrash /></button>
                                 </div>
@@ -75,49 +66,49 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
 };
 
 const ManagePostsPage = () => {
-    const [posts, setPosts] = useState([]);
+    const location = useLocation();
+    const [allPosts, setAllPosts] = useState([]);
+    const [drafts, setDrafts] = useState([]);
     const [error, setError] = useState('');
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [selectedPost, setSelectedPost] = useState(null);
     const [activeTab, setActiveTab] = useState('published');
 
-    const fetchPosts = useCallback(async () => {
+    const fetchAllData = useCallback(async () => {
         try {
-            const response = await getPosts();
-            const sortedPosts = response.data.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
-            setPosts(sortedPosts);
+            const [postsRes, draftsRes] = await Promise.all([getPosts(), getDrafts()]);
+            setAllPosts(postsRes.data || []);
+            setDrafts(draftsRes.data || []);
         } catch (err) {
-            setError('Failed to fetch posts.');
+            setError('Failed to fetch posts or drafts.');
+            console.error(err);
         }
     }, []);
 
     useEffect(() => {
-        fetchPosts();
-        const intervalId = setInterval(fetchPosts, 30000);
-        return () => clearInterval(intervalId);
-    }, [fetchPosts]);
-
-    const { publishedPosts, scheduledPosts } = useMemo(() => {
-        const published = posts.filter(post => post.published);
-        const scheduled = posts.filter(post => !post.published);
-        return { publishedPosts: published, scheduledPosts: scheduled };
-    }, [posts]);
+        fetchAllData();
+    }, [fetchAllData]);
 
     useEffect(() => {
-        const now = Date.now();
-        const timers = scheduledPosts
-            .map(post => new Date(post.scheduledTime).getTime() - now)
-            .filter(delay => delay > 0)
-            .map(delay => setTimeout(fetchPosts, delay + 1000));
+        if (location.hash === '#drafts') {
+            setActiveTab('drafts');
+        }
+    }, [location.hash]);
 
-        return () => timers.forEach(clearTimeout);
-    }, [scheduledPosts, fetchPosts]);
+    // Calculate the derived post lists only *after* the data fetching hooks are set up.
+    const { publishedPosts, scheduledPosts } = useMemo(() => {
+        const published = allPosts.filter(post => post.status === 'PUBLISHED');
+        const scheduled = allPosts.filter(post => post.status === 'SCHEDULED');
+        // FIX: The return object now correctly maps the local variables `published`
+        // and `scheduled` to the keys `publishedPosts` and `scheduledPosts`.
+        return { publishedPosts: published, scheduledPosts: scheduled };
+    }, [allPosts]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this post?')) {
             try {
                 await deletePost(id);
-                setPosts(posts.filter(post => post.id !== id));
+                await fetchAllData();
             } catch (err) {
                 setError('Failed to delete the post.');
             }
@@ -128,13 +119,6 @@ const ManagePostsPage = () => {
         setSelectedPost(post);
         setIsShareModalOpen(true);
     };
-
-    const handleCloseShareModal = () => {
-        setIsShareModalOpen(false);
-        setSelectedPost(null);
-    };
-
-    const handleShareToLinkedIn = async () => { /* ... */ };
 
     return (
         <>
@@ -150,6 +134,9 @@ const ManagePostsPage = () => {
                         <button onClick={() => setActiveTab('published')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'published' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'}`}>
                             Published ({publishedPosts.length})
                         </button>
+                        <button onClick={() => setActiveTab('drafts')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'drafts' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'}`}>
+                            Drafts ({drafts.length})
+                        </button>
                         <button onClick={() => setActiveTab('scheduled')} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeTab === 'scheduled' ? 'border-b-2 border-sky-600 text-sky-600' : 'text-gray-500 hover:text-gray-700'}`}>
                             Scheduled ({scheduledPosts.length})
                         </button>
@@ -158,10 +145,11 @@ const ManagePostsPage = () => {
                 {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
                     {activeTab === 'published' && <PostsTable posts={publishedPosts} handleDelete={handleDelete} handleOpenShareModal={handleOpenShareModal} />}
+                    {activeTab === 'drafts' && <PostsTable posts={drafts} handleDelete={handleDelete} isDraft={true} />}
                     {activeTab === 'scheduled' && <PostsTable posts={scheduledPosts} handleDelete={handleDelete} isScheduled={true} />}
                 </div>
             </div>
-            {isShareModalOpen && <ShareModal post={selectedPost} onClose={handleCloseShareModal} onShare={handleShareToLinkedIn} />}
+            {isShareModalOpen && <ShareModal post={selectedPost} onClose={() => setIsShareModalOpen(false)} />}
         </>
     );
 };

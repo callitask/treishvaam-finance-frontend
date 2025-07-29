@@ -3,9 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
 import { FaLinkedin, FaFileAlt, FaEye, FaPlusSquare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-// --- MODIFICATION START ---
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // Use our new component
-// --- MODIFICATION END ---
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 
 const StatCard = ({ icon, title, value, color }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm flex items-center">
@@ -43,14 +41,17 @@ const DashboardPage = () => {
     }, []);
 
     const recentPosts = useMemo(() => {
+        // --- MODIFICATION: Filter by status instead of published ---
         return [...posts]
-            .filter(p => p.published)
+            .filter(p => p.status === 'PUBLISHED')
             .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
             .slice(0, 5);
     }, [posts]);
 
-    const totalPublishedPosts = useMemo(() => posts.filter(p => p.published).length, [posts]);
-    const totalScheduledPosts = useMemo(() => posts.filter(p => !p.published).length, [posts]);
+    // --- MODIFICATION START: Update filtering logic to use the 'status' field ---
+    const totalPublishedPosts = useMemo(() => posts.filter(p => p.status === 'PUBLISHED').length, [posts]);
+    const totalScheduledPosts = useMemo(() => posts.filter(p => p.status === 'SCHEDULED').length, [posts]);
+    // --- MODIFICATION END ---
 
     return (
         <div className="container mx-auto p-6 md:p-8">
@@ -103,14 +104,12 @@ const DashboardPage = () => {
                                 <div key={post.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
                                     <div className="flex items-center">
                                         <div className="w-12 h-12 flex-shrink-0 mr-4">
-                                            {/* --- MODIFICATION START --- */}
                                             <ResponsiveAuthImage
                                                 baseName={post.thumbnailUrl}
                                                 alt={post.title}
                                                 className="w-full h-full rounded-lg object-cover"
-                                                sizes="48px" // Specify the exact size for the browser
+                                                sizes="48px"
                                             />
-                                            {/* --- MODIFICATION END --- */}
                                         </div>
                                         <div>
                                             <p className="font-semibold text-gray-800">{post.title}</p>
