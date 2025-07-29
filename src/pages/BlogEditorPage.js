@@ -1,10 +1,10 @@
 import imageCompression from 'browser-image-compression';
-import React, { useState, useRef, useEffect, Suspense } from 'react';
+// --- MODIFICATION: Import useCallback ---
+import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-// --- MODIFICATION: Import createDraft and updateDraft ---
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 import { buttonList } from 'suneditor-react';
 
@@ -115,10 +115,8 @@ const CropModal = ({ src, type, onClose, onSave }) => {
 const BlogEditorPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    // --- MODIFICATION START: Add state for post ID and save status ---
     const [postId, setPostId] = useState(id);
-    const [saveStatus, setSaveStatus] = useState('Idle'); // Can be 'Idle', 'Saving...', 'Saved', 'Error'
-    // --- MODIFICATION END ---
+    const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('');
@@ -153,7 +151,7 @@ const BlogEditorPage = () => {
                     setCategories(categoriesRes.data);
                 }
 
-                if (postId) { // Use postId state here
+                if (postId) {
                     const postRes = await getPost(postId);
                     const post = postRes.data;
                     setTitle(post.title);
@@ -187,11 +185,11 @@ const BlogEditorPage = () => {
             }
         };
         fetchInitialData();
-    }, [postId]); // Depend on postId state
+    }, [postId]);
 
-    // --- MODIFICATION START: Add auto-save logic ---
-    const handleAutoSave = async () => {
-        if (!title.trim() && !content.trim()) return; // Don't save empty drafts
+    // --- MODIFICATION START: Wrap handleAutoSave in useCallback ---
+    const handleAutoSave = useCallback(async () => {
+        if (!title.trim() && !content.trim()) return;
 
         setSaveStatus('Saving...');
         try {
@@ -202,7 +200,7 @@ const BlogEditorPage = () => {
                 await updateDraft(postId, draftData);
             } else {
                 const response = await createDraft(draftData);
-                setPostId(response.data.id); // Set the new ID
+                setPostId(response.data.id);
                 navigate(`/dashboard/blog/edit/${response.data.id}`, { replace: true });
             }
             setSaveStatus('Saved');
@@ -210,23 +208,24 @@ const BlogEditorPage = () => {
             setSaveStatus('Error');
             console.error("Auto-save failed:", err);
         }
-    };
+    }, [title, content, postId, navigate]); // Add dependencies
+    // --- MODIFICATION END ---
 
+    // --- MODIFICATION START: Add handleAutoSave to dependency array ---
     useEffect(() => {
-        // Debounce the auto-save function
         if (autoSaveTimer.current) {
             clearTimeout(autoSaveTimer.current);
         }
         autoSaveTimer.current = setTimeout(() => {
             handleAutoSave();
-        }, 2000); // Save 2 seconds after user stops typing
+        }, 2000);
 
         return () => {
             if (autoSaveTimer.current) {
                 clearTimeout(autoSaveTimer.current);
             }
         };
-    }, [title, content]); // Trigger on title or content change
+    }, [title, content, handleAutoSave]); // Add handleAutoSave here
     // --- MODIFICATION END ---
 
     const handleAddNewCategory = async () => {
@@ -322,7 +321,7 @@ const BlogEditorPage = () => {
             if (scheduledTime) {
                 formData.append('scheduledTime', new Date(scheduledTime).toISOString());
             }
-            if (postId) { // Use postId state here
+            if (postId) {
                 await updatePost(postId, formData);
             } else {
                 await createPost(formData);
@@ -341,13 +340,11 @@ const BlogEditorPage = () => {
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
                     <div className="flex justify-between items-center mb-2">
                         <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
-                        {/* --- MODIFICATION START: Add save status indicator --- */}
                         <div className="text-sm">
                             {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
                             {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
                             {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
                         </div>
-                        {/* --- MODIFICATION END --- */}
                     </div>
                     <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
@@ -434,7 +431,6 @@ const BlogEditorPage = () => {
                     <div className="flex-grow h-full">
                         <Suspense fallback={<div>Loading editor...</div>}>
                             <SunEditor
-                                // --- MODIFICATION: Add onChange handler ---
                                 onChange={setContent}
                                 getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
                                 onImageUploadBefore={handleImageUploadBefore}
