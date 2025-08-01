@@ -3,9 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { getPost, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-// --- MODIFICATION START ---
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // Import the new component
-// --- MODIFICATION END ---
+import 'suneditor/dist/css/suneditor.min.css'; // <--- ADDED THIS LINE
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareButtons from '../components/ShareButtons';
 import { FaUserCircle } from 'react-icons/fa';
 
@@ -60,11 +59,9 @@ const SinglePostPage = () => {
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const pageDescription = createSnippet(post.content);
     const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.id}`;
-    // --- MODIFICATION START: Update OG image URL to point to the large, optimized WebP image ---
-    const imageUrl = post.coverImageUrl 
-        ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` 
+    const imageUrl = post.coverImageUrl
+        ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp`
         : `${window.location.origin}/logo512.png`;
-    // --- MODIFICATION END ---
 
     return (
         <>
@@ -80,14 +77,12 @@ const SinglePostPage = () => {
 
             <article className="bg-white">
                 <header className="relative h-[60vh] min-h-[400px] text-white">
-                    {/* --- MODIFICATION START: Replace AuthImage with ResponsiveAuthImage --- */}
                     <ResponsiveAuthImage
                         baseName={post.coverImageUrl}
                         alt={post.title}
                         className="w-full h-full object-cover"
-                        sizes="100vw" // The image takes up the full viewport width
+                        sizes="100vw"
                     />
-                    {/* --- MODIFICATION END --- */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
                     <div className="absolute bottom-0 left-0 p-8 md:p-12">
                         <Link to={`/blog?category=${post.category}`} className="bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider hover:bg-sky-600 transition">
@@ -105,10 +100,12 @@ const SinglePostPage = () => {
 
                 <div className="container mx-auto px-4 py-12">
                     <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-12">
+                        {/* --- MODIFICATION START --- */}
                         <div
-                            className="w-full lg:w-2/3 prose lg:prose-lg max-w-none"
+                            className="w-full lg:w-2/3 sun-editor-editable max-w-none"
                             dangerouslySetInnerHTML={createMarkup(post.content)}
                         />
+                        {/* --- MODIFICATION END --- */}
                         <aside className="w-full lg:w-1/3 lg:sticky top-28 self-start">
                             <div className="bg-gray-50 p-6 rounded-lg">
                                 <h3 className="text-lg font-bold mb-4 border-b pb-2">Share this Article</h3>
