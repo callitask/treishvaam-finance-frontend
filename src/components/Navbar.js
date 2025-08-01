@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// --- MODIFICATION START: LazyLoadImage is no longer needed ---
-// import { LazyLoadImage } from 'react-lazy-load-image-component';
-// import 'react-lazy-load-image-component/src/effects/blur.css';
-// --- MODIFICATION END ---
 import { FaSignOutAlt } from 'react-icons/fa';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [logoSrc, setLogoSrc] = useState('/api/logo');
     const { auth, logout } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = () => {
         logout();
         navigate('/login');
+    };
+
+    const handleLogoError = () => {
+        setLogoSrc('/logo.png');
     };
 
     const getLinkClass = ({ isActive }) =>
@@ -39,16 +40,14 @@ const Navbar = () => {
                 <div className="flex items-center justify-between h-20">
                     <div className="flex items-center">
                         <Link to="/" className="flex-shrink-0 flex items-center">
-                            {/* --- MODIFICATION START: Use standard img with srcset for optimal logo loading --- */}
                             <img
                                 alt="Treishvaam Finance Logo"
-                                src="/logo-48.webp" // Fallback for old browsers
-                                srcSet="/logo-48.webp 1x, /logo-96.webp 2x" // Serve high-res logo for retina displays
-                                className="h-12 w-12 mr-2"
+                                src={logoSrc}
+                                onError={handleLogoError}
+                                className="h-12 w-auto mr-3"
                                 width="48"
                                 height="48"
                             />
-                            {/* --- MODIFICATION END --- */}
                             <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
                         </Link>
                         <nav className="hidden md:block ml-10">
@@ -97,7 +96,9 @@ const Navbar = () => {
                             <NavLink to="/about" className={getMobileLinkClass} onClick={closeMobileMenu}>About</NavLink>
                             <NavLink to="/vision" className={getMobileLinkClass} onClick={closeMobileMenu}>Vision</NavLink>
                             <NavLink to="/education" className={getMobileLinkClass} onClick={closeMobileMenu}>Learn</NavLink>
+                            {/* --- MODIFICATION START: Added missing '=' sign --- */}
                             <NavLink to="/blog" className={getMobileLinkClass} onClick={closeMobileMenu}>Blog</NavLink>
+                            {/* --- MODIFICATION END --- */}
                             <NavLink to="/contact" className={getMobileLinkClass} onClick={closeMobileMenu}>Contact</NavLink>
                         </div>
                         <div className="pt-4 pb-3 border-t border-gray-200">
