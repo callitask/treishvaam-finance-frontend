@@ -9,6 +9,14 @@ import DevelopmentNotice from '../components/DevelopmentNotice';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
+const categoryStyles = {
+    "Stocks": "text-sky-700",
+    "Crypto": "text-sky-700",
+    "Trading": "text-sky-700",
+    "News": "text-sky-700",
+    "Default": "text-sky-700"
+};
+
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
     const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
@@ -18,19 +26,30 @@ const createSnippet = (html, length = 155) => {
 };
 
 const formatDateTime = (dateString) => {
-    if (!dateString) return 'Date not available';
+    if (!dateString) return { isNew: false, displayDate: 'Date not available' };
     const dateObj = new Date(dateString);
-    if (isNaN(dateObj)) return 'Date not available';
-    return dateObj.toLocaleString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit', hour12: true
-    });
+    if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
+    
+    const now = new Date();
+    const diffHours = (now - dateObj) / (1000 * 60 * 60);
+
+    const displayDate = new Intl.DateTimeFormat('en-US', { 
+        month: 'long', 
+        day: 'numeric', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true 
+    }).format(dateObj);
+
+    return { isNew: diffHours < 48, displayDate };
 };
 
-const PostCard = memo(({ article }) => {
-    // This logic dynamically adjusts the card layout based on image orientation
+const PostCard = memo(({ article, onCategoryClick }) => {
     const [isPortrait, setIsPortrait] = useState(false);
     const hasThumbnail = !!article.thumbnailUrl;
+    const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
+    const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
 
     const handleImageLoad = (event) => {
@@ -40,58 +59,81 @@ const PostCard = memo(({ article }) => {
         }
     };
 
-    const CardContent = ({ showFeaturedTag }) => (
-        <div className="flex flex-col flex-grow p-4">
-            {showFeaturedTag && (
-                <div className="mb-2">
-                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{ letterSpacing: '0.08em' }}>Featured</span>
-                </div>
-            )}
-            <div className="text-xs text-gray-500 mb-2 flex flex-wrap items-center">
-                <span>By Treishvaam Finance</span>
-                <span className="mx-2">|</span>
-                <span>{formatDateTime(article.updatedAt || article.createdAt)}</span>
+    const CardContent = ({ isPortrait }) => (
+        <div className="p-4 flex flex-col flex-grow">
+            {/* --- MODIFICATION: Byline layout is now conditional --- */}
+            <div className="flex justify-between items-start text-xs mb-3">
+                {isPortrait ? (
+                    // Layout for Portrait Images
+                    <div>
+                        <div className="font-bold uppercase tracking-wider">
+                            <button onClick={() => onCategoryClick(article.category)} className={`${categoryClass} hover:underline`}>
+                                {article.category}
+                            </button>
+                            <span className="text-gray-400 ml-1">|</span>
+                        </div>
+                        <div className="text-gray-500 font-medium">By Treishvaam Finance</div>
+                    </div>
+                ) : (
+                    // Layout for Landscape Images
+                    <div className="flex items-center">
+                        <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
+                            {article.category}
+                        </button>
+                        <span className="text-gray-400 mx-2">|</span>
+                        <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
+                    </div>
+                )}
+                {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
             </div>
-            <h3 className="text-lg font-bold mb-2 text-gray-900">
-                <Link to={`/blog/${article.id}`} className="hover:text-sky-700 transition-colors">
+            
+            <h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words">
+                <Link to={`/blog/${article.id}`} className="hover:underline">
                     {article.title}
                 </Link>
             </h3>
-            <p className="text-sm text-gray-700 mb-4 break-words post-preview-content">
+
+            <p className="text-sm text-gray-700 flex-grow break-words">
                 {createSnippet(article.content, 120)}
             </p>
-            <Link to={`/blog/${article.id}`} className="font-semibold text-sky-600 hover:text-sky-800 self-start mt-auto">
-                Read More
-            </Link>
+
+            <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                    <span>{displayDate}</span>
+                </div>
+                <Link to={`/blog/${article.id}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">
+                    Read More
+                </Link>
+            </div>
         </div>
     );
 
-    // This is the original layout logic that you wanted to keep.
     return (
-        <div className="break-inside-avoid mb-4 border border-gray-200 relative bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden">
+        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative">
+            {isFeatured && (
+                <div className="absolute top-2 left-2 z-10">
+                    <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                        Featured
+                    </span>
+                </div>
+            )}
             {!hasThumbnail ? (
-                <CardContent showFeaturedTag={isFeatured} />
+                <CardContent isPortrait={false} />
             ) : (
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
-                    <div className={`flex-shrink-0 ${isPortrait ? 'w-1/2' : 'w-full'} relative`}>
+                    <div className={`flex-shrink-0 ${isPortrait ? 'w-4/12' : 'w-full'} bg-gray-100`}>
                         <Link to={`/blog/${article.id}`}>
-                             <ResponsiveAuthImage
-                                 baseName={article.thumbnailUrl}
-                                 alt={article.title}
-                                 // --- FIX: Added max-h-96 to downscale tall images while preserving masonry ---
-                                 className="w-full h-auto object-contain max-h-96"
-                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                 onLoad={handleImageLoad}
-                             />
+                            <ResponsiveAuthImage
+                                baseName={article.thumbnailUrl}
+                                alt={article.title}
+                                className="w-full h-auto object-contain max-h-80"
+                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                                onLoad={handleImageLoad}
+                            />
                         </Link>
-                        {isFeatured && !isPortrait && (
-                            <div className="absolute top-2 left-2 z-10">
-                                <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg uppercase tracking-wider" style={{ letterSpacing: '0.08em' }}>Featured</span>
-                            </div>
-                        )}
                     </div>
-                    <div className={`${isPortrait ? 'w-1/2' : 'w-full'}`}>
-                        <CardContent showFeaturedTag={isFeatured && isPortrait} />
+                    <div className={`flex ${isPortrait ? 'w-8/12' : 'w-full'}`}>
+                        <CardContent isPortrait={isPortrait} />
                     </div>
                 </div>
             )}
@@ -130,7 +172,7 @@ const BlogPage = () => {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(p => p.title.toLowerCase().includes(term));
         }
-        return filtered;
+        return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
     const latestPost = useMemo(() => posts.length > 0 ? posts[0] : null, [posts]);
@@ -170,30 +212,30 @@ const BlogPage = () => {
                     <p className="text-lg text-gray-700">Stay ahead with timely market developments and expert analysis.</p>
                 </div>
             </section>
-            <section className="bg-white pt-0 pb-12">
+            <section className="bg-white pt-12 pb-16">
                 <div className="container mx-auto px-6">
                     <div className="mb-10 flex flex-col items-center">
-                        <div className="w-full max-w-3xl flex items-center gap-2 justify-center mb-4">
+                        <div className="w-full max-w-2xl flex items-center gap-2 justify-center mb-4">
                             <input
                                 type="text"
                                 placeholder="Search financial news..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
-                                className="search-input py-2.5 pl-4 pr-4 border border-gray-400 w-full focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm shadow-sm"
+                                className="w-full px-4 py-2 text-base text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                             />
                         </div>
                         <div className="flex flex-wrap justify-center gap-2">
                             {allCategories.map(cat => (
-                                <button key={cat} className={`filter-button px-3 py-1.5 text-sm transition-colors duration-200 border ${selectedCategory === cat ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-400 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
+                                <button key={cat} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${selectedCategory === cat ? 'bg-sky-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
                                     {cat}
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4">
+                    <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-px">
                         {filteredPosts.length > 0 ? (
                             filteredPosts.map((article) => (
-                                <PostCard key={article.id} article={article} />
+                                <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
                             ))
                         ) : (
                             <p className="text-center p-10 col-span-full">No posts found.</p>
