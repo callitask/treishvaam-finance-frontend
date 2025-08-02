@@ -2,5 +2,5 @@
 User-agent: *
 Disallow:
 
-# Point to the static sitemap on the frontend
+# Point to the sitemap
 Sitemap: https://treishfin.treishvaamgroup.com/sitemap.xml
