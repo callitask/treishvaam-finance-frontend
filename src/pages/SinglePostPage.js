@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getPost, API_URL } from '../apiConfig';
+// --- CORRECTED IMPORT: Use getPostBySlug ---
+import { getPostBySlug, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import 'suneditor/dist/css/suneditor.min.css'; // <--- ADDED THIS LINE
+import 'suneditor/dist/css/suneditor.min.css';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareButtons from '../components/ShareButtons';
 import { FaUserCircle } from 'react-icons/fa';
 
-// --- UTILITY FUNCTIONS ---
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
     const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
@@ -26,9 +26,9 @@ const formatDate = (dateString) => {
     });
 };
 
-// --- MAIN COMPONENT ---
 const SinglePostPage = () => {
-    const { id } = useParams();
+    // --- CORRECTED: Get slug from URL params ---
+    const { slug } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -36,7 +36,8 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                const response = await getPost(id);
+                // --- CORRECTED: Fetch post using the slug ---
+                const response = await getPostBySlug(slug);
                 setPost(response.data);
             } catch (err) {
                 setError('Failed to fetch post.');
@@ -46,7 +47,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [id]);
+    }, [slug]); // --- CORRECTED: Dependency is now slug ---
 
     if (loading) return <div className="text-center py-20">Loading post...</div>;
     if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
@@ -58,7 +59,8 @@ const SinglePostPage = () => {
 
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const pageDescription = createSnippet(post.content);
-    const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.id}`;
+    // --- CORRECTED: Use slug for the canonical URL ---
+    const pageUrl = `https://treishfin.treishvaamgroup.com/blog/${post.slug}`;
     const imageUrl = post.coverImageUrl
         ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp`
         : `${window.location.origin}/logo512.png`;
@@ -100,12 +102,10 @@ const SinglePostPage = () => {
 
                 <div className="container mx-auto px-4 py-12">
                     <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-12">
-                        {/* --- MODIFICATION START --- */}
                         <div
                             className="w-full lg:w-2/3 sun-editor-editable max-w-none"
                             dangerouslySetInnerHTML={createMarkup(post.content)}
                         />
-                        {/* --- MODIFICATION END --- */}
                         <aside className="w-full lg:w-1/3 lg:sticky top-28 self-start">
                             <div className="bg-gray-50 p-6 rounded-lg">
                                 <h3 className="text-lg font-bold mb-4 border-b pb-2">Share this Article</h3>

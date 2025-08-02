@@ -85,7 +85,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
             </div>
             
             <h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words">
-                <Link to={`/blog/${article.id}`} className="hover:underline">
+                <Link to={`/blog/${article.slug}`} className="hover:underline">
                     {article.title}
                 </Link>
             </h3>
@@ -98,7 +98,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                 <div className="text-xs text-gray-500">
                     <span>{displayDate}</span>
                 </div>
-                <Link to={`/blog/${article.id}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">
+                <Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">
                     Read More
                 </Link>
             </div>
@@ -109,7 +109,6 @@ const PostCard = memo(({ article, onCategoryClick }) => {
         <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative">
             {isFeatured && (
                 <div className="absolute top-2 left-2 z-10">
-                    {/* --- MODIFICATION: Restored original gradient color to Featured tag --- */}
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
                         Featured
                     </span>
@@ -120,7 +119,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
             ) : (
                 <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
                     <div className={`flex-shrink-0 ${isPortrait ? 'w-4/12' : 'w-full'} bg-gray-100`}>
-                        <Link to={`/blog/${article.id}`}>
+                        <Link to={`/blog/${article.slug}`}>
                             <ResponsiveAuthImage
                                 baseName={article.thumbnailUrl}
                                 alt={article.title}
