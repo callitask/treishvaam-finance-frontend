@@ -53,7 +53,8 @@ const PostsTable = ({ posts, handleDelete, handleOpenShareModal, isScheduled = f
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center space-x-4">
                                     {!isScheduled && !isDraft && <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600" title="Share"><FaShareAlt /></button>}
-                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.id}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
+                                    {/* --- UPDATED LINK --- */}
+                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.slug}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
                                     <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete"><FaTrash /></button>
                                 </div>
                             </td>
@@ -95,12 +96,9 @@ const ManagePostsPage = () => {
         }
     }, [location.hash]);
 
-    // Calculate the derived post lists only *after* the data fetching hooks are set up.
     const { publishedPosts, scheduledPosts } = useMemo(() => {
         const published = allPosts.filter(post => post.status === 'PUBLISHED');
         const scheduled = allPosts.filter(post => post.status === 'SCHEDULED');
-        // FIX: The return object now correctly maps the local variables `published`
-        // and `scheduled` to the keys `publishedPosts` and `scheduledPosts`.
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [allPosts]);
 

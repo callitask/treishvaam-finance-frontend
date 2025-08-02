@@ -1,11 +1,11 @@
 import imageCompression from 'browser-image-compression';
-// --- MODIFICATION: Import useCallback ---
 import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
+// --- UPDATED IMPORTS ---
+import { getPostBySlug, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
@@ -113,9 +113,11 @@ const CropModal = ({ src, type, onClose, onSave }) => {
 };
 
 const BlogEditorPage = () => {
-    const { id } = useParams();
+    // --- UPDATED: Use slug from params ---
+    const { slug } = useParams(); 
     const navigate = useNavigate();
-    const [postId, setPostId] = useState(id);
+    const [postId, setPostId] = useState(null); // Keep internal ID for updates
+    const [postSlug, setPostSlug] = useState(slug); // Keep slug for navigation
     const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -151,24 +153,22 @@ const BlogEditorPage = () => {
                     setCategories(categoriesRes.data);
                 }
 
-                if (postId) {
-                    const postRes = await getPost(postId);
+                if (postSlug) { // --- UPDATED: Fetch using slug ---
+                    const postRes = await getPostBySlug(postSlug);
                     const post = postRes.data;
+                    setPostId(post.id); // Set the internal ID for updates
                     setTitle(post.title);
                     setContent(post.content);
                     setCategory(post.category || (categoriesRes.data[0]?.name || ''));
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCreatedAt(post.createdAt || new Date().toISOString());
-
                     if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
                     if (post.coverImageUrl) setCoverPreview(`${API_URL}/${post.coverImageUrl}`);
-
                     setThumbnailAltText(post.thumbnailAltText || '');
                     setThumbnailTitle(post.thumbnailTitle || '');
                     setCoverImageAltText(post.coverImageAltText || '');
                     setCoverImageTitle(post.coverImageTitle || '');
-
                     if (post.scheduledTime) {
                         const localDateTime = new Date(post.scheduledTime).toISOString().slice(0, 16);
                         setScheduledTime(localDateTime);
@@ -185,9 +185,8 @@ const BlogEditorPage = () => {
             }
         };
         fetchInitialData();
-    }, [postId]);
+    }, [postSlug]); // --- UPDATED: Dependency is now slug ---
 
-    // --- MODIFICATION START: Wrap handleAutoSave in useCallback ---
     const handleAutoSave = useCallback(async () => {
         if (!title.trim() && !content.trim()) return;
 
@@ -201,32 +200,28 @@ const BlogEditorPage = () => {
             } else {
                 const response = await createDraft(draftData);
                 setPostId(response.data.id);
-                navigate(`/dashboard/blog/edit/${response.data.id}`, { replace: true });
+                setPostSlug(response.data.slug); // Set the new slug
+                navigate(`/dashboard/blog/edit/${response.data.slug}`, { replace: true });
             }
             setSaveStatus('Saved');
         } catch (err) {
             setSaveStatus('Error');
             console.error("Auto-save failed:", err);
         }
-    }, [title, content, postId, navigate]); // Add dependencies
-    // --- MODIFICATION END ---
+    }, [title, content, postId, navigate]);
 
-    // --- MODIFICATION START: Add handleAutoSave to dependency array ---
     useEffect(() => {
-        if (autoSaveTimer.current) {
-            clearTimeout(autoSaveTimer.current);
-        }
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
         autoSaveTimer.current = setTimeout(() => {
             handleAutoSave();
         }, 2000);
 
         return () => {
-            if (autoSaveTimer.current) {
-                clearTimeout(autoSaveTimer.current);
-            }
+            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
         };
-    }, [title, content, handleAutoSave]); // Add handleAutoSave here
-    // --- MODIFICATION END ---
+    }, [title, content, handleAutoSave]);
+
+    // ... (rest of the functions remain the same)
 
     const handleAddNewCategory = async () => {
         const isDuplicate = categories.some(c => c && c.name && c.name.toLowerCase() === newCategoryName.toLowerCase());
@@ -332,125 +327,126 @@ const BlogEditorPage = () => {
             console.error(err);
         }
     };
-
+    
     return (
-        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '' })} onSave={handleCropSave} />}
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-                    <div className="flex justify-between items-center mb-2">
-                        <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
-                        <div className="text-sm">
-                            {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
-                            {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
-                            {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
-                        </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                    {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
-                        <div>
-                            <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
-                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
-                        </div>
-                        <div>
-                            <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
-                            <div className="flex items-center gap-2">
-                                <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
-                                    <option value="">Select a category</option>
-                                    {categories && categories.filter(cat => cat && cat.id).map((cat) => (
-                                        <option key={cat.id} value={cat.name}>
-                                            {cat.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
-                            </div>
-                            {showNewCategoryInput && (
-                                <div className="flex items-center gap-2 mt-2">
-                                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
-                                    <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-                                </div>
-                            )}
-                        </div>
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">Tags</label>
-                            <TagsInput tags={tags} setTags={setTags} />
-                        </div>
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
-                            {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
-                            <div>
-                                <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                            <div>
-                                <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                        </div>
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
-                            <div>
-                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                            <div>
-                                <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                                <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                        </div>
-                        <div>
-                            <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
-                            <input
-                                type="datetime-local"
-                                id="scheduledTime"
-                                value={scheduledTime}
-                                onChange={e => setScheduledTime(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
-                        </div>
-                        <div className="flex items-center">
-                            <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-                            <span className="ml-2 text-gray-700">Mark as Featured</span>
-                        </div>
-                        <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                            {postId
-                                ? 'Update Post'
-                                : (scheduledTime ? 'Schedule Post' : 'Publish Post')
-                            }
-                        </button>
-                    </form>
-                </div>
-                <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
-                    <label className="block text-gray-700 font-semibold mb-2">Content</label>
-                    <div className="flex-grow h-full">
-                        <Suspense fallback={<div>Loading editor...</div>}>
-                            <SunEditor
-                                onChange={setContent}
-                                getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
-                                onImageUploadBefore={handleImageUploadBefore}
-                                onLoad={() => {
-                                    if (editorRef.current && content && !isContentLoaded.current) {
-                                        editorRef.current.setContents(content);
-                                        isContentLoaded.current = true;
-                                    }
-                                }}
-                                setOptions={{
-                                    height: 'auto',
-                                    minHeight: '400px',
-                                    buttonList: buttonList.complex
-                                }}
-                            />
-                        </Suspense>
-                    </div>
-                </div>
-            </div>
-        </div>
+      // ... (The JSX for the editor page remains the same)
+      <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+         {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '' })} onSave={handleCropSave} />}
+         <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
+             <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
+                 <div className="flex justify-between items-center mb-2">
+                     <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
+                     <div className="text-sm">
+                         {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
+                         {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
+                         {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
+                     </div>
+                 </div>
+                 <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                 {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
+                 <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
+                     <div>
+                         <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
+                         <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
+                     </div>
+                     <div>
+                         <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
+                         <div className="flex items-center gap-2">
+                             <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
+                                 <option value="">Select a category</option>
+                                 {categories && categories.filter(cat => cat && cat.id).map((cat) => (
+                                     <option key={cat.id} value={cat.name}>
+                                         {cat.name}
+                                     </option>
+                                 ))}
+                             </select>
+                             <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
+                         </div>
+                         {showNewCategoryInput && (
+                             <div className="flex items-center gap-2 mt-2">
+                                 <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
+                                 <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
+                             </div>
+                         )}
+                     </div>
+                     <div>
+                         <label className="block text-gray-700 font-semibold mb-2">Tags</label>
+                         <TagsInput tags={tags} setTags={setTags} />
+                     </div>
+                     <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                         <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
+                         {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                         <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
+                         <div>
+                             <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                             <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                         </div>
+                         <div>
+                             <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                             <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                         </div>
+                     </div>
+                     <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                         <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
+                         {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                         <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
+                         <div>
+                             <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
+                             <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                         </div>
+                         <div>
+                             <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
+                             <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                         </div>
+                     </div>
+                     <div>
+                         <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
+                         <input
+                             type="datetime-local"
+                             id="scheduledTime"
+                             value={scheduledTime}
+                             onChange={e => setScheduledTime(e.target.value)}
+                             className="w-full p-2 border border-gray-300 rounded"
+                         />
+                         <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
+                     </div>
+                     <div className="flex items-center">
+                         <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
+                         <span className="ml-2 text-gray-700">Mark as Featured</span>
+                     </div>
+                     <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
+                         {postId
+                             ? 'Update Post'
+                             : (scheduledTime ? 'Schedule Post' : 'Publish Post')
+                         }
+                     </button>
+                 </form>
+             </div>
+             <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
+                 <label className="block text-gray-700 font-semibold mb-2">Content</label>
+                 <div className="flex-grow h-full">
+                     <Suspense fallback={<div>Loading editor...</div>}>
+                         <SunEditor
+                             onChange={setContent}
+                             getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
+                             onImageUploadBefore={handleImageUploadBefore}
+                             onLoad={() => {
+                                 if (editorRef.current && content && !isContentLoaded.current) {
+                                     editorRef.current.setContents(content);
+                                     isContentLoaded.current = true;
+                                 }
+                             }}
+                             setOptions={{
+                                 height: 'auto',
+                                 minHeight: '400px',
+                                 buttonList: buttonList.complex
+                             }}
+                         />
+                     </Suspense>
+                 </div>
+             </div>
+         </div>
+     </div>
     );
 };
 
