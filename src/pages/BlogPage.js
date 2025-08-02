@@ -61,10 +61,8 @@ const PostCard = memo(({ article, onCategoryClick }) => {
 
     const CardContent = ({ isPortrait }) => (
         <div className="p-4 flex flex-col flex-grow">
-            {/* --- MODIFICATION: Byline layout is now conditional --- */}
             <div className="flex justify-between items-start text-xs mb-3">
                 {isPortrait ? (
-                    // Layout for Portrait Images
                     <div>
                         <div className="font-bold uppercase tracking-wider">
                             <button onClick={() => onCategoryClick(article.category)} className={`${categoryClass} hover:underline`}>
@@ -75,7 +73,6 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                         <div className="text-gray-500 font-medium">By Treishvaam Finance</div>
                     </div>
                 ) : (
-                    // Layout for Landscape Images
                     <div className="flex items-center">
                         <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
                             {article.category}
@@ -112,7 +109,8 @@ const PostCard = memo(({ article, onCategoryClick }) => {
         <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative">
             {isFeatured && (
                 <div className="absolute top-2 left-2 z-10">
-                    <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
+                    {/* --- MODIFICATION: Restored original gradient color to Featured tag --- */}
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
                         Featured
                     </span>
                 </div>
