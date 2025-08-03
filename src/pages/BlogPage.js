@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { API_URL } from '../apiConfig';
+import { API_URL, getPosts } from '../apiConfig'; // Import getPosts
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
@@ -33,54 +33,53 @@ const formatDateTime = (dateString) => {
     const now = new Date();
     const diffHours = (now - dateObj) / (1000 * 60 * 60);
 
-    const displayDate = new Intl.DateTimeFormat('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
+    const displayDate = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
     }).format(dateObj);
 
     return { isNew: diffHours < 48, displayDate };
 };
 
 const PostCard = memo(({ article, onCategoryClick }) => {
-    const [isPortrait, setIsPortrait] = useState(false);
-    const hasThumbnail = !!article.thumbnailUrl;
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const orientation = article.thumbnailOrientation || 'landscape';
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
-
-    const handleImageLoad = (event) => {
-        const { naturalWidth, naturalHeight } = event.target;
-        if (naturalHeight > naturalWidth) {
-            setIsPortrait(true);
-        }
+    
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+        
+        return (
+            <Link to={`/blog/${article.slug}`} className={`flex bg-gray-100 ${orientation === 'landscape' ? 'flex-row h-full' : 'flex-col w-full'}`}>
+                {article.thumbnails.map(thumb => (
+                    <img
+                        key={thumb.id}
+                        // FIX: Added a forward slash to correctly construct the image URL.
+                        src={`${API_URL}${thumb.imageUrl}`}
+                        alt={thumb.altText || article.title}
+                        className={`${orientation === 'landscape' ? 'h-full w-auto' : 'w-full h-auto'}`}
+                   />
+                ))}
+            </Link>
+        );
     };
 
-    const CardContent = ({ isPortrait }) => (
+    const CardContent = () => (
         <div className="p-4 flex flex-col flex-grow">
             <div className="flex justify-between items-start text-xs mb-3">
-                {isPortrait ? (
-                    <div>
-                        <div className="font-bold uppercase tracking-wider">
-                            <button onClick={() => onCategoryClick(article.category)} className={`${categoryClass} hover:underline`}>
-                                {article.category}
-                            </button>
-                            <span className="text-gray-400 ml-1">|</span>
-                        </div>
-                        <div className="text-gray-500 font-medium">By Treishvaam Finance</div>
-                    </div>
-                ) : (
-                    <div className="flex items-center">
-                        <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
-                            {article.category}
-                        </button>
-                        <span className="text-gray-400 mx-2">|</span>
-                        <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
-                    </div>
-                )}
+                <div className="flex items-center">
+                    <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
+                        {article.category}
+                    </button>
+                    <span className="text-gray-400 mx-2">|</span>
+                    <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
+                </div>
                 {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
             </div>
             
@@ -106,7 +105,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     );
 
     return (
-        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative">
+        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">
             {isFeatured && (
                 <div className="absolute top-2 left-2 z-10">
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
@@ -114,26 +113,16 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                     </span>
                 </div>
             )}
-            {!hasThumbnail ? (
-                <CardContent isPortrait={false} />
-            ) : (
-                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
-                    <div className={`flex-shrink-0 ${isPortrait ? 'w-4/12' : 'w-full'} bg-gray-100`}>
-                        <Link to={`/blog/${article.slug}`}>
-                            <ResponsiveAuthImage
-                                baseName={article.thumbnailUrl}
-                                alt={article.title}
-                                className="w-full h-auto object-contain max-h-80"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                onLoad={handleImageLoad}
-                            />
-                        </Link>
-                    </div>
-                    <div className={`flex ${isPortrait ? 'w-8/12' : 'w-full'}`}>
-                        <CardContent isPortrait={isPortrait} />
-                    </div>
-                </div>
+            
+            {hasThumbnails && (
+                 <div className={`flex-shrink-0 ${orientation === 'portrait' ? 'w-4/12' : 'w-full'}`}>
+                      <ThumbnailDisplay />
+                 </div>
             )}
+
+            <div className={`flex-grow ${!hasThumbnails ? 'w-full' : (orientation === 'portrait' ? 'w-8/12' : 'w-full')}`}>
+                 <CardContent />
+            </div>
         </div>
     );
 });
@@ -149,10 +138,12 @@ const BlogPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const response = await axios.get(`${API_URL}/api/posts`);
+                // FIX: Use the imported getPosts function for a clean, centralized API call.
+                const response = await getPosts();
                 setPosts(response.data);
             } catch (err) {
                 setError('Failed to fetch blog posts.');
+                console.error(err); // Log the actual error for debugging
             } finally {
                 setLoading(false);
             }
@@ -175,10 +166,9 @@ const BlogPage = () => {
     const latestPost = useMemo(() => posts.length > 0 ? posts[0] : null, [posts]);
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnailUrl ? `${API_URL}${latestPost.thumbnailUrl}` : "/logo512.png";
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}${latestPost.thumbnails[0].imageUrl}` : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
-
     if (error) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50">
             <div className="text-red-400 mb-4">

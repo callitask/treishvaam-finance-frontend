@@ -1,18 +1,17 @@
 import imageCompression from 'browser-image-compression';
-import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, useRef, useEffect, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-// --- UPDATED IMPORTS ---
-import { getPostBySlug, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
+import StoryThumbnailManager from '../components/StoryThumbnailManager';
+import { getPostBySlug, createPost, updatePost, getCategories, addCategory, API_URL } from '../apiConfig';
 import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
-
     const addTag = () => {
         const newTag = inputValue.trim();
         if (newTag && !tags.includes(newTag)) {
@@ -20,18 +19,15 @@ const TagsInput = ({ tags, setTags }) => {
         }
         setInputValue('');
     };
-
     const handleKeyDown = (e) => {
         if (e.key === 'Enter' || e.key === ',') {
             e.preventDefault();
             addTag();
         }
     };
-
     const removeTag = (tagToRemove) => {
         setTags(tags.filter(tag => tag !== tagToRemove));
     };
-
     return (
         <div>
             <div className="flex flex-wrap gap-2 mb-2">
@@ -57,48 +53,41 @@ const TagsInput = ({ tags, setTags }) => {
     );
 };
 
-const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.9));
 
-function canvasPreview(image, canvas, crop) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('No 2d context');
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const pixelRatio = window.devicePixelRatio;
-    canvas.width = Math.floor(crop.width * scaleX * pixelRatio);
-    canvas.height = Math.floor(crop.height * scaleY * pixelRatio);
-    ctx.scale(pixelRatio, pixelRatio);
-    ctx.imageSmoothingQuality = 'high';
-    const cropX = crop.x * scaleX;
-    const cropY = crop.y * scaleY;
-    ctx.save();
-    ctx.translate(-cropX, -cropY);
-    ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, image.naturalWidth, image.naturalHeight);
-    ctx.restore();
-}
+const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/webp', 0.9));
 
-const CropModal = ({ src, type, onClose, onSave }) => {
+const CropModal = ({ src, type, onClose, onSave, aspect }) => {
     const imgRef = useRef(null);
     const canvasRef = useRef(null);
     const [crop, setCrop] = useState();
-    const [completedCrop, setCompletedCrop] = useState();
-
-    useEffect(() => {
-        if (completedCrop?.width && imgRef.current && canvasRef.current) {
-            canvasPreview(imgRef.current, canvasRef.current, completedCrop);
-        }
-    }, [completedCrop]);
+    const [ , setCompletedCrop] = useState();
 
     const handleSave = () => {
-        if (canvasRef.current) onSave(canvasRef.current);
+        if (canvasRef.current) onSave(canvasRef.current, imgRef.current);
     };
+
+    function canvasPreview(image, canvas, crop) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
+        canvas.width = crop.width * scaleX;
+        canvas.height = crop.height * scaleY;
+        ctx.drawImage(image, crop.x * scaleX, crop.y * scaleY, crop.width * scaleX, crop.height * scaleY, 0, 0, crop.width * scaleX, crop.height * scaleY);
+    }
+    
+    useEffect(() => {
+        if (crop?.width && crop?.height && imgRef.current && canvasRef.current) {
+            canvasPreview(imgRef.current, canvasRef.current, crop);
+        }
+    }, [crop]);
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
                 <h3 className="text-xl font-bold mb-4">Crop Image</h3>
                 <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)}>
+                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
                         <img ref={imgRef} alt="Crop" src={src} />
                     </ReactCrop>
                 </div>
@@ -112,63 +101,108 @@ const CropModal = ({ src, type, onClose, onSave }) => {
     );
 };
 
+const AddFromPostModal = ({ images, isOpen, onClose, onSelect }) => {
+    const [selectedImages, setSelectedImages] = useState([]);
+    if (!isOpen) return null;
+
+    const toggleSelection = (url) => {
+        setSelectedImages(prev =>
+            prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]
+        );
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full">
+                <h3 className="text-xl font-bold mb-4">Select Images from Post</h3>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 max-h-96 overflow-y-auto p-2">
+                    {images.map((url, index) => (
+                        <div key={index} onClick={() => toggleSelection(url)} className={`relative rounded-lg overflow-hidden cursor-pointer border-4 ${selectedImages.includes(url) ? 'border-sky-500' : 'border-transparent'}`}>
+                            <img src={url} alt={`Post content ${index}`} className="w-full h-full object-cover" />
+                            {selectedImages.includes(url) && (
+                                <div className="absolute inset-0 bg-sky-500 bg-opacity-50 flex items-center justify-center text-white text-2xl">
+                                    ✓
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                <div className="flex justify-end gap-4 mt-4">
+                    <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
+                    <button onClick={() => {onSelect(selectedImages); setSelectedImages([]);}} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Add Selected</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const BlogEditorPage = () => {
-    // --- UPDATED: Use slug from params ---
-    const { slug } = useParams(); 
+    const { slug } = useParams();
     const navigate = useNavigate();
-    const [postId, setPostId] = useState(null); // Keep internal ID for updates
-    const [postSlug, setPostSlug] = useState(slug); // Keep slug for navigation
-    const [saveStatus, setSaveStatus] = useState('Idle');
+    const [postId, setPostId] = useState(null);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [category, setCategory] = useState('');
     const [isFeatured, setIsFeatured] = useState(false);
     const [tags, setTags] = useState([]);
     const [error, setError] = useState('');
-    const [createdAt, setCreatedAt] = useState('');
-    const [categories, setCategories] = useState([]);
+    const [allCategories, setAllCategories] = useState([]);
+    const [coverPreview, setCoverPreview] = useState('');
+    const [finalCoverFile, setFinalCoverFile] = useState(null);
+    const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '', aspect: undefined });
+    const [scheduledTime, setScheduledTime] = useState('');
+    const [customSnippet, setCustomSnippet] = useState('');
+    const [thumbnailMode, setThumbnailMode] = useState('single');
+    const [storyThumbnails, setStoryThumbnails] = useState([]);
+    const [thumbnailOrientation, setThumbnailOrientation] = useState('landscape');
+    const [isAddFromPostModalOpen, setAddFromPostModalOpen] = useState(false);
+    const [postImagesForSelection, setPostImagesForSelection] = useState([]);
+    const [thumbPreview, setThumbPreview] = useState('');
     const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
     const [newCategoryName, setNewCategoryName] = useState('');
-    const [thumbPreview, setThumbPreview] = useState('');
-    const [coverPreview, setCoverPreview] = useState('');
-    const [finalThumbFile, setFinalThumbFile] = useState(null);
-    const [finalCoverFile, setFinalCoverFile] = useState(null);
-    const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '' });
-    const [sunEditorUploadHandler, setSunEditorUploadHandler] = useState(null);
-    const [thumbnailAltText, setThumbnailAltText] = useState('');
-    const [thumbnailTitle, setThumbnailTitle] = useState('');
-    const [coverImageAltText, setCoverImageAltText] = useState('');
-    const [coverImageTitle, setCoverImageTitle] = useState('');
-    const [scheduledTime, setScheduledTime] = useState('');
 
     const editorRef = useRef(null);
+    const fileInputRef = useRef(null);
     const isContentLoaded = useRef(false);
-    const autoSaveTimer = useRef(null);
 
     useEffect(() => {
         const fetchInitialData = async () => {
             try {
                 const categoriesRes = await getCategories();
                 if (Array.isArray(categoriesRes.data)) {
-                    setCategories(categoriesRes.data);
+                    setAllCategories(categoriesRes.data);
                 }
 
-                if (postSlug) { // --- UPDATED: Fetch using slug ---
-                    const postRes = await getPostBySlug(postSlug);
+                if (slug) {
+                    const postRes = await getPostBySlug(slug);
                     const post = postRes.data;
-                    setPostId(post.id); // Set the internal ID for updates
+                    setPostId(post.id);
                     setTitle(post.title);
                     setContent(post.content);
                     setCategory(post.category || (categoriesRes.data[0]?.name || ''));
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
-                    setCreatedAt(post.createdAt || new Date().toISOString());
-                    if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
-                    if (post.coverImageUrl) setCoverPreview(`${API_URL}/${post.coverImageUrl}`);
-                    setThumbnailAltText(post.thumbnailAltText || '');
-                    setThumbnailTitle(post.thumbnailTitle || '');
-                    setCoverImageAltText(post.coverImageAltText || '');
-                    setCoverImageTitle(post.coverImageTitle || '');
+                    setCustomSnippet(post.customSnippet || '');
+
+                    if (post.thumbnails && post.thumbnails.length > 0) {
+                        setThumbnailMode('story');
+                        setThumbnailOrientation(post.thumbnailOrientation || 'landscape');
+                        const loadedThumbnails = post.thumbnails.map(thumb => ({
+                            id: thumb.id,
+                            previewUrl: `${API_URL}${thumb.imageUrl}`,
+                            altText: thumb.altText || '',
+                            source: 'existing',
+                            url: thumb.imageUrl,
+                            file: null,
+                            displayOrder: thumb.displayOrder
+                        })).sort((a, b) => a.displayOrder - b.displayOrder);
+                        setStoryThumbnails(loadedThumbnails);
+                    } else {
+                        setThumbnailMode('single');
+                        if (post.thumbnailUrl) setThumbPreview(`${API_URL}/${post.thumbnailUrl}`);
+                    }
+
+                    if (post.coverImageUrl) setCoverPreview(`${API_URL}${post.coverImageUrl}`);
                     if (post.scheduledTime) {
                         const localDateTime = new Date(post.scheduledTime).toISOString().slice(0, 16);
                         setScheduledTime(localDateTime);
@@ -177,54 +211,17 @@ const BlogEditorPage = () => {
                     if (categoriesRes.data && categoriesRes.data.length > 0) {
                         setCategory(categoriesRes.data[0].name);
                     }
-                    setCreatedAt(new Date().toISOString());
                 }
             } catch (err) {
-                setError('Failed to load initial data. Check permissions or network.');
+                setError('Failed to load initial data.');
                 console.error(err);
             }
         };
         fetchInitialData();
-    }, [postSlug]); // --- UPDATED: Dependency is now slug ---
-
-    const handleAutoSave = useCallback(async () => {
-        if (!title.trim() && !content.trim()) return;
-
-        setSaveStatus('Saving...');
-        try {
-            const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
-            const draftData = { title, content: editorContent };
-
-            if (postId) {
-                await updateDraft(postId, draftData);
-            } else {
-                const response = await createDraft(draftData);
-                setPostId(response.data.id);
-                setPostSlug(response.data.slug); // Set the new slug
-                navigate(`/dashboard/blog/edit/${response.data.slug}`, { replace: true });
-            }
-            setSaveStatus('Saved');
-        } catch (err) {
-            setSaveStatus('Error');
-            console.error("Auto-save failed:", err);
-        }
-    }, [title, content, postId, navigate]);
-
-    useEffect(() => {
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => {
-            handleAutoSave();
-        }, 2000);
-
-        return () => {
-            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        };
-    }, [title, content, handleAutoSave]);
-
-    // ... (rest of the functions remain the same)
+    }, [slug]);
 
     const handleAddNewCategory = async () => {
-        const isDuplicate = categories.some(c => c && c.name && c.name.toLowerCase() === newCategoryName.toLowerCase());
+        const isDuplicate = allCategories.some(c => c && c.name && c.name.toLowerCase() === newCategoryName.toLowerCase());
         if (!newCategoryName || isDuplicate) {
             alert('Category name cannot be empty or a duplicate.');
             return;
@@ -232,7 +229,7 @@ const BlogEditorPage = () => {
         try {
             const newCategory = { name: newCategoryName };
             const response = await addCategory(newCategory);
-            setCategories([...categories, response.data]);
+            setAllCategories([...allCategories, response.data]);
             setCategory(response.data.name);
             setNewCategoryName('');
             setShowNewCategoryInput(false);
@@ -244,78 +241,123 @@ const BlogEditorPage = () => {
 
     const compressImage = async (file) => {
         if (!file) return null;
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
+        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
         try { return await imageCompression(file, options); } catch (e) { return file; }
     };
-
-    const onSelectFile = (e, type) => {
+    
+    const onSelectFile = (e, type, aspect) => {
         if (e.target.files && e.target.files.length > 0) {
             const reader = new FileReader();
-            reader.addEventListener('load', () => setModalState({ isOpen: true, type, src: reader.result?.toString() || '' }));
+            reader.addEventListener('load', () => setModalState({ isOpen: true, type, src: reader.result?.toString() || '', aspect }));
             reader.readAsDataURL(e.target.files[0]);
         }
         e.target.value = null;
     };
-
-    const handleImageUploadBefore = (files, info, uploadHandler) => {
-        const file = files[0];
-        if (!file) return;
-        setSunEditorUploadHandler(() => uploadHandler);
-        const reader = new FileReader();
-        reader.addEventListener('load', () => setModalState({ isOpen: true, type: 'suneditor', src: reader.result?.toString() || '' }));
-        reader.readAsDataURL(file);
-        return false;
+    
+    const handleStoryThumbUploadClick = () => {
+        fileInputRef.current.onchange = (e) => onSelectFile(e, 'story-thumbnail', undefined);
+        fileInputRef.current.click();
     };
 
-    const handleCropSave = async (canvas) => {
+    const handleCropSave = async (canvas, image) => {
         const croppedBlob = await canvasToBlob(canvas);
-        const compressedFile = await compressImage(croppedBlob);
-        if (modalState.type === 'thumbnail') {
-            setFinalThumbFile(compressedFile);
-            setThumbPreview(URL.createObjectURL(compressedFile));
+        const finalFile = await compressImage(croppedBlob);
+        const previewUrl = URL.createObjectURL(finalFile);
+
+        if (modalState.type === 'story-thumbnail') {
+            const newThumbnail = {
+                id: `new-${Date.now()}`,
+                previewUrl,
+                altText: '',
+                source: 'new',
+                file: new File([finalFile], `thumbnail-${Date.now()}.webp`, { type: 'image/webp' }),
+                url: null,
+                displayOrder: storyThumbnails.length
+            };
+            setStoryThumbnails([...storyThumbnails, newThumbnail]);
+
+            if (storyThumbnails.length === 0) {
+                const orientation = canvas.width / canvas.height >= 1 ? 'landscape' : 'portrait';
+                setThumbnailOrientation(orientation);
+            }
+        } else if (modalState.type === 'single-thumbnail') {
+            setThumbPreview(previewUrl);
         } else if (modalState.type === 'cover') {
-            setFinalCoverFile(compressedFile);
-            setCoverPreview(URL.createObjectURL(compressedFile));
-        } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
-            const formData = new FormData();
-            formData.append('file', compressedFile, 'image.jpg');
-            uploadFile(formData)
-                .then(res => sunEditorUploadHandler(res.data))
-                .catch(err => {
-                    alert("Image upload failed in editor.");
-                    sunEditorUploadHandler();
-                });
+            setFinalCoverFile(finalFile);
+            setCoverPreview(previewUrl);
         }
-        setModalState({ isOpen: false, type: null, src: '' });
+        
+        setModalState({ isOpen: false, type: null, src: '', aspect: undefined });
+    };
+
+    const handleAddFromPostClick = () => {
+        if (!editorRef.current) return;
+        const editorContent = editorRef.current.getContents(true);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(editorContent, 'text/html');
+        const images = Array.from(doc.querySelectorAll('img')).map(img => img.src);
+        setPostImagesForSelection(images);
+        setAddFromPostModalOpen(true);
+    };
+    
+    const handleSelectFromPost = (selectedUrls) => {
+        const newThumbnails = selectedUrls.map((url, i) => ({
+            id: `existing-${url}-${Date.now()}`,
+            previewUrl: url,
+            altText: '',
+            source: 'existing',
+            file: null,
+            url: new URL(url).pathname,
+            displayOrder: storyThumbnails.length + i
+        }));
+        setStoryThumbnails([...storyThumbnails, ...newThumbnails]);
+        setAddFromPostModalOpen(false);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
         if (!editorRef.current) {
-            setError("Editor is not yet available. Please wait a moment before saving.");
+            setError("Editor is not yet available.");
             return;
         }
+
+        const formData = new FormData();
+        const editorContent = editorRef.current.getContents(true);
+
+        const postData = {
+            title,
+            content: editorContent,
+            category,
+            featured: isFeatured,
+            tags: tags || [],
+            scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+            customSnippet: customSnippet,
+            thumbnailOrientation: thumbnailMode === 'story' ? thumbnailOrientation : null
+        };
+        formData.append('postData', JSON.stringify(postData));
+        
+        if (thumbnailMode === 'story') {
+            const metadata = storyThumbnails.map((thumb, index) => ({
+                source: thumb.source,
+                fileName: thumb.source === 'new' ? thumb.file.name : null,
+                url: thumb.source === 'existing' ? thumb.url : null,
+                altText: thumb.altText,
+                displayOrder: index
+            }));
+            formData.append('thumbnailsMetadata', JSON.stringify(metadata));
+            storyThumbnails.forEach(thumb => {
+                if (thumb.source === 'new') {
+                    formData.append('thumbnailFiles', thumb.file, thumb.file.name);
+                }
+            });
+        }
+        
+        if (finalCoverFile) {
+            formData.append('coverImage', finalCoverFile, `cover-${Date.now()}.webp`);
+        }
+
         try {
-            const editorContent = editorRef.current.getContents(true);
-            const formData = new FormData();
-            formData.append('title', title);
-            formData.append('content', editorContent);
-            formData.append('category', category);
-            formData.append('featured', isFeatured);
-            if (tags && tags.length > 0) {
-                tags.forEach(tag => formData.append('tags', tag));
-            } else {
-                formData.append('tags', '');
-            }
-            if (finalThumbFile) {
-                formData.append('thumbnail', finalThumbFile, 'thumbnail.jpg');
-            }
-            if (finalCoverFile) {
-                formData.append('coverImage', finalCoverFile, 'cover.jpg');
-            }
-            if (scheduledTime) {
-                formData.append('scheduledTime', new Date(scheduledTime).toISOString());
-            }
             if (postId) {
                 await updatePost(postId, formData);
             } else {
@@ -323,130 +365,142 @@ const BlogEditorPage = () => {
             }
             navigate('/dashboard/manage-posts');
         } catch (err) {
-            setError('Failed to save the post.');
+            setError('Failed to save the post. Check console for details.');
             console.error(err);
         }
     };
-    
+
     return (
-      // ... (The JSX for the editor page remains the same)
-      <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-         {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '' })} onSave={handleCropSave} />}
-         <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-             <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-                 <div className="flex justify-between items-center mb-2">
-                     <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
-                     <div className="text-sm">
-                         {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
-                         {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
-                         {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
-                     </div>
-                 </div>
-                 <div className="text-xs text-gray-500 mb-4">{new Date(createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                 {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                 <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
-                     <div>
-                         <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
-                         <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
-                     </div>
-                     <div>
-                         <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
-                         <div className="flex items-center gap-2">
-                             <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
-                                 <option value="">Select a category</option>
-                                 {categories && categories.filter(cat => cat && cat.id).map((cat) => (
-                                     <option key={cat.id} value={cat.name}>
-                                         {cat.name}
-                                     </option>
-                                 ))}
-                             </select>
-                             <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
-                         </div>
-                         {showNewCategoryInput && (
-                             <div className="flex items-center gap-2 mt-2">
-                                 <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
-                                 <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-                             </div>
-                         )}
-                     </div>
-                     <div>
-                         <label className="block text-gray-700 font-semibold mb-2">Tags</label>
-                         <TagsInput tags={tags} setTags={setTags} />
-                     </div>
-                     <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                         <label className="block text-gray-700 font-semibold">Thumbnail SEO</label>
-                         {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                         <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'thumbnail')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
-                         <div>
-                             <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                             <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                         </div>
-                         <div>
-                             <label htmlFor="thumbnailTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                             <input type="text" id="thumbnailTitle" value={thumbnailTitle} onChange={e => setThumbnailTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                         </div>
-                     </div>
-                     <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                         <label className="block text-gray-700 font-semibold">Cover Image SEO</label>
-                         {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                         <input type="file" accept="image/*" onChange={e => onSelectFile(e, 'cover')} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
-                         <div>
-                             <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                             <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                         </div>
-                         <div>
-                             <label htmlFor="coverImageTitle" className="text-sm font-medium text-gray-600">Image Title</label>
-                             <input type="text" id="coverImageTitle" value={coverImageTitle} onChange={e => setCoverImageTitle(e.target.value)} placeholder="Optional title for the image" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                         </div>
-                     </div>
-                     <div>
-                         <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
-                         <input
-                             type="datetime-local"
-                             id="scheduledTime"
-                             value={scheduledTime}
-                             onChange={e => setScheduledTime(e.target.value)}
-                             className="w-full p-2 border border-gray-300 rounded"
-                         />
-                         <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
-                     </div>
-                     <div className="flex items-center">
-                         <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-                         <span className="ml-2 text-gray-700">Mark as Featured</span>
-                     </div>
-                     <button type="submit" form="blog-editor-form" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                         {postId
-                             ? 'Update Post'
-                             : (scheduledTime ? 'Schedule Post' : 'Publish Post')
-                         }
-                     </button>
-                 </form>
-             </div>
-             <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
-                 <label className="block text-gray-700 font-semibold mb-2">Content</label>
-                 <div className="flex-grow h-full">
-                     <Suspense fallback={<div>Loading editor...</div>}>
-                         <SunEditor
-                             onChange={setContent}
-                             getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
-                             onImageUploadBefore={handleImageUploadBefore}
-                             onLoad={() => {
-                                 if (editorRef.current && content && !isContentLoaded.current) {
-                                     editorRef.current.setContents(content);
-                                     isContentLoaded.current = true;
-                                 }
-                             }}
-                             setOptions={{
-                                 height: 'auto',
-                                 minHeight: '400px',
-                                 buttonList: buttonList.complex
-                             }}
-                         />
-                     </Suspense>
-                 </div>
-             </div>
-         </div>
-     </div>
+        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
+            <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
+
+            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
+                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
+                   
+                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
+                        <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
+                        {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
+                       
+                        <div>
+                            <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
+                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
+                        </div>
+                        
+                        <div>
+                            <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
+                            <div className="flex items-center gap-2">
+                                <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
+                                    <option value="">Select a category</option>
+                                    {allCategories && allCategories.filter(cat => cat && cat.id).map((cat) => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))}
+                                </select>
+                                <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
+                            </div>
+                            {showNewCategoryInput && (
+                                <div className="flex items-center gap-2 mt-2">
+                                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
+                                    <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-gray-700 font-semibold mb-2">Tags</label>
+                            <TagsInput tags={tags} setTags={setTags} />
+                        </div>
+
+                        <div className="my-4">
+                            <label className="block text-gray-700 font-semibold mb-2">Thumbnail Mode</label>
+                            <div className="flex rounded-lg p-1 bg-gray-200">
+                                <button type="button" onClick={() => setThumbnailMode('single')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'single' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
+                                    Single Image
+                                </button>
+                                <button type="button" onClick={() => setThumbnailMode('story')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'story' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
+                                    Story Thumbnails
+                                </button>
+                            </div>
+                        </div>
+
+                        {thumbnailMode === 'single' ? (
+                            <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                                <label className="block text-gray-700 font-semibold">Thumbnail Image</label>
+                                {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                                <button type="button" onClick={(e) => {
+                                    fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail', undefined);
+                                    fileInputRef.current.click();
+                                }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Thumbnail</button>
+                            </div>
+                        ) : (
+                            <StoryThumbnailManager 
+                                thumbnails={storyThumbnails} 
+                                setThumbnails={setStoryThumbnails} 
+                                onUploadClick={handleStoryThumbUploadClick}
+                                onAddFromPostClick={handleAddFromPostClick}
+                            />
+                        )}
+                        
+                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
+                            <label className="block text-gray-700 font-semibold">Cover Image</label>
+                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
+                            <button type="button" onClick={() => {
+                                fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover', 16/9);
+                                fileInputRef.current.click();
+                            }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Cover Image</button>
+                        </div>
+
+                        {/* --- FIX: Restored the Schedule Publication section --- */}
+                        <div>
+                            <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
+                            <input
+                                type="datetime-local"
+                                id="scheduledTime"
+                                value={scheduledTime}
+                                onChange={e => setScheduledTime(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
+                        </div>
+                        
+                        <div className="flex items-center">
+                           <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
+                           <span className="ml-2 text-gray-700">Mark as Featured</span>
+                        </div>
+
+
+                       <button type="submit" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
+                           {postId
+                                ? 'Update Post'
+                                : (scheduledTime ? 'Schedule Post' : 'Publish Post')
+                           }
+                       </button>
+                    </form>
+                </div>
+                <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
+                    <label className="block text-gray-700 font-semibold mb-2">Content</label>
+                    <div className="flex-grow h-full">
+                        <Suspense fallback={<div>Loading editor...</div>}>
+                            <SunEditor
+                                setContents={content}
+                                getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
+                                onLoad={() => {
+                                    if (editorRef.current && content && !isContentLoaded.current) {
+                                        isContentLoaded.current = true;
+                                    }
+                                }}
+                                setOptions={{
+                                    height: 'auto',
+                                    minHeight: '400px',
+                                    buttonList: buttonList.complex
+                                }}
+                            />
+                        </Suspense>
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 };
 
