@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, memo } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
-import { API_URL, getPosts } from '../apiConfig'; // Import getPosts
+// import axios from 'axios'; // <-- REMOVED
+import { API_URL, getPosts } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
+// import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // <-- REMOVED
 import DevelopmentNotice from '../components/DevelopmentNotice';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
@@ -29,7 +29,7 @@ const formatDateTime = (dateString) => {
     if (!dateString) return { isNew: false, displayDate: 'Date not available' };
     const dateObj = new Date(dateString);
     if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
-    
+
     const now = new Date();
     const diffHours = (now - dateObj) / (1000 * 60 * 60);
 
@@ -51,17 +51,16 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
-    
+
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
-        
+
         return (
             <Link to={`/blog/${article.slug}`} className={`flex bg-gray-100 ${orientation === 'landscape' ? 'flex-row h-full' : 'flex-col w-full'}`}>
                 {article.thumbnails.map(thumb => (
                     <img
                         key={thumb.id}
-                        // FIX: Added a forward slash to correctly construct the image URL.
-                        src={`${API_URL}${thumb.imageUrl}`}
+                        src={`${API_URL}/api/files/${thumb.imageUrl}`}
                         alt={thumb.altText || article.title}
                         className={`${orientation === 'landscape' ? 'h-full w-auto' : 'w-full h-auto'}`}
                    />
@@ -82,7 +81,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                 </div>
                 {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
             </div>
-            
+
             <h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words">
                 <Link to={`/blog/${article.slug}`} className="hover:underline">
                     {article.title}
@@ -113,7 +112,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                     </span>
                 </div>
             )}
-            
+
             {hasThumbnails && (
                  <div className={`flex-shrink-0 ${orientation === 'portrait' ? 'w-4/12' : 'w-full'}`}>
                       <ThumbnailDisplay />
@@ -138,12 +137,11 @@ const BlogPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                // FIX: Use the imported getPosts function for a clean, centralized API call.
                 const response = await getPosts();
                 setPosts(response.data);
             } catch (err) {
                 setError('Failed to fetch blog posts.');
-                console.error(err); // Log the actual error for debugging
+                console.error(err);
             } finally {
                 setLoading(false);
             }
@@ -166,7 +164,7 @@ const BlogPage = () => {
     const latestPost = useMemo(() => posts.length > 0 ? posts[0] : null, [posts]);
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}${latestPost.thumbnails[0].imageUrl}` : "/logo512.png";
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/files/${latestPost.thumbnails[0].imageUrl}` : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return (
