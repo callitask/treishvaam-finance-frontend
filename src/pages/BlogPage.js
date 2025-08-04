@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+<<<<<<< HEAD
 import axios from 'axios';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css"; 
 import "slick-carousel/slick/slick-theme.css";
 import { API_URL } from '../apiConfig';
+=======
+// import axios from 'axios'; // <-- REMOVED
+import { API_URL, getPosts } from '../apiConfig';
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
+// import ResponsiveAuthImage from '../components/ResponsiveAuthImage'; // <-- REMOVED
 import DevelopmentNotice from '../components/DevelopmentNotice';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
@@ -32,17 +37,17 @@ const formatDateTime = (dateString) => {
     if (!dateString) return { isNew: false, displayDate: 'Date not available' };
     const dateObj = new Date(dateString);
     if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
-    
+
     const now = new Date();
     const diffHours = (now - dateObj) / (1000 * 60 * 60);
 
-    const displayDate = new Intl.DateTimeFormat('en-US', { 
-        month: 'long', 
-        day: 'numeric', 
+    const displayDate = new Intl.DateTimeFormat('en-US', {
+        month: 'long',
+        day: 'numeric',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        hour12: true 
+        hour12: true
     }).format(dateObj);
 
     return { isNew: diffHours < 48, displayDate };
@@ -60,15 +65,21 @@ const SlickArrow = ({ className, style, onClick, isTransparent, children }) => (
 
 
 const PostCard = memo(({ article, onCategoryClick }) => {
+<<<<<<< HEAD
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
     const orientation = article.thumbnailOrientation || 'landscape';
 
+=======
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const orientation = article.thumbnailOrientation || 'landscape';
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
 
+<<<<<<< HEAD
     const totalSlides = article.thumbnails?.length || 0;
     
     const landscapeSlidesToShow = Math.min(totalSlides, 4);
@@ -105,6 +116,23 @@ const PostCard = memo(({ article, onCategoryClick }) => {
         if (sliderRef.current) {
             e.deltaY > 0 ? sliderRef.current.slickNext() : sliderRef.current.slickPrev();
         }
+=======
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+
+        return (
+            <Link to={`/blog/${article.slug}`} className={`flex bg-gray-100 ${orientation === 'landscape' ? 'flex-row h-full' : 'flex-col w-full'}`}>
+                {article.thumbnails.map(thumb => (
+                    <img
+                        key={thumb.id}
+                        src={`${API_URL}/api/files/${thumb.imageUrl}`}
+                        alt={thumb.altText || article.title}
+                        className={`${orientation === 'landscape' ? 'h-full w-auto' : 'w-full h-auto'}`}
+                   />
+                ))}
+            </Link>
+        );
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
     };
 
     const CardContent = () => (
@@ -119,7 +147,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                 </div>
                 {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
             </div>
-            
+
             <h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words">
                 <Link to={`/blog/${article.slug}`} className="hover:underline">
                     {article.title}
@@ -211,7 +239,11 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     };
 
     return (
+<<<<<<< HEAD
         <div className={`break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col`}>
+=======
+        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
             {isFeatured && (
                  <div className="absolute top-2 left-2 z-10">
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
@@ -219,6 +251,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                     </span>
                 </div>
             )}
+<<<<<<< HEAD
             {hasThumbnails ? (
                 <>
                     <ThumbnailDisplay />
@@ -226,7 +259,18 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                 </>
             ) : (
                 <CardContent />
+=======
+
+            {hasThumbnails && (
+                 <div className={`flex-shrink-0 ${orientation === 'portrait' ? 'w-4/12' : 'w-full'}`}>
+                      <ThumbnailDisplay />
+                 </div>
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
             )}
+
+            <div className={`flex-grow ${!hasThumbnails ? 'w-full' : (orientation === 'portrait' ? 'w-8/12' : 'w-full')}`}>
+                 <CardContent />
+            </div>
         </div>
     );
 });
@@ -242,10 +286,11 @@ const BlogPage = () => {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const response = await axios.get(`${API_URL}/api/posts`);
+                const response = await getPosts();
                 setPosts(response.data);
             } catch (err) {
                 setError('Failed to fetch blog posts.');
+                console.error(err);
             } finally {
                 setLoading(false);
             }
@@ -276,10 +321,13 @@ const BlogPage = () => {
     
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
+<<<<<<< HEAD
     const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/uploads/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
+=======
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/files/${latestPost.thumbnails[0].imageUrl}` : "/logo512.png";
+>>>>>>> 33e21b8c83c5a85b2ad86a5816f542e0ea2e713d
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
-
     if (error) return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50">
             <div className="text-red-400 mb-4">
