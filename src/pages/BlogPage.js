@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick-theme.css";
 import { API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
@@ -45,42 +48,75 @@ const formatDateTime = (dateString) => {
     return { isNew: diffHours < 48, displayDate };
 };
 
+const SlickArrow = ({ className, style, onClick, isTransparent, children }) => (
+    <div
+        className={`${className} ${isTransparent ? 'slick-arrow-transparent' : ''}`}
+        style={{ ...style, display: 'block' }}
+        onClick={onClick}
+    >
+        {children}
+    </div>
+);
+
+
 const PostCard = memo(({ article, onCategoryClick }) => {
-    const [isPortrait, setIsPortrait] = useState(false);
-    const hasThumbnail = !!article.thumbnailUrl;
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const orientation = article.thumbnailOrientation || 'landscape';
+
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
 
-    const handleImageLoad = (event) => {
-        const { naturalWidth, naturalHeight } = event.target;
-        if (naturalHeight > naturalWidth) {
-            setIsPortrait(true);
+    const totalSlides = article.thumbnails?.length || 0;
+    
+    const landscapeSlidesToShow = Math.min(totalSlides, 4);
+    const landscapeSettings = {
+        dots: false,
+        infinite: totalSlides > landscapeSlidesToShow,
+        speed: 500,
+        slidesToShow: landscapeSlidesToShow,
+        slidesToScroll: 1,
+        autoplay: true,
+        autoplaySpeed: 3000,
+        arrows: totalSlides > landscapeSlidesToShow,
+        nextArrow: <SlickArrow isTransparent={true}>&#8250;</SlickArrow>,
+        prevArrow: <SlickArrow isTransparent={true}>&#8249;</SlickArrow>,
+    };
+
+    const portraitSettings = {
+        dots: false,
+        infinite: totalSlides > 1,
+        speed: 500,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        autoplay: true,
+        autoplaySpeed: 3000,
+        arrows: totalSlides > 1,
+        vertical: true,
+        verticalSwiping: true,
+        nextArrow: <SlickArrow isTransparent={true}>▼</SlickArrow>,
+        prevArrow: <SlickArrow isTransparent={true}>▲</SlickArrow>,
+    };
+
+
+    const handleWheel = (e) => {
+        if (sliderRef.current) {
+            e.deltaY > 0 ? sliderRef.current.slickNext() : sliderRef.current.slickPrev();
         }
     };
 
-    const CardContent = ({ isPortrait }) => (
+    const CardContent = () => (
         <div className="p-4 flex flex-col flex-grow">
             <div className="flex justify-between items-start text-xs mb-3">
-                {isPortrait ? (
-                    <div>
-                        <div className="font-bold uppercase tracking-wider">
-                            <button onClick={() => onCategoryClick(article.category)} className={`${categoryClass} hover:underline`}>
-                                {article.category}
-                            </button>
-                            <span className="text-gray-400 ml-1">|</span>
-                        </div>
-                        <div className="text-gray-500 font-medium">By Treishvaam Finance</div>
-                    </div>
-                ) : (
-                    <div className="flex items-center">
-                        <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
-                            {article.category}
-                        </button>
-                        <span className="text-gray-400 mx-2">|</span>
-                        <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
-                    </div>
-                )}
+                <div className="flex items-center">
+                    <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>
+                        {article.category}
+                    </button>
+                    <span className="text-gray-400 mx-2">|</span>
+                    <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
+                </div>
                 {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
             </div>
             
@@ -91,7 +127,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
             </h3>
 
             <p className="text-sm text-gray-700 flex-grow break-words">
-                {createSnippet(article.content, 120)}
+                {createSnippet(article.customSnippet || article.content, 120)}
             </p>
 
             <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
@@ -105,34 +141,91 @@ const PostCard = memo(({ article, onCategoryClick }) => {
         </div>
     );
 
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+
+        if (isStory) {
+            return (
+                <div className="relative w-full" onWheel={handleWheel}>
+                     <style>{`
+                        .slick-arrow-transparent {
+                            background: rgba(0,0,0,0.3);
+                            border-radius: 50%;
+                            color: white !important;
+                            z-index: 10;
+                            width: 30px;
+                            height: 30px;
+                            line-height: 30px;
+                            text-align: center;
+                        }
+                        .slick-arrow-transparent:hover { background: rgba(0,0,0,0.6); }
+                        .slick-prev { left: 10px; }
+                        .slick-next { right: 10px; }
+                        .slick-vertical .slick-prev { top: 10px; left: 50%; transform: translateX(-50%); }
+                        .slick-vertical .slick-next { bottom: 10px; top: auto; left: 50%; transform: translateX(-50%); }
+                        .slick-arrow-transparent::before { content: '' !important; }
+                    `}</style>
+                    {orientation === 'landscape' ? (
+                        <Slider ref={sliderRef} {...landscapeSettings}>
+                            {article.thumbnails.map(thumb => (
+                                <div key={thumb.id} className="px-px">
+                                    <Link to={`/blog/${article.slug}`} className="block bg-gray-100">
+                                        <ResponsiveAuthImage
+                                            baseName={thumb.imageUrl}
+                                            alt={thumb.altText || article.title}
+                                            className="w-full object-contain max-h-40"
+                                        />
+                                    </Link>
+                                </div>
+                            ))}
+                        </Slider>
+                    ) : ( // Portrait
+                        <Slider ref={sliderRef} {...portraitSettings}>
+                            {article.thumbnails.map(thumb => (
+                                <div key={thumb.id} className="bg-gray-100">
+                                     <Link to={`/blog/${article.slug}`}>
+                                        <ResponsiveAuthImage
+                                            baseName={thumb.imageUrl}
+                                            alt={thumb.altText || article.title}
+                                            className="w-full h-auto object-contain max-h-96"
+                                        />
+                                     </Link>
+                                </div>
+                            ))}
+                        </Slider>
+                    )}
+                </div>
+            );
+        }
+
+        const singleThumbnail = article.thumbnails[0];
+        return (
+             <Link to={`/blog/${article.slug}`}>
+                <ResponsiveAuthImage
+                    baseName={singleThumbnail.imageUrl}
+                    alt={singleThumbnail.altText || article.title}
+                    className="w-full h-auto object-contain max-h-80 bg-gray-100"
+                />
+            </Link>
+        );
+    };
+
     return (
-        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative">
+        <div className={`break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col`}>
             {isFeatured && (
-                <div className="absolute top-2 left-2 z-10">
+                 <div className="absolute top-2 left-2 z-10">
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
                         Featured
                     </span>
                 </div>
             )}
-            {!hasThumbnail ? (
-                <CardContent isPortrait={false} />
+            {hasThumbnails ? (
+                <>
+                    <ThumbnailDisplay />
+                    <CardContent />
+                </>
             ) : (
-                <div className={`flex ${isPortrait ? 'flex-row' : 'flex-col'}`}>
-                    <div className={`flex-shrink-0 ${isPortrait ? 'w-4/12' : 'w-full'} bg-gray-100`}>
-                        <Link to={`/blog/${article.slug}`}>
-                            <ResponsiveAuthImage
-                                baseName={article.thumbnailUrl}
-                                alt={article.title}
-                                className="w-full h-auto object-contain max-h-80"
-                                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                                onLoad={handleImageLoad}
-                            />
-                        </Link>
-                    </div>
-                    <div className={`flex ${isPortrait ? 'w-8/12' : 'w-full'}`}>
-                        <CardContent isPortrait={isPortrait} />
-                    </div>
-                </div>
+                <CardContent />
             )}
         </div>
     );
@@ -172,10 +265,18 @@ const BlogPage = () => {
         return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    const latestPost = useMemo(() => posts.length > 0 ? posts[0] : null, [posts]);
+    const latestPost = useMemo(() => {
+        if (!posts || posts.length === 0) return null;
+        return posts.reduce((latest, current) => {
+            const latestDate = new Date(latest.updatedAt || latest.createdAt);
+            const currentDate = new Date(current.updatedAt || current.createdAt);
+            return currentDate > latestDate ? current : latest;
+        });
+    }, [posts]);
+    
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnailUrl ? `${API_URL}${latestPost.thumbnailUrl}` : "/logo512.png";
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/uploads/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
 
