@@ -2,16 +2,16 @@ import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Slider from "react-slick";
-import "slick-carousel/slick/slick.css"; 
+import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { API_URL } from '../apiConfig';
+import { API_URL, getCategories } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import DevelopmentNotice from '../components/DevelopmentNotice';
 import MarketMap from '../components/MarketMap';
+import BlogSidebar from '../components/BlogSidebar'; // <-- NEW IMPORT
 
-const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
 const createSnippet = (html, length = 155) => {
@@ -60,6 +60,8 @@ const BlogPage = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [categories, setCategories] = useState([]); // <-- NEW STATE
+    const [loadingCategories, setLoadingCategories] = useState(true); // <-- NEW STATE
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -71,6 +73,21 @@ const BlogPage = () => {
             } catch (err) { setError('Failed to fetch blog posts.'); } finally { setLoading(false); }
         };
         fetchPosts();
+    }, []);
+
+    // <-- NEW useEffect to fetch categories
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await getCategories();
+                setCategories(response.data);
+            } catch (err) {
+                console.error("Failed to fetch categories:", err);
+            } finally {
+                setLoadingCategories(false);
+            }
+        };
+        fetchCategories();
     }, []);
 
     const filteredPosts = useMemo(() => {
@@ -101,14 +118,15 @@ const BlogPage = () => {
             <main className="lg:col-span-8 xl:col-span-8 order-2 lg:order-2 min-h-screen p-6">
                 <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
             </main>
-            <aside className="lg:col-span-2 xl:col-span-2 order-1 lg:order-3 bg-white lg:sticky lg:h-screen lg:overflow-y-auto top-0 p-6">
-                <h1 className="text-3xl font-bold mb-2 text-gray-900">Finance <span className="text-sky-600">World</span></h1>
-                <p className="text-sm text-gray-500 mb-6">Stay ahead with timely market developments.</p>
-                <div className="flex flex-col gap-y-6">
-                    <div><label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-1">Search Articles</label><input id="search-input" type="text" placeholder="e.g., 'Inflation'..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full px-4 py-2 text-base text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent" /></div>
-                    <div><h3 className="block text-sm font-medium text-gray-700 mb-2">Categories</h3><div className="flex flex-col items-stretch gap-2">{allCategories.map(cat => (<button key={cat} className={`w-full text-left px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${selectedCategory === cat ? 'bg-sky-600 text-white shadow' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} onClick={() => setSelectedCategory(cat)}>{cat}</button>))}</div></div>
-                </div>
-            </aside>
+            {/* <-- OLD ASIDE REPLACED BY NEW COMPONENT --> */}
+            <BlogSidebar
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                loadingCategories={loadingCategories}
+            />
         </div></section></>
     );
 };
