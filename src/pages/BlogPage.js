@@ -9,6 +9,7 @@ import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import DevelopmentNotice from '../components/DevelopmentNotice';
+import MarketMap from '../components/MarketMap';
 
 const allCategories = ['All', 'Stocks', 'Crypto', 'Trading', 'News'];
 
@@ -141,7 +142,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     return (
         <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">
             {isFeatured && (
-                 <div className="absolute top-2 left-2 z-10">
+                <div className="absolute top-2 left-2 z-10">
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
                         Featured
                     </span>
@@ -226,41 +227,68 @@ const BlogPage = () => {
                 <meta property="og:description" content={pageDescription} />
                 <meta property="og:image" content={imageUrl} />
             </Helmet>
-            <section className="bg-white py-12">
-                <div className="container mx-auto px-6 text-center">
-                    <h1 className="text-4xl md:text-5xl font-bold mb-2">Financial <span className="text-sky-600">News & Analysis</span></h1>
-                    <p className="text-lg text-gray-700">Stay ahead with timely market developments and expert analysis.</p>
-                </div>
-            </section>
-            <section className="bg-white pt-12 pb-16">
-                <div className="container mx-auto px-6">
-                    <div className="mb-10 flex flex-col items-center">
-                        <div className="w-full max-w-2xl flex items-center gap-2 justify-center mb-4">
-                            <input
-                                type="text"
-                                placeholder="Search financial news..."
-                                value={searchTerm}
-                                onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full px-4 py-2 text-base text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                            />
+            
+            <section className="bg-white">
+                <div className="grid grid-cols-1 lg:grid-cols-12">
+
+                    {/* --- Left Sidebar --- */}
+                    <aside className="lg:col-span-2 xl:col-span-2 order-3 lg:order-1 bg-gray-50 lg:sticky lg:h-screen lg:overflow-y-auto top-0 p-6">
+                        <h3 className="font-bold text-lg mb-4 border-b pb-2">Market Map</h3>
+                        <MarketMap />
+                    </aside>
+
+                    {/* --- Main Content --- */}
+                    <main className="lg:col-span-8 xl:col-span-8 order-2 lg:order-2 min-h-screen p-6">
+                        <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-px">
+                            {filteredPosts.length > 0 ? (
+                                filteredPosts.map((article) => (
+                                    <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
+                                ))
+                            ) : (
+                                <div className="text-center p-10 col-span-full">
+                                    <p>No posts found for your criteria.</p>
+                                </div>
+                            )}
                         </div>
-                        <div className="flex flex-wrap justify-center gap-2">
-                            {allCategories.map(cat => (
-                                <button key={cat} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${selectedCategory === cat ? 'bg-sky-600 text-white shadow' : 'bg-white text-gray-700 hover:bg-gray-100'}`} onClick={() => setSelectedCategory(cat)}>
-                                    {cat}
-                                </button>
-                            ))}
+                    </main>
+
+                    {/* --- Right Sidebar --- */}
+                    <aside className="lg:col-span-2 xl:col-span-2 order-1 lg:order-3 bg-white lg:sticky lg:h-screen lg:overflow-y-auto top-0 p-6">
+                         <h1 className="text-3xl font-bold mb-2 text-gray-900">
+                            Finance <span className="text-sky-600">World</span>
+                        </h1>
+                        <p className="text-sm text-gray-500 mb-6">Stay ahead with timely market developments.</p>
+                        
+                        <div className="flex flex-col gap-y-6">
+                            <div>
+                                <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-1">Search Articles</label>
+                                <input
+                                    id="search-input"
+                                    type="text"
+                                    placeholder="e.g., 'Inflation'..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="w-full px-4 py-2 text-base text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div>
+                                <h3 className="block text-sm font-medium text-gray-700 mb-2">Categories</h3>
+                                <div className="flex flex-col items-stretch gap-2">
+                                    {allCategories.map(cat => (
+                                        <button 
+                                            key={cat} 
+                                            className={`w-full text-left px-4 py-2 text-sm font-medium rounded-md transition-colors duration-200 ${selectedCategory === cat ? 'bg-sky-600 text-white shadow' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`} 
+                                            onClick={() => setSelectedCategory(cat)}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-px">
-                        {filteredPosts.length > 0 ? (
-                            filteredPosts.map((article) => (
-                                <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
-                            ))
-                        ) : (
-                            <p className="text-center p-10 col-span-full">No posts found.</p>
-                        )}
-                    </div>
+                    </aside>
+
                 </div>
             </section>
         </>
