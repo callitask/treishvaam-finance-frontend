@@ -1,5 +1,6 @@
+// src/components/BlogSidebar.js
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 
 const BlogSidebar = ({ categories, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
