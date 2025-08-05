@@ -112,12 +112,12 @@ const PostCard = memo(({ article, onCategoryClick }) => {
             return (
                 <Slider ref={sliderRef} {...landscapeSettings}>
                     {article.thumbnails.map(thumb => (
-                        <div key={thumb.id}>
+                        <div key={thumb.id} className="px-px">
                             <Link to={`/blog/${article.slug}`} className="block bg-gray-100">
                                 <ResponsiveAuthImage
                                     baseName={thumb.imageUrl}
                                     alt={thumb.altText || article.title}
-                                    className="w-full h-40 object-cover"
+                                    className="w-full object-contain max-h-40"
                                 />
                             </Link>
                         </div>
@@ -132,7 +132,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
                 <ResponsiveAuthImage
                     baseName={singleThumbnail.imageUrl}
                     alt={singleThumbnail.altText || article.title}
-                    className="w-full h-80 object-cover bg-gray-100"
+                    className="w-full h-auto object-contain max-h-80 bg-gray-100"
                 />
             </Link>
         );
