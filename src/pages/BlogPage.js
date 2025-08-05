@@ -229,7 +229,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     };
 
     return (
-        <div className={`break-inside-avoid bg-white border border-gray-200 mb-px relative flex ${isPortraitStory ? 'flex-row h-[520px]' : 'flex-col'}`}>
+        <div className={`break-inside-avoid bg-white border border-gray-200 mb-px relative flex ${isPortraitStory ? 'flex-row' : 'flex-col'}`}>
             {isFeatured && (
                  <div className="absolute top-2 left-2 z-10">
                     <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">
@@ -241,7 +241,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
             {hasThumbnails ? (
                 isPortraitStory ? (
                     <>
-                        <div className="w-1/3 flex-shrink-0 h-full overflow-hidden">
+                        <div className="w-1/3 flex-shrink-0 overflow-hidden">
                             <ThumbnailDisplay />
                         </div>
                         <div className="w-2/3 flex">
