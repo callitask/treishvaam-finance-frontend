@@ -1,6 +1,0 @@
-# Allow all crawlers full access
-User-agent: *
-Disallow:
-
-# Point to the sitemap
-Sitemap: https://treishfin.treishvaamgroup.com/sitemap.xml

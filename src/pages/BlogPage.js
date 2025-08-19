@@ -1,3 +1,4 @@
+// src/pages/BlogPage.js
 import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
@@ -9,8 +10,9 @@ import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import DevelopmentNotice from '../components/DevelopmentNotice';
+import MostActiveCard from '../components/market/MostActiveCard';
+import BlogSidebar from '../components/BlogSidebar';
 import MarketMap from '../components/MarketMap';
-import BlogSidebar from '../components/BlogSidebar'; // <-- NEW IMPORT
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -60,8 +62,8 @@ const BlogPage = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [categories, setCategories] = useState([]); // <-- NEW STATE
-    const [loadingCategories, setLoadingCategories] = useState(true); // <-- NEW STATE
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -75,7 +77,6 @@ const BlogPage = () => {
         fetchPosts();
     }, []);
 
-    // <-- NEW useEffect to fetch categories
     useEffect(() => {
         const fetchCategories = async () => {
             try {
@@ -110,24 +111,49 @@ const BlogPage = () => {
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
     return (
-        <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet><section className="bg-white"><div className="grid grid-cols-1 lg:grid-cols-12">
-            <aside className="lg:col-span-2 xl:col-span-2 order-3 lg:order-1 bg-gray-50 lg:sticky lg:h-screen lg:overflow-y-auto top-0 p-6">
-                <h3 className="font-bold text-lg mb-4 border-b pb-2">Market Map</h3>
-                <MarketMap />
-            </aside>
-            <main className="lg:col-span-8 xl:col-span-8 order-2 lg:order-2 min-h-screen p-6">
-                <div className="sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
-            </main>
-            {/* <-- OLD ASIDE REPLACED BY NEW COMPONENT --> */}
-            <BlogSidebar
-                categories={categories}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                loadingCategories={loadingCategories}
-            />
-        </div></section></>
+        <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
+        <section className="bg-gray-50 px-4">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* --- Column 1: Market Data --- */}
+                <aside className="lg:col-span-2 order-1 lg:order-1 py-6 lg:sticky top-0 h-screen overflow-y-auto">
+                    <div className="space-y-6">
+                        <MostActiveCard />
+                        <MarketMap />
+                    </div>
+                </aside>
+
+                {/* --- Column 2: Main Content (Blogs) --- */}
+                <main className="lg:col-span-8 order-3 lg:order-2 min-h-screen py-6 bg-white">
+                    <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">
+                        {filteredPosts.length > 0 ? (
+                            filteredPosts.map((article) => (
+                                <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
+                            ))
+                        ) : (
+                            <div className="text-center p-10 col-span-full">
+                                <p>No posts found for your criteria.</p>
+                            </div>
+                        )}
+                    </div>
+                </main>
+
+                {/* --- Column 3: Sidebar (Filters) --- */}
+                <aside className="lg:col-span-2 order-2 lg:order-3 py-6 lg:sticky top-0 h-screen overflow-y-auto">
+                    <div className="space-y-6">
+                        <BlogSidebar
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            setSelectedCategory={setSelectedCategory}
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                            loadingCategories={loadingCategories}
+                        />
+                    </div>
+                </aside>
+
+            </div>
+        </section></>
     );
 };
 export default BlogPage;
