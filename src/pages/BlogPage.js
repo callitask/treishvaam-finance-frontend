@@ -1,18 +1,16 @@
-// src/pages/BlogPage.js
 import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import { API_URL, getCategories } from '../apiConfig';
+import { API_URL, getCategories, getTopGainers, getTopLosers, getMostActive } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import DevelopmentNotice from '../components/DevelopmentNotice';
-import MostActiveCard from '../components/market/MostActiveCard';
+import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
-import MarketMap from '../components/MarketMap';
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -115,15 +113,17 @@ const BlogPage = () => {
         <section className="bg-gray-50 px-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* --- Column 1: Market Data --- */}
+                {/* --- COLUMN 1: LEFT SIDEBAR (MARKET DATA) --- */}
                 <aside className="lg:col-span-2 order-1 lg:order-1 py-6 lg:sticky top-0 h-screen overflow-y-auto">
-                    <div className="space-y-6">
-                        <MostActiveCard />
-                        <MarketMap />
+                    <div className="space-y-4">
+                        <h3 className="font-bold text-base border-b pb-2">Market Movers</h3>
+                        <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
+                        <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
+                        <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
                     </div>
                 </aside>
 
-                {/* --- Column 2: Main Content (Blogs) --- */}
+                {/* --- COLUMN 2: MIDDLE SECTION (MASONRY BLOGS) --- */}
                 <main className="lg:col-span-8 order-3 lg:order-2 min-h-screen py-6 bg-white">
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">
                         {filteredPosts.length > 0 ? (
@@ -138,7 +138,7 @@ const BlogPage = () => {
                     </div>
                 </main>
 
-                {/* --- Column 3: Sidebar (Filters) --- */}
+                {/* --- COLUMN 3: RIGHT SIDEBAR (FINANCE WORLD - FILTERS & SEARCH) --- */}
                 <aside className="lg:col-span-2 order-2 lg:order-3 py-6 lg:sticky top-0 h-screen overflow-y-auto">
                     <div className="space-y-6">
                         <BlogSidebar
