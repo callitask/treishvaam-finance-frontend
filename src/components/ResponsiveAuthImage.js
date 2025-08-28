@@ -6,8 +6,8 @@ import { API_URL } from '../apiConfig'; // Import the base URL
  * This component constructs the full, responsive image URLs and passes them
  * to the simple AuthImage component for rendering.
  * --- MODIFIED FOR ROBUSTNESS ---
- * It now cleans the incoming `baseName` to handle inconsistent URL formats
- * from the database (e.g., full URLs, paths, or filenames with extensions).
+ * It now cleans the incoming `baseName` to handle inconsistent URL formats
+ * from the database (e.g., full URLs, paths, or filenames with extensions).
  */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
     if (!baseName || typeof baseName !== 'string') {
@@ -31,11 +31,13 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
 
     // Construct the FULL URLs for the browser using the cleaned base name.
     const src = `${API_URL}/api/uploads/${cleanedBaseName}-small.webp`;
-    const srcSet = `
-        ${API_URL}/api/uploads/${cleanedBaseName}-small.webp 300w,
-        ${API_URL}/api/uploads/${cleanedBaseName}-medium.webp 600w,
-        ${API_URL}/api/uploads/${cleanedBaseName}.webp 1200w
-    `;
+    
+    // --- FIXED: Construct the srcSet string on a single line to avoid whitespace issues. ---
+    const srcSet = [
+        `${API_URL}/api/uploads/${cleanedBaseName}-small.webp 300w`,
+        `${API_URL}/api/uploads/${cleanedBaseName}-medium.webp 600w`,
+        `${API_URL}/api/uploads/${cleanedBaseName}.webp 1200w`
+    ].join(', ');
 
     return (
         <AuthImage
