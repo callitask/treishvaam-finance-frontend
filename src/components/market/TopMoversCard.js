@@ -26,10 +26,7 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                 setLoading(true);
                 setError(null);
                 
-                // --- THIS IS THE FIX ---
-                // We await the full response from axios...
                 const response = await fetchData();
-                // ...and then set our state with the data array inside response.data
                 setData(response.data || []);
 
             } catch (err) {
@@ -40,7 +37,7 @@ const TopMoversCard = ({ title, fetchData, type }) => {
             }
         };
         loadData();
-    }, [fetchData]); // Re-run effect if the fetchData function changes
+    }, [fetchData]);
 
     const getRowColor = (stock) => {
         const change = parseFloat(stock.changeAmount);
@@ -61,25 +58,21 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                 <table className="w-full text-xs">
                     <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
-                            <th className="p-2 pl-3">Symbol</th>
-                            <th className="p-2">Name</th>
-                            <th className="p-2 text-right">Price</th>
-                            <th className="p-2 text-right">Change</th>
-                            <th className="p-2 text-right">% Chg</th>
-                            <th className="p-2 pr-3 text-right">Volume</th>
+                            <th className="p-1.5 pl-3">Symbol</th>
+                            <th className="p-1.5 text-right">Price</th>
+                            <th className="p-1.5 text-right">Change</th>
+                            <th className="p-1.5 pr-3 text-right">% Chg</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200/90">
                         {data.slice(0, 5).map((stock) => (
                             <tr key={stock.ticker}>
-                                <td className="p-2 pl-3 font-semibold text-gray-800">{stock.ticker}</td>
-                                <td className="p-2 text-gray-600 truncate max-w-xs">{stock.name}</td>
-                                <td className="p-2 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
-                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>
+                                <td className="p-1.5 pl-3 font-semibold text-gray-800">{stock.ticker}</td>
+                                <td className="p-1.5 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
+                                <td className={`p-1.5 text-right font-bold ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
                                 </td>
-                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
-                                <td className="p-2 pr-3 text-right font-medium text-gray-600">{formatVolume(stock.volume)}</td>
+                                <td className={`p-1.5 pr-3 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
                             </tr>
                         ))}
                     </tbody>
