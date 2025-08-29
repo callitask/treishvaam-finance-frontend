@@ -70,7 +70,8 @@ const MobilePostCard = memo(({ article, onCategoryClick, layout }) => {
     const isFeatured = article.featured;
     const isBannerLayout = layout === 'banner';
 
-    const titleClass = isBannerLayout ? "text-xl font-bold text-gray-900 leading-tight" : "text-base font-bold text-gray-900 leading-tight";
+    // --- REFINED: Cleaner Text Sizes ---
+    const titleClass = isBannerLayout ? "text-lg font-bold text-gray-900 leading-tight" : "text-sm font-bold text-gray-900 leading-tight";
     const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
     
     return (
@@ -124,6 +125,8 @@ const BlogPage = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [imageOrientations, setImageOrientations] = useState({});
+    // --- NEW: State to manage orientation check ---
+    const [orientationsLoading, setOrientationsLoading] = useState(true);
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -150,7 +153,14 @@ const BlogPage = () => {
         return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
+    // --- REFINED: Orientation check logic ---
     useEffect(() => {
+        if (filteredPosts.length === 0) {
+            setOrientationsLoading(false);
+            return;
+        }
+
+        setOrientationsLoading(true);
         const checkOrientations = async () => {
             const orientations = {};
             const promises = filteredPosts.map(post => {
@@ -163,7 +173,7 @@ const BlogPage = () => {
                             resolve();
                         };
                         img.onerror = () => {
-                            orientations[post.thumbnails[0].id] = 'landscape'; // Default on error
+                            orientations[post.thumbnails[0].id] = 'landscape'; // Default to landscape on error
                             resolve();
                         };
                     });
@@ -172,10 +182,10 @@ const BlogPage = () => {
             });
             await Promise.all(promises);
             setImageOrientations(orientations);
+            setOrientationsLoading(false);
         };
-        if (filteredPosts.length > 0) {
-            checkOrientations();
-        }
+        
+        checkOrientations();
     }, [filteredPosts]);
     
     const mobileLayout = useMemo(() => {
@@ -185,8 +195,9 @@ const BlogPage = () => {
             const post = filteredPosts[i];
             const isStory = post.thumbnails && post.thumbnails.length > 1;
             const primaryThumbnailId = post.thumbnails?.[0]?.id;
-            const isLandscape = primaryThumbnailId ? imageOrientations[primaryThumbnailId] === 'landscape' : true;
+            const isLandscape = primaryThumbnailId ? imageOrientations[primaryThumbnailId] === 'landscape' : true; // Default to true if not yet checked
 
+            // A post can only be a banner if it is a story AND its primary image is landscape
             const makeBanner = isStory && isLandscape && Math.random() > 0.6; 
 
             if (makeBanner) {
@@ -243,11 +254,19 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {mobileLayout.length > 0 ? (
+                {orientationsLoading ? (
+                    // --- Show a default grid while checking image sizes ---
                     <div className="grid grid-cols-2 gap-2 p-2">
-                        {mobileLayout.map((article) => (<MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} />))}
+                         {filteredPosts.map(article => <MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout="grid" />)}
                     </div>
-                ) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>)}
+                ) : (
+                    // --- Show the final, randomized layout once checks are complete ---
+                    mobileLayout.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2 p-2">
+                            {mobileLayout.map((article) => (<MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} />))}
+                        </div>
+                    ) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>)
+                )}
                 
                 <div className="px-4 pb-4">
                     <div className="mt-8 pt-6 border-t border-gray-200">
