@@ -33,13 +33,11 @@ const formatDateTime = (dateString) => {
     return { isNew: diffHours < 48, displayDate };
 };
 
-// --- ORIGINAL COMPONENT FOR DESKTOP MASONRY VIEW ---
-// --- This is the untouched, original PostCard component ---
+// --- ORIGINAL COMPONENT FOR DESKTOP MASONRY VIEW (UNCHANGED) ---
 const PostCard = memo(({ article, onCategoryClick }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
-    // --- FIX APPLIED HERE: Removed unused 'rawDisplayDate' variable ---
     const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
     const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
@@ -62,41 +60,52 @@ const PostCard = memo(({ article, onCategoryClick }) => {
 });
 
 
-// --- NEW COMPONENT, ONLY FOR THE MOBILE VIEW ---
+// --- NEW, REFINED COMPONENT ONLY FOR THE MOBILE VIEW ---
 const MobilePostCard = memo(({ article, onCategoryClick, layout }) => {
+    const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
-    const isFeaturedPost = article.featured;
-    const isBannerLayout = layout === 'featured';
+    const isFeatured = article.featured;
+    const isBannerLayout = layout === 'banner';
 
-    const titleClass = isBannerLayout
-        ? "text-xl font-bold text-gray-900 leading-tight break-words mb-2"
-        : "text-base font-bold text-gray-900 leading-tight break-words mb-1.5";
+    const titleClass = isBannerLayout ? "text-xl font-bold text-gray-900 leading-tight" : "text-base font-bold text-gray-900 leading-tight";
+    const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
     
     return (
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200 flex flex-col">
-            {isFeaturedPost && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}
+        <div className={`bg-white flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>
+            {isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 shadow-md uppercase tracking-wider">Featured</span></div>)}
             {hasThumbnails && (
-                <Link to={`/blog/${article.slug}`}>
-                    <ResponsiveAuthImage
-                        baseName={article.thumbnails[0].imageUrl}
-                        alt={article.thumbnails[0].altText || article.title}
-                        className={`w-full object-cover bg-gray-100 ${isBannerLayout ? 'aspect-video' : 'aspect-square'}`}
-                    />
-                </Link>
+                isStory ? (
+                    <Slider ref={sliderRef} {...sliderSettings}>
+                        {article.thumbnails.map(thumb => (
+                            <div key={thumb.id}>
+                                <Link to={`/blog/${article.slug}`}>
+                                    <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-cover bg-gray-100 aspect-video" />
+                                </Link>
+                            </div>
+                        ))}
+                    </Slider>
+                ) : (
+                    <Link to={`/blog/${article.slug}`}>
+                        <ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className={`w-full object-cover bg-gray-100 ${isBannerLayout ? 'aspect-video' : 'aspect-square'}`} />
+                    </Link>
+                )
             )}
             <div className="p-3 flex flex-col flex-grow">
-                <div className="flex justify-between items-center text-xs mb-2">
-                    <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button>
-                    {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
+                <div className="flex items-center justify-between text-xs mb-2">
+                    <div className="flex items-center flex-wrap">
+                        <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button>
+                        <span className="text-gray-400 mx-2">|</span>
+                        <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
+                    </div>
+                    {isNew && <span className="font-semibold text-red-500 flex-shrink-0 ml-2">NEW</span>}
                 </div>
                 <h3 className={titleClass}>
                     <Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link>
                 </h3>
                 <div className="mt-auto pt-2 text-xs text-gray-500">
-                    <span className="font-medium">By Treishvaam Finance</span>
-                    <span className="text-gray-400 mx-1.5">|</span>
                     <span>{displayDate}</span>
                 </div>
             </div>
@@ -123,9 +132,7 @@ const BlogPage = () => {
             } catch (err) { setError('Failed to fetch blog posts.'); } finally { setLoading(false); }
         };
         fetchPosts();
-    }, []);
 
-    useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const response = await getCategories();
@@ -141,6 +148,33 @@ const BlogPage = () => {
         if (searchTerm) { const term = searchTerm.toLowerCase(); filtered = filtered.filter(p => p.title.toLowerCase().includes(term)); }
         return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
+    
+    const mobileLayout = useMemo(() => {
+        const layout = [];
+        let i = 0;
+        while (i < filteredPosts.length) {
+            const post = filteredPosts[i];
+            const isStory = post.thumbnails && post.thumbnails.length > 1;
+            
+            // A post can be a banner only if it's a story (multi-image). Give it a random chance.
+            const makeBanner = isStory && Math.random() > 0.6; // ~40% chance for a story to be a banner
+
+            if (makeBanner) {
+                layout.push({ ...post, layout: 'banner' });
+                i += 1;
+            } else {
+                // Add the current post as a grid item
+                layout.push({ ...post, layout: 'grid' });
+                
+                // If there's a next post, pair it in the grid
+                if (i + 1 < filteredPosts.length) {
+                    layout.push({ ...filteredPosts[i + 1], layout: 'grid' });
+                }
+                i += 2;
+            }
+        }
+        return layout;
+    }, [filteredPosts]);
 
     const latestPost = useMemo(() => {
         if (!posts || posts.length === 0) return null;
@@ -154,12 +188,9 @@ const BlogPage = () => {
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
-    const featuredPost = filteredPosts.length > 0 ? filteredPosts[0] : null;
-    const gridPosts = filteredPosts.length > 1 ? filteredPosts.slice(1) : [];
-
     return (
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
-        <section className="bg-gray-50">
+        <section className="bg-white sm:bg-gray-50">
             {/* --- DESKTOP VIEW (sm and up) --- */}
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6 px-4">
                 <aside className="lg:col-span-2 order-1 py-6 sticky top-0 h-screen overflow-y-auto">
@@ -174,29 +205,28 @@ const BlogPage = () => {
             </div>
 
             {/* --- MOBILE VIEW (screens smaller than sm) --- */}
-            <div className="sm:hidden px-4 py-4">
-                <div className="border-b border-gray-200 mb-4">
-                    <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">
-                        {showMobileFilters ? 'Hide Filters' : 'Filters & Search'}
-                        {showMobileFilters ? <FiX /> : <FiFilter />}
-                    </button>
-                    {showMobileFilters && (
-                        <div className="py-4"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} loadingCategories={loadingCategories} /></div>
-                    )}
+            <div className="sm:hidden">
+                <div className="px-4 py-4">
+                    <div className="border-b border-gray-200 mb-4">
+                        <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">
+                            {showMobileFilters ? 'Hide Filters' : 'Filters & Search'}
+                            {showMobileFilters ? <FiX /> : <FiFilter />}
+                        </button>
+                        {showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} loadingCategories={loadingCategories} /></div>)}
+                    </div>
                 </div>
 
-                {filteredPosts.length > 0 ? (
-                    <>
-                        {featuredPost && <MobilePostCard key={featuredPost.id} article={featuredPost} onCategoryClick={setSelectedCategory} layout="featured" />}
-                        <div className="grid grid-cols-2 gap-2 mt-2">
-                            {gridPosts.map((article) => (<MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout="grid" />))}
-                        </div>
-                    </>
-                ) : (<div className="text-center py-10"><p>No posts found for your criteria.</p></div>)}
+                {mobileLayout.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-px bg-gray-200 border-t border-gray-200">
+                        {mobileLayout.map((article) => (<MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} />))}
+                    </div>
+                ) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>)}
                 
-                <div className="mt-8 pt-6 border-t border-gray-200">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3>
-                    <div className="space-y-4"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
+                <div className="px-4">
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3>
+                        <div className="space-y-4"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
+                    </div>
                 </div>
             </div>
         </section></>
