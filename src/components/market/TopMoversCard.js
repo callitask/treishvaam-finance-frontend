@@ -1,20 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-// Helper function to format large numbers for volume
-const formatVolume = (volume) => {
-    if (typeof volume !== 'number' || isNaN(volume)) return '-';
-    if (volume >= 1_000_000_000) {
-        return `${(volume / 1_000_000_000).toFixed(2)}B`;
-    }
-    if (volume >= 1_000_000) {
-        return `${(volume / 1_000_000).toFixed(2)}M`;
-    }
-    if (volume >= 1_000) {
-        return `${(volume / 1_000).toFixed(1)}K`;
-    }
-    return volume.toString();
-};
-
 const TopMoversCard = ({ title, fetchData, type }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
