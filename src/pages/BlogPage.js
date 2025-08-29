@@ -28,32 +28,107 @@ const formatDateTime = (dateString) => {
     if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
     const now = new Date();
     const diffHours = (now - dateObj) / (1000 * 60 * 60);
-    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(dateObj);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(dateObj);
     return { isNew: diffHours < 48, displayDate };
 };
 
-const PostCard = memo(({ article, onCategoryClick }) => {
+const PostCard = memo(({ article, onCategoryClick, layout = 'masonry' }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
-    const isStory = hasThumbnails && article.thumbnails.length > 1;
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
-    const isFeatured = article.featured;
-    const totalSlides = article.thumbnails?.length || 0;
-    const landscapeSlidesToShow = Math.min(totalSlides, 4);
-    const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
+    const isFeaturedPost = article.featured;
 
-    const CardContent = () => (<div className="p-4 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-3"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words"><Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 120)}</p><div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+    // --- Layout Configurations ---
+    const isBannerLayout = layout === 'featured';
+    const isGridLayout = layout === 'grid';
+    const isMasonryLayout = layout === 'masonry';
+
+    // --- Conditional Styles & Content ---
+    const titleClass = isBannerLayout
+        ? "text-2xl font-bold mb-3 text-gray-900 leading-tight break-words" // Banner
+        : isGridLayout
+            ? "text-lg font-bold mb-2 text-gray-900 leading-tight break-words" // Grid
+            : "text-xl font-bold mb-3 text-gray-900 leading-tight break-words"; // Original Masonry
+
+    const snippetLength = isBannerLayout ? 150 : (isGridLayout ? 80 : 120);
+    const showSnippet = isBannerLayout || isMasonryLayout;
+    
+    // --- Original DateTime format for Masonry cards ---
+    const masonryDisplayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
+
+    const CardContent = () => (
+        <div className={`p-4 flex flex-col flex-grow`}>
+            <div className="flex justify-between items-start text-xs mb-3">
+                <div className="flex items-center">
+                    <button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button>
+                    {isMasonryLayout && <span className="text-gray-400 mx-2">|</span>}
+                    {isMasonryLayout && <span className="text-gray-500 font-medium">By Treishvaam Finance</span>}
+                </div>
+                {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
+            </div>
+            <h3 className={titleClass}>
+                <Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link>
+            </h3>
+            {showSnippet && <p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, snippetLength)}</p>}
+            <div className={`mt-4 pt-4 flex items-center justify-between ${isMasonryLayout ? 'border-t border-gray-100' : ''}`}>
+                <div className="text-xs text-gray-500">
+                    <span>{isMasonryLayout ? masonryDisplayDate : displayDate}</span>
+                </div>
+                <Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link>
+            </div>
+        </div>
+    );
+
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
-        if (isStory) {
-            return (<Slider ref={sliderRef} {...landscapeSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id} className="px-px"><Link to={`/blog/${article.slug}`} className="block bg-gray-100"><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-contain max-h-40" /></Link></div>))}</Slider>);
+
+        // Restore Slider functionality ONLY for masonry layout with multiple images
+        if (isMasonryLayout && article.thumbnails.length > 1) {
+            const landscapeSlidesToShow = Math.min(article.thumbnails.length, 4);
+            const landscapeSettings = { dots: false, infinite: article.thumbnails.length > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
+            return (
+                <Slider ref={sliderRef} {...landscapeSettings}>
+                    {article.thumbnails.map(thumb => (
+                        <div key={thumb.id} className="px-px">
+                            <Link to={`/blog/${article.slug}`} className="block bg-gray-100">
+                                <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-contain max-h-40" />
+                            </Link>
+                        </div>
+                    ))}
+                </Slider>
+            );
         }
+
         const singleThumbnail = article.thumbnails[0];
-        return (<Link to={`/blog/${article.slug}`}><ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-auto object-contain max-h-80 bg-gray-100" /></Link>);
+        const imageClassName = isBannerLayout
+            ? "w-full h-auto object-cover bg-gray-100 aspect-video" // Banner
+            : isGridLayout
+                ? "w-full h-auto object-cover bg-gray-100 aspect-square" // Grid
+                : "w-full h-auto object-contain max-h-80 bg-gray-100"; // Original Masonry
+
+        return (
+            <Link to={`/blog/${article.slug}`}>
+                <ResponsiveAuthImage
+                    baseName={singleThumbnail.imageUrl}
+                    alt={singleThumbnail.altText || article.title}
+                    className={imageClassName}
+                />
+            </Link>
+        );
     };
 
-    return (<div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
+    return (
+        <div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">
+            {isFeaturedPost && (
+                <div className="absolute top-2 left-2 z-10">
+                    <span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span>
+                </div>
+            )}
+            <ThumbnailDisplay />
+            <CardContent />
+        </div>
+    );
 });
 
 const BlogPage = () => {
@@ -108,12 +183,14 @@ const BlogPage = () => {
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
+    const featuredPost = filteredPosts.length > 0 ? filteredPosts[0] : null;
+    const gridPosts = filteredPosts.length > 1 ? filteredPosts.slice(1) : [];
+
     return (
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
         <section className="bg-gray-50 px-4">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* --- COLUMN 1: LEFT SIDEBAR (MARKET DATA) --- */}
                 <aside className="lg:col-span-2 order-1 lg:order-1 py-6 lg:sticky top-0 h-screen overflow-y-auto">
                     <div className="space-y-4">
                         <h3 className="font-bold text-base border-b pb-2">Market Movers</h3>
@@ -123,22 +200,41 @@ const BlogPage = () => {
                     </div>
                 </aside>
 
-                {/* --- COLUMN 2: MIDDLE SECTION (MASONRY BLOGS) --- */}
                 <main className="lg:col-span-8 order-3 lg:order-2 min-h-screen py-6 bg-white">
-                    <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">
+                    {/* --- DESKTOP MASONRY VIEW --- */}
+                    <div className="hidden sm:block">
+                        <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">
+                            {filteredPosts.length > 0 ? (
+                                filteredPosts.map((article) => (
+                                    <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout="masonry" />
+                                ))
+                            ) : (
+                                <div className="text-center p-10 col-span-full">
+                                    <p>No posts found for your criteria.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* --- MOBILE DYNAMIC VIEW --- */}
+                    <div className="block sm:hidden">
                         {filteredPosts.length > 0 ? (
-                            filteredPosts.map((article) => (
-                                <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
-                            ))
+                            <>
+                                {featuredPost && <PostCard key={featuredPost.id} article={featuredPost} onCategoryClick={setSelectedCategory} layout="featured" />}
+                                <div className="grid grid-cols-2 gap-px mt-px">
+                                    {gridPosts.map((article) => (
+                                         <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout="grid" />
+                                    ))}
+                                </div>
+                            </>
                         ) : (
-                            <div className="text-center p-10 col-span-full">
+                            <div className="text-center p-10">
                                 <p>No posts found for your criteria.</p>
                             </div>
                         )}
                     </div>
                 </main>
 
-                {/* --- COLUMN 3: RIGHT SIDEBAR (FINANCE WORLD - FILTERS & SEARCH) --- */}
                 <aside className="lg:col-span-2 order-2 lg:order-3 py-6 lg:sticky top-0 h-screen overflow-y-auto">
                     <div className="space-y-6">
                         <BlogSidebar
