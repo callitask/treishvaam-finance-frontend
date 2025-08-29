@@ -74,7 +74,7 @@ const MobilePostCard = memo(({ article, onCategoryClick, layout }) => {
     const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
     
     return (
-        <div className={`bg-white flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>
+        <div className={`bg-white shadow-sm flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>
             {isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 shadow-md uppercase tracking-wider">Featured</span></div>)}
             {hasThumbnails && (
                 isStory ? (
@@ -123,6 +123,7 @@ const BlogPage = () => {
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchTerm, setSearchTerm] = useState("");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [imageOrientations, setImageOrientations] = useState({});
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -148,6 +149,34 @@ const BlogPage = () => {
         if (searchTerm) { const term = searchTerm.toLowerCase(); filtered = filtered.filter(p => p.title.toLowerCase().includes(term)); }
         return filtered.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
+
+    useEffect(() => {
+        const checkOrientations = async () => {
+            const orientations = {};
+            const promises = filteredPosts.map(post => {
+                if (post.thumbnails && post.thumbnails.length > 0) {
+                    return new Promise(resolve => {
+                        const img = new Image();
+                        img.src = `${API_URL}/api/files/${post.thumbnails[0].imageUrl}.webp`;
+                        img.onload = () => {
+                            orientations[post.thumbnails[0].id] = img.naturalWidth >= img.naturalHeight ? 'landscape' : 'portrait';
+                            resolve();
+                        };
+                        img.onerror = () => {
+                            orientations[post.thumbnails[0].id] = 'landscape'; // Default on error
+                            resolve();
+                        };
+                    });
+                }
+                return Promise.resolve();
+            });
+            await Promise.all(promises);
+            setImageOrientations(orientations);
+        };
+        if (filteredPosts.length > 0) {
+            checkOrientations();
+        }
+    }, [filteredPosts]);
     
     const mobileLayout = useMemo(() => {
         const layout = [];
@@ -155,18 +184,16 @@ const BlogPage = () => {
         while (i < filteredPosts.length) {
             const post = filteredPosts[i];
             const isStory = post.thumbnails && post.thumbnails.length > 1;
-            
-            // A post can be a banner only if it's a story (multi-image). Give it a random chance.
-            const makeBanner = isStory && Math.random() > 0.6; // ~40% chance for a story to be a banner
+            const primaryThumbnailId = post.thumbnails?.[0]?.id;
+            const isLandscape = primaryThumbnailId ? imageOrientations[primaryThumbnailId] === 'landscape' : true;
+
+            const makeBanner = isStory && isLandscape && Math.random() > 0.6; 
 
             if (makeBanner) {
                 layout.push({ ...post, layout: 'banner' });
                 i += 1;
             } else {
-                // Add the current post as a grid item
                 layout.push({ ...post, layout: 'grid' });
-                
-                // If there's a next post, pair it in the grid
                 if (i + 1 < filteredPosts.length) {
                     layout.push({ ...filteredPosts[i + 1], layout: 'grid' });
                 }
@@ -174,7 +201,7 @@ const BlogPage = () => {
             }
         }
         return layout;
-    }, [filteredPosts]);
+    }, [filteredPosts, imageOrientations]);
 
     const latestPost = useMemo(() => {
         if (!posts || posts.length === 0) return null;
@@ -190,7 +217,7 @@ const BlogPage = () => {
 
     return (
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
-        <section className="bg-white sm:bg-gray-50">
+        <section className="bg-gray-50">
             {/* --- DESKTOP VIEW (sm and up) --- */}
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6 px-4">
                 <aside className="lg:col-span-2 order-1 py-6 sticky top-0 h-screen overflow-y-auto">
@@ -217,12 +244,12 @@ const BlogPage = () => {
                 </div>
 
                 {mobileLayout.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-px bg-gray-200 border-t border-gray-200">
+                    <div className="grid grid-cols-2 gap-2 p-2">
                         {mobileLayout.map((article) => (<MobilePostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} />))}
                     </div>
                 ) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>)}
                 
-                <div className="px-4">
+                <div className="px-4 pb-4">
                     <div className="mt-8 pt-6 border-t border-gray-200">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3>
                         <div className="space-y-4"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
