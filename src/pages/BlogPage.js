@@ -183,7 +183,6 @@ const BlogPage = () => {
         checkOrientations();
     }, [filteredPosts]);
     
-    // --- REFINED: Deterministic Mobile Layout Logic ---
     const mobileLayout = useMemo(() => {
         const layout = [];
         let i = 0;
@@ -198,13 +197,11 @@ const BlogPage = () => {
                 i++;
             } else {
                 layout.push({ ...post1, layout: 'grid' });
-
                 const post2 = filteredPosts[i + 1];
                 if (post2) {
                     const isPost2Story = post2.thumbnails && post2.thumbnails.length > 1;
                     const post2ThumbnailId = post2.thumbnails?.[0]?.id;
                     const isPost2Landscape = post2ThumbnailId ? imageOrientations[post2ThumbnailId] === 'landscape' : true;
-                    
                     if (!isPost2Story || !isPost2Landscape) {
                         layout.push({ ...post2, layout: 'grid' });
                         i += 2;
@@ -227,6 +224,16 @@ const BlogPage = () => {
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
     const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/files/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
+    
+    // --- NEW: Slider settings for the mobile Market Movers section ---
+    const marketSliderSettings = {
+        dots: true,
+        infinite: true,
+        speed: 500,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        arrows: false
+    };
 
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
@@ -272,7 +279,21 @@ const BlogPage = () => {
                 <div className="px-4 pb-4">
                     <div className="mt-8 pt-6 border-t border-gray-200">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3>
-                        <div className="space-y-4"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
+                        {/* --- MODIFIED: Horizontal Slider for Market Movers --- */}
+                        <div className="market-slider-container pb-6 -mx-2">
+                             <style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style>
+                            <Slider {...marketSliderSettings}>
+                                <div className="px-2">
+                                    <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
+                                </div>
+                                <div className="px-2">
+                                    <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
+                                </div>
+                                <div className="px-2">
+                                    <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                                </div>
+                            </Slider>
+                        </div>
                     </div>
                 </div>
             </div>

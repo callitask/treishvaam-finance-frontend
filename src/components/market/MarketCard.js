@@ -1,30 +1,64 @@
 // src/components/market/MarketCard.js
 import React from 'react';
 
+// Helper function to format large numbers for volume
+const formatVolume = (volume) => {
+    if (typeof volume !== 'number' || isNaN(volume)) return '-';
+    if (volume >= 1_000_000_000) {
+        return `${(volume / 1_000_000_000).toFixed(2)}B`;
+    }
+    if (volume >= 1_000_000) {
+        return `${(volume / 1_000_000).toFixed(2)}M`;
+    }
+    if (volume >= 1_000) {
+        return `${(volume / 1_000).toFixed(1)}K`;
+    }
+    return volume.toString();
+};
+
 const MarketCard = ({ title, data, cardType }) => {
     const isGainer = cardType === 'gainer';
     const isLoser = cardType === 'loser';
 
-    const getRowColor = () => {
-        if (isGainer) return 'text-green-600';
-        if (isLoser) return 'text-red-600';
+    const getRowColor = (stock) => {
+        // For gainers/losers, base color on the card type.
+        // For most active, base color on the individual stock's change.
+        const change = parseFloat(stock.changeAmount);
+        if (isGainer || (cardType === 'active' && change >= 0)) return 'text-green-600';
+        if (isLoser || (cardType === 'active' && change < 0)) return 'text-red-600';
         return 'text-gray-800';
     };
 
     return (
-        <div className="bg-white border border-gray-200/90 shadow-sm p-3">
-            <h4 className="font-bold text-sm mb-2 text-gray-800">{title}</h4>
-            <div className="space-y-2">
-                {data.slice(0, 5).map((stock, index) => (
-                    <div key={index} className="flex justify-between items-center text-xs">
-                        <span className="font-semibold truncate pr-2">{stock.ticker}</span>
-                        <div className="text-right">
-                            <span className={`font-bold ${getRowColor()}`}>
-                                {isGainer || isLoser ? `${stock.change_percentage}` : `$${stock.price}`}
-                            </span>
-                        </div>
-                    </div>
-                ))}
+        <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden">
+            <h4 className="font-bold text-sm p-3 border-b border-gray-200/90 text-gray-800">{title}</h4>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
+                            <th className="p-2 pl-3">Symbol</th>
+                            <th className="p-2">Name</th>
+                            <th className="p-2 text-right">Price</th>
+                            <th className="p-2 text-right">Change</th>
+                            <th className="p-2 text-right">% Chg</th>
+                            <th className="p-2 pr-3 text-right">Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200/90">
+                        {data.slice(0, 5).map((stock) => (
+                            <tr key={stock.ticker}>
+                                <td className="p-2 pl-3 font-semibold text-gray-800">{stock.ticker}</td>
+                                <td className="p-2 text-gray-600 truncate max-w-xs">{stock.name}</td>
+                                <td className="p-2 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
+                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>
+                                    {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
+                                </td>
+                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
+                                <td className="p-2 pr-3 text-right font-medium text-gray-600">{formatVolume(stock.volume)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
