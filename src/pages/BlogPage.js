@@ -39,7 +39,8 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
-    const { isNew, displayDate: rawDisplayDate } = formatDateTime(article.updatedAt || article.createdAt);
+    // --- FIX APPLIED HERE: Removed unused 'rawDisplayDate' variable ---
+    const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
     const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
     const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
     const isFeatured = article.featured;
