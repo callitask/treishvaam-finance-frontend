@@ -1,4 +1,3 @@
-// src/components/market/MarketCard.js
 import React from 'react';
 
 // Helper function to format large numbers for volume
@@ -32,23 +31,31 @@ const MarketCard = ({ title, data, cardType }) => {
     return (
         <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden">
             <h4 className="font-bold text-sm p-3 border-b border-gray-200/90 text-gray-800">{title}</h4>
-            <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+            <div>
+                <table className="w-full text-xs table-fixed">
+                    <colgroup>
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '30%' }} />
+                        <col style={{ width: '15%' }} />
+                        <col style={{ width: '12%' }} />
+                        <col style={{ width: '10%' }} />
+                        <col style={{ width: '13%' }} />
+                    </colgroup>
                     <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
                             <th className="p-2 pl-3">Symbol</th>
                             <th className="p-2">Name</th>
                             <th className="p-2 text-right">Price</th>
-                            <th className="p-2 text-right">Change</th>
-                            <th className="p-2 text-right">% Chg</th>
-                            <th className="p-2 pr-3 text-right">Volume</th>
+                            <th className="p-2 text-right">Chg</th>
+                            <th className="p-2 text-right">%Chg</th>
+                            <th className="p-2 pr-3 text-right">Vol</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200/90">
                         {data.slice(0, 5).map((stock) => (
                             <tr key={stock.ticker}>
-                                <td className="p-2 pl-3 font-semibold text-gray-800">{stock.ticker}</td>
-                                <td className="p-2 text-gray-600 truncate max-w-xs">{stock.name}</td>
+                                <td className="p-2 pl-3 font-semibold text-gray-800 truncate">{stock.ticker}</td>
+                                <td className="p-2 text-gray-600 truncate">{stock.name}</td>
                                 <td className="p-2 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
                                 <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}

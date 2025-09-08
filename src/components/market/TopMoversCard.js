@@ -39,20 +39,26 @@ const TopMoversCard = ({ title, fetchData, type }) => {
             return <p className="p-2 text-xs text-red-500 break-words">{error}</p>;
         }
         return (
-            <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+            <div>
+                <table className="w-full text-xs table-fixed">
+                    <colgroup>
+                        <col style={{ width: '35%' }} />
+                        <col style={{ width: '25%' }} />
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '20%' }} />
+                    </colgroup>
                     <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
                             <th className="p-1 pl-2">Symbol</th>
                             <th className="p-1 text-right">Price</th>
-                            <th className="p-1 text-right">Change</th>
-                            <th className="p-1 pr-2 text-right">% Chg</th>
+                            <th className="p-1 text-right">Chg</th>
+                            <th className="p-1 pr-2 text-right">%Chg</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200/90">
                         {data.slice(0, 5).map((stock) => (
                             <tr key={stock.ticker}>
-                                <td className="p-1 pl-2 font-semibold text-gray-800">{stock.ticker}</td>
+                                <td className="p-1 pl-2 font-semibold text-gray-800 truncate">{stock.ticker}</td>
                                 <td className="p-1 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
                                 <td className={`p-1 text-right font-bold ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
