@@ -46,7 +46,7 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     const landscapeSlidesToShow = Math.min(totalSlides, 4);
     const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
 
-    const CardContent = () => (<div className="p-4 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-3"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-xl font-bold mb-3 text-gray-900 leading-tight break-words"><Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 120)}</p><div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+    const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
         if (isStory) {
@@ -239,11 +239,11 @@ const BlogPage = () => {
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
         <section className="bg-gray-50">
             {/* --- DESKTOP VIEW (sm and up) --- */}
-            <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6 px-4">
-                <aside className="lg:col-span-2 order-1 py-6 sticky top-0 h-screen overflow-y-auto">
+            <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <aside className="lg:col-span-2 order-1 py-6">
                     <div className="space-y-4">
                         <NewsHighlights />
-                        <h3 className="font-bold text-base border-b pb-2 pt-4">Market Movers</h3>
+                        <h2 className="font-bold text-xl border-b pb-2 pt-4">Market Movers</h2>
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
                         <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
                         <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
@@ -252,7 +252,7 @@ const BlogPage = () => {
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
                 </main>
-                <aside className="lg:col-span-2 order-3 py-6 sticky top-0 h-screen overflow-y-auto">
+                <aside className="lg:col-span-2 order-3 py-6">
                     <div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} loadingCategories={loadingCategories} /></div>
                 </aside>
             </div>

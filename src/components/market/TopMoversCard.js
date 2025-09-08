@@ -33,31 +33,31 @@ const TopMoversCard = ({ title, fetchData, type }) => {
 
     const renderContent = () => {
         if (loading) {
-            return <p className="p-3 text-xs text-gray-500">Loading...</p>;
+            return <p className="p-2 text-xs text-gray-500">Loading...</p>;
         }
         if (error) {
-            return <p className="p-3 text-xs text-red-500 break-words">{error}</p>;
+            return <p className="p-2 text-xs text-red-500 break-words">{error}</p>;
         }
         return (
             <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead>
                         <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
-                            <th className="p-1.5 pl-3">Symbol</th>
-                            <th className="p-1.5 text-right">Price</th>
-                            <th className="p-1.5 text-right">Change</th>
-                            <th className="p-1.5 pr-3 text-right">% Chg</th>
+                            <th className="p-1 pl-2">Symbol</th>
+                            <th className="p-1 text-right">Price</th>
+                            <th className="p-1 text-right">Change</th>
+                            <th className="p-1 pr-2 text-right">% Chg</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200/90">
                         {data.slice(0, 5).map((stock) => (
                             <tr key={stock.ticker}>
-                                <td className="p-1.5 pl-3 font-semibold text-gray-800">{stock.ticker}</td>
-                                <td className="p-1.5 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
-                                <td className={`p-1.5 text-right font-bold ${getRowColor(stock)}`}>
+                                <td className="p-1 pl-2 font-semibold text-gray-800">{stock.ticker}</td>
+                                <td className="p-1 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
+                                <td className={`p-1 text-right font-bold ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
                                 </td>
-                                <td className={`p-1.5 pr-3 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
+                                <td className={`p-1 pr-2 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -68,7 +68,7 @@ const TopMoversCard = ({ title, fetchData, type }) => {
 
     return (
         <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden">
-            <h4 className="font-bold text-sm p-3 border-b border-gray-200/90 text-gray-800">{title}</h4>
+            <h4 className="font-bold text-xs p-2 border-b border-gray-200/90 text-gray-800">{title}</h4>
             {renderContent()}
         </div>
     );
