@@ -239,7 +239,7 @@ const BlogPage = () => {
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
         <section className="bg-gray-50">
             {/* --- DESKTOP VIEW (sm and up) --- */}
-            <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
                 <aside className="lg:col-span-2 order-1 py-6">
                     <div className="space-y-4">
                         <NewsHighlights />

@@ -20,8 +20,6 @@ const MarketCard = ({ title, data, cardType }) => {
     const isLoser = cardType === 'loser';
 
     const getRowColor = (stock) => {
-        // For gainers/losers, base color on the card type.
-        // For most active, base color on the individual stock's change.
         const change = parseFloat(stock.changeAmount);
         if (isGainer || (cardType === 'active' && change >= 0)) return 'text-green-600';
         if (isLoser || (cardType === 'active' && change < 0)) return 'text-red-600';
@@ -29,39 +27,37 @@ const MarketCard = ({ title, data, cardType }) => {
     };
 
     return (
-        <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden">
+        <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden rounded-md">
             <h4 className="font-bold text-sm p-3 border-b border-gray-200/90 text-gray-800">{title}</h4>
             <div>
-                <table className="w-full text-xs table-fixed">
-                    <colgroup>
-                        <col style={{ width: '20%' }} />
-                        <col style={{ width: '30%' }} />
-                        <col style={{ width: '15%' }} />
-                        <col style={{ width: '12%' }} />
-                        <col style={{ width: '10%' }} />
-                        <col style={{ width: '13%' }} />
-                    </colgroup>
+                <table className="w-full text-xs">
                     <thead>
-                        <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
-                            <th className="p-2 pl-3">Symbol</th>
-                            <th className="p-2">Name</th>
-                            <th className="p-2 text-right">Price</th>
-                            <th className="p-2 text-right">Chg</th>
-                            <th className="p-2 text-right">%Chg</th>
-                            <th className="p-2 pr-3 text-right">Vol</th>
+                        <tr className="text-left text-gray-500 uppercase font-medium text-[11px]">
+                            <th className="py-1 px-2 font-semibold">Symbol</th>
+                            <th className="py-1 px-2 font-semibold">Name</th>
+                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Price</th>
+                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Chg</th>
+                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">%Chg</th>
+                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Vol</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200/90">
+                    <tbody className="divide-y divide-gray-100">
                         {data.slice(0, 5).map((stock) => (
                             <tr key={stock.ticker}>
-                                <td className="p-2 pl-3 font-semibold text-gray-800 truncate">{stock.ticker}</td>
-                                <td className="p-2 text-gray-600 truncate">{stock.name}</td>
-                                <td className="p-2 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
-                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>
+                                <td className="py-1.5 px-2 font-bold text-gray-700 truncate">{stock.ticker}</td>
+                                <td className="py-1.5 px-2 text-gray-600 truncate">{stock.name}</td>
+                                <td className="py-1.5 px-2 text-right font-medium text-gray-700 whitespace-nowrap">
+                                    ${parseFloat(stock.price).toFixed(2)}
+                                </td>
+                                <td className={`py-1.5 px-2 text-right font-bold whitespace-nowrap ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
                                 </td>
-                                <td className={`p-2 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
-                                <td className="p-2 pr-3 text-right font-medium text-gray-600">{formatVolume(stock.volume)}</td>
+                                <td className={`py-1.5 px-2 text-right font-bold whitespace-nowrap ${getRowColor(stock)}`}>
+                                    {stock.changePercentage}
+                                </td>
+                                <td className="py-1.5 px-2 text-right font-medium text-gray-600 whitespace-nowrap">
+                                    {formatVolume(stock.volume)}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

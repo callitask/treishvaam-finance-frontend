@@ -15,7 +15,7 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                 setData(response.data || []);
 
             } catch (err) {
-                setError('Data could not be loaded at this time.');
+                setError('Data could not be loaded.');
                 console.error("Failed to fetch top movers:", err);
             } finally {
                 setLoading(false);
@@ -33,37 +33,35 @@ const TopMoversCard = ({ title, fetchData, type }) => {
 
     const renderContent = () => {
         if (loading) {
-            return <p className="p-2 text-xs text-gray-500">Loading...</p>;
+            return <p className="p-2 text-xs text-gray-500 text-center">Loading...</p>;
         }
         if (error) {
-            return <p className="p-2 text-xs text-red-500 break-words">{error}</p>;
+            return <p className="p-2 text-xs text-red-500 break-words text-center">{error}</p>;
         }
         return (
-            <div>
-                <table className="w-full text-xs table-fixed">
-                    <colgroup>
-                        <col style={{ width: '35%' }} />
-                        <col style={{ width: '25%' }} />
-                        <col style={{ width: '20%' }} />
-                        <col style={{ width: '20%' }} />
-                    </colgroup>
+            <div className="px-1">
+                <table className="w-full">
                     <thead>
-                        <tr className="bg-gray-50 text-left text-gray-500 uppercase font-semibold">
-                            <th className="p-1 pl-2">Symbol</th>
-                            <th className="p-1 text-right">Price</th>
-                            <th className="p-1 text-right">Chg</th>
-                            <th className="p-1 pr-2 text-right">%Chg</th>
+                        <tr className="text-left text-gray-500 uppercase font-medium text-[10px]">
+                            <th className="py-1 px-1 font-semibold">Symbol</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">Price</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">Chg</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">%Chg</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200/90">
+                    <tbody className="divide-y divide-gray-100">
                         {data.slice(0, 5).map((stock) => (
-                            <tr key={stock.ticker}>
-                                <td className="p-1 pl-2 font-semibold text-gray-800 truncate">{stock.ticker}</td>
-                                <td className="p-1 text-right font-medium text-gray-800">${parseFloat(stock.price).toFixed(2)}</td>
-                                <td className={`p-1 text-right font-bold ${getRowColor(stock)}`}>
+                            <tr key={stock.ticker} className="text-[11px]">
+                                <td className="py-1 px-1 font-bold text-gray-700 truncate">{stock.ticker}</td>
+                                <td className="py-1 px-1 text-right font-medium text-gray-700 whitespace-nowrap">
+                                    ${parseFloat(stock.price).toFixed(2)}
+                                </td>
+                                <td className={`py-1 px-1 text-right font-bold whitespace-nowrap ${getRowColor(stock)}`}>
                                     {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
                                 </td>
-                                <td className={`p-1 pr-2 text-right font-bold ${getRowColor(stock)}`}>{stock.changePercentage}</td>
+                                <td className={`py-1 px-1 text-right font-bold whitespace-nowrap ${getRowColor(stock)}`}>
+                                    {stock.changePercentage}
+                                </td>
                             </tr>
                         ))}
                     </tbody>
@@ -73,8 +71,8 @@ const TopMoversCard = ({ title, fetchData, type }) => {
     };
 
     return (
-        <div className="bg-white border border-gray-200/90 shadow-sm overflow-hidden">
-            <h4 className="font-bold text-xs p-2 border-b border-gray-200/90 text-gray-800">{title}</h4>
+        <div className="bg-white border border-gray-200/90 shadow-sm">
+            <h4 className="font-bold text-sm p-2 border-b border-gray-200/90 text-gray-800">{title}</h4>
             {renderContent()}
         </div>
     );
