@@ -12,6 +12,7 @@ import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import DevelopmentNotice from '../components/DevelopmentNotice';
 import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
+import NewsHighlights from '../components/NewsHighlights';
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -33,7 +34,6 @@ const formatDateTime = (dateString) => {
     return { isNew: diffHours < 48, displayDate };
 };
 
-// --- ORIGINAL COMPONENT FOR DESKTOP MASONRY VIEW (UNCHANGED) ---
 const PostCard = memo(({ article, onCategoryClick }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
@@ -59,8 +59,6 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     return (<div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
 });
 
-
-// --- NEW, REFINED COMPONENT ONLY FOR THE MOBILE VIEW ---
 const MobilePostCard = memo(({ article, onCategoryClick, layout }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
@@ -225,7 +223,6 @@ const BlogPage = () => {
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
     const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/files/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
     
-    // --- NEW: Slider settings for the mobile Market Movers section ---
     const marketSliderSettings = {
         dots: true,
         infinite: true,
@@ -244,7 +241,13 @@ const BlogPage = () => {
             {/* --- DESKTOP VIEW (sm and up) --- */}
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6 px-4">
                 <aside className="lg:col-span-2 order-1 py-6 sticky top-0 h-screen overflow-y-auto">
-                    <div className="space-y-4"><h3 className="font-bold text-base border-b pb-2">Market Movers</h3><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
+                    <div className="space-y-4">
+                        <NewsHighlights />
+                        <h3 className="font-bold text-base border-b pb-2 pt-4">Market Movers</h3>
+                        <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
+                        <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
+                        <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                    </div>
                 </aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
@@ -266,6 +269,10 @@ const BlogPage = () => {
                     </div>
                 </div>
 
+                <div className="px-4">
+                    <NewsHighlights />
+                </div>
+
                 {orientationsLoading ? (
                     <div className="text-center p-10">Loading Layout...</div>
                 ) : (
@@ -279,9 +286,8 @@ const BlogPage = () => {
                 <div className="px-4 pb-4">
                     <div className="mt-8 pt-6 border-t border-gray-200">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3>
-                        {/* --- MODIFIED: Horizontal Slider for Market Movers --- */}
                         <div className="market-slider-container pb-6 -mx-2">
-                             <style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style>
+                            <style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style>
                             <Slider {...marketSliderSettings}>
                                 <div className="px-2">
                                     <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
