@@ -4,6 +4,7 @@ import axios from 'axios';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+// NOTE: I have removed getNewsHighlights and getArchivedNews from this import as they are not used here.
 import { API_URL, getCategories, getTopGainers, getTopLosers, getMostActive } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
@@ -13,6 +14,7 @@ import DevelopmentNotice from '../components/DevelopmentNotice';
 import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
 import NewsHighlights from '../components/NewsHighlights';
+import DeeperDive from '../components/DeeperDive'; // Import the new component
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -161,7 +163,8 @@ const BlogPage = () => {
                 if (post.thumbnails && post.thumbnails.length > 0) {
                     return new Promise(resolve => {
                         const img = new Image();
-                        img.src = `${API_URL}/api/files/${post.thumbnails[0].imageUrl}.webp`;
+                        // *** FIX: Corrected path from /files to /uploads ***
+                        img.src = `${API_URL}/api/uploads/${post.thumbnails[0].imageUrl}.webp`;
                         img.onload = () => {
                             orientations[post.thumbnails[0].id] = img.naturalWidth >= img.naturalHeight ? 'landscape' : 'portrait';
                             resolve();
@@ -221,7 +224,8 @@ const BlogPage = () => {
     
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/files/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
+    // *** FIX: Corrected path from /files to /uploads ***
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/uploads/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
     
     const marketSliderSettings = {
         dots: true,
@@ -247,6 +251,7 @@ const BlogPage = () => {
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
                         <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
                         <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                        <DeeperDive /> 
                     </div>
                 </aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">

@@ -1,20 +1,19 @@
 import axios from 'axios';
 
-// UPDATED: This now points directly to your live production server.
 export const API_URL = 'https://backend.treishvaamgroup.com';
 
 const api = axios.create({
-    baseURL: `${API_URL}/api`,
+    baseURL: `${API_URL}/api`,
 });
 
 api.interceptors.request.use(config => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
 }, error => {
-    return Promise.reject(error);
+    return Promise.reject(error);
 });
 
 export const getPosts = () => api.get('/posts');
@@ -39,22 +38,23 @@ export const getTopGainers = () => api.get('/market/top-gainers');
 export const getTopLosers = () => api.get('/market/top-losers');
 export const getMostActive = () => api.get('/market/most-active');
 
-// News Highlights API - NEW
+// News APIs
 export const getNewsHighlights = () => api.get('/news/highlights');
+export const getArchivedNews = () => api.get('/news/archive'); // New function
 
 export default api;
 
 export const createDraft = (postData) => {
-    const token = localStorage.getItem('token');
-    return axios.post(`${API_URL}/api/posts`, postData, { headers: { Authorization: `Bearer ${token}` } });
+    const token = localStorage.getItem('token');
+    return axios.post(`${API_URL}/api/posts`, postData, { headers: { Authorization: `Bearer ${token}` } });
 };
 
 export const updateDraft = (id, postData) => {
-    const token = localStorage.getItem('token');
-    return axios.put(`${API_URL}/api/posts/draft/${id}`, postData, { headers: { Authorization: `Bearer ${token}` } });
+    const token = localStorage.getItem('token');
+    return axios.put(`${API_URL}/api/posts/draft/${id}`, postData, { headers: { Authorization: `Bearer ${token}` } });
 };
 
 export const getDrafts = () => {
-    const token = localStorage.getItem('token');
-    return axios.get(`${API_URL}/api/posts/admin/drafts`, { headers: { Authorization: `Bearer ${token}` } });
+    const token = localStorage.getItem('token');
+    return axios.get(`${API_URL}/api/posts/admin/drafts`, { headers: { Authorization: `Bearer ${token}` } });
 };

@@ -3,16 +3,16 @@ import AuthImage from './AuthImage';
 import { API_URL } from '../apiConfig'; // Import the base URL
 
 /**
- * This component constructs the full, responsive image URLs and passes them
- * to the simple AuthImage component for rendering.
- * --- MODIFIED FOR ROBUSTNESS ---
- * It now cleans the incoming `baseName` to handle inconsistent URL formats
- * from the database (e.g., full URLs, paths, or filenames with extensions).
- */
+ * This component constructs the full, responsive image URLs and passes them
+ * to the simple AuthImage component for rendering.
+ * --- MODIFIED FOR ROBUSTNESS ---
+ * It now cleans the incoming `baseName` to handle inconsistent URL formats
+ * from the database (e.g., full URLs, paths, or filenames with extensions).
+ */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
-    if (!baseName || typeof baseName !== 'string') {
-        return <div className={`bg-gray-200 ${className}`} />;
-    }
+    if (!baseName || typeof baseName !== 'string') {
+        return <div className={`bg-gray-200 ${className}`} />;
+    }
 
     // --- NEW CLEANING LOGIC ---
     // This regex finds a UUID, which is the core part of our image filenames.
@@ -29,8 +29,8 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
     const cleanedBaseName = match[0]; // The captured UUID
     // --- END OF NEW LOGIC ---
 
-    // Construct the FULL URLs for the browser using the cleaned base name.
-    const src = `${API_URL}/api/uploads/${cleanedBaseName}-small.webp`;
+    // Construct the FULL URLs for the browser using the cleaned base name.
+    const src = `${API_URL}/api/uploads/${cleanedBaseName}-small.webp`;
     
     // --- FIXED: Construct the srcSet string on a single line to avoid whitespace issues. ---
     const srcSet = [
@@ -39,17 +39,17 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
         `${API_URL}/api/uploads/${cleanedBaseName}.webp 1200w`
     ].join(', ');
 
-    return (
-        <AuthImage
-            src={src}
-            srcSet={srcSet}
-            sizes={sizes}
-            alt={alt}
-            className={className}
-            loading="lazy"
-            onLoad={onLoad} // Pass the onLoad handler down to the <img> tag
-        />
-    );
+    return (
+        <AuthImage
+            src={src}
+            srcSet={srcSet}
+            sizes={sizes}
+            alt={alt}
+            className={className}
+            loading="lazy"
+            onLoad={onLoad} // Pass the onLoad handler down to the <img> tag
+        />
+    );
 };
 
 export default ResponsiveAuthImage;
