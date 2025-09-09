@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const BlogSidebar = ({ categories, selectedCategory, setSelectedCategory, searchTerm, setSearchTerm, loadingCategories }) => {
+const BlogSidebar = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const allCategories = ['All', ...categories.map(cat => cat.name)];
@@ -10,18 +10,6 @@ const BlogSidebar = ({ categories, selectedCategory, setSelectedCategory, search
             <h1 className="text-3xl font-bold mb-2 text-gray-900">Finance <span className="text-sky-600">World</span></h1>
             <p className="text-sm text-gray-500 mb-6">Stay ahead with timely market developments.</p>
             <div className="flex flex-col gap-y-6">
-                <div>
-                    <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-1">Search Articles</label>
-                    <input
-                        id="search-input"
-                        type="text"
-                        placeholder="e.g., 'Inflation'..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full px-4 py-2 text-base text-gray-700 bg-white border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                    />
-                </div>
-
                 <div>
                     <h3 className="block text-sm font-medium text-gray-700 mb-2">Categories</h3>
                     {loadingCategories ? (

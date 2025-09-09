@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo, memo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-// NOTE: I have removed getNewsHighlights and getArchivedNews from this import as they are not used here.
 import { API_URL, getCategories, getTopGainers, getTopLosers, getMostActive } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
@@ -14,7 +13,7 @@ import DevelopmentNotice from '../components/DevelopmentNotice';
 import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
 import NewsHighlights from '../components/NewsHighlights';
-import DeeperDive from '../components/DeeperDive'; // Import the new component
+import DeeperDive from '../components/DeeperDive';
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -121,10 +120,11 @@ const BlogPage = () => {
     const [categories, setCategories] = useState([]);
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("All");
-    const [searchTerm, setSearchTerm] = useState("");
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [imageOrientations, setImageOrientations] = useState({});
     const [orientationsLoading, setOrientationsLoading] = useState(true);
+    const [searchParams] = useSearchParams();
+    const searchTerm = searchParams.get('q') || "";
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -163,7 +163,6 @@ const BlogPage = () => {
                 if (post.thumbnails && post.thumbnails.length > 0) {
                     return new Promise(resolve => {
                         const img = new Image();
-                        // *** FIX: Corrected path from /files to /uploads ***
                         img.src = `${API_URL}/api/uploads/${post.thumbnails[0].imageUrl}.webp`;
                         img.onload = () => {
                             orientations[post.thumbnails[0].id] = img.naturalWidth >= img.naturalHeight ? 'landscape' : 'portrait';
@@ -224,7 +223,6 @@ const BlogPage = () => {
     
     const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
     const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
-    // *** FIX: Corrected path from /files to /uploads ***
     const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/uploads/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
     
     const marketSliderSettings = {
@@ -251,14 +249,14 @@ const BlogPage = () => {
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
                         <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
                         <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
-                        <DeeperDive /> 
+                        <DeeperDive />
                     </div>
                 </aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">
                     <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
                 </main>
                 <aside className="lg:col-span-2 order-3 py-6">
-                    <div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} loadingCategories={loadingCategories} /></div>
+                    <div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>
                 </aside>
             </div>
 
@@ -267,10 +265,10 @@ const BlogPage = () => {
                 <div className="px-4 py-4">
                     <div className="border-b border-gray-200 mb-4">
                         <button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">
-                            {showMobileFilters ? 'Hide Filters' : 'Filters & Search'}
+                            {showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}
                             {showMobileFilters ? <FiX /> : <FiFilter />}
                         </button>
-                        {showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchTerm={searchTerm} setSearchTerm={setSearchTerm} loadingCategories={loadingCategories} /></div>)}
+                        {showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}
                     </div>
                 </div>
 
