@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import MarketChart from './MarketChart';
 
 const TopMoversCard = ({ title, fetchData, type }) => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [selectedStock, setSelectedStock] = useState(null);
 
     useEffect(() => {
         const loadData = async () => {
             try {
                 setLoading(true);
                 setError(null);
-                
                 const response = await fetchData();
                 setData(response.data || []);
-
             } catch (err) {
                 setError('Data could not be loaded.');
                 console.error("Failed to fetch top movers:", err);
@@ -51,7 +51,11 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {data.slice(0, 5).map((stock) => (
-                            <tr key={stock.ticker} className="text-[11px]">
+                            <tr
+                                key={stock.ticker}
+                                className="text-[11px] cursor-pointer hover:bg-gray-100"
+                                onClick={() => setSelectedStock(stock.ticker)}
+                            >
                                 <td className="py-1 px-1 font-bold text-gray-700 truncate">{stock.ticker}</td>
                                 <td className="py-1 px-1 text-right font-medium text-gray-700 whitespace-nowrap">
                                     ${parseFloat(stock.price).toFixed(2)}
@@ -66,6 +70,7 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                         ))}
                     </tbody>
                 </table>
+                {selectedStock && <MarketChart ticker={selectedStock} />}
             </div>
         );
     };

@@ -14,6 +14,7 @@ import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
 import NewsHighlights from '../components/NewsHighlights';
 import DeeperDive from '../components/DeeperDive';
+import IndexCharts from '../components/market/IndexCharts'; // --- IMPORT NEW COMPONENT ---
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -249,6 +250,10 @@ const BlogPage = () => {
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
                         <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
                         <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                        
+                        {/* --- ADD NEW COMPONENT HERE --- */}
+                        <IndexCharts />
+
                         <DeeperDive />
                     </div>
                 </aside>
@@ -302,6 +307,10 @@ const BlogPage = () => {
                                     <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
                                 </div>
                             </Slider>
+                        </div>
+                         {/* --- ADD NEW COMPONENT FOR MOBILE VIEW --- */}
+                        <div className="mt-8">
+                            <IndexCharts />
                         </div>
                     </div>
                 </div>
