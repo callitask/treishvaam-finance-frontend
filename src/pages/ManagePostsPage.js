@@ -145,20 +145,11 @@ const ManagePostsPage = () => {
         setSelectedPostIds([]);
     }, [activeTab]);
 
-    // *** FIX: MOVED THIS BLOCK UP ***
     const { publishedPosts, scheduledPosts } = useMemo(() => {
         const published = allPosts.filter(post => post.status === 'PUBLISHED');
         const scheduled = allPosts.filter(post => post.status === 'SCHEDULED');
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [allPosts]);
-
-    // *** FIX: MOVED THIS BLOCK UP ***
-    const currentVisiblePosts = useMemo(() => {
-        if (activeTab === 'published') return publishedPosts;
-        if (activeTab === 'drafts') return drafts;
-        if (activeTab === 'scheduled') return scheduledPosts;
-        return [];
-    }, [activeTab, publishedPosts, drafts, scheduledPosts]);
 
     const layoutGroupCounts = useMemo(() => {
         const counts = {};
@@ -217,10 +208,17 @@ const ManagePostsPage = () => {
             prev.includes(postId) ? prev.filter(id => id !== postId) : [...prev, postId]
         );
     };
+    
+    const currentVisiblePosts = useMemo(() => {
+        if (activeTab === 'published') return publishedPosts;
+        if (activeTab === 'drafts') return drafts;
+        if (activeTab === 'scheduled') return scheduledPosts;
+        return [];
+    }, [activeTab, publishedPosts, drafts, scheduledPosts]);
 
-    const handleSelectAll = (currentPosts) => (e) => {
+    const handleSelectAll = (e) => {
         if (e.target.checked) {
-            const postIds = currentPosts.map(p => p.id);
+            const postIds = currentVisiblePosts.map(p => p.id);
             setSelectedPostIds(postIds);
         } else {
             setSelectedPostIds([]);
@@ -287,9 +285,9 @@ const ManagePostsPage = () => {
                 </div>
                 {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
                 <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                    {activeTab === 'published' && <PostsTable posts={publishedPosts} {...tableProps} onSelectAll={handleSelectAll(publishedPosts)} />}
-                    {activeTab === 'drafts' && <PostsTable posts={drafts} {...tableProps} onSelectAll={handleSelectAll(drafts)} isDraft={true} />}
-                    {activeTab === 'scheduled' && <PostsTable posts={scheduledPosts} {...tableProps} onSelectAll={handleSelectAll(scheduledPosts)} isScheduled={true} />}
+                    {activeTab === 'published' && <PostsTable posts={publishedPosts} {...tableProps} onSelectAll={handleSelectAll} />}
+                    {activeTab === 'drafts' && <PostsTable posts={drafts} {...tableProps} onSelectAll={handleSelectAll} isDraft={true} />}
+                    {activeTab === 'scheduled' && <PostsTable posts={scheduledPosts} {...tableProps} onSelectAll={handleSelectAll} isScheduled={true} />}
                 </div>
             </div>
             {isShareModalOpen && <ShareModal post={selectedPost} onClose={() => setIsShareModalOpen(false)} />}
