@@ -61,7 +61,6 @@ const PostCard = memo(({ article, onCategoryClick }) => {
     return (<div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
 });
 
-// --- NEW CARD FOR GRID LAYOUT ---
 const GridPostCard = memo(({ article, onCategoryClick }) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
@@ -87,28 +86,75 @@ const GridPostCard = memo(({ article, onCategoryClick }) => {
     return (<div className="bg-white border border-gray-200 relative flex flex-col h-full">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
 });
 
-
 const BannerPostCard = memo(({ article, onCategoryClick }) => {
-    const hasThumbnail = article.thumbnails && article.thumbnails.length > 0;
-    const categoryClass = "text-sky-200";
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
+
+    const bannerSliderSettings = {
+        dots: false,
+        fade: true,
+        infinite: true,
+        speed: 1000,
+        slidesToShow: 1,
+        slidesToScroll: 1,
+        autoplay: true,
+        autoplaySpeed: 4000,
+        arrows: false,
+        pauseOnHover: false,
+    };
+
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+        if (isStory) {
+            return (
+                <Slider ref={sliderRef} {...bannerSliderSettings}>
+                    {article.thumbnails.map(thumb => (
+                        <div key={thumb.id}>
+                            <ResponsiveAuthImage
+                                baseName={thumb.imageUrl}
+                                alt={thumb.altText || article.title}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
+                    ))}
+                </Slider>
+            );
+        }
+        return (
+            <ResponsiveAuthImage
+                baseName={article.thumbnails[0].imageUrl}
+                alt={article.thumbnails[0].altText || article.title}
+                className="w-full h-full object-cover"
+            />
+        );
+    };
 
     return (
-        <Link to={`/blog/${article.slug}`} className="block relative bg-black text-white overflow-hidden border border-gray-200">
-            {hasThumbnail && (
-                <ResponsiveAuthImage 
-                    baseName={article.thumbnails[0].imageUrl} 
-                    alt={article.thumbnails[0].altText || article.title} 
-                    className="w-full h-full object-cover absolute inset-0" 
-                />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
-            <div className="relative p-8 flex flex-col justify-end min-h-[400px]">
-                 <button onClick={(e) => { e.preventDefault(); onCategoryClick(article.category); }} className={`font-bold text-sm uppercase tracking-wider ${categoryClass} hover:underline z-10`}>{article.category}</button>
-                 <h2 className="text-3xl md:text-4xl font-bold my-3 leading-tight break-words z-10">
-                     {article.title}
-                 </h2>
+        <div className="block relative bg-black text-white overflow-hidden border border-gray-200 group">
+            <div className="absolute inset-0">
+                <ThumbnailDisplay />
             </div>
-        </Link>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent group-hover:via-black/80 transition-all duration-300"></div>
+            <Link to={`/blog/${article.slug}`} className="relative p-8 flex flex-col justify-end min-h-[400px] z-10">
+                <div className="flex justify-between items-center text-sm mb-2">
+                    <div className="flex items-center gap-3">
+                        <span onClick={(e) => { e.preventDefault(); onCategoryClick(article.category); }} className="font-bold uppercase tracking-wider text-sky-300 hover:underline cursor-pointer">{article.category}</span>
+                        <span className="text-gray-400">|</span>
+                        <span className="text-gray-300">{displayDate}</span>
+                    </div>
+                    {isNew && <span className="font-semibold text-red-500 bg-white/20 px-2 py-1 rounded-full text-xs">NEW</span>}
+                </div>
+                <h2 className="text-3xl md:text-4xl font-bold my-2 leading-tight text-white group-hover:text-sky-200 transition-colors duration-300">
+                    {article.title}
+                </h2>
+                <p className="text-gray-200 text-base mt-2 max-w-2xl hidden md:block">
+                    {createSnippet(article.customSnippet || article.content, 150)}
+                </p>
+                <div className="text-xs text-gray-400 mt-4">By Treishvaam Finance</div>
+            </Link>
+        </div>
     );
 });
 
@@ -394,7 +440,7 @@ const BlogPage = () => {
                     </div>
                 </aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">
-                     {renderDesktopLayout()}
+                       {renderDesktopLayout()}
                 </main>
                 <aside className="lg:col-span-2 order-3 py-6">
                     <div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>

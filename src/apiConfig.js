@@ -20,10 +20,7 @@ api.interceptors.request.use(
 );
 
 export const getPosts = () => api.get('/posts');
-
-// --- NEW FUNCTION FOR INFINITE SCROLL ---
 export const getPaginatedPosts = (page = 0, size = 9) => api.get(`/posts/paginated?page=${page}&size=${size}`);
-
 export const getAllPostsForAdmin = () => api.get('/posts/admin/all');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const getPostBySlug = (slug) => api.get(`/posts/slug/${slug}`);
@@ -34,6 +31,11 @@ export const updatePost = (id, formData) => api.put(`/posts/${id}`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
 });
 export const deletePost = (id) => api.delete(`/posts/${id}`);
+export const duplicatePost = (id) => api.post(`/posts/${id}/duplicate`);
+
+// --- NEW FUNCTION FOR FEATURE 2: Bulk Actions ---
+export const bulkDeletePosts = (ids) => api.delete('/posts/bulk', { data: ids });
+
 export const uploadFile = (formData) => api.post('/files/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
 });
