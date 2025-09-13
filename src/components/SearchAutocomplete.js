@@ -10,7 +10,7 @@ const SearchAutocomplete = () => {
     // The query is now driven by the URL search parameter 'q'
     const [query, setQuery] = useState(searchParams.get('q') || '');
     const [suggestions, setSuggestions] = useState([]);
-    const [isLoading, setIsLoading] = useState(false);
+    // Removed the unused setIsLoading state
 
     // Effect to update the URL when the user stops typing
     useEffect(() => {
@@ -32,7 +32,7 @@ const SearchAutocomplete = () => {
             setSuggestions([]);
             return;
         }
-        setIsLoading(true);
+        // setIsLoading(true); // This line can be removed
         try {
             const response = await searchPosts(searchQuery);
             setSuggestions(response.data);
@@ -40,7 +40,7 @@ const SearchAutocomplete = () => {
             console.error('Error fetching search suggestions:', error);
             setSuggestions([]);
         } finally {
-            setIsLoading(false);
+            // setIsLoading(false); // This line can be removed
         }
     }, []);
 
