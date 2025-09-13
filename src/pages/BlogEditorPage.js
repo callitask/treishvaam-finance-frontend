@@ -203,6 +203,8 @@ const StoryThumbnailManager = ({ thumbnails, setThumbnails, onUploadClick, onAdd
     );
 };
 
+const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
 
 // MAIN COMPONENT
 const BlogEditorPage = () => {
@@ -239,6 +241,10 @@ const BlogEditorPage = () => {
     const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
     const [pendingCrop, setPendingCrop] = useState(null);
     
+    // --- NEW STATE FOR LAYOUT ---
+    const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
+    const [layoutGroupId, setLayoutGroupId] = useState(null);
+
     // REFS
     const editorRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -260,6 +266,10 @@ const BlogEditorPage = () => {
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCustomSnippet(post.customSnippet || '');
+                    
+                    setLayoutStyle(post.layoutStyle || 'DEFAULT');
+                    setLayoutGroupId(post.layoutGroupId || null);
+
                     if (post.thumbnails && post.thumbnails.length > 0) {
                         setThumbnailMode('story');
                         const orientation = post.thumbnailOrientation || 'landscape';
@@ -460,6 +470,13 @@ const BlogEditorPage = () => {
         tags.forEach(tag => formData.append('tags', tag));
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
+        
+        formData.append('layoutStyle', layoutStyle);
+        if (layoutStyle.startsWith('MULTI_COLUMN')) {
+            formData.append('layoutGroupId', layoutGroupId || generateLayoutGroupId());
+        } else {
+            formData.append('layoutGroupId', '');
+        }
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
@@ -480,21 +497,36 @@ const BlogEditorPage = () => {
                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
                 formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
             } else if (thumbPreview) {
-                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
-                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
-                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
+                  const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
+                  const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
+                  formData.append('thumbnailMetadata', JSON.stringify(metadata));
             } else {
-                 formData.append('thumbnailMetadata', JSON.stringify([]));
+                  formData.append('thumbnailMetadata', JSON.stringify([]));
             }
         }
 
         try {
-            if (postId) await updatePost(postId, formData);
-            else await createPost(formData);
+            if (postId) {
+                await updatePost(postId, formData);
+            } else {
+                await createPost(formData);
+            }
             navigate('/dashboard/manage-posts');
         } catch (err) {
             setError('Failed to save the post. Check console for details.');
             console.error(err);
+        }
+    };
+    
+    const handleLayoutStyleChange = (e) => {
+        const newStyle = e.target.value;
+        setLayoutStyle(newStyle);
+        if (newStyle.startsWith('MULTI_COLUMN')) {
+            if (!layoutGroupId) {
+                setLayoutGroupId(generateLayoutGroupId());
+            }
+        } else {
+            setLayoutGroupId(null);
         }
     };
 
@@ -549,6 +581,19 @@ const BlogEditorPage = () => {
                                 </div>
                             )}
                         </div>
+                        
+                        <div>
+                            <label htmlFor="layoutStyle" className="block text-gray-700 font-semibold mb-2">Layout Style</label>
+                            <select id="layoutStyle" value={layoutStyle} onChange={handleLayoutStyleChange} className="w-full p-2 border border-gray-300 rounded">
+                                <option value="DEFAULT">Default (Masonry)</option>
+                                <option value="BANNER">Banner</option>
+                                <option value="MULTI_COLUMN_2">2 Column Row</option>
+                                <option value="MULTI_COLUMN_3">3 Column Row</option>
+                                <option value="MULTI_COLUMN_4">4 Column Row</option>
+                                <option value="MULTI_COLUMN_5">5 Column Row</option>
+                                <option value="MULTI_COLUMN_6">6 Column Row</option>
+                            </select>
+                        </div>
 
                         <div>
                             <label className="block text-gray-700 font-semibold mb-2">Tags</label>
@@ -586,7 +631,7 @@ const BlogEditorPage = () => {
                                 thumbnails={storyThumbnails} 
                                 setThumbnails={setStoryThumbnails} 
                                 onUploadClick={() => {
-                                    fileInputRef.current.multiple = false; // Process one by one for crop logic
+                                    fileInputRef.current.multiple = false;
                                     fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio);
                                     fileInputRef.current.click();
                                 }}

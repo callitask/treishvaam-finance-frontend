@@ -14,7 +14,7 @@ import TopMoversCard from '../components/market/TopMoversCard';
 import BlogSidebar from '../components/BlogSidebar';
 import NewsHighlights from '../components/NewsHighlights';
 import DeeperDive from '../components/DeeperDive';
-import IndexCharts from '../components/market/IndexCharts'; // --- IMPORT NEW COMPONENT ---
+import IndexCharts from '../components/market/IndexCharts';
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -60,6 +60,58 @@ const PostCard = memo(({ article, onCategoryClick }) => {
 
     return (<div className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
 });
+
+// --- NEW CARD FOR GRID LAYOUT ---
+const GridPostCard = memo(({ article, onCategoryClick }) => {
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
+    const categoryClass = categoryStyles[article.category] || categoryStyles["Default"];
+    const isFeatured = article.featured;
+    const totalSlides = article.thumbnails?.length || 0;
+    const landscapeSlidesToShow = Math.min(totalSlides, 4);
+    const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
+
+    const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={`/blog/${article.slug}`} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+        if (isStory) {
+            return (<Slider ref={sliderRef} {...landscapeSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id} className="px-px"><Link to={`/blog/${article.slug}`} className="block bg-gray-100"><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-contain max-h-40" /></Link></div>))}</Slider>);
+        }
+        const singleThumbnail = article.thumbnails[0];
+        return (<Link to={`/blog/${article.slug}`}><ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-auto object-contain max-h-80 bg-gray-100" /></Link>);
+    };
+
+    return (<div className="bg-white border border-gray-200 relative flex flex-col h-full">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
+});
+
+
+const BannerPostCard = memo(({ article, onCategoryClick }) => {
+    const hasThumbnail = article.thumbnails && article.thumbnails.length > 0;
+    const categoryClass = "text-sky-200";
+
+    return (
+        <Link to={`/blog/${article.slug}`} className="block relative bg-black text-white overflow-hidden border border-gray-200">
+            {hasThumbnail && (
+                <ResponsiveAuthImage 
+                    baseName={article.thumbnails[0].imageUrl} 
+                    alt={article.thumbnails[0].altText || article.title} 
+                    className="w-full h-full object-cover absolute inset-0" 
+                />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent"></div>
+            <div className="relative p-8 flex flex-col justify-end min-h-[400px]">
+                 <button onClick={(e) => { e.preventDefault(); onCategoryClick(article.category); }} className={`font-bold text-sm uppercase tracking-wider ${categoryClass} hover:underline z-10`}>{article.category}</button>
+                 <h2 className="text-3xl md:text-4xl font-bold my-3 leading-tight break-words z-10">
+                     {article.title}
+                 </h2>
+            </div>
+        </Link>
+    );
+});
+
 
 const MobilePostCard = memo(({ article, onCategoryClick, layout }) => {
     const sliderRef = useRef(null);
@@ -217,6 +269,60 @@ const BlogPage = () => {
         return layout;
     }, [filteredPosts, imageOrientations]);
 
+    const desktopLayoutBlocks = useMemo(() => {
+        if (filteredPosts.length === 0) return [];
+        
+        const blocks = [];
+        let currentDefaultBlock = [];
+        const multiColumnGroups = {};
+
+        filteredPosts.forEach(post => {
+            if (post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && post.layoutGroupId) {
+                if (!multiColumnGroups[post.layoutGroupId]) {
+                    multiColumnGroups[post.layoutGroupId] = {
+                        type: post.layoutStyle,
+                        posts: []
+                    };
+                }
+                multiColumnGroups[post.layoutGroupId].posts.push(post);
+            }
+        });
+
+        for (const groupId in multiColumnGroups) {
+            multiColumnGroups[groupId].posts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+        }
+
+        const processedGroupIds = new Set();
+        filteredPosts.forEach(post => {
+            const style = post.layoutStyle || 'DEFAULT';
+
+            if (style === 'BANNER') {
+                if (currentDefaultBlock.length > 0) {
+                    blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock });
+                    currentDefaultBlock = [];
+                }
+                blocks.push({ id: `banner-${post.id}`, type: 'BANNER', posts: [post] });
+            } else if (style.startsWith('MULTI_COLUMN') && post.layoutGroupId) {
+                if (processedGroupIds.has(post.layoutGroupId)) return;
+
+                if (currentDefaultBlock.length > 0) {
+                    blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock });
+                    currentDefaultBlock = [];
+                }
+                blocks.push({ id: post.layoutGroupId, ...multiColumnGroups[post.layoutGroupId] });
+                processedGroupIds.add(post.layoutGroupId);
+            } else {
+                currentDefaultBlock.push(post);
+            }
+        });
+
+        if (currentDefaultBlock.length > 0) {
+            blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock });
+        }
+
+        return blocks;
+    }, [filteredPosts]);
+
     const latestPost = useMemo(() => {
         if (!posts || posts.length === 0) return null;
         return posts.reduce((latest, current) => new Date(current.updatedAt || current.createdAt) > new Date(latest.updatedAt || latest.createdAt) ? current : latest);
@@ -238,10 +344,43 @@ const BlogPage = () => {
     if (loading) return <div className="text-center p-10">Loading posts...</div>;
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
+    const renderDesktopLayout = () => {
+         if (desktopLayoutBlocks.length === 0) {
+            return <div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>;
+        }
+        return desktopLayoutBlocks.map(block => {
+            const blockStyle = { marginBottom: '2rem' }; 
+
+            if (block.type === 'BANNER') {
+                return <div style={blockStyle} key={block.id}><BannerPostCard article={block.posts[0]} onCategoryClick={setSelectedCategory} /></div>;
+            }
+            if (block.type.startsWith('MULTI_COLUMN')) {
+                const columnCount = parseInt(block.type.split('_')[2]) || 2;
+                const gridClass = `grid grid-cols-1 md:grid-cols-${columnCount} gap-px`;
+                return (
+                    <div style={blockStyle} key={block.id} className={gridClass}>
+                        {block.posts.map(article => (
+                            <GridPostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
+                        ))}
+                    </div>
+                );
+            }
+            if (block.type === 'DEFAULT') {
+                return (
+                    <div style={blockStyle} key={block.id} className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">
+                        {block.posts.map(article => (
+                            <PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />
+                        ))}
+                    </div>
+                );
+            }
+            return null;
+        });
+    };
+
     return (
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
         <section className="bg-gray-50">
-            {/* --- DESKTOP VIEW (sm and up) --- */}
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
                 <aside className="lg:col-span-2 order-1 py-6">
                     <div className="space-y-4">
@@ -250,22 +389,18 @@ const BlogPage = () => {
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
                         <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
                         <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
-                        
-                        {/* --- ADD NEW COMPONENT HERE --- */}
                         <IndexCharts />
-
                         <DeeperDive />
                     </div>
                 </aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">
-                    <div className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">{filteredPosts.length > 0 ? (filteredPosts.map((article) => (<PostCard key={article.id} article={article} onCategoryClick={setSelectedCategory} />))) : (<div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>)}</div>
+                     {renderDesktopLayout()}
                 </main>
                 <aside className="lg:col-span-2 order-3 py-6">
                     <div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>
                 </aside>
             </div>
 
-            {/* --- MOBILE VIEW (screens smaller than sm) --- */}
             <div className="sm:hidden">
                 <div className="px-4 py-4">
                     <div className="border-b border-gray-200 mb-4">
@@ -276,11 +411,7 @@ const BlogPage = () => {
                         {showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}
                     </div>
                 </div>
-
-                <div className="px-4">
-                    <NewsHighlights />
-                </div>
-
+                <div className="px-4"><NewsHighlights /></div>
                 {orientationsLoading ? (
                     <div className="text-center p-10">Loading Layout...</div>
                 ) : (
@@ -297,21 +428,12 @@ const BlogPage = () => {
                         <div className="market-slider-container pb-6 -mx-2">
                             <style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style>
                             <Slider {...marketSliderSettings}>
-                                <div className="px-2">
-                                    <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
-                                </div>
-                                <div className="px-2">
-                                    <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
-                                </div>
-                                <div className="px-2">
-                                    <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
-                                </div>
+                                <div className="px-2"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /></div>
+                                <div className="px-2"><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /></div>
+                                <div className="px-2"><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
                             </Slider>
                         </div>
-                         {/* --- ADD NEW COMPONENT FOR MOBILE VIEW --- */}
-                        <div className="mt-8">
-                            <IndexCharts />
-                        </div>
+                        <div className="mt-8"><IndexCharts /></div>
                     </div>
                 </div>
             </div>

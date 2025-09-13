@@ -20,6 +20,10 @@ api.interceptors.request.use(
 );
 
 export const getPosts = () => api.get('/posts');
+
+// --- NEW FUNCTION FOR INFINITE SCROLL ---
+export const getPaginatedPosts = (page = 0, size = 9) => api.get(`/posts/paginated?page=${page}&size=${size}`);
+
 export const getAllPostsForAdmin = () => api.get('/posts/admin/all');
 export const getPost = (id) => api.get(`/posts/${id}`);
 export const getPostBySlug = (slug) => api.get(`/posts/slug/${slug}`);
