@@ -19,10 +19,11 @@ api.interceptors.request.use(
     }
 );
 
-// --- STATUS AND REFRESH FUNCTIONS ---
-export const getApiStatuses = () => api.get('/status');
-export const getApiStatusHistory = () => api.get('/status/history'); // --- NEW ---
-export const refreshMarketData = () => api.post('/market/admin/refresh-us');
+export const getApiStatusHistory = () => api.get('/status/history');
+export const refreshMovers = () => api.post('/market/admin/refresh-movers');
+export const refreshIndices = () => api.post('/market/admin/refresh-indices');
+export const flushMovers = (password) => api.post('/market/admin/flush-movers', { password });
+export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
 export const refreshNewsData = () => api.post('/news/admin/refresh');
 
 // ... (rest of the functions remain the same)
