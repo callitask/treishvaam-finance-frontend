@@ -25,12 +25,12 @@ const formatLayoutStyle = (style) => {
     return style;
 };
 
-const PostsTable = ({ 
-    posts, 
-    handleDelete, 
-    handleDuplicate, 
-    handleOpenShareModal, 
-    isScheduled = false, 
+const PostsTable = ({
+    posts,
+    handleDelete,
+    handleDuplicate,
+    handleOpenShareModal,
+    isScheduled = false,
     isDraft = false,
     selectedPostIds,
     onSelectOne,
@@ -90,9 +90,9 @@ const PostsTable = ({
                                     <button onClick={() => navigate(`/dashboard/blog/edit/${post.slug}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
                                     <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete"><FaTrash /></button>
                                     {post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && (
-                                        <button 
-                                            onClick={() => handleDuplicate(post.id)} 
-                                            className={`text-gray-500 ${isAddColumnDisabled(post.layoutGroupId, post.layoutStyle) ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-600'}`} 
+                                        <button
+                                            onClick={() => handleDuplicate(post.id)}
+                                            className={`text-gray-500 ${isAddColumnDisabled(post.layoutGroupId, post.layoutStyle) ? 'opacity-50 cursor-not-allowed' : 'hover:text-blue-600'}`}
                                             title={isAddColumnDisabled(post.layoutGroupId, post.layoutStyle) ? "Group is full" : "Add post column"}
                                             disabled={isAddColumnDisabled(post.layoutGroupId, post.layoutStyle)}
                                         >
@@ -140,14 +140,14 @@ const ManagePostsPage = () => {
             setActiveTab('drafts');
         }
     }, [location.hash]);
-    
+
     useEffect(() => {
         setSelectedPostIds([]);
     }, [activeTab]);
 
     const { publishedPosts, scheduledPosts } = useMemo(() => {
-        const published = allPosts.filter(post => post.status === 'PUBLISHED');
-        const scheduled = allPosts.filter(post => post.status === 'SCHEDULED');
+        const published = allPosts.filter(p => p.status === 'PUBLISHED');
+        const scheduled = allPosts.filter(p => p.status === 'SCHEDULED');
         return { publishedPosts: published, scheduledPosts: scheduled };
     }, [allPosts]);
 
@@ -204,7 +204,7 @@ const ManagePostsPage = () => {
     };
 
     const handleSelectOne = (postId) => {
-        setSelectedPostIds(prev => 
+        setSelectedPostIds(prev =>
             prev.includes(postId) ? prev.filter(id => id !== postId) : [...prev, postId]
         );
     };
@@ -261,7 +261,7 @@ const ManagePostsPage = () => {
                 {selectedPostIds.length > 0 && (
                     <div className="mb-4 p-3 bg-sky-100 border border-sky-200 rounded-lg flex items-center gap-4">
                         <p className="text-sm font-semibold text-sky-800">{selectedPostIds.length} post(s) selected.</p>
-                        <button 
+                        <button
                             onClick={handleBulkDelete}
                             className="bg-red-600 text-white text-sm font-bold py-1 px-3 rounded-lg hover:bg-red-700 transition flex items-center"
                         >

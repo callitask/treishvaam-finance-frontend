@@ -4,6 +4,7 @@ import { getAllPostsForAdmin as getPosts } from '../apiConfig';
 import { FaLinkedin, FaFileAlt, FaEye, FaPlusSquare } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
+import ApiStatusPanel from '../components/ApiStatusPanel';
 
 const StatCard = ({ icon, title, value, color }) => (
     <div className="bg-white p-6 rounded-lg shadow-sm flex items-center">
@@ -41,17 +42,14 @@ const DashboardPage = () => {
     }, []);
 
     const recentPosts = useMemo(() => {
-        // --- MODIFICATION: Filter by status instead of published ---
         return [...posts]
             .filter(p => p.status === 'PUBLISHED')
             .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
             .slice(0, 5);
     }, [posts]);
 
-    // --- MODIFICATION START: Update filtering logic to use the 'status' field ---
     const totalPublishedPosts = useMemo(() => posts.filter(p => p.status === 'PUBLISHED').length, [posts]);
     const totalScheduledPosts = useMemo(() => posts.filter(p => p.status === 'SCHEDULED').length, [posts]);
-    // --- MODIFICATION END ---
 
     return (
         <div className="container mx-auto p-6 md:p-8">
@@ -63,8 +61,8 @@ const DashboardPage = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
                 <div className="lg:col-span-1 space-y-6">
+                    <ApiStatusPanel />
                     <div className="bg-white p-6 rounded-lg shadow-sm">
                         <h2 className="text-xl font-semibold mb-4 text-gray-700">Quick Actions</h2>
                         <Link to="/dashboard/blog/new" className="w-full flex items-center justify-center bg-sky-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-sky-700 transition duration-300">
@@ -105,7 +103,7 @@ const DashboardPage = () => {
                                     <div className="flex items-center">
                                         <div className="w-12 h-12 flex-shrink-0 mr-4">
                                             <ResponsiveAuthImage
-                                                baseName={post.thumbnailUrl}
+                                                baseName={post.thumbnails && post.thumbnails.length > 0 ? post.thumbnails[0].imageUrl : null}
                                                 alt={post.title}
                                                 className="w-full h-full rounded-lg object-cover"
                                                 sizes="48px"
@@ -118,7 +116,7 @@ const DashboardPage = () => {
                                             </p>
                                         </div>
                                     </div>
-                                    <Link to={`/dashboard/blog/edit/${post.id}`} className="text-sky-600 hover:underline text-sm font-semibold">
+                                    <Link to={`/dashboard/blog/edit/${post.slug}`} className="text-sky-600 hover:underline text-sm font-semibold">
                                         Edit
                                     </Link>
                                 </div>

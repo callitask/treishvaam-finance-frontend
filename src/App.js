@@ -15,6 +15,7 @@ import ManagePostsPage from './pages/ManagePostsPage';
 import SettingsPage from './pages/SettingsPage';
 import SinglePostPage from './pages/SinglePostPage';
 import DashboardPage from './pages/DashboardPage';
+import ApiStatusPage from './pages/ApiStatusPage';
 
 function App() {
   return (
@@ -29,7 +30,6 @@ function App() {
           <Route path="/education" element={<EducationPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/blog" element={<BlogPage />} />
-          {/* --- UPDATED ROUTE --- */}
           <Route path="/blog/:slug" element={<SinglePostPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Route>
@@ -44,9 +44,9 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="manage-posts" element={<ManagePostsPage />} />
           <Route path="blog/new" element={<BlogEditorPage />} />
-           {/* --- UPDATED ROUTE --- */}
           <Route path="blog/edit/:slug" element={<BlogEditorPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="api-status" element={<ApiStatusPage />} />
         </Route>
       </Routes>
     </AuthProvider>

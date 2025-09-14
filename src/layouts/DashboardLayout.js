@@ -2,14 +2,10 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-// --- MODIFICATION START: Import new icon for Drafts ---
-import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes, FaFileSignature } from 'react-icons/fa';
-// --- MODIFICATION END ---
+import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes, FaFileSignature, FaServer } from 'react-icons/fa';
 
-// --- MODIFICATION START: Improved NavLink to handle hashes for active state ---
 const NavLink = ({ to, icon, children }) => {
     const location = useLocation();
-    // This now checks the full path including the hash to correctly highlight the active link
     const isActive = location.pathname + location.hash === to;
     return (
         <Link
@@ -23,7 +19,6 @@ const NavLink = ({ to, icon, children }) => {
         </Link>
     );
 };
-// --- MODIFICATION END ---
 
 const DashboardLayout = () => {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -33,10 +28,9 @@ const DashboardLayout = () => {
             <nav className="flex-grow space-y-1">
                 <NavLink to="/dashboard" icon={<FaTachometerAlt />}>Dashboard</NavLink>
                 <NavLink to="/dashboard/manage-posts" icon={<FaFileAlt />}>Manage Posts</NavLink>
-                {/* --- MODIFICATION START: Add the new "Drafts" link --- */}
                 <NavLink to="/dashboard/manage-posts#drafts" icon={<FaFileSignature />}>Drafts</NavLink>
-                {/* --- MODIFICATION END --- */}
                 <NavLink to="/dashboard/blog/new" icon={<FaPlusSquare />}>Create Post</NavLink>
+                <NavLink to="/dashboard/api-status" icon={<FaServer />}>API Status</NavLink>
             </nav>
         </div>
     );
@@ -44,15 +38,11 @@ const DashboardLayout = () => {
     return (
         <div className="flex flex-col min-h-screen bg-gray-50">
             <Navbar />
-
             <div className="flex flex-1 overflow-hidden">
-                {/* --- Desktop Sidebar --- */}
                 <aside className="hidden md:flex w-64 bg-white flex-col flex-shrink-0 border-r">
                     {sidebarContent}
                 </aside>
-                
-                {/* --- Mobile Sidebar (Drawer) --- */}
-                 <div className={`fixed inset-0 z-30 flex transition-transform duration-300 ease-in-out md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                <div className={`fixed inset-0 z-30 flex transition-transform duration-300 ease-in-out md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="w-64 bg-white flex flex-col flex-shrink-0 border-r">
                         <div className="flex justify-end p-2">
                            <button onClick={() => setIsSidebarOpen(false)} className="text-2xl text-gray-600"><FaTimes /></button>
@@ -61,10 +51,7 @@ const DashboardLayout = () => {
                     </div>
                     <div className="flex-1 bg-black opacity-50" onClick={() => setIsSidebarOpen(false)}></div>
                 </div>
-
-                {/* --- Main Content --- */}
                 <main className="flex-1 overflow-y-auto">
-                    {/* Mobile Header for the sidebar toggle */}
                     <div className="md:hidden flex items-center justify-between p-4 bg-white border-b">
                         <h2 className="text-lg font-semibold">Dashboard Menu</h2>
                         <button onClick={() => setIsSidebarOpen(true)} className="text-2xl text-gray-600">
@@ -74,7 +61,6 @@ const DashboardLayout = () => {
                     <Outlet />
                 </main>
             </div>
-
             <Footer />
         </div>
     );

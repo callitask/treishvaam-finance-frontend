@@ -18,35 +18,43 @@ const MarketChart = ({ ticker, chartTitle }) => {
             setError(null);
             try {
                 const response = await getHistoricalData(ticker);
+                
+                const timeSeries = response.data ? response.data['Time Series (Daily)'] : null;
+                
+                if (timeSeries) {
+                    const dates = Object.keys(timeSeries).slice(0, 30).reverse();
+                    const prices = dates.map(date => parseFloat(timeSeries[date]['4. close']));
 
-                if (response && response.data && Array.isArray(response.data.historical)) {
-                    const historicalData = response.data.historical.slice(0, 30).reverse(); 
-                    
-                    if (historicalData.length === 0) {
-                        setError(`No historical data found for ${ticker}.`);
+                    if (dates.length === 0) {
+                        setError(`No historical data points found for ${ticker}.`);
                         return;
                     }
 
                     setChartData({
-                        labels: historicalData.map(data => data.date),
+                        labels: dates,
                         datasets: [
                             {
-                                label: `${ticker} Price ($)`,
-                                data: historicalData.map(data => data.close),
-                                borderColor: 'rgb(59, 130, 246)',
-                                backgroundColor: 'rgba(59, 130, 246, 0.5)',
+                                label: `Price ($)`,
+                                data: prices,
+                                borderColor: prices[prices.length - 1] >= prices[0] ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)',
+                                backgroundColor: prices[prices.length - 1] >= prices[0] ? 'rgba(22, 163, 74, 0.5)' : 'rgba(220, 38, 38, 0.5)',
                                 tension: 0.1,
+                                pointRadius: 0,
                             },
                         ],
                     });
                 } else {
-                    console.error("Unexpected API response structure:", response.data);
-                    setError(`Invalid data format received for ${ticker}.`);
+                    setError(response.data.message || `Invalid data format received for ${ticker}.`);
                 }
 
             } catch (err) {
+                // This logic now correctly reads the specific error from the backend response.
+                if (err.response && err.response.data && err.response.data.message) {
+                    setError(err.response.data.message);
+                } else {
+                    setError('Could not connect to the API. It may be temporarily unavailable.');
+                }
                 console.error("Failed to fetch chart data:", err);
-                setError('Could not fetch chart data. The API might be unavailable.');
             } finally {
                 setLoading(false);
             }
@@ -55,25 +63,38 @@ const MarketChart = ({ ticker, chartTitle }) => {
         fetchChartData();
     }, [ticker]);
 
-    if (loading) return <div className="p-4 text-center text-slate-500 text-xs">Loading Chart...</div>;
-    if (error) return <div className="p-4 text-center text-red-600 text-xs font-semibold">{error}</div>;
+    if (loading) {
+        return <div className="p-4 text-center text-slate-500 text-xs">Loading Chart...</div>;
+    }
+    
+    if (error) {
+        return (
+            <div className="p-4 text-center">
+                <p className="font-semibold text-sm text-gray-800">{chartTitle || ticker}</p>
+                <div className="text-red-600 text-xs font-semibold mt-2">{error}</div>
+            </div>
+        );
+    }
 
     const options = {
         responsive: true,
         plugins: {
-            legend: {
-                position: 'top',
-            },
+            legend: { display: false },
             title: {
                 display: true,
-                // Use the chartTitle prop if provided, otherwise default to the ticker
                 text: chartTitle || `${ticker} - Last 30 Days`,
+                font: { size: 14, weight: 'bold' },
+                color: '#334155',
             },
         },
+        scales: {
+            x: { ticks: { display: false }, grid: { display: false } },
+            y: { ticks: { font: { size: 10 } } }
+        }
     };
 
     return (
-        <div className="p-2 border-t mt-2">
+        <div className="p-2">
             {chartData ? <Line options={options} data={chartData} /> : null}
         </div>
     );
