@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { getHistoricalData } from '../../apiConfig';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 const MarketChart = ({ ticker, chartTitle }) => {
     const [chartData, setChartData] = useState(null);
@@ -18,7 +18,6 @@ const MarketChart = ({ ticker, chartTitle }) => {
             setError(null);
             try {
                 const response = await getHistoricalData(ticker);
-                
                 const timeSeries = response.data ? response.data['Time Series (Daily)'] : null;
                 
                 if (timeSeries) {
@@ -30,16 +29,28 @@ const MarketChart = ({ ticker, chartTitle }) => {
                         return;
                     }
 
+                    const formattedDates = dates.map(date => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+
                     setChartData({
-                        labels: dates,
+                        labels: formattedDates,
                         datasets: [
                             {
                                 label: `Price ($)`,
                                 data: prices,
-                                borderColor: prices[prices.length - 1] >= prices[0] ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)',
-                                backgroundColor: prices[prices.length - 1] >= prices[0] ? 'rgba(22, 163, 74, 0.5)' : 'rgba(220, 38, 38, 0.5)',
-                                tension: 0.1,
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: (context) => {
+                                    const ctx = context.chart.ctx;
+                                    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+                                    gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
+                                    gradient.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                                    return gradient;
+                                },
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4,
                                 pointRadius: 0,
+                                pointHoverRadius: 5,
+                                pointBackgroundColor: 'rgb(59, 130, 246)',
                             },
                         ],
                     });
@@ -48,7 +59,6 @@ const MarketChart = ({ ticker, chartTitle }) => {
                 }
 
             } catch (err) {
-                // This logic now correctly reads the specific error from the backend response.
                 if (err.response && err.response.data && err.response.data.message) {
                     setError(err.response.data.message);
                 } else {
@@ -78,23 +88,65 @@ const MarketChart = ({ ticker, chartTitle }) => {
 
     const options = {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
             title: {
                 display: true,
-                text: chartTitle || `${ticker} - Last 30 Days`,
-                font: { size: 14, weight: 'bold' },
-                color: '#334155',
+                text: `${chartTitle || ticker} - Last 30 Days`,
+                font: { size: 16, weight: '600' },
+                color: '#1f2937',
+                padding: { top: 10, bottom: 20 }
             },
+            tooltip: {
+                enabled: true,
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                    label: (context) => `Price: $${context.parsed.y.toFixed(2)}`
+                }
+            }
         },
         scales: {
-            x: { ticks: { display: false }, grid: { display: false } },
-            y: { ticks: { font: { size: 10 } } }
+            x: {
+                display: true,
+                title: {
+                    display: true,
+                    text: 'Date',
+                    font: { size: 12, weight: '500' },
+                    color: '#6b7280'
+                },
+                ticks: { 
+                    display: true,
+                    font: { size: 10 },
+                    color: '#6b7280',
+                    maxTicksLimit: 6
+                },
+                grid: { display: false }
+            },
+            y: {
+                display: true,
+                title: {
+                    display: true,
+                    text: 'Price (USD)',
+                    font: { size: 12, weight: '500' },
+                    color: '#6b7280'
+                },
+                ticks: {
+                    font: { size: 10 },
+                    color: '#6b7280',
+                    callback: (value) => `$${value.toFixed(0)}`
+                },
+                 grid: {
+                    color: '#e5e7eb',
+                    drawBorder: false,
+                }
+            }
         }
     };
 
     return (
-        <div className="p-2">
+        <div className="p-4" style={{ height: '220px' }}>
             {chartData ? <Line options={options} data={chartData} /> : null}
         </div>
     );
