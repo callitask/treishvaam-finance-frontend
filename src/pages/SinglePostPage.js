@@ -1,5 +1,5 @@
 // src/pages/SinglePostPage.js
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { getPostBySlug } from '../apiConfig';
 import DOMPurify from 'dompurify';
@@ -58,7 +58,7 @@ const SinglePostPage = () => {
     }, [post?.content]);
     
     // Handle Scroll for Progress Bar and Active Heading
-    const handleScroll = useCallback(throttle(() => {
+    const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
 
@@ -90,7 +90,11 @@ const SinglePostPage = () => {
 
     useEffect(() => {
         window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
+        // UPDATED: Added cleanup to cancel the throttle on unmount
+        return () => {
+            handleScroll.cancel();
+            window.removeEventListener('scroll', handleScroll);
+        };
     }, [handleScroll]);
 
     if (loading) return <div className="text-center py-20">Loading post...</div>;
