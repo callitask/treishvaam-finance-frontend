@@ -90,7 +90,6 @@ const SinglePostPage = () => {
 
     useEffect(() => {
         window.addEventListener('scroll', handleScroll);
-        // UPDATED: Added cleanup to cancel the throttle on unmount
         return () => {
             handleScroll.cancel();
             window.removeEventListener('scroll', handleScroll);
@@ -114,23 +113,24 @@ const SinglePostPage = () => {
                 {/* --- LEFT (MAIN) COLUMN: SCROLLS --- */}
                 <div className="lg:col-span-8 xl:col-span-9 py-8">
                     <header className="mb-8">
-                        {/* UPDATED: Bigger, bolder headline */}
                         <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 leading-tight">
                             {post.title}
                         </h1>
-                        <div className="flex items-center text-sm text-gray-500 mt-4">
+                        <div className="flex items-center text-sm text-gray-500 mt-4 mb-6">
                             <span>By {post.authorName || 'Treishvaam Team'}</span>
                             <span className="mx-2">·</span>
                             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                         </div>
-                    </header>
-                    
-                    <main ref={articleRef}>
+                        
+                        {/* --- COVER IMAGE MOVED HERE --- */}
                         {post.coverImageUrl && (
                             <div className="mb-8 rounded-lg overflow-hidden shadow-lg">
                                 <ResponsiveAuthImage imageName={post.coverImageUrl} alt={post.title} className="w-full h-auto object-cover"/>
                             </div>
                         )}
+                    </header>
+                    
+                    <main ref={articleRef}>
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
                         
                         <div className="mt-16 pt-8 border-t">

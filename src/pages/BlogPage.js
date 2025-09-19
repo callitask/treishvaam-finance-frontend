@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, memo, useRef, useCallback, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { API_URL, getCategories, getPaginatedPosts, getTopGainers, getTopLosers, getMostActive } from '../apiConfig';
 import DOMPurify from 'dompurify';
@@ -14,6 +15,8 @@ import IndexCharts from '../components/market/IndexCharts';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import SearchAutocomplete from '../components/SearchAutocomplete';
+
 
 const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
@@ -89,6 +92,70 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout }, re
     const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
     return (<div ref={ref} className={`bg-white shadow-sm flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 shadow-md uppercase tracking-wider">Featured</span></div>)}{hasThumbnails && (isStory ? (<Slider ref={sliderRef} {...sliderSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id}><Link to={`/blog/${article.slug}`}><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-cover bg-gray-100 aspect-video" /></Link></div>))}</Slider>) : (<Link to={`/blog/${article.slug}`}><ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className={`w-full object-cover bg-gray-100 ${isBannerLayout ? 'aspect-video' : 'aspect-square'}`} /></Link>))}<div className="p-3 flex flex-col flex-grow"><div className="flex items-center justify-between text-xs mb-2"><div className="flex items-center flex-wrap"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0 ml-2">NEW</span>}</div><h3 className={titleClass}><Link to={`/blog/${article.slug}`} className="hover:underline">{article.title}</Link></h3><div className="mt-auto pt-2 text-xs text-gray-500"><span>{displayDate}</span></div></div></div>);
 }));
+
+
+// Component for the category filter dropdown, to be used in the portal
+const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const allCategories = ['All', ...categories.map(cat => cat.name)];
+
+    if (loadingCategories) {
+        return <div className="h-10 w-48 bg-gray-200 animate-pulse rounded-md"></div>;
+    }
+
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200 hover:bg-gray-50 text-sm font-medium text-gray-700 flex justify-between items-center"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+                {selectedCategory}
+                <svg className={`h-5 w-5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+            </button>
+            {isDropdownOpen && (
+                <div className="absolute z-20 mt-2 w-full origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition-all duration-100 ease-in-out">
+                    <div className="py-1">
+                        {allCategories.map(cat => (
+                            <div
+                                key={cat}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                    setSelectedCategory(cat);
+                                    setIsDropdownOpen(false);
+                                }}
+                            >
+                                {cat}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+// The Portal component that will render the blog-specific navbar items
+const NavbarExtrasPortal = ({ children }) => {
+    const [mountNode, setMountNode] = useState(null);
+
+    useEffect(() => {
+        const node = document.getElementById('navbar-extras-portal-target');
+        setMountNode(node);
+        // Cleanup function to clear the portal content when the component unmounts
+        return () => {
+            if (node) {
+                node.innerHTML = '';
+            }
+        };
+    }, []);
+
+    return mountNode ? createPortal(children, mountNode) : null;
+};
+
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -172,7 +239,7 @@ const BlogPage = () => {
         };
         checkOrientations();
     }, [filteredPosts]);
-     
+    
     const mobileLayout = useMemo(() => {
         const layout = []; let i = 0;
         while (i < filteredPosts.length) {
@@ -230,11 +297,25 @@ const BlogPage = () => {
 
     return (
         <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
+        
+        <NavbarExtrasPortal>
+            <div className="w-64">
+                <SearchAutocomplete />
+            </div>
+            <CategoryFilter
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                loadingCategories={loadingCategories}
+            />
+            <h1 className="text-xl font-bold text-gray-900 hidden lg:block">Finance <span className="text-sky-600">World</span></h1>
+        </NavbarExtrasPortal>
+
         <section className="bg-gray-50">
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
-                <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><h2 className="font-bold text-xl border-b pb-2 pt-4">Market Movers</h2><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /><IndexCharts /><DeeperDive /></div></aside>
+                <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><h2 className="font-bold text-xl border-b pb-2 pt-4">Market Movers</h2><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /><DeeperDive /></div></aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">{renderDesktopLayout()}{loading && <div className="text-center p-10 col-span-full">Loading more posts...</div>}{!hasMore && filteredPosts.length > 0 && <div className="text-center p-10 col-span-full text-gray-500">You've reached the end.</div>}</main>
-                <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><BlogSidebar categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div></aside>
+                <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /></div></aside>
             </div>
             <div className="sm:hidden">
                 <div className="px-4 py-4"><div className="border-b border-gray-200 mb-4"><button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">{showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}{showMobileFilters ? <FiX /> : <FiFilter />}</button>{showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={setSelectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}</div></div>

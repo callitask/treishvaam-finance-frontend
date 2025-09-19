@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaSignOutAlt } from 'react-icons/fa';
-import SearchAutocomplete from './SearchAutocomplete'; // --- IMPORT THE NEW COMPONENT ---
+import { FaSignOutAlt, FaChevronDown } from 'react-icons/fa';
+import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [logoSrc, setLogoSrc] = useState('/api/logo');
+    const [isLoginDropdownOpen, setLoginDropdownOpen] = useState(false);
     const { auth, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -37,7 +38,7 @@ const Navbar = () => {
 
     return (
         <header className="bg-white shadow-md sticky top-0 z-50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-[80px]">
+            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-20">
                     <div className="flex items-center">
                         <Link to="/" className="flex-shrink-0 flex items-center">
@@ -57,17 +58,41 @@ const Navbar = () => {
                                 <NavLink to="/about" className={getLinkClass}>About</NavLink>
                                 <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
                                 <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
+                                 {/* Login Dropdown */}
+                                <div className="relative">
+                                    <button
+                                        onMouseEnter={() => setLoginDropdownOpen(true)}
+                                        onMouseLeave={() => setLoginDropdownOpen(false)}
+                                        className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center"
+                                    >
+                                        <span>Login</span>
+                                        <FaChevronDown className="ml-1 h-3 w-3" />
+                                    </button>
+                                    {isLoginDropdownOpen && (
+                                        <div
+                                            onMouseEnter={() => setLoginDropdownOpen(true)}
+                                            onMouseLeave={() => setLoginDropdownOpen(false)}
+                                            className="absolute z-10 -ml-4 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                                        >
+                                            <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                                                    Admin Login
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 {auth.isAuthenticated && (
                                     <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
                                 )}
                             </div>
                         </nav>
                     </div>
-                    {/* --- START: ADDED SEARCH AND AUTH CONTAINER --- */}
+
                     <div className="hidden md:flex items-center space-x-4">
-                        <div className="w-64">
-                            <SearchAutocomplete />
-                        </div>
+                        {/* This div is the portal target for blog page extras */}
+                        <div id="navbar-extras-portal-target" className="flex items-center space-x-4"></div>
+
                         {auth.isAuthenticated ? (
                             <button
                                 onClick={handleLogout}
@@ -76,11 +101,9 @@ const Navbar = () => {
                                 <FaSignOutAlt className="mr-2" />
                                 Logout
                             </button>
-                        ) : (
-                            <Link to="/login" className="px-4 py-2 rounded-md text-sm font-medium text-white cta-button-primary hover:bg-sky-700 transition duration-300">Login</Link>
-                        )}
+                        ) : null}
                     </div>
-                    {/* --- END: ADDED SEARCH AND AUTH CONTAINER --- */}
+
                     <div className="md:hidden flex items-center">
                         <button onClick={() => setMobileMenuOpen(!isMobileMenuOpen)} type="button" className="bg-white rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500" aria-expanded="false">
                             <span className="sr-only">Open main menu</span>
@@ -96,7 +119,6 @@ const Navbar = () => {
                 {isMobileMenuOpen && (
                     <div className="md:hidden" id="mobile-menu">
                         <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                            {/* --- ADDED SEARCH FOR MOBILE --- */}
                             <div className="px-2 py-2">
                                 <SearchAutocomplete />
                             </div>
@@ -115,7 +137,7 @@ const Navbar = () => {
                                         <button onClick={() => { handleLogout(); closeMobileMenu(); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700">Logout</button>
                                     </>
                                 ) : (
-                                    <Link to="/login" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white cta-button-primary hover:bg-sky-700" onClick={closeMobileMenu}>Login</Link>
+                                    <Link to="/login" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white cta-button-primary hover:bg-sky-700" onClick={closeMobileMenu}>Admin Login</Link>
                                 )}
                             </div>
                         </div>
