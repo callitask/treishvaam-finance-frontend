@@ -53,10 +53,10 @@ body {
 
 
 /* --- Article Typography & Scroll Margin --- */
-.prose { 
+.prose {
     /* NEW: Applying serif font for a classic news/article feel */
     font-family: 'Merriweather', serif;
-    @apply text-gray-800; 
+    @apply text-gray-800;
 }
 
 /* UPDATED: Enhancing readability with both line-height and margin-bottom */
@@ -68,4 +68,11 @@ body {
 .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
     font-family: 'Inter', sans-serif;
     scroll-margin-top: 100px;
+}
+
+/* --- Custom Component Styles --- */
+@layer components {
+  .cta-button-primary {
+    @apply bg-sky-600;
+  }
 }
