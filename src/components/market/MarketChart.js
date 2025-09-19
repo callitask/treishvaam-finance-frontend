@@ -16,6 +16,8 @@ const MarketChart = ({ ticker, chartTitle }) => {
         const fetchChartData = async () => {
             setLoading(true);
             setError(null);
+            // We do not reset chartData here to prevent flickering, the loading state handles it.
+            
             try {
                 const response = await getHistoricalData(ticker);
                 const timeSeries = response.data ? response.data['Time Series (Daily)'] : null;
@@ -55,7 +57,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
                         ],
                     });
                 } else {
-                    setError(response.data.message || `Invalid data format received for ${ticker}.`);
+                     setError(response.data.message || `Invalid data format received for ${ticker}.`);
                 }
 
             } catch (err) {
@@ -71,7 +73,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
         };
 
         fetchChartData();
-    }, [ticker]);
+    }, [ticker]); // This dependency array is the key to correct caching behavior.
 
     if (loading) {
         return <div className="p-4 text-center text-slate-500 text-xs">Loading Chart...</div>;
@@ -81,7 +83,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
         return (
             <div className="p-4 text-center">
                 <p className="font-semibold text-sm text-gray-800">{chartTitle || ticker}</p>
-                <div className="text-red-600 text-xs font-semibold mt-2">{error}</div>
+                <div className="text-red-600 text-xs font-semibold mt-2 break-words">{error}</div>
             </div>
         );
     }
@@ -111,10 +113,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
             x: {
                 display: true,
                 title: {
-                    display: true,
-                    text: 'Date',
-                    font: { size: 12, weight: '500' },
-                    color: '#6b7280'
+                    display: false,
                 },
                 ticks: { 
                     display: true,
@@ -127,10 +126,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
             y: {
                 display: true,
                 title: {
-                    display: true,
-                    text: 'Price (USD)',
-                    font: { size: 12, weight: '500' },
-                    color: '#6b7280'
+                    display: false,
                 },
                 ticks: {
                     font: { size: 10 },
@@ -146,7 +142,7 @@ const MarketChart = ({ ticker, chartTitle }) => {
     };
 
     return (
-        <div className="p-4" style={{ height: '220px' }}>
+        <div className="p-4 w-full h-full">
             {chartData ? <Line options={options} data={chartData} /> : null}
         </div>
     );

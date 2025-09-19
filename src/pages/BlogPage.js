@@ -12,6 +12,7 @@ import BlogSidebar from '../components/BlogSidebar';
 import NewsHighlights from '../components/NewsHighlights';
 import DeeperDive from '../components/DeeperDive';
 import IndexCharts from '../components/market/IndexCharts';
+import MarketMovers from '../components/market/MarketMovers'; // Import the new component
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -313,9 +314,9 @@ const BlogPage = () => {
 
         <section className="bg-gray-50">
             <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
-                <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><h2 className="font-bold text-xl border-b pb-2 pt-4">Market Movers</h2><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /><DeeperDive /></div></aside>
+                <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><DeeperDive /></div></aside>
                 <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">{renderDesktopLayout()}{loading && <div className="text-center p-10 col-span-full">Loading more posts...</div>}{!hasMore && filteredPosts.length > 0 && <div className="text-center p-10 col-span-full text-gray-500">You've reached the end.</div>}</main>
-                <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /></div></aside>
+                <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /><MarketMovers /></div></aside>
             </div>
             <div className="sm:hidden">
                 <div className="px-4 py-4"><div className="border-b border-gray-200 mb-4"><button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">{showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}{showMobileFilters ? <FiX /> : <FiFilter />}</button>{showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={setSelectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}</div></div>
