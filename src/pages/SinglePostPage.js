@@ -1,7 +1,7 @@
 // src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPostBySlug } from '../apiConfig';
+import { getPostBySlugAndId } from '../apiConfig'; // Import the new function
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
@@ -15,7 +15,7 @@ const formatDate = (dateString) => {
 };
 
 const SinglePostPage = () => {
-    const { slug } = useParams();
+    const { userFriendlySlug, id } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -28,7 +28,7 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                const response = await getPostBySlug(slug);
+                const response = await getPostBySlugAndId(userFriendlySlug, id);
                 setPost(response.data);
             } catch (err) {
                 setError('Failed to fetch post.');
@@ -38,7 +38,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [slug]);
+    }, [userFriendlySlug, id]);
 
     // Extract Headings and Add IDs
     useEffect(() => {
@@ -101,12 +101,11 @@ const SinglePostPage = () => {
     if (!post) return <div className="text-center py-20">Post not found.</div>;
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
-    const pageTitle = `Treishvaam Finance · ${post.title}`;
-
+    
     return (
         <>
             <Helmet>
-                <title>{pageTitle}</title>
+                <title>{`Treishvaam Finance · ${post?.title || 'Blog Post'}`}</title>
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">
@@ -134,7 +133,7 @@ const SinglePostPage = () => {
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
                         
                         <div className="mt-16 pt-8 border-t">
-                            <ShareButtons url={`/blog/${slug}`} title={post.title} />
+                            <ShareButtons url={`/blog/${userFriendlySlug}/${id}`} title={post.title} />
                         </div>
                     </main>
                 </div>

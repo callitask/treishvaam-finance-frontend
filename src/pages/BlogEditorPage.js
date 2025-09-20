@@ -6,7 +6,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPostBySlug, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
+import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig'; // Assuming getPost by ID exists
 import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
@@ -156,8 +156,8 @@ const DraggableThumbnail = ({ id, thumbnail, index, moveThumbnail, onRemove, onA
         <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="p-2 border rounded-lg bg-white flex items-start gap-3">
              <img src={thumbnail.preview} alt="preview" className="w-24 h-24 object-cover rounded-md flex-shrink-0" />
              <div className="flex-grow">
-                <input type="text" value={thumbnail.altText || ''} onChange={(e) => onAltTextChange(index, e.target.value)} placeholder="Alt text" className="w-full p-2 text-sm border border-gray-300 rounded mb-2" />
-                <button type="button" onClick={() => onRemove(index)} className="text-xs text-red-600 hover:underline">Remove</button>
+                 <input type="text" value={thumbnail.altText || ''} onChange={(e) => onAltTextChange(index, e.target.value)} placeholder="Alt text" className="w-full p-2 text-sm border border-gray-300 rounded mb-2" />
+                 <button type="button" onClick={() => onRemove(index)} className="text-xs text-red-600 hover:underline">Remove</button>
              </div>
         </div>
     );
@@ -208,7 +208,7 @@ const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toStrin
 
 // MAIN COMPONENT
 const BlogEditorPage = () => {
-    const { slug } = useParams();
+    const { userFriendlySlug, id } = useParams();
     const navigate = useNavigate();
     
     // STATE
@@ -244,6 +244,8 @@ const BlogEditorPage = () => {
     // --- NEW STATE FOR LAYOUT ---
     const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
     const [layoutGroupId, setLayoutGroupId] = useState(null);
+    const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
+
 
     // REFS
     const editorRef = useRef(null);
@@ -256,8 +258,8 @@ const BlogEditorPage = () => {
             try {
                 const categoriesRes = await getCategories();
                 if (Array.isArray(categoriesRes.data)) setAllCategories(categoriesRes.data);
-                if (slug) {
-                    const postRes = await getPostBySlug(slug);
+                if (id) {
+                    const postRes = await getPost(id); // Fetch by ID
                     const post = postRes.data;
                     setPostId(post.id);
                     setTitle(post.title);
@@ -266,6 +268,7 @@ const BlogEditorPage = () => {
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCustomSnippet(post.customSnippet || '');
+                    setPostUserFriendlySlug(post.userFriendlySlug || '');
                     
                     setLayoutStyle(post.layoutStyle || 'DEFAULT');
                     setLayoutGroupId(post.layoutGroupId || null);
@@ -296,7 +299,7 @@ const BlogEditorPage = () => {
             }
         };
         fetchInitialData();
-    }, [slug]);
+    }, [id]);
 
     const handleAutoSave = useCallback(async () => {
         if (!title.trim() && !content.trim()) return;
@@ -309,7 +312,7 @@ const BlogEditorPage = () => {
             } else {
                 const response = await createDraft(draftData);
                 setPostId(response.data.id);
-                navigate(`/dashboard/blog/edit/${response.data.slug}`, { replace: true });
+                navigate(`/dashboard/blog/edit/${response.data.userFriendlySlug}/${response.data.id}`, { replace: true });
             }
             setSaveStatus('Saved');
         } catch (err) {
@@ -477,6 +480,8 @@ const BlogEditorPage = () => {
         } else {
             formData.append('layoutGroupId', '');
         }
+        formData.append('userFriendlySlug', postUserFriendlySlug);
+
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
@@ -497,11 +502,11 @@ const BlogEditorPage = () => {
                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
                 formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
             } else if (thumbPreview) {
-                  const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
-                  const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
-                  formData.append('thumbnailMetadata', JSON.stringify(metadata));
+                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
+                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
+                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
             } else {
-                  formData.append('thumbnailMetadata', JSON.stringify([]));
+                 formData.append('thumbnailMetadata', JSON.stringify([]));
             }
         }
 
@@ -557,6 +562,20 @@ const BlogEditorPage = () => {
                             <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
                             <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
                         </div>
+
+                        <div>
+                           <label htmlFor="userFriendlySlug" className="block text-gray-700 font-semibold mb-2">
+                               URL Slug (SEO Friendly)
+                           </label>
+                           <input 
+                               type="text" 
+                               id="userFriendlySlug" 
+                               value={postUserFriendlySlug} 
+                               onChange={e => setPostUserFriendlySlug(e.target.value)} 
+                               placeholder="e.g., guide-to-market-analysis"
+                               className="w-full p-2 border border-gray-300 rounded" 
+                           />
+                       </div>
 
                         <div>
                             <label htmlFor="customSnippet" className="block text-gray-700 font-semibold mb-2">Custom Snippet (for SEO & Previews)</label>
