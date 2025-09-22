@@ -29,8 +29,8 @@ export const refreshNewsData = () => api.post('/news/admin/refresh');
 export const getAllPostsForAdmin = () => api.get('/posts/admin/all');
 export const getPost = (id) => api.get(`/posts/${id}`);
 
-// --- UPDATED: New function for hybrid slug and ID ---
-export const getPostBySlugAndId = (userFriendlySlug, id) => api.get(`/posts/slug/${userFriendlySlug}/${id}`);
+// --- UPDATED: New function for the full SEO-friendly URL ---
+export const getPostByFullUrl = (categorySlug, userFriendlySlug, id) => api.get(`/posts/category/${categorySlug}/${userFriendlySlug}/${id}`);
 
 export const createPost = (formData) => api.post('/posts', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

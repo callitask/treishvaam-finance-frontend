@@ -30,7 +30,8 @@ function App() {
           <Route path="/education" element={<EducationPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:userFriendlySlug/:id" element={<SinglePostPage />} />
+          {/* --- THIS IS THE NEW, CORRECT ROUTE --- */}
+          <Route path="/blog/category/:categorySlug/:userFriendlySlug/:id" element={<SinglePostPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Route>
 

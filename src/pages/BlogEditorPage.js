@@ -6,7 +6,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig'; // Assuming getPost by ID exists
+import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
@@ -216,7 +216,7 @@ const BlogEditorPage = () => {
     const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [category, setCategory] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState(null); // UPDATED
     const [isFeatured, setIsFeatured] = useState(false);
     const [tags, setTags] = useState([]);
     const [error, setError] = useState('');
@@ -241,7 +241,6 @@ const BlogEditorPage = () => {
     const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
     const [pendingCrop, setPendingCrop] = useState(null);
     
-    // --- NEW STATE FOR LAYOUT ---
     const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
     const [layoutGroupId, setLayoutGroupId] = useState(null);
     const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
@@ -258,13 +257,20 @@ const BlogEditorPage = () => {
             try {
                 const categoriesRes = await getCategories();
                 if (Array.isArray(categoriesRes.data)) setAllCategories(categoriesRes.data);
+                
                 if (id) {
                     const postRes = await getPost(id); // Fetch by ID
                     const post = postRes.data;
                     setPostId(post.id);
                     setTitle(post.title);
                     setContent(post.content);
-                    setCategory(post.category || (categoriesRes.data?.[0]?.name || ''));
+                    
+                    // UPDATED: Find and set the full category object
+                    if (post.category && categoriesRes.data) {
+                        const currentCategory = categoriesRes.data.find(c => c.name === post.category);
+                        setSelectedCategory(currentCategory || null);
+                    }
+                    
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCustomSnippet(post.customSnippet || '');
@@ -291,7 +297,10 @@ const BlogEditorPage = () => {
                     if(post.coverImageUrl) setCoverPreview(`${API_URL}/api/uploads/${post.coverImageUrl}.webp`);
                     if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
                 } else {
-                    if (categoriesRes.data?.length > 0) setCategory(categoriesRes.data[0].name);
+                    // UPDATED: Set the first category object as default for new posts
+                    if (categoriesRes.data?.length > 0) {
+                        setSelectedCategory(categoriesRes.data[0]);
+                    }
                 }
             } catch (err) {
                 setError('Failed to load initial data.');
@@ -427,7 +436,7 @@ const BlogEditorPage = () => {
         try {
             const response = await addCategory({ name: newCategoryName });
             setAllCategories([...allCategories, response.data]);
-            setCategory(response.data.name);
+            setSelectedCategory(response.data); // UPDATED
             setNewCategoryName('');
             setShowNewCategoryInput(false);
         } catch (err) {
@@ -463,11 +472,12 @@ const BlogEditorPage = () => {
         e.preventDefault();
         setError('');
         if (!editorRef.current) return setError("Editor is not yet available.");
+        if (!selectedCategory) return setError("Please select a category."); // UPDATED Validation
 
         const formData = new FormData();
         formData.append('title', title);
         formData.append('content', editorRef.current.getContents(true));
-        formData.append('category', category);
+        formData.append('category', selectedCategory.name); // UPDATED
         formData.append('featured', isFeatured);
         formData.append('customSnippet', customSnippet);
         tags.forEach(tag => formData.append('tags', tag));
@@ -502,11 +512,11 @@ const BlogEditorPage = () => {
                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
                 formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
             } else if (thumbPreview) {
-                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
-                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
-                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
+                  const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
+                  const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
+                  formData.append('thumbnailMetadata', JSON.stringify(metadata));
             } else {
-                 formData.append('thumbnailMetadata', JSON.stringify([]));
+                  formData.append('thumbnailMetadata', JSON.stringify([]));
             }
         }
 
@@ -585,7 +595,15 @@ const BlogEditorPage = () => {
                         <div>
                             <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
                             <div className="flex items-center gap-2">
-                                <select id="category" value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border border-gray-300 rounded">
+                                <select
+                                    id="category"
+                                    value={selectedCategory ? selectedCategory.name : ''}
+                                    onChange={e => {
+                                        const cat = allCategories.find(c => c.name === e.target.value);
+                                        setSelectedCategory(cat);
+                                    }}
+                                    className="w-full p-2 border border-gray-300 rounded"
+                                >
                                     <option value="">Select a category</option>
                                     {allCategories && allCategories.map((cat) => (
                                         <option key={cat.id} value={cat.name}>{cat.name}</option>

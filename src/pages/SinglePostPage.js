@@ -1,7 +1,7 @@
 // src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPostBySlugAndId } from '../apiConfig'; // Import the new function
+import { getPostByFullUrl } from '../apiConfig'; // UPDATED
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
@@ -15,7 +15,7 @@ const formatDate = (dateString) => {
 };
 
 const SinglePostPage = () => {
-    const { userFriendlySlug, id } = useParams();
+    const { categorySlug, userFriendlySlug, id } = useParams(); // UPDATED
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -28,7 +28,8 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                const response = await getPostBySlugAndId(userFriendlySlug, id);
+                // UPDATED
+                const response = await getPostByFullUrl(categorySlug, userFriendlySlug, id);
                 setPost(response.data);
             } catch (err) {
                 setError('Failed to fetch post.');
@@ -38,7 +39,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [userFriendlySlug, id]);
+    }, [categorySlug, userFriendlySlug, id]); // UPDATED
 
     // Extract Headings and Add IDs
     useEffect(() => {
@@ -133,7 +134,8 @@ const SinglePostPage = () => {
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
                         
                         <div className="mt-16 pt-8 border-t">
-                            <ShareButtons url={`/blog/${userFriendlySlug}/${id}`} title={post.title} />
+                            {/* UPDATED */}
+                            <ShareButtons url={`/blog/category/${categorySlug}/${userFriendlySlug}/${id}`} title={post.title} />
                         </div>
                     </main>
                 </div>
