@@ -208,7 +208,7 @@ const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toStrin
 
 // MAIN COMPONENT
 const BlogEditorPage = () => {
-    const { userFriendlySlug, id } = useParams();
+    const { id } = useParams();
     const navigate = useNavigate();
     
     // STATE
@@ -565,7 +565,7 @@ const BlogEditorPage = () => {
 
                         <div>
                            <label htmlFor="userFriendlySlug" className="block text-gray-700 font-semibold mb-2">
-                               URL Slug (SEO Friendly)
+                                URL Slug (SEO Friendly)
                            </label>
                            <input 
                                type="text" 
