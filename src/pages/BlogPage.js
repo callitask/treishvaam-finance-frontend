@@ -52,7 +52,8 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
     const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
     
     const categorySlug = categoriesMap[article.category] || 'uncategorized';
-    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.id}`;
+    // --- UPDATED LINK ---
+    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
     const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={postLink} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={postLink} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
     const ThumbnailDisplay = () => { if (!hasThumbnails) return null; if (isStory) { return (<Slider ref={sliderRef} {...landscapeSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id} className="px-px"><Link to={postLink} className="block bg-gray-100"><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-contain max-h-40" /></Link></div>))}</Slider>); } const singleThumbnail = article.thumbnails[0]; return (<Link to={postLink}><ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-auto object-contain max-h-80 bg-gray-100" /></Link>); };
@@ -72,7 +73,8 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
     
     const categorySlug = categoriesMap[article.category] || 'uncategorized';
-    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.id}`;
+    // --- UPDATED LINK ---
+    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
     const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={postLink} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={postLink} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
     const ThumbnailDisplay = () => { if (!hasThumbnails) return null; if (isStory) { return (<Slider ref={sliderRef} {...landscapeSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id} className="px-px"><Link to={postLink} className="block bg-gray-100"><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-contain max-h-40" /></Link></div>))}</Slider>); } const singleThumbnail = article.thumbnails[0]; return (<Link to={postLink}><ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-auto object-contain max-h-80 bg-gray-100" /></Link>); };
@@ -87,7 +89,8 @@ const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
     const bannerSliderSettings = { dots: false, fade: true, infinite: true, speed: 1000, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 4000, arrows: false, pauseOnHover: false };
     
     const categorySlug = categoriesMap[article.category] || 'uncategorized';
-    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.id}`;
+    // --- UPDATED LINK ---
+    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
     const ThumbnailDisplay = () => { if (!hasThumbnails) return null; if (isStory) { return (<Slider ref={sliderRef} {...bannerSliderSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id}><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" /></div>))}</Slider>); } return (<ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className="w-full h-full object-cover" />); };
     return (<div ref={ref} className="block relative bg-black text-white overflow-hidden border border-gray-200 group"><div className="absolute inset-0"><ThumbnailDisplay /></div><div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent group-hover:via-black/80 transition-all duration-300"></div><Link to={postLink} className="relative p-8 flex flex-col justify-end min-h-[400px] z-10"><div className="flex justify-between items-center text-sm mb-2"><div className="flex items-center gap-3"><span onClick={(e) => { e.preventDefault(); onCategoryClick(article.category); }} className="font-bold uppercase tracking-wider text-sky-300 hover:underline cursor-pointer">{article.category}</span><span className="text-gray-400">|</span><span className="text-gray-300">{displayDate}</span></div>{isNew && <span className="font-semibold text-red-500 bg-white/20 px-2 py-1 rounded-full text-xs">NEW</span>}</div><h2 className="text-3xl md:text-4xl font-bold my-2 leading-tight text-white group-hover:text-sky-200 transition-colors duration-300">{article.title}</h2><p className="text-gray-200 text-base mt-2 max-w-2xl hidden md:block">{createSnippet(article.customSnippet || article.content, 150)}</p><div className="text-xs text-gray-400 mt-4">By Treishvaam Finance</div></Link></div>);
@@ -105,7 +108,8 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
     const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
     
     const categorySlug = categoriesMap[article.category] || 'uncategorized';
-    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.id}`;
+    // --- UPDATED LINK ---
+    const postLink = `/blog/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
     return (<div ref={ref} className={`bg-white shadow-sm flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 shadow-md uppercase tracking-wider">Featured</span></div>)}{hasThumbnails && (isStory ? (<Slider ref={sliderRef} {...sliderSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id}><Link to={postLink}><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-cover bg-gray-100 aspect-video" /></Link></div>))}</Slider>) : (<Link to={postLink}><ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className={`w-full object-cover bg-gray-100 ${isBannerLayout ? 'aspect-video' : 'aspect-square'}`} /></Link>))}<div className="p-3 flex flex-col flex-grow"><div className="flex items-center justify-between text-xs mb-2"><div className="flex items-center flex-wrap"><button onClick={() => onCategoryClick(article.category)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{article.category}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0 ml-2">NEW</span>}</div><h3 className={titleClass}><Link to={postLink} className="hover:underline">{article.title}</Link></h3><div className="mt-auto pt-2 text-xs text-gray-500"><span>{displayDate}</span></div></div></div>);
 }));
@@ -162,7 +166,6 @@ const NavbarExtrasPortal = ({ children }) => {
     useEffect(() => {
         const node = document.getElementById('navbar-extras-portal-target');
         setMountNode(node);
-        // Cleanup function to clear the portal content when the component unmounts
         return () => {
             if (node) {
                 node.innerHTML = '';
@@ -190,7 +193,6 @@ const BlogPage = () => {
     const searchTerm = searchParams.get('q') || "";
     const [categoriesMap, setCategoriesMap] = useState({});
     
-    // --- NEW: A state to track if initial data (categories) is ready ---
     const [isDataReady, setIsDataReady] = useState(false);
 
     const observer = useRef();
@@ -212,7 +214,6 @@ const BlogPage = () => {
     }, [selectedCategory, searchTerm]);
 
     useEffect(() => {
-        // --- UPDATED: Only fetch posts if the initial data is ready ---
         if (!isDataReady) return;
 
         setLoading(true);
@@ -230,7 +231,7 @@ const BlogPage = () => {
             setError('Failed to fetch blog posts.');
             setLoading(false);
         });
-    }, [page, selectedCategory, searchTerm, isDataReady]); // --- Add isDataReady to dependency array
+    }, [page, selectedCategory, searchTerm, isDataReady]);
 
     useEffect(() => {
         getCategories().then(response => {
@@ -243,7 +244,7 @@ const BlogPage = () => {
         }).catch(err => console.error("Failed to fetch categories:", err))
         .finally(() => {
             setLoadingCategories(false);
-            setIsDataReady(true); // --- Set data as ready after categories are loaded ---
+            setIsDataReady(true);
         });
     }, []);
 

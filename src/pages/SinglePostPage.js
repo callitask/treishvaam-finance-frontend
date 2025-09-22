@@ -1,7 +1,7 @@
 // src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPostByFullUrl } from '../apiConfig'; // UPDATED
+import { getPostByUrlId } from '../apiConfig'; // UPDATED
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
@@ -15,7 +15,7 @@ const formatDate = (dateString) => {
 };
 
 const SinglePostPage = () => {
-    const { categorySlug, userFriendlySlug, id } = useParams(); // UPDATED
+    const { categorySlug, userFriendlySlug, urlArticleId } = useParams(); // UPDATED
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -28,8 +28,8 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                // UPDATED
-                const response = await getPostByFullUrl(categorySlug, userFriendlySlug, id);
+                // UPDATED to use the new function and urlArticleId
+                const response = await getPostByUrlId(urlArticleId);
                 setPost(response.data);
             } catch (err) {
                 setError('Failed to fetch post.');
@@ -39,7 +39,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [categorySlug, userFriendlySlug, id]); // UPDATED
+    }, [urlArticleId]); // UPDATED dependency array
 
     // Extract Headings and Add IDs
     useEffect(() => {
@@ -135,7 +135,7 @@ const SinglePostPage = () => {
                         
                         <div className="mt-16 pt-8 border-t">
                             {/* UPDATED */}
-                            <ShareButtons url={`/blog/category/${categorySlug}/${userFriendlySlug}/${id}`} title={post.title} />
+                            <ShareButtons url={`/blog/category/${categorySlug}/${userFriendlySlug}/${urlArticleId}`} title={post.title} />
                         </div>
                     </main>
                 </div>

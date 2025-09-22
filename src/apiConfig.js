@@ -29,8 +29,11 @@ export const refreshNewsData = () => api.post('/news/admin/refresh');
 export const getAllPostsForAdmin = () => api.get('/posts/admin/all');
 export const getPost = (id) => api.get(`/posts/${id}`);
 
-// --- UPDATED: New function for the full SEO-friendly URL ---
+// --- OLD FUNCTION (can be removed if no longer used) ---
 export const getPostByFullUrl = (categorySlug, userFriendlySlug, id) => api.get(`/posts/category/${categorySlug}/${userFriendlySlug}/${id}`);
+
+// --- NEW FUNCTION TO FETCH POST BY CUSTOM URL ID ---
+export const getPostByUrlId = (urlArticleId) => api.get(`/posts/url/${urlArticleId}`);
 
 export const createPost = (formData) => api.post('/posts', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
