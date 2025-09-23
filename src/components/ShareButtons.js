@@ -1,24 +1,23 @@
 import React from 'react';
 import {
     FacebookShareButton,
-    TwitterShareButton,
     LinkedinShareButton,
     WhatsappShareButton,
-    TelegramShareButton, // Added Telegram
+    TelegramShareButton,
+    TwitterShareButton, // Reverted to TwitterShareButton
 } from 'react-share';
 import {
     FacebookIcon,
-    TwitterIcon,
     LinkedinIcon,
     WhatsappIcon,
-    TelegramIcon, // Added Telegram
+    TelegramIcon,
+    TwitterIcon, // Reverted to TwitterIcon
 } from 'react-share';
 import { FaCopy } from 'react-icons/fa';
 
 const ShareButtons = ({ url, title, summary }) => {
     const handleCopy = () => {
         navigator.clipboard.writeText(url);
-        // Consider a more subtle notification in the future if desired
         alert('Link copied to clipboard!');
     };
 
