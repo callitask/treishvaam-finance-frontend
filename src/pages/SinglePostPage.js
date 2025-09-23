@@ -13,7 +13,6 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-// Helper to create a clean text snippet
 const createSnippet = (html, length = 155) => {
     if (!html) return '';
     const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
@@ -22,9 +21,9 @@ const createSnippet = (html, length = 155) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
-
 const SinglePostPage = () => {
-    const { categorySlug, userFriendlySlug, urlArticleId } = useParams();
+    // Corrected to only extract the used parameter
+    const { urlArticleId } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -33,7 +32,6 @@ const SinglePostPage = () => {
     const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
-    // Fetch Post Data
     useEffect(() => {
         const fetchPost = async () => {
             try {
@@ -49,7 +47,6 @@ const SinglePostPage = () => {
         window.scrollTo(0, 0);
     }, [urlArticleId]);
 
-    // Extract Headings and Add IDs
     useEffect(() => {
         if (!post?.content) return;
         const tempDiv = document.createElement('div');
@@ -66,7 +63,6 @@ const SinglePostPage = () => {
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
     
-    // Handle Scroll for Progress Bar and Active Heading
     const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
@@ -110,7 +106,6 @@ const SinglePostPage = () => {
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
-    // --- SEO VALUES ---
     const pageUrl = `https://treishfin.treishvaamgroup.com/blog/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
@@ -150,29 +145,22 @@ const SinglePostPage = () => {
                 <meta name="description" content={seoDescription} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
                 <link rel="canonical" href={pageUrl} />
-
-                {/* Open Graph / Facebook */}
                 <meta property="og:type" content="article" />
                 <meta property="og:url" content={pageUrl} />
                 <meta property="og:title" content={post.title} />
                 <meta property="og:description" content={seoDescription} />
                 <meta property="og:image" content={imageUrl} />
-
-                {/* Twitter */}
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:url" content={pageUrl} />
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
-
-                {/* Schema.org markup for Google */}
                 <script type="application/ld+json">
                     {JSON.stringify(schema)}
                 </script>
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">
-                {/* --- LEFT (MAIN) COLUMN: SCROLLS --- */}
                 <div className="lg:col-span-8 xl:col-span-9 py-8">
                     <header className="mb-8">
                         <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 leading-tight">
@@ -200,7 +188,6 @@ const SinglePostPage = () => {
                     </main>
                 </div>
 
-                {/* --- RIGHT (ASIDE) COLUMN: STICKY --- */}
                 <aside className="lg:col-span-4 xl:col-span-3 py-8 hidden lg:block">
                     <div className="sticky top-24">
                          <TableOfContents 

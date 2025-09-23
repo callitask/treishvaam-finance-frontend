@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import api from '../apiConfig'; // Import the configured axios instance
+import api from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
 
 const ContactPage = () => {
     const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
     const [status, setStatus] = useState('');
-    // Updated state to include address
     const [contactInfo, setContactInfo] = useState({ email: 'Loading...', phone: 'Loading...', address: 'Loading...' });
 
     useEffect(() => {
-        // Fetch contact info from the new backend endpoint
         const fetchContactInfo = async () => {
             try {
-                // CORRECTED API CALL
                 const response = await api.get('/contact/info');
                 setContactInfo(response.data);
             } catch (error) {
                 console.error("Failed to fetch contact info:", error);
-                // Fallback in case of an error
                 setContactInfo({
                     email: 'info@treishvaamgroup.com',
                     phone: '+1 (555) 123-4567',
@@ -25,7 +21,6 @@ const ContactPage = () => {
                 });
             }
         };
-
         fetchContactInfo();
     }, []);
 
@@ -38,8 +33,8 @@ const ContactPage = () => {
         e.preventDefault();
         setStatus('Sending...');
         try {
-            // Use the api instance for the POST request as well
-            const response = await api.post('/contact', formData);
+            // The 'response' variable was unused, so it has been removed.
+            await api.post('/contact', formData);
             setStatus('Message sent successfully!');
             setFormData({ name: '', email: '', subject: '', message: '' });
         } catch (error) {
@@ -110,7 +105,6 @@ const ContactPage = () => {
                                         <h3 className="text-lg font-semibold text-gray-900">Phone</h3>
                                         <p className="text-gray-600">{contactInfo.phone}</p>
                                     </div>
-                                    {/* Display Address */}
                                     <div className="flex flex-col items-center justify-center text-center">
                                         <div className="contact-info-icon-bg contact-info-icon-text flex items-center justify-center w-14 h-14 rounded-full mb-2 bg-sky-100 text-sky-700">
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
