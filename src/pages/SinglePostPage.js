@@ -22,7 +22,6 @@ const createSnippet = (html, length = 155) => {
 };
 
 const SinglePostPage = () => {
-    // Corrected to only extract the used parameter
     const { urlArticleId } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -110,6 +109,7 @@ const SinglePostPage = () => {
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo512.png`;
+    const homeUrl = window.location.origin;
 
     const schema = {
         "@context": "https://schema.org",
@@ -118,14 +118,15 @@ const SinglePostPage = () => {
         "image": imageUrl,
         "author": {
             "@type": "Organization",
-            "name": "Treishvaam Finance"
+            "name": "Treishvaam Finance",
+            "url": homeUrl // ADDED THIS LINE
         },
         "publisher": {
             "@type": "Organization",
             "name": "Treishvaam Finance",
             "logo": {
                 "@type": "ImageObject",
-                "url": `${window.location.origin}/logo512.png`
+                "url": `${homeUrl}/logo512.png`
             }
         },
         "datePublished": post.createdAt,

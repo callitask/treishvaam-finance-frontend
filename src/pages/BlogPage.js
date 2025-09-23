@@ -115,7 +115,6 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
 }));
 
 
-// Component for the category filter dropdown, to be used in the portal
 const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const allCategories = ['All', ...categories.map(cat => cat.name)];
@@ -159,7 +158,6 @@ const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loa
 };
 
 
-// The Portal component that will render the blog-specific navbar items
 const NavbarExtrasPortal = ({ children }) => {
     const [mountNode, setMountNode] = useState(null);
 
@@ -329,36 +327,46 @@ const BlogPage = () => {
     if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
     return (
-        <><DevelopmentNotice /><Helmet><title>{pageTitle}</title><meta name="description" content={pageDescription} /><meta property="og:title" content={pageTitle} /><meta property="og:description" content={pageDescription} /><meta property="og:image" content={imageUrl} /></Helmet>
-        
-        <NavbarExtrasPortal>
-            <div className="w-64">
-                <SearchAutocomplete />
-            </div>
-            <CategoryFilter
-                categories={categories}
-                selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
-                loadingCategories={loadingCategories}
-            />
-            <h1 className="text-xl font-bold text-gray-900 hidden lg:block">Finance <span className="text-sky-600">World</span></h1>
-        </NavbarExtrasPortal>
+        <>
+            <DevelopmentNotice />
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
+                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/blog" />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+            </Helmet>
+            
+            <NavbarExtrasPortal>
+                <div className="w-64">
+                    <SearchAutocomplete />
+                </div>
+                <CategoryFilter
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    loadingCategories={loadingCategories}
+                />
+                <h1 className="text-xl font-bold text-gray-900 hidden lg:block">Finance <span className="text-sky-600">World</span></h1>
+            </NavbarExtrasPortal>
 
-        <section className="bg-gray-50">
-            <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
-                <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><DeeperDive /></div></aside>
-                <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">{renderDesktopLayout()}{loading && <div className="text-center p-10 col-span-full">Loading more posts...</div>}{!hasMore && filteredPosts.length > 0 && <div className="text-center p-10 col-span-full text-gray-500">You've reached the end.</div>}</main>
-                <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /><MarketMovers /></div></aside>
-            </div>
-            <div className="sm:hidden">
-                <div className="px-4 py-4"><div className="border-b border-gray-200 mb-4"><button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">{showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}{showMobileFilters ? <FiX /> : <FiFilter />}</button>{showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={setSelectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}</div></div>
-                <div className="px-4"><NewsHighlights /></div>
-                {orientationsLoading ? (<div className="text-center p-10">Loading Layout...</div>) : (mobileLayout.length > 0 ? (<div className="grid grid-cols-2 gap-2 p-2">{mobileLayout.map((article, index) => { const isLastPost = index === mobileLayout.length - 1; return <MobilePostCard ref={isLastPost ? lastPostElementRef : null} key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} categoriesMap={categoriesMap} />; })}</div>) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>))}
-                {loading && <div className="text-center p-4">Loading...</div>}
-                {!hasMore && mobileLayout.length > 0 && <div className="text-center p-4 text-gray-500">You've reached the end.</div>}
-                <div className="px-4 pb-4"><div className="mt-8 pt-6 border-t border-gray-200"><h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3><div className="market-slider-container pb-6 -mx-2"><style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style><Slider {...marketSliderSettings}><div className="px-2"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /></div><div className="px-2"><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /></div><div className="px-2"><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div></Slider></div><div className="mt-8"><IndexCharts /></div></div></div>
-            </div>
-        </section></>
+            <section className="bg-gray-50">
+                <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
+                    <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><DeeperDive /></div></aside>
+                    <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">{renderDesktopLayout()}{loading && <div className="text-center p-10 col-span-full">Loading more posts...</div>}{!hasMore && filteredPosts.length > 0 && <div className="text-center p-10 col-span-full text-gray-500">You've reached the end.</div>}</main>
+                    <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /><MarketMovers /></div></aside>
+                </div>
+                <div className="sm:hidden">
+                    <div className="px-4 py-4"><div className="border-b border-gray-200 mb-4"><button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">{showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}{showMobileFilters ? <FiX /> : <FiFilter />}</button>{showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={setSelectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}</div></div>
+                    <div className="px-4"><NewsHighlights /></div>
+                    {orientationsLoading ? (<div className="text-center p-10">Loading Layout...</div>) : (mobileLayout.length > 0 ? (<div className="grid grid-cols-2 gap-2 p-2">{mobileLayout.map((article, index) => { const isLastPost = index === mobileLayout.length - 1; return <MobilePostCard ref={isLastPost ? lastPostElementRef : null} key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} categoriesMap={categoriesMap} />; })}</div>) : (<div className="text-center py-10 px-4"><p>No posts found for your criteria.</p></div>))}
+                    {loading && <div className="text-center p-4">Loading...</div>}
+                    {!hasMore && mobileLayout.length > 0 && <div className="text-center p-4 text-gray-500">You've reached the end.</div>}
+                    <div className="px-4 pb-4"><div className="mt-8 pt-6 border-t border-gray-200"><h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3><div className="market-slider-container pb-6 -mx-2"><style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style><Slider {...marketSliderSettings}><div className="px-2"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /></div><div className="px-2"><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /></div><div className="px-2"><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div></Slider></div><div className="mt-8"><IndexCharts /></div></div></div>
+                </div>
+            </section>
+        </>
     );
 };
 export default BlogPage;

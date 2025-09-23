@@ -6,6 +6,7 @@ const VisionPage = () => {
         <>
             <Helmet>
                 <title>Our Vision | Treishfin</title>
+                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/vision" />
             </Helmet>
             <section className="hero-silver-gradient py-20 md:py-24 flex items-center justify-center">
                 <div className="container mx-auto px-6 text-center">
