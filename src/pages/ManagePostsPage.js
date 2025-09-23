@@ -76,7 +76,7 @@ const PostsTable = ({
                                 </div>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">{post.category || 'N/A'}</span>
+                                <span className="bg-gray-100 text-gray-700 text-xs font-semibold px-2 py-1 rounded-full">{post.category?.name || 'N/A'}</span>
                             </td>
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <span className="text-gray-800">{formatLayoutStyle(post.layoutStyle)}</span>
@@ -87,7 +87,7 @@ const PostsTable = ({
                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                 <div className="flex items-center space-x-4">
                                     {!isScheduled && !isDraft && <button onClick={() => handleOpenShareModal(post)} className="text-gray-500 hover:text-green-600" title="Share"><FaShareAlt /></button>}
-                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.slug}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
+                                    <button onClick={() => navigate(`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`)} className="text-gray-500 hover:text-sky-600" title="Edit"><FaEdit /></button>
                                     <button onClick={() => handleDelete(post.id)} className="text-gray-500 hover:text-red-600" title="Delete"><FaTrash /></button>
                                     {post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && (
                                         <button

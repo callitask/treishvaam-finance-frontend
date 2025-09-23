@@ -1,7 +1,6 @@
-// src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getPostByUrlId } from '../apiConfig'; // UPDATED
+import { getPostByUrlId, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
@@ -14,8 +13,18 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+// Helper to create a clean text snippet
+const createSnippet = (html, length = 155) => {
+    if (!html) return '';
+    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
+    if (plainText.length <= length) return plainText;
+    const trimmed = plainText.substring(0, length);
+    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
+};
+
+
 const SinglePostPage = () => {
-    const { categorySlug, userFriendlySlug, urlArticleId } = useParams(); // UPDATED
+    const { categorySlug, userFriendlySlug, urlArticleId } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -28,7 +37,6 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                // UPDATED to use the new function and urlArticleId
                 const response = await getPostByUrlId(urlArticleId);
                 setPost(response.data);
             } catch (err) {
@@ -39,17 +47,17 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [urlArticleId]); // UPDATED dependency array
+    }, [urlArticleId]);
 
     // Extract Headings and Add IDs
     useEffect(() => {
         if (!post?.content) return;
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true } });
+        tempDiv.innerHTML = DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true }, ADD_ATTR: ['id'] });
         
         const headingElements = tempDiv.querySelectorAll('h2, h3, h4');
         const extractedHeadings = Array.from(headingElements).map((el, index) => {
-            const id = `heading-${index}`;
+            const id = `heading-${index}-${el.tagName}`;
             el.id = id;
             return { id, text: el.innerText, level: parseInt(el.tagName.substring(1), 10) };
         });
@@ -77,7 +85,6 @@ const SinglePostPage = () => {
             setProgress(0);
         }
 
-        // Find Active Heading
         let currentActiveId = '';
         for (let i = headings.length - 1; i >= 0; i--) {
             const element = document.getElementById(headings[i].id);
@@ -102,11 +109,66 @@ const SinglePostPage = () => {
     if (!post) return <div className="text-center py-20">Post not found.</div>;
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
-    
+
+    // --- SEO VALUES ---
+    const pageUrl = `https://treishfin.treishvaamgroup.com/blog/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
+    const pageTitle = `Treishvaam Finance · ${post.title}`;
+    const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
+    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo512.png`;
+
+    const schema = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": post.title,
+        "image": imageUrl,
+        "author": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance",
+            "logo": {
+                "@type": "ImageObject",
+                "url": `${window.location.origin}/logo512.png`
+            }
+        },
+        "datePublished": post.createdAt,
+        "dateModified": post.updatedAt,
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": pageUrl
+        },
+        "description": seoDescription,
+        "keywords": post.keywords || post.tags?.join(', ')
+    };
+
     return (
         <>
             <Helmet>
-                <title>{`Treishvaam Finance · ${post?.title || 'Blog Post'}`}</title>
+                <title>{pageTitle}</title>
+                <meta name="description" content={seoDescription} />
+                {post.keywords && <meta name="keywords" content={post.keywords} />}
+                <link rel="canonical" href={pageUrl} />
+
+                {/* Open Graph / Facebook */}
+                <meta property="og:type" content="article" />
+                <meta property="og:url" content={pageUrl} />
+                <meta property="og:title" content={post.title} />
+                <meta property="og:description" content={seoDescription} />
+                <meta property="og:image" content={imageUrl} />
+
+                {/* Twitter */}
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:url" content={pageUrl} />
+                <meta name="twitter:title" content={post.title} />
+                <meta name="twitter:description" content={seoDescription} />
+                <meta name="twitter:image" content={imageUrl} />
+
+                {/* Schema.org markup for Google */}
+                <script type="application/ld+json">
+                    {JSON.stringify(schema)}
+                </script>
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">
@@ -117,15 +179,14 @@ const SinglePostPage = () => {
                             {post.title}
                         </h1>
                         <div className="flex items-center text-sm text-gray-500 mt-4 mb-6">
-                            <span>By {post.authorName || 'Treishvaam Team'}</span>
+                            <span>By {post.author || 'Treishvaam Team'}</span>
                             <span className="mx-2">·</span>
                             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                         </div>
                         
-                        {/* --- COVER IMAGE MOVED HERE --- */}
                         {post.coverImageUrl && (
                             <div className="mb-8 rounded-lg overflow-hidden shadow-lg">
-                                <ResponsiveAuthImage imageName={post.coverImageUrl} alt={post.title} className="w-full h-auto object-cover"/>
+                                <ResponsiveAuthImage baseName={post.coverImageUrl} alt={post.coverImageAltText || post.title} className="w-full h-auto object-cover"/>
                             </div>
                         )}
                     </header>
@@ -134,8 +195,7 @@ const SinglePostPage = () => {
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
                         
                         <div className="mt-16 pt-8 border-t">
-                            {/* UPDATED */}
-                            <ShareButtons url={`/blog/category/${categorySlug}/${userFriendlySlug}/${urlArticleId}`} title={post.title} />
+                            <ShareButtons url={pageUrl} title={post.title} />
                         </div>
                     </main>
                 </div>

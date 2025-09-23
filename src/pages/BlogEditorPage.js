@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react
 import { useNavigate, useParams } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
+import { HTML5Backend } from 'react-dnd-html5-backend'; // CORRECTED IMPORT
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
@@ -11,7 +11,9 @@ import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
-// HELPER COMPONENTS (TagsInput, canvasToBlob, canvasPreview, CropModal, etc.)
+// (The rest of the file is the same as the last version I provided)
+// ... all helper components and the main BlogEditorPage component
+// HELPER COMPONENTS (Unchanged)
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
     const addTag = () => {
@@ -44,9 +46,7 @@ const TagsInput = ({ tags, setTags }) => {
         </div>
     );
 };
-
 const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/webp', 0.9));
-
 function canvasPreview(image, canvas, crop) {
     const ctx = canvas.getContext('2d');
     if (!ctx || !crop.width || !crop.height) return;
@@ -61,7 +61,6 @@ function canvasPreview(image, canvas, crop) {
     const cropY = crop.y * scaleY;
     ctx.drawImage(image, cropX, cropY, crop.width * scaleX, crop.height * scaleY, 0, 0, crop.width * scaleX, crop.height * scaleY);
 }
-
 const CropModal = ({ src, type, onClose, onSave, aspect }) => {
     const imgRef = useRef(null);
     const canvasRef = useRef(null);
@@ -94,7 +93,6 @@ const CropModal = ({ src, type, onClose, onSave, aspect }) => {
         </div>
     );
 };
-
 const LockChoiceModal = ({ isOpen, onChoice }) => {
     if (!isOpen) return null;
     return (
@@ -110,7 +108,6 @@ const LockChoiceModal = ({ isOpen, onChoice }) => {
         </div>
     )
 }
-
 const AddFromPostModal = ({ images, isOpen, onClose, onSelect }) => {
     const [selectedImages, setSelectedImages] = useState([]);
     if (!isOpen) return null;
@@ -135,7 +132,6 @@ const AddFromPostModal = ({ images, isOpen, onClose, onSelect }) => {
         </div>
     );
 };
-
 const DraggableThumbnail = ({ id, thumbnail, index, moveThumbnail, onRemove, onAltTextChange }) => {
     const ref = useRef(null);
     const [, drop] = useDrop({
@@ -162,7 +158,6 @@ const DraggableThumbnail = ({ id, thumbnail, index, moveThumbnail, onRemove, onA
         </div>
     );
 };
-
 const StoryThumbnailManager = ({ thumbnails, setThumbnails, onUploadClick, onAddFromPostClick }) => {
     const moveThumbnail = useCallback((dragIndex, hoverIndex) => {
         setThumbnails(prev => {
@@ -202,9 +197,7 @@ const StoryThumbnailManager = ({ thumbnails, setThumbnails, onUploadClick, onAdd
         </DndProvider>
     );
 };
-
 const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
 
 // MAIN COMPONENT
 const BlogEditorPage = () => {
@@ -216,7 +209,7 @@ const BlogEditorPage = () => {
     const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(null); // UPDATED
+    const [selectedCategory, setSelectedCategory] = useState(null);
     const [isFeatured, setIsFeatured] = useState(false);
     const [tags, setTags] = useState([]);
     const [error, setError] = useState('');
@@ -226,6 +219,9 @@ const BlogEditorPage = () => {
     const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '', aspect: undefined });
     const [scheduledTime, setScheduledTime] = useState('');
     const [customSnippet, setCustomSnippet] = useState('');
+    const [metaDescription, setMetaDescription] = useState('');
+    const [keywords, setKeywords] = useState('');
+    const [coverImageAltText, setCoverImageAltText] = useState('');
     const [thumbnailMode, setThumbnailMode] = useState('single');
     const [storyThumbnails, setStoryThumbnails] = useState([]);
     const [thumbnailOrientation, setThumbnailOrientation] = useState(null);
@@ -240,11 +236,9 @@ const BlogEditorPage = () => {
     const [thumbnailAltText, setThumbnailAltText] = useState('');
     const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
     const [pendingCrop, setPendingCrop] = useState(null);
-    
     const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
     const [layoutGroupId, setLayoutGroupId] = useState(null);
     const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
-
 
     // REFS
     const editorRef = useRef(null);
@@ -259,21 +253,23 @@ const BlogEditorPage = () => {
                 if (Array.isArray(categoriesRes.data)) setAllCategories(categoriesRes.data);
                 
                 if (id) {
-                    const postRes = await getPost(id); // Fetch by ID
+                    const postRes = await getPost(id);
                     const post = postRes.data;
                     setPostId(post.id);
                     setTitle(post.title);
                     setContent(post.content);
                     
-                    // UPDATED: Find and set the full category object
                     if (post.category && categoriesRes.data) {
-                        const currentCategory = categoriesRes.data.find(c => c.name === post.category);
+                        const currentCategory = categoriesRes.data.find(c => c.name === post.category.name);
                         setSelectedCategory(currentCategory || null);
                     }
                     
                     setTags(post.tags || []);
                     setIsFeatured(post.featured);
                     setCustomSnippet(post.customSnippet || '');
+                    setMetaDescription(post.metaDescription || '');
+                    setKeywords(post.keywords || '');
+                    setCoverImageAltText(post.coverImageAltText || '');
                     setPostUserFriendlySlug(post.userFriendlySlug || '');
                     
                     setLayoutStyle(post.layoutStyle || 'DEFAULT');
@@ -297,7 +293,6 @@ const BlogEditorPage = () => {
                     if(post.coverImageUrl) setCoverPreview(`${API_URL}/api/uploads/${post.coverImageUrl}.webp`);
                     if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
                 } else {
-                    // UPDATED: Set the first category object as default for new posts
                     if (categoriesRes.data?.length > 0) {
                         setSelectedCategory(categoriesRes.data[0]);
                     }
@@ -315,7 +310,7 @@ const BlogEditorPage = () => {
         setSaveStatus('Saving...');
         try {
             const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
-            const draftData = { title, content: editorContent, customSnippet };
+            const draftData = { title, content: editorContent, customSnippet, metaDescription, keywords };
             if (postId) {
                 await updateDraft(postId, draftData);
             } else {
@@ -328,14 +323,13 @@ const BlogEditorPage = () => {
             setSaveStatus('Error');
             console.error("Auto-save failed:", err);
         }
-    }, [title, content, customSnippet, postId, navigate]);
+    }, [title, content, customSnippet, metaDescription, keywords, postId, navigate]);
 
     useEffect(() => {
         if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
         autoSaveTimer.current = setTimeout(() => handleAutoSave(), 2000);
         return () => clearTimeout(autoSaveTimer.current);
-    }, [title, content, customSnippet, handleAutoSave]);
-
+    }, [title, content, customSnippet, metaDescription, keywords, handleAutoSave]);
 
     const compressImage = async (file) => {
         if (!file) return null;
@@ -436,7 +430,7 @@ const BlogEditorPage = () => {
         try {
             const response = await addCategory({ name: newCategoryName });
             setAllCategories([...allCategories, response.data]);
-            setSelectedCategory(response.data); // UPDATED
+            setSelectedCategory(response.data);
             setNewCategoryName('');
             setShowNewCategoryInput(false);
         } catch (err) {
@@ -472,14 +466,17 @@ const BlogEditorPage = () => {
         e.preventDefault();
         setError('');
         if (!editorRef.current) return setError("Editor is not yet available.");
-        if (!selectedCategory) return setError("Please select a category."); // UPDATED Validation
+        if (!selectedCategory) return setError("Please select a category.");
 
         const formData = new FormData();
         formData.append('title', title);
         formData.append('content', editorRef.current.getContents(true));
-        formData.append('category', selectedCategory.name); // UPDATED
+        formData.append('category', selectedCategory.name);
         formData.append('featured', isFeatured);
         formData.append('customSnippet', customSnippet);
+        formData.append('metaDescription', metaDescription);
+        formData.append('keywords', keywords);
+        formData.append('coverImageAltText', coverImageAltText);
         tags.forEach(tag => formData.append('tags', tag));
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
@@ -491,7 +488,6 @@ const BlogEditorPage = () => {
             formData.append('layoutGroupId', '');
         }
         formData.append('userFriendlySlug', postUserFriendlySlug);
-
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
@@ -512,11 +508,11 @@ const BlogEditorPage = () => {
                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
                 formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
             } else if (thumbPreview) {
-                  const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
-                  const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
-                  formData.append('thumbnailMetadata', JSON.stringify(metadata));
+                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
+                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
+                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
             } else {
-                  formData.append('thumbnailMetadata', JSON.stringify([]));
+                 formData.append('thumbnailMetadata', JSON.stringify([]));
             }
         }
 
@@ -588,8 +584,18 @@ const BlogEditorPage = () => {
                        </div>
 
                         <div>
-                            <label htmlFor="customSnippet" className="block text-gray-700 font-semibold mb-2">Custom Snippet (for SEO & Previews)</label>
-                            <textarea id="customSnippet" value={customSnippet} onChange={e => setCustomSnippet(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" />
+                            <label htmlFor="keywords" className="block text-gray-700 font-semibold mb-2">Keywords (Comma-separated)</label>
+                            <input type="text" id="keywords" value={keywords} onChange={e => setKeywords(e.target.value)} className="w-full p-2 border border-gray-300 rounded" placeholder="e.g., investing, stocks, financial freedom" />
+                        </div>
+
+                        <div>
+                            <label htmlFor="metaDescription" className="block text-gray-700 font-semibold mb-2">Meta Description (for SEO)</label>
+                            <textarea id="metaDescription" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A brief summary for search engines (about 155 characters)." />
+                        </div>
+
+                        <div>
+                            <label htmlFor="customSnippet" className="block text-gray-700 font-semibold mb-2">Custom Snippet (for Previews)</label>
+                            <textarea id="customSnippet" value={customSnippet} onChange={e => setCustomSnippet(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A short preview for display on the blog page." />
                         </div>
                         
                         <div>
@@ -684,6 +690,10 @@ const BlogEditorPage = () => {
                                 fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover');
                                 fileInputRef.current.click();
                             }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Cover Image</button>
+                             <div>
+                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Cover Image Alt Text</label>
+                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the cover image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
+                            </div>
                         </div>
                         
                         <div>

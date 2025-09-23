@@ -116,7 +116,7 @@ const DashboardPage = () => {
                                             </p>
                                         </div>
                                     </div>
-                                    <Link to={`/dashboard/blog/edit/${post.slug}`} className="text-sky-600 hover:underline text-sm font-semibold">
+                                    <Link to={`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`} className="text-sky-600 hover:underline text-sm font-semibold">
                                         Edit
                                     </Link>
                                 </div>
