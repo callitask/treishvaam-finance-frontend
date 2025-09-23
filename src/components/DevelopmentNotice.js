@@ -1,7 +1,5 @@
-import React from 'react';
-
 const DevelopmentNotice = () => {
-    // By returning null immediately, this component will render nothing.
+    // This component now does nothing and renders nothing.
     return null; 
 };
 

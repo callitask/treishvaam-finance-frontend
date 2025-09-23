@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react
 import { useNavigate, useParams } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend'; // CORRECTED IMPORT
+import { HTML5Backend } from 'react-dnd-html5-backend';
 import 'suneditor/dist/css/suneditor.min.css';
 import 'react-image-crop/dist/ReactCrop.css';
 import ReactCrop from 'react-image-crop';
@@ -11,8 +11,6 @@ import { buttonList } from 'suneditor-react';
 
 const SunEditor = React.lazy(() => import('suneditor-react'));
 
-// (The rest of the file is the same as the last version I provided)
-// ... all helper components and the main BlogEditorPage component
 // HELPER COMPONENTS (Unchanged)
 const TagsInput = ({ tags, setTags }) => {
     const [inputValue, setInputValue] = useState('');
@@ -724,6 +722,7 @@ const BlogEditorPage = () => {
                         <Suspense fallback={<div>Loading editor...</div>}>
                             <SunEditor
                                 setContents={content}
+                                onChange={setContent} 
                                 getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
                                 onImageUploadBefore={handleImageUploadBefore}
                                 onLoad={() => {
@@ -734,7 +733,9 @@ const BlogEditorPage = () => {
                                 setOptions={{
                                     height: 'auto',
                                     minHeight: '400px',
-                                    buttonList: buttonList.complex
+                                    buttonList: buttonList.complex,
+                                    pasteKeepFormats: true,
+                                    pasteTagsWhitelist: '.*'
                                 }}
                             />
                         </Suspense>
