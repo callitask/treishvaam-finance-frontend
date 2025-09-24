@@ -23,14 +23,15 @@ function App() {
       <Routes>
         {/* Public Routes with MainLayout */}
         <Route element={<MainLayout />}>
-          <Route path="/" element={<BlogPage />} /> {/* UPDATED: BlogPage is now the homepage */}
+          <Route path="/" element={<BlogPage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/services" element={<ServicesPage />} />
           <Route path="/vision" element={<VisionPage />} />
           <Route path="/education" element={<EducationPage />} />
           <Route path="/contact" element={<ContactPage />} />
-          <Route path="/blog" element={<Navigate to="/" replace />} /> {/* UPDATED: /blog now redirects to homepage */}
-          <Route path="/blog/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
+          <Route path="/blog" element={<Navigate to="/" replace />} />
+          {/* UPDATED: Route for single posts no longer includes /blog */}
+          <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
