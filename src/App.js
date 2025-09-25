@@ -38,8 +38,8 @@ function App() {
         <Route path="/manage-posts" element={<Navigate to="/dashboard/manage-posts" replace />} />
 
         {/* Private Admin Routes */}
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
         >
           <Route index element={<DashboardPage />} />

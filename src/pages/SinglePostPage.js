@@ -105,7 +105,8 @@ const SinglePostPage = () => {
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
-    const pageUrl = `https://treishfin.treishvaamgroup.com/blog/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
+    // UPDATED URL
+    const pageUrl = `https://treishfin.treishvaamgroup.com/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo512.png`;
@@ -119,7 +120,7 @@ const SinglePostPage = () => {
         "author": {
             "@type": "Organization",
             "name": "Treishvaam Finance",
-            "url": homeUrl // ADDED THIS LINE
+            "url": homeUrl
         },
         "publisher": {
             "@type": "Organization",
