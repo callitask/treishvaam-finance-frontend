@@ -6,7 +6,6 @@ import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [logoSrc, setLogoSrc] = useState('/api/logo');
     const [isLoginDropdownOpen, setLoginDropdownOpen] = useState(false);
     const { auth, logout } = useAuth();
     const navigate = useNavigate();
@@ -16,22 +15,16 @@ const Navbar = () => {
         navigate('/login');
     };
 
-    const handleLogoError = () => {
-        setLogoSrc('/logo.png');
-    };
-
     const getLinkClass = ({ isActive }) =>
-        `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-            isActive
-                ? 'bg-sky-100 text-sky-700'
-                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+        `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${isActive
+            ? 'bg-sky-100 text-sky-700'
+            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
         }`;
 
     const getMobileLinkClass = ({ isActive }) =>
-        `block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${
-            isActive
-                ? 'bg-sky-100 text-sky-700'
-                : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+        `block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${isActive
+            ? 'bg-sky-100 text-sky-700'
+            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
         }`;
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -44,11 +37,10 @@ const Navbar = () => {
                         <Link to="/" className="flex-shrink-0 flex items-center">
                             <img
                                 alt="Treishvaam Finance Logo"
-                                src={logoSrc}
-                                onError={handleLogoError}
+                                src="/logo.webp" // --- MODIFIED: Point to static optimized asset
                                 className="h-12 w-auto mr-3"
-                                width="48"
-                                height="48"
+                                width="102"      // --- MODIFIED: Explicit width to prevent CLS
+                                height="48"       // --- MODIFIED: Explicit height to prevent CLS
                             />
                             <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
                         </Link>
@@ -58,7 +50,7 @@ const Navbar = () => {
                                 <NavLink to="/about" className={getLinkClass}>About</NavLink>
                                 <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
                                 <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
-                                 {/* Login Dropdown */}
+                                {/* Login Dropdown */}
                                 <div className="relative">
                                     <button
                                         onMouseEnter={() => setLoginDropdownOpen(true)}
