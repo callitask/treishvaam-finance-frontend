@@ -1,0 +1,1 @@
+render with mermaid CLI: mmdc -i architecture.mmd -o architecture.png

@@ -1,0 +1,20 @@
+{
+  // Workspace formatting and linting preferences
+  "editor.formatOnSave": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "files.exclude": {
+    "**/build": true,
+    "**/.cache": true
+  },
+  "search.exclude": {
+    "**/build": true
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
+  }
+}
