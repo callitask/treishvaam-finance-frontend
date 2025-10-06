@@ -61,7 +61,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
         if (!hasThumbnails) return null;
         if (isStory) {
             return (
-                <div className="aspect-video bg-gray-100"> {/* Added aspect-ratio for slider */}
+                <div className="aspect-video bg-gray-100">
                     <Slider ref={sliderRef} {...landscapeSettings}>
                         {article.thumbnails.map(thumb => (
                             <div key={thumb.id} className="px-px">
@@ -75,7 +75,6 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
             );
         }
         const singleThumbnail = article.thumbnails[0];
-        // --- MODIFIED --- Added aspect-ratio to stabilize the layout for masonry grid
         return (
             <Link to={postLink} className="block aspect-[4/3] bg-gray-100">
                 <ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-full object-cover" />
@@ -108,7 +107,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
         if (!hasThumbnails) return null;
         if (isStory) {
             return (
-                <div className="aspect-video bg-gray-100"> {/* Added aspect-ratio for slider */}
+                <div className="aspect-video bg-gray-100">
                     <Slider ref={sliderRef} {...landscapeSettings}>
                         {article.thumbnails.map(thumb => (
                             <div key={thumb.id} className="px-px">
@@ -122,7 +121,6 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
             );
         }
         const singleThumbnail = article.thumbnails[0];
-        // --- MODIFIED --- Added aspect-ratio to stabilize the layout for grid
         return (
             <Link to={postLink} className="block aspect-video bg-gray-100">
                 <ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-full object-cover" />
@@ -133,7 +131,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     return (<div ref={ref} className="bg-white border border-gray-200 relative flex flex-col h-full">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
 }));
 
-const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
+const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false }, ref) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
@@ -146,21 +144,20 @@ const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
 
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) {
-            // --- ADDED --- Placeholder to maintain height even if there is no image
-            return <div className="aspect-video bg-gray-200"></div>;
+            return <div className="h-[400px] bg-gray-200"></div>;
         }
         if (isStory) {
             return (
                 <Slider ref={sliderRef} {...bannerSliderSettings}>
-                    {article.thumbnails.map(thumb => (
+                    {article.thumbnails.map((thumb, index) => (
                         <div key={thumb.id}>
-                            <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" />
+                            <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" eager={eager && index === 0} />
                         </div>
                     ))}
                 </Slider>
             );
         }
-        return <ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className="w-full h-full object-cover" />;
+        return <ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className="w-full h-full object-cover" eager={eager} />;
     };
 
     return (<div ref={ref} className="block relative bg-black text-white overflow-hidden border border-gray-200 group"><div className="absolute inset-0"><ThumbnailDisplay /></div><div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent group-hover:via-black/80 transition-all duration-300"></div><Link to={postLink} className="relative p-8 flex flex-col justify-end min-h-[400px] z-10"><div className="flex justify-between items-center text-sm mb-2"><div className="flex items-center gap-3"><span onClick={(e) => { e.preventDefault(); onCategoryClick(categoryName); }} className="font-bold uppercase tracking-wider text-sky-300 hover:underline cursor-pointer">{categoryName}</span><span className="text-gray-400">|</span><span className="text-gray-300">{displayDate}</span></div>{isNew && <span className="font-semibold text-red-500 bg-white/20 px-2 py-1 rounded-full text-xs">NEW</span>}</div><h2 className="text-3xl md:text-4xl font-bold my-2 leading-tight text-white group-hover:text-sky-200 transition-colors duration-300">{article.title}</h2><p className="text-gray-200 text-base mt-2 max-w-2xl hidden md:block">{createSnippet(article.customSnippet || article.content, 150)}</p><div className="text-xs text-gray-400 mt-4">By Treishvaam Finance</div></Link></div>);
@@ -327,11 +324,8 @@ const BlogPage = () => {
     }, [posts, selectedCategory, searchTerm]);
 
     const mobileLayout = useMemo(() => {
-        // This layout logic is complex and assumes image dimensions are known.
-        // By removing the async orientation check, we simplify and stabilize rendering.
         return filteredPosts.map(post => {
             const isStory = post.thumbnails && post.thumbnails.length > 1;
-            // Assume landscape for stories for a consistent banner layout on mobile.
             const layout = isStory ? 'banner' : 'grid';
             return { ...post, layout };
         });
@@ -364,7 +358,9 @@ const BlogPage = () => {
             const blockStyle = { marginBottom: '2rem' };
             if (block.type === 'BANNER') {
                 const isLastPost = isLastBlock && block.posts.length === 1;
-                return <BannerPostCard ref={isLastPost ? lastPostElementRef : null} key={block.id} article={block.posts[0]} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} />;
+                // --- MODIFIED: Check if this is the LCP element and pass eager prop ---
+                const isLCP = blockIndex === 0;
+                return <BannerPostCard ref={isLastPost ? lastPostElementRef : null} key={block.id} article={block.posts[0]} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} eager={isLCP} />;
             }
             if (block.type.startsWith('MULTI_COLUMN')) {
                 const columnCount = parseInt(block.type.split('_')[2]) || 2;
