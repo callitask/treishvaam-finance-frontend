@@ -4,7 +4,6 @@ import 'react-lazy-load-image-component/src/effects/opacity.css'; // Using opaci
 import { API_URL } from '../apiConfig';
 import { decode } from 'blurhash';
 
-// --- NEW COMPONENT ---
 // This component decodes the blurhash and draws it to a canvas.
 const BlurHashCanvas = ({ hash, width, height, punch = 1 }) => {
     const canvasRef = useRef(null);
@@ -36,7 +35,6 @@ const BlurHashCanvas = ({ hash, width, height, punch = 1 }) => {
         />
     );
 };
-
 
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height, blurHash }) => {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -70,7 +68,7 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
     ].join(', ');
 
     const imageProps = {
-        alt,
+        alt, // alt is still passed here for LazyLoadImage
         src,
         srcSet,
         sizes,
@@ -82,24 +80,26 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
     if (eager) {
         return (
             <img
-                {...imageProps}
-                className={className} // No opacity transition for eager images
+                src={src}
+                srcSet={srcSet}
+                sizes={sizes}
+                className={className}
                 onLoad={handleImageLoad}
                 fetchPriority="high"
+                width={width}
+                height={height}
+                alt={alt} // --- THIS IS THE FIX --- Explicitly adding the alt prop
             />
         );
     }
 
     return (
         <div className="relative w-full h-full overflow-hidden">
-            {/* Show BlurHash canvas only if image is not yet loaded */}
             {!isLoaded && blurHash && <BlurHashCanvas hash={blurHash} width={32} height={32} />}
-
             <LazyLoadImage
                 {...imageProps}
                 effect="opacity"
                 afterLoad={handleImageLoad}
-            // We use our BlurHashCanvas as the placeholder, so no placeholderSrc is needed here.
             />
         </div>
     );
