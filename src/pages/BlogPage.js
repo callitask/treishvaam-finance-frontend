@@ -59,8 +59,8 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
 
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
+        const imageSizes = "(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw";
 
-        // --- MODIFIED for stories/sliders ---
         if (isStory) {
             const firstThumb = article.thumbnails[0];
             const aspectRatio = firstThumb.width && firstThumb.height ? `${firstThumb.width} / ${firstThumb.height}` : '16 / 9';
@@ -77,6 +77,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                                         width={thumb.width}
                                         height={thumb.height}
                                         blurHash={thumb.blurHash}
+                                        sizes={imageSizes}
                                     />
                                 </Link>
                             </div>
@@ -86,7 +87,6 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
             );
         }
 
-        // --- MODIFIED for single thumbnails ---
         const singleThumbnail = article.thumbnails[0];
         const aspectRatio = singleThumbnail.width && singleThumbnail.height ? `${singleThumbnail.width} / ${singleThumbnail.height}` : '4 / 3';
 
@@ -99,6 +99,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                     width={singleThumbnail.width}
                     height={singleThumbnail.height}
                     blurHash={singleThumbnail.blurHash}
+                    sizes={imageSizes}
                 />
             </Link>
         );
@@ -127,8 +128,8 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
 
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
+        const imageSizes = "(max-width: 768px) 100vw, 50vw";
 
-        // --- MODIFIED for stories/sliders ---
         if (isStory) {
             const firstThumb = article.thumbnails[0];
             const aspectRatio = firstThumb.width && firstThumb.height ? `${firstThumb.width} / ${firstThumb.height}` : '16 / 9';
@@ -145,6 +146,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
                                         width={thumb.width}
                                         height={thumb.height}
                                         blurHash={thumb.blurHash}
+                                        sizes={imageSizes}
                                     />
                                 </Link>
                             </div>
@@ -154,7 +156,6 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
             );
         }
 
-        // --- MODIFIED for single thumbnails ---
         const singleThumbnail = article.thumbnails[0];
         const aspectRatio = singleThumbnail.width && singleThumbnail.height ? `${singleThumbnail.width} / ${singleThumbnail.height}` : '16 / 9';
 
@@ -167,6 +168,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
                     width={singleThumbnail.width}
                     height={singleThumbnail.height}
                     blurHash={singleThumbnail.blurHash}
+                    sizes={imageSizes}
                 />
             </Link>
         );
@@ -176,13 +178,13 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
 }));
 
 const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false }, ref) => {
-    // This card is less affected by CLS due to its fixed height, but we'll add the props for consistency.
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryName = article.category?.name || 'Uncategorized';
     const bannerSliderSettings = { dots: false, fade: true, infinite: true, speed: 1000, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 4000, arrows: false, pauseOnHover: false };
+    const imageSizes = "100vw";
 
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
@@ -204,6 +206,7 @@ const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
                                 width={thumb.width}
                                 height={thumb.height}
                                 blurHash={thumb.blurHash}
+                                sizes={imageSizes}
                             />
                         </div>
                     ))}
@@ -219,6 +222,7 @@ const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
             width={singleThumbnail.width}
             height={singleThumbnail.height}
             blurHash={singleThumbnail.blurHash}
+            sizes={imageSizes}
         />;
     };
 
@@ -226,7 +230,6 @@ const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
 }));
 
 const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, categoriesMap }, ref) => {
-    // Mobile view also benefits from the optimization
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
@@ -237,6 +240,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
     const isBannerLayout = layout === 'banner';
     const titleClass = "text-sm font-bold text-gray-900 leading-tight";
     const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
+    const imageSizes = isBannerLayout ? "100vw" : "50vw";
 
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
@@ -266,6 +270,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
                                             width={thumb.width}
                                             height={thumb.height}
                                             blurHash={thumb.blurHash}
+                                            sizes={imageSizes}
                                         />
                                     </Link>
                                 </div>
@@ -280,6 +285,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
                                 width={singleThumbnail.width}
                                 height={singleThumbnail.height}
                                 blurHash={singleThumbnail.blurHash}
+                                sizes={imageSizes}
                             />
                         </Link>
                     )}
@@ -304,9 +310,6 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, cate
         </div>
     );
 }));
-
-// The rest of the BlogPage component remains the same
-// ... (CategoryFilter, NavbarExtrasPortal, BlogPage main component)
 
 const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);

@@ -50,7 +50,7 @@ const SinglePostPage = () => {
         if (!post?.content) return;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true }, ADD_ATTR: ['id'] });
-        
+
         const headingElements = tempDiv.querySelectorAll('h2, h3, h4');
         const extractedHeadings = Array.from(headingElements).map((el, index) => {
             const id = `heading-${index}-${el.tagName}`;
@@ -61,7 +61,7 @@ const SinglePostPage = () => {
         setHeadings(extractedHeadings);
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
-    
+
     const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
@@ -72,7 +72,7 @@ const SinglePostPage = () => {
 
         const scrollableDistance = contentHeight - viewportHeight;
         const scrolledFromTop = window.scrollY - articleTop;
-        
+
         if (scrolledFromTop > 0 && scrollableDistance > 0) {
             const scrollPercent = (scrolledFromTop / scrollableDistance) * 100;
             setProgress(Math.min(100, Math.max(0, scrollPercent)));
@@ -105,7 +105,6 @@ const SinglePostPage = () => {
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
-    // UPDATED URL
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
@@ -173,17 +172,23 @@ const SinglePostPage = () => {
                             <span className="mx-2">·</span>
                             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                         </div>
-                        
+
                         {post.coverImageUrl && (
                             <div className="mb-8 rounded-lg overflow-hidden shadow-lg">
-                                <ResponsiveAuthImage baseName={post.coverImageUrl} alt={post.coverImageAltText || post.title} className="w-full h-auto object-cover"/>
+                                <ResponsiveAuthImage
+                                    baseName={post.coverImageUrl}
+                                    alt={post.coverImageAltText || post.title}
+                                    className="w-full h-auto object-cover"
+                                    eager={true}
+                                    sizes="(max-width: 1280px) 90vw, 800px"
+                                />
                             </div>
                         )}
                     </header>
-                    
+
                     <main ref={articleRef}>
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
-                        
+
                         <div className="mt-16 pt-8 border-t">
                             <ShareButtons url={pageUrl} title={post.title} />
                         </div>
@@ -192,11 +197,11 @@ const SinglePostPage = () => {
 
                 <aside className="lg:col-span-4 xl:col-span-3 py-8 hidden lg:block">
                     <div className="sticky top-24">
-                         <TableOfContents 
-                            headings={headings} 
-                            activeId={activeId} 
-                            progress={progress} 
-                         />
+                        <TableOfContents
+                            headings={headings}
+                            activeId={activeId}
+                            progress={progress}
+                        />
                     </div>
                 </aside>
             </div>
