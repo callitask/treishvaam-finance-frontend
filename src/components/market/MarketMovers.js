@@ -4,7 +4,7 @@ import { getMostActive, getTopGainers, getTopLosers } from '../../apiConfig';
 
 const MarketMovers = () => {
     return (
-        <div className="space-y-4">
+        <div className="space-y-4" style={{ minHeight: '600px' }}>
             <h2 className="font-bold text-xl border-b pb-2 pt-4">Market Movers</h2>
             <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
             <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
