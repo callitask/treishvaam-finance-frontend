@@ -1,201 +1,27 @@
-import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import imageCompression from 'browser-image-compression';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import 'suneditor/dist/css/suneditor.min.css';
-import 'react-image-crop/dist/ReactCrop.css';
-import ReactCrop from 'react-image-crop';
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
-import { buttonList } from 'suneditor-react';
 
-const SunEditor = React.lazy(() => import('suneditor-react'));
+// Import New Utils
+import { canvasToBlob, generateLayoutGroupId } from '../utils/editorUtils';
 
-// HELPER COMPONENTS (Unchanged)
-const TagsInput = ({ tags, setTags }) => {
-    const [inputValue, setInputValue] = useState('');
-    const addTag = () => {
-        const newTag = inputValue.trim().replace(/,/g, '');
-        if (newTag && !tags.includes(newTag)) setTags([...tags, newTag]);
-        setInputValue('');
-    };
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            addTag();
-        }
-    };
-    const removeTag = (tagToRemove) => setTags(tags.filter(tag => tag !== tagToRemove));
+// Import New Modals
+import CropModal from '../components/BlogEditor/modals/CropModal';
+import LockChoiceModal from '../components/BlogEditor/modals/LockChoiceModal';
+import AddFromPostModal from '../components/BlogEditor/modals/AddFromPostModal';
 
-    return (
-        <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-                {tags.map(tag => (
-                    <div key={tag} className="bg-sky-100 text-sky-800 text-sm font-semibold px-2 py-1 rounded-full flex items-center">
-                        <span>{tag}</span>
-                        <button type="button" onClick={() => removeTag(tag)} className="ml-2 text-sky-600 hover:text-sky-900">&times;</button>
-                    </div>
-                ))}
-            </div>
-            <div className="flex items-center gap-2">
-                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="Add a tag" className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200" />
-                <button type="button" onClick={addTag} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-            </div>
-        </div>
-    );
-};
-const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/webp', 0.9));
-function canvasPreview(image, canvas, crop) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx || !crop.width || !crop.height) return;
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const pixelRatio = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(crop.width * scaleX * pixelRatio);
-    canvas.height = Math.floor(crop.height * scaleY * pixelRatio);
-    ctx.scale(pixelRatio, pixelRatio);
-    ctx.imageSmoothingQuality = 'high';
-    const cropX = crop.x * scaleX;
-    const cropY = crop.y * scaleY;
-    ctx.drawImage(image, cropX, cropY, crop.width * scaleX, crop.height * scaleY, 0, 0, crop.width * scaleX, crop.height * scaleY);
-}
-const CropModal = ({ src, type, onClose, onSave, aspect }) => {
-    const imgRef = useRef(null);
-    const canvasRef = useRef(null);
-    const [crop, setCrop] = useState();
-    const [completedCrop, setCompletedCrop] = useState();
-    useEffect(() => {
-        if (completedCrop?.width && imgRef.current && canvasRef.current) {
-            canvasPreview(imgRef.current, canvasRef.current, completedCrop);
-        }
-    }, [completedCrop]);
-    const handleSave = () => {
-        if (!completedCrop || !canvasRef.current) return;
-        onSave(canvasRef.current, completedCrop);
-    };
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
-                <h3 className="text-xl font-bold mb-4">Crop Image</h3>
-                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
-                        <img ref={imgRef} alt="Crop" src={src} />
-                    </ReactCrop>
-                </div>
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="flex justify-end gap-4 mt-4">
-                    <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Save</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-const LockChoiceModal = ({ isOpen, onChoice }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
-                <h3 className="text-xl font-bold mb-4">Square Image Detected</h3>
-                <p className="text-gray-600 mb-6">For subsequent images in this story, how should they be cropped?</p>
-                <div className="flex justify-center gap-4 mt-4">
-                    <button onClick={() => onChoice('landscape')} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Lock Height (Landscape Style)</button>
-                    <button onClick={() => onChoice('portrait')} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Lock Width (Portrait Style)</button>
-                </div>
-            </div>
-        </div>
-    )
-}
-const AddFromPostModal = ({ images, isOpen, onClose, onSelect }) => {
-    const [selectedImages, setSelectedImages] = useState([]);
-    if (!isOpen) return null;
-    const toggleSelection = (url) => setSelectedImages(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full">
-                <h3 className="text-xl font-bold mb-4">Select Images from Post</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 max-h-96 overflow-y-auto p-2">
-                    {images.map((url, index) => (
-                        <div key={index} onClick={() => toggleSelection(url)} className={`relative rounded-lg overflow-hidden cursor-pointer border-4 ${selectedImages.includes(url) ? 'border-sky-500' : 'border-transparent'}`}>
-                            <img src={url} alt={`Post content ${index + 1}`} className="w-full h-full object-cover" />
-                            {selectedImages.includes(url) && (<div className="absolute inset-0 bg-sky-500 bg-opacity-50 flex items-center justify-center text-white text-2xl">✓</div>)}
-                        </div>
-                    ))}
-                </div>
-                <div className="flex justify-end gap-4 mt-4">
-                    <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-                    <button onClick={() => { onSelect(selectedImages); setSelectedImages([]); }} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Add Selected</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-const DraggableThumbnail = ({ id, thumbnail, index, moveThumbnail, onRemove, onAltTextChange }) => {
-    const ref = useRef(null);
-    const [, drop] = useDrop({
-        accept: 'thumbnail',
-        hover(item) {
-            if (!ref.current || item.index === index) return;
-            moveThumbnail(item.index, index);
-            item.index = index;
-        },
-    });
-    const [{ isDragging }, drag] = useDrag({
-        type: 'thumbnail',
-        item: { type: 'thumbnail', id, index },
-        collect: (monitor) => ({ isDragging: monitor.isDragging() }),
-    });
-    drag(drop(ref));
-    return (
-        <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="p-2 border rounded-lg bg-white flex items-start gap-3">
-            <img src={thumbnail.preview} alt="preview" className="w-24 h-24 object-cover rounded-md flex-shrink-0" />
-            <div className="flex-grow">
-                <input type="text" value={thumbnail.altText || ''} onChange={(e) => onAltTextChange(index, e.target.value)} placeholder="Alt text" className="w-full p-2 text-sm border border-gray-300 rounded mb-2" />
-                <button type="button" onClick={() => onRemove(index)} className="text-xs text-red-600 hover:underline">Remove</button>
-            </div>
-        </div>
-    );
-};
-const StoryThumbnailManager = ({ thumbnails, setThumbnails, onUploadClick, onAddFromPostClick }) => {
-    const moveThumbnail = useCallback((dragIndex, hoverIndex) => {
-        setThumbnails(prev => {
-            const newThumbnails = [...prev];
-            const [draggedItem] = newThumbnails.splice(dragIndex, 1);
-            newThumbnails.splice(hoverIndex, 0, draggedItem);
-            return newThumbnails;
-        });
-    }, [setThumbnails]);
-    const removeThumbnail = (index) => setThumbnails(prev => prev.filter((_, i) => i !== index));
-    const handleAltTextChange = (index, text) => {
-        setThumbnails(prev => {
-            const newThumbnails = [...prev];
-            newThumbnails[index].altText = text;
-            return newThumbnails;
-        });
-    };
-    return (
-        <DndProvider backend={HTML5Backend}>
-            <div className="p-4 border rounded-lg space-y-4 bg-gray-50">
-                <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                    {thumbnails.length > 0 ? thumbnails.map((thumb, index) => (
-                        <DraggableThumbnail key={thumb.id || index} index={index} id={thumb.id || index} thumbnail={thumb} moveThumbnail={moveThumbnail} onRemove={removeThumbnail} onAltTextChange={handleAltTextChange} />
-                    )) : (<p className="text-center text-gray-500 text-sm py-4">No story thumbnails yet.</p>)}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <button type="button" onClick={onUploadClick} className="flex-1 flex items-center justify-center gap-2 text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                        Upload New
-                    </button>
-                    <button type="button" onClick={onAddFromPostClick} className="flex-1 flex items-center justify-center gap-2 text-sm p-2 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                        Add from Post
-                    </button>
-                </div>
-            </div>
-        </DndProvider>
-    );
-};
-const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+// Import New Sidebar Panels
+import MetaPanel from '../components/BlogEditor/MetaPanel';
+import SeoPanel from '../components/BlogEditor/SeoPanel';
+import CategoryPanel from '../components/BlogEditor/CategoryPanel';
+import LayoutPanel from '../components/BlogEditor/LayoutPanel';
+import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
+import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
+import PublishPanel from '../components/BlogEditor/PublishPanel';
+
+// Import New Main Content Component
+import EditorForm from '../components/BlogEditor/EditorForm';
 
 // MAIN COMPONENT
 const BlogEditorPage = () => {
@@ -547,6 +373,7 @@ const BlogEditorPage = () => {
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
 
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
+                {/* --- REFACTORED SIDEBAR --- */}
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
 
                     <div className="flex justify-between items-center mb-6">
@@ -562,185 +389,97 @@ const BlogEditorPage = () => {
 
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
 
-                        <div>
-                            <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
-                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
-                        </div>
+                        <MetaPanel
+                            title={title}
+                            onTitleChange={setTitle}
+                            userFriendlySlug={postUserFriendlySlug}
+                            onUserFriendlySlugChange={setPostUserFriendlySlug}
+                        />
 
-                        <div>
-                            <label htmlFor="userFriendlySlug" className="block text-gray-700 font-semibold mb-2">
-                                URL Slug (SEO Friendly)
-                            </label>
-                            <input
-                                type="text"
-                                id="userFriendlySlug"
-                                value={postUserFriendlySlug}
-                                onChange={e => setPostUserFriendlySlug(e.target.value)}
-                                placeholder="e.g., guide-to-market-analysis"
-                                className="w-full p-2 border border-gray-300 rounded"
-                            />
-                        </div>
+                        <SeoPanel
+                            keywords={keywords}
+                            onKeywordsChange={setKeywords}
+                            metaDescription={metaDescription}
+                            onMetaDescriptionChange={setMetaDescription}
+                            customSnippet={customSnippet}
+                            onCustomSnippetChange={setCustomSnippet}
+                        />
 
-                        <div>
-                            <label htmlFor="keywords" className="block text-gray-700 font-semibold mb-2">Keywords (Comma-separated)</label>
-                            <input type="text" id="keywords" value={keywords} onChange={e => setKeywords(e.target.value)} className="w-full p-2 border border-gray-300 rounded" placeholder="e.g., investing, stocks, financial freedom" />
-                        </div>
+                        <CategoryPanel
+                            selectedCategory={selectedCategory}
+                            onCategoryChange={setSelectedCategory}
+                            allCategories={allCategories}
+                            showNewCategoryInput={showNewCategoryInput}
+                            onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)}
+                            newCategoryName={newCategoryName}
+                            onNewCategoryNameChange={setNewCategoryName}
+                            onAddNewCategory={handleAddNewCategory}
+                        />
 
-                        <div>
-                            <label htmlFor="metaDescription" className="block text-gray-700 font-semibold mb-2">Meta Description (for SEO)</label>
-                            <textarea id="metaDescription" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A brief summary for search engines (about 155 characters)." />
-                        </div>
+                        <LayoutPanel
+                            layoutStyle={layoutStyle}
+                            onLayoutStyleChange={handleLayoutStyleChange}
+                            tags={tags}
+                            onTagsChange={setTags}
+                        />
 
-                        <div>
-                            <label htmlFor="customSnippet" className="block text-gray-700 font-semibold mb-2">Custom Snippet (for Previews)</label>
-                            <textarea id="customSnippet" value={customSnippet} onChange={e => setCustomSnippet(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A short preview for display on the blog page." />
-                        </div>
+                        <ThumbnailPanel
+                            thumbnailMode={thumbnailMode}
+                            onThumbnailModeChange={setThumbnailMode}
+                            // Single mode
+                            thumbPreview={thumbPreview}
+                            thumbnailAltText={thumbnailAltText}
+                            onThumbnailAltTextChange={setThumbnailAltText}
+                            onUploadSingleClick={() => {
+                                fileInputRef.current.multiple = false;
+                                fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail');
+                                fileInputRef.current.click();
+                            }}
+                            // Story mode
+                            storyThumbnails={storyThumbnails}
+                            setStoryThumbnails={setStoryThumbnails}
+                            onAddFromPostClick={handleAddFromPostClick}
+                            onUploadStoryClick={() => {
+                                fileInputRef.current.multiple = false;
+                                fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio);
+                                fileInputRef.current.click();
+                            }}
+                        />
 
-                        <div>
-                            <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
-                            <div className="flex items-center gap-2">
-                                <select
-                                    id="category"
-                                    value={selectedCategory ? selectedCategory.name : ''}
-                                    onChange={e => {
-                                        const cat = allCategories.find(c => c.name === e.target.value);
-                                        setSelectedCategory(cat);
-                                    }}
-                                    className="w-full p-2 border border-gray-300 rounded"
-                                >
-                                    <option value="">Select a category</option>
-                                    {allCategories && allCategories.map((cat) => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                    ))}
-                                </select>
-                                <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
-                            </div>
-                            {showNewCategoryInput && (
-                                <div className="flex items-center gap-2 mt-2">
-                                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
-                                    <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div>
-                            <label htmlFor="layoutStyle" className="block text-gray-700 font-semibold mb-2">Layout Style</label>
-                            <select id="layoutStyle" value={layoutStyle} onChange={handleLayoutStyleChange} className="w-full p-2 border border-gray-300 rounded">
-                                <option value="DEFAULT">Default (Masonry)</option>
-                                <option value="BANNER">Banner</option>
-                                <option value="MULTI_COLUMN_2">2 Column Row</option>
-                                <option value="MULTI_COLUMN_3">3 Column Row</option>
-                                <option value="MULTI_COLUMN_4">4 Column Row</option>
-                                <option value="MULTI_COLUMN_5">5 Column Row</option>
-                                <option value="MULTI_COLUMN_6">6 Column Row</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">Tags</label>
-                            <TagsInput tags={tags} setTags={setTags} />
-                        </div>
-
-                        <div className="my-4">
-                            <label className="block text-gray-700 font-semibold mb-2">Thumbnail Mode</label>
-                            <div className="flex rounded-lg p-1 bg-gray-200">
-                                <button type="button" onClick={() => setThumbnailMode('single')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'single' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
-                                    Single Image
-                                </button>
-                                <button type="button" onClick={() => setThumbnailMode('story')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'story' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
-                                    Story Thumbnails
-                                </button>
-                            </div>
-                        </div>
-
-                        {thumbnailMode === 'single' ? (
-                            <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                                <label className="block text-gray-700 font-semibold">Thumbnail Image</label>
-                                {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                                <button type="button" onClick={() => {
-                                    fileInputRef.current.multiple = false;
-                                    fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail');
-                                    fileInputRef.current.click();
-                                }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Thumbnail</button>
-                                <div>
-                                    <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                    <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                                </div>
-                            </div>
-                        ) : (
-                            <StoryThumbnailManager
-                                thumbnails={storyThumbnails}
-                                setThumbnails={setStoryThumbnails}
-                                onUploadClick={() => {
-                                    fileInputRef.current.multiple = false;
-                                    fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio);
-                                    fileInputRef.current.click();
-                                }}
-                                onAddFromPostClick={handleAddFromPostClick}
-                            />
-                        )}
-
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Cover Image</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <button type="button" onClick={() => {
+                        <CoverImagePanel
+                            coverPreview={coverPreview}
+                            coverImageAltText={coverImageAltText}
+                            onCoverImageAltTextChange={setCoverImageAltText}
+                            onUploadCoverClick={() => {
                                 fileInputRef.current.multiple = false;
                                 fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover');
                                 fileInputRef.current.click();
-                            }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Cover Image</button>
-                            <div>
-                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Cover Image Alt Text</label>
-                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the cover image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                        </div>
+                            }}
+                        />
 
-                        <div>
-                            <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
-                            <input
-                                type="datetime-local"
-                                id="scheduledTime"
-                                value={scheduledTime}
-                                onChange={e => setScheduledTime(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
-                        </div>
+                        <PublishPanel
+                            scheduledTime={scheduledTime}
+                            onScheduledTimeChange={setScheduledTime}
+                            isFeatured={isFeatured}
+                            onIsFeaturedChange={setIsFeatured}
+                            isUpdating={!!postId}
+                        />
 
-                        <div className="flex items-center">
-                            <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-                            <span className="ml-2 text-gray-700">Mark as Featured</span>
-                        </div>
-
-                        <button type="submit" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                            {postId ? 'Update Post' : 'Publish Post'}
-                        </button>
                     </form>
                 </div>
-                <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
-                    <label className="block text-gray-700 font-semibold mb-2">Content</label>
-                    <div className="flex-grow h-full">
-                        <Suspense fallback={<div>Loading editor...</div>}>
-                            <SunEditor
-                                setContents={content}
-                                onChange={setContent}
-                                getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
-                                onImageUploadBefore={handleImageUploadBefore}
-                                onLoad={() => {
-                                    if (editorRef.current && content && !isContentLoaded.current) {
-                                        isContentLoaded.current = true;
-                                    }
-                                }}
-                                setOptions={{
-                                    height: 'auto',
-                                    minHeight: '400px',
-                                    buttonList: buttonList.complex,
-                                    pasteKeepFormats: true,
-                                    pasteTagsWhitelist: '.*'
-                                }}
-                            />
-                        </Suspense>
-                    </div>
-                </div>
+
+                {/* --- REFACTORED EDITOR --- */}
+                <EditorForm
+                    content={content}
+                    onContentChange={setContent}
+                    editorRef={editorRef}
+                    onImageUploadBefore={handleImageUploadBefore}
+                    onLoad={() => {
+                        if (editorRef.current && content && !isContentLoaded.current) {
+                            isContentLoaded.current = true;
+                        }
+                    }}
+                />
             </div>
         </div>
     );
