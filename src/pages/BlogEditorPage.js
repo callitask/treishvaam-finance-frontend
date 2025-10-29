@@ -1,749 +1,434 @@
-import React, { useState, useRef, useEffect, Suspense, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import imageCompression from 'browser-image-compression';
-import { DndProvider, useDrag, useDrop } from 'react-dnd';
-import { HTML5Backend } from 'react-dnd-html5-backend';
-import 'suneditor/dist/css/suneditor.min.css';
-import 'react-image-crop/dist/ReactCrop.css';
-import ReactCrop from 'react-image-crop';
-import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
-import { buttonList } from 'suneditor-react';
+import React, { useState, useEffect, useMemo, memo, useRef, useCallback, forwardRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { API_URL, getCategories, getPaginatedPosts, getTopGainers, getTopLosers, getMostActive } from '../apiConfig';
+import DOMPurify from 'dompurify';
+import { Helmet } from 'react-helmet-async';
+import { FiFilter, FiX } from 'react-icons/fi';
+import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
+import DevelopmentNotice from '../components/DevelopmentNotice';
+import TopMoversCard from '../components/market/TopMoversCard';
+import BlogSidebar from '../components/BlogSidebar';
+import NewsHighlights from '../components/NewsHighlights';
+import DeeperDive from '../components/DeeperDive';
+import IndexCharts from '../components/market/IndexCharts';
+import MarketMovers from '../components/market/MarketMovers';
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
+import SearchAutocomplete from '../components/SearchAutocomplete';
 
-const SunEditor = React.lazy(() => import('suneditor-react'));
 
-// HELPER COMPONENTS (Unchanged)
-const TagsInput = ({ tags, setTags }) => {
-    const [inputValue, setInputValue] = useState('');
-    const addTag = () => {
-        const newTag = inputValue.trim().replace(/,/g, '');
-        if (newTag && !tags.includes(newTag)) setTags([...tags, newTag]);
-        setInputValue('');
-    };
-    const handleKeyDown = (e) => {
-        if (e.key === 'Enter' || e.key === ',') {
-            e.preventDefault();
-            addTag();
-        }
-    };
-    const removeTag = (tagToRemove) => setTags(tags.filter(tag => tag !== tagToRemove));
+const categoryStyles = { "Stocks": "text-sky-700", "Crypto": "text-sky-700", "Trading": "text-sky-700", "News": "text-sky-700", "Default": "text-sky-700" };
 
-    return (
-        <div>
-            <div className="flex flex-wrap gap-2 mb-2">
-                {tags.map(tag => (
-                    <div key={tag} className="bg-sky-100 text-sky-800 text-sm font-semibold px-2 py-1 rounded-full flex items-center">
-                        <span>{tag}</span>
-                        <button type="button" onClick={() => removeTag(tag)} className="ml-2 text-sky-600 hover:text-sky-900">&times;</button>
-                    </div>
-                ))}
-            </div>
-            <div className="flex items-center gap-2">
-                <input type="text" value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="Add a tag" className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-sky-200" />
-                <button type="button" onClick={addTag} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-            </div>
-        </div>
-    );
+const createSnippet = (html, length = 155) => {
+    if (!html) return '';
+    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
+    if (plainText.length <= length) return plainText;
+    const trimmed = plainText.substring(0, length);
+    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
-const canvasToBlob = (canvas) => new Promise(resolve => canvas.toBlob(blob => resolve(blob), 'image/webp', 0.9));
-function canvasPreview(image, canvas, crop) {
-    const ctx = canvas.getContext('2d');
-    if (!ctx || !crop.width || !crop.height) return;
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const pixelRatio = window.devicePixelRatio || 1;
-    canvas.width = Math.floor(crop.width * scaleX * pixelRatio);
-    canvas.height = Math.floor(crop.height * scaleY * pixelRatio);
-    ctx.scale(pixelRatio, pixelRatio);
-    ctx.imageSmoothingQuality = 'high';
-    const cropX = crop.x * scaleX;
-    const cropY = crop.y * scaleY;
-    ctx.drawImage(image, cropX, cropY, crop.width * scaleX, crop.height * scaleY, 0, 0, crop.width * scaleX, crop.height * scaleY);
-}
-const CropModal = ({ src, type, onClose, onSave, aspect }) => {
-    const imgRef = useRef(null);
-    const canvasRef = useRef(null);
-    const [crop, setCrop] = useState();
-    const [completedCrop, setCompletedCrop] = useState();
-    useEffect(() => {
-        if (completedCrop?.width && imgRef.current && canvasRef.current) {
-            canvasPreview(imgRef.current, canvasRef.current, completedCrop);
-        }
-    }, [completedCrop]);
-    const handleSave = () => {
-        if (!completedCrop || !canvasRef.current) return;
-        onSave(canvasRef.current, completedCrop);
-    };
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full">
-                <h3 className="text-xl font-bold mb-4">Crop Image</h3>
-                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                    <ReactCrop crop={crop} onChange={c => setCrop(c)} onComplete={c => setCompletedCrop(c)} aspect={aspect}>
-                        <img ref={imgRef} alt="Crop" src={src} />
-                    </ReactCrop>
-                </div>
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="flex justify-end gap-4 mt-4">
-                    <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Save</button>
-                </div>
-            </div>
-        </div>
-    );
+
+const formatDateTime = (dateString) => {
+    if (!dateString) return { isNew: false, displayDate: 'Date not available' };
+    const dateObj = new Date(dateString);
+    if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
+    const now = new Date();
+    const diffHours = (now - dateObj) / (1000 * 60 * 60);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(dateObj);
+    return { isNew: diffHours < 48, displayDate };
 };
-const LockChoiceModal = ({ isOpen, onChoice }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
-                <h3 className="text-xl font-bold mb-4">Square Image Detected</h3>
-                <p className="text-gray-600 mb-6">For subsequent images in this story, how should they be cropped?</p>
-                <div className="flex justify-center gap-4 mt-4">
-                    <button onClick={() => onChoice('landscape')} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Lock Height (Landscape Style)</button>
-                    <button onClick={() => onChoice('portrait')} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Lock Width (Portrait Style)</button>
+
+const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
+    const categoryName = article.category?.name || 'Uncategorized';
+    const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
+    const isFeatured = article.featured;
+    const totalSlides = article.thumbnails?.length || 0;
+    const landscapeSlidesToShow = Math.min(totalSlides, 4);
+    const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
+
+    const categorySlug = categoriesMap[categoryName] || 'uncategorized';
+    const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
+
+    const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(categoryName)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{categoryName}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={postLink} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={postLink} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+        if (isStory) {
+            return (
+                // --- MODIFIED --- Removed 'aspect-video' class from this div
+                <div className="bg-gray-100">
+                    <Slider ref={sliderRef} {...landscapeSettings}>
+                        {article.thumbnails.map(thumb => (
+                            <div key={thumb.id} className="px-px">
+                                <Link to={postLink} className="block w-full h-full">
+                                    <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" />
+                                </Link>
+                            </div>
+                        ))}
+                    </Slider>
                 </div>
-            </div>
-        </div>
-    )
-}
-const AddFromPostModal = ({ images, isOpen, onClose, onSelect }) => {
-    const [selectedImages, setSelectedImages] = useState([]);
-    if (!isOpen) return null;
-    const toggleSelection = (url) => setSelectedImages(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-xl max-w-4xl w-full">
-                <h3 className="text-xl font-bold mb-4">Select Images from Post</h3>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 max-h-96 overflow-y-auto p-2">
-                    {images.map((url, index) => (
-                        <div key={index} onClick={() => toggleSelection(url)} className={`relative rounded-lg overflow-hidden cursor-pointer border-4 ${selectedImages.includes(url) ? 'border-sky-500' : 'border-transparent'}`}>
-                            <img src={url} alt={`Post content ${index + 1}`} className="w-full h-full object-cover" />
-                            {selectedImages.includes(url) && (<div className="absolute inset-0 bg-sky-500 bg-opacity-50 flex items-center justify-center text-white text-2xl">✓</div>)}
+            );
+        }
+        const singleThumbnail = article.thumbnails[0];
+        // --- MODIFIED --- Added aspect-ratio to stabilize the layout for masonry grid
+        return (
+            <Link to={postLink} className="block aspect-[4/3] bg-gray-100">
+                <ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-full object-cover" />
+            </Link>
+        );
+    };
+
+    return (<div ref={ref} className="break-inside-avoid bg-white border border-gray-200 mb-px relative flex flex-col">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
+}));
+
+const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(new Date(article.updatedAt || article.createdAt));
+    const categoryName = article.category?.name || 'Uncategorized';
+    const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
+    const isFeatured = article.featured;
+    const totalSlides = article.thumbnails?.length || 0;
+    const landscapeSlidesToShow = Math.min(totalSlides, 4);
+    const landscapeSettings = { dots: false, infinite: totalSlides > landscapeSlidesToShow, speed: 500, slidesToShow: landscapeSlidesToShow, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3000, arrows: false };
+
+    const categorySlug = categoriesMap[categoryName] || 'uncategorized';
+    const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
+
+    const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(categoryName)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{categoryName}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={postLink} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={postLink} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) return null;
+        if (isStory) {
+            return (
+                // --- MODIFIED --- Removed 'aspect-video' class from this div
+                <div className="bg-gray-100">
+                    <Slider ref={sliderRef} {...landscapeSettings}>
+                        {article.thumbnails.map(thumb => (
+                            <div key={thumb.id} className="px-px">
+                                <Link to={postLink} className="block w-full h-full">
+                                    <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" />
+                                </Link>
+                            </div>
+                        ))}
+                    </Slider>
+                </div>
+            );
+        }
+        const singleThumbnail = article.thumbnails[0];
+        // --- MODIFIED --- Added aspect-ratio to stabilize the layout for grid
+        return (
+            <Link to={postLink} className="block aspect-video bg-gray-100">
+                <ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-full object-cover" />
+            </Link>
+        );
+    };
+
+    return (<div ref={ref} className="bg-white border border-gray-200 relative flex flex-col h-full">{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md uppercase tracking-wider">Featured</span></div>)}<ThumbnailDisplay /><CardContent /></div>);
+}));
+
+const BannerPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
+    const categoryName = article.category?.name || 'Uncategorized';
+    const bannerSliderSettings = { dots: false, fade: true, infinite: true, speed: 1000, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 4000, arrows: false, pauseOnHover: false };
+
+    const categorySlug = categoriesMap[categoryName] || 'uncategorized';
+    const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
+
+    const ThumbnailDisplay = () => {
+        if (!hasThumbnails) {
+            // --- ADDED --- Placeholder to maintain height even if there is no image
+            return <div className="aspect-video bg-gray-200"></div>;
+        }
+        if (isStory) {
+            return (
+                <Slider ref={sliderRef} {...bannerSliderSettings}>
+                    {article.thumbnails.map(thumb => (
+                        <div key={thumb.id}>
+                            <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" />
                         </div>
                     ))}
-                </div>
-                <div className="flex justify-end gap-4 mt-4">
-                    <button onClick={onClose} className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300">Cancel</button>
-                    <button onClick={() => {onSelect(selectedImages); setSelectedImages([]);}} className="px-4 py-2 rounded bg-sky-600 text-white hover:bg-sky-700">Add Selected</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-const DraggableThumbnail = ({ id, thumbnail, index, moveThumbnail, onRemove, onAltTextChange }) => {
-    const ref = useRef(null);
-    const [, drop] = useDrop({
-        accept: 'thumbnail',
-        hover(item) {
-            if (!ref.current || item.index === index) return;
-            moveThumbnail(item.index, index);
-            item.index = index;
-        },
-    });
-    const [{ isDragging }, drag] = useDrag({
-        type: 'thumbnail',
-        item: { type: 'thumbnail', id, index },
-        collect: (monitor) => ({ isDragging: monitor.isDragging() }),
-    });
-    drag(drop(ref));
-    return (
-        <div ref={ref} style={{ opacity: isDragging ? 0.5 : 1 }} className="p-2 border rounded-lg bg-white flex items-start gap-3">
-             <img src={thumbnail.preview} alt="preview" className="w-24 h-24 object-cover rounded-md flex-shrink-0" />
-             <div className="flex-grow">
-                 <input type="text" value={thumbnail.altText || ''} onChange={(e) => onAltTextChange(index, e.target.value)} placeholder="Alt text" className="w-full p-2 text-sm border border-gray-300 rounded mb-2" />
-                 <button type="button" onClick={() => onRemove(index)} className="text-xs text-red-600 hover:underline">Remove</button>
-             </div>
-        </div>
-    );
-};
-const StoryThumbnailManager = ({ thumbnails, setThumbnails, onUploadClick, onAddFromPostClick }) => {
-    const moveThumbnail = useCallback((dragIndex, hoverIndex) => {
-        setThumbnails(prev => {
-            const newThumbnails = [...prev];
-            const [draggedItem] = newThumbnails.splice(dragIndex, 1);
-            newThumbnails.splice(hoverIndex, 0, draggedItem);
-            return newThumbnails;
-        });
-    }, [setThumbnails]);
-    const removeThumbnail = (index) => setThumbnails(prev => prev.filter((_, i) => i !== index));
-    const handleAltTextChange = (index, text) => {
-        setThumbnails(prev => {
-            const newThumbnails = [...prev];
-            newThumbnails[index].altText = text;
-            return newThumbnails;
-        });
+                </Slider>
+            );
+        }
+        return <ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className="w-full h-full object-cover" />;
     };
+
+    return (<div ref={ref} className="block relative bg-black text-white overflow-hidden border border-gray-200 group"><div className="absolute inset-0"><ThumbnailDisplay /></div><div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent group-hover:via-black/80 transition-all duration-300"></div><Link to={postLink} className="relative p-8 flex flex-col justify-end min-h-[400px] z-10"><div className="flex justify-between items-center text-sm mb-2"><div className="flex items-center gap-3"><span onClick={(e) => { e.preventDefault(); onCategoryClick(categoryName); }} className="font-bold uppercase tracking-wider text-sky-300 hover:underline cursor-pointer">{categoryName}</span><span className="text-gray-400">|</span><span className="text-gray-300">{displayDate}</span></div>{isNew && <span className="font-semibold text-red-500 bg-white/20 px-2 py-1 rounded-full text-xs">NEW</span>}</div><h2 className="text-3xl md:text-4xl font-bold my-2 leading-tight text-white group-hover:text-sky-200 transition-colors duration-300">{article.title}</h2><p className="text-gray-200 text-base mt-2 max-w-2xl hidden md:block">{createSnippet(article.customSnippet || article.content, 150)}</p><div className="text-xs text-gray-400 mt-4">By Treishvaam Finance</div></Link></div>);
+}));
+
+const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, layout, categoriesMap }, ref) => {
+    const sliderRef = useRef(null);
+    const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
+    const isStory = hasThumbnails && article.thumbnails.length > 1;
+    const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
+    const categoryName = article.category?.name || 'Uncategorized';
+    const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
+    const isFeatured = article.featured;
+    const isBannerLayout = layout === 'banner';
+    const titleClass = "text-sm font-bold text-gray-900 leading-tight";
+    const sliderSettings = { dots: false, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, autoplay: true, autoplaySpeed: 3500, arrows: false };
+
+    const categorySlug = categoriesMap[categoryName] || 'uncategorized';
+    const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
+
+    return (<div ref={ref} className={`bg-white shadow-sm flex flex-col relative ${isBannerLayout ? 'col-span-2' : 'col-span-1'}`}>{isFeatured && (<div className="absolute top-2 left-2 z-10"><span className="bg-gradient-to-r from-yellow-400 to-pink-500 text-white text-xs font-bold px-2 py-1 shadow-md uppercase tracking-wider">Featured</span></div>)}{hasThumbnails && (isStory ? (<Slider ref={sliderRef} {...sliderSettings}>{article.thumbnails.map(thumb => (<div key={thumb.id}><Link to={postLink}><ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full object-cover bg-gray-100 aspect-video" /></Link></div>))}</Slider>) : (<Link to={postLink}><ResponsiveAuthImage baseName={article.thumbnails[0].imageUrl} alt={article.thumbnails[0].altText || article.title} className={`w-full object-cover bg-gray-100 ${isBannerLayout ? 'aspect-video' : 'aspect-square'}`} /></Link>))}<div className="p-3 flex flex-col flex-grow"><div className="flex items-center justify-between text-xs mb-2"><div className="flex items-center flex-wrap"><button onClick={() => onCategoryClick(categoryName)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{categoryName}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0 ml-2">NEW</span>}</div><h3 className={titleClass}><Link to={postLink} className="hover:underline">{article.title}</Link></h3><div className="mt-auto pt-2 text-xs text-gray-500"><span>{displayDate}</span></div></div></div>);
+}));
+
+
+const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const allCategories = ['All', ...categories.map(cat => cat.name)];
+
+    if (loadingCategories) {
+        return <div className="h-10 w-48 bg-gray-200 animate-pulse rounded-md"></div>;
+    }
+
     return (
-        <DndProvider backend={HTML5Backend}>
-            <div className="p-4 border rounded-lg space-y-4 bg-gray-50">
-                <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
-                    {thumbnails.length > 0 ? thumbnails.map((thumb, index) => (
-                        <DraggableThumbnail key={thumb.id || index} index={index} id={thumb.id || index} thumbnail={thumb} moveThumbnail={moveThumbnail} onRemove={removeThumbnail} onAltTextChange={handleAltTextChange} />
-                    )) : (<p className="text-center text-gray-500 text-sm py-4">No story thumbnails yet.</p>)}
+        <div className="relative">
+            <button
+                type="button"
+                className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200 hover:bg-gray-50 text-sm font-medium text-gray-700 flex justify-between items-center"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
+                {selectedCategory}
+                <svg className={`h-5 w-5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+            </button>
+            {isDropdownOpen && (
+                <div className="absolute z-20 mt-2 w-full origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition-all duration-100 ease-in-out">
+                    <div className="py-1">
+                        {allCategories.map(cat => (
+                            <div
+                                key={cat}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                    setSelectedCategory(cat);
+                                    setIsDropdownOpen(false);
+                                }}
+                            >
+                                {cat}
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                    <button type="button" onClick={onUploadClick} className="flex-1 flex items-center justify-center gap-2 text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                        Upload New
-                    </button>
-                    <button type="button" onClick={onAddFromPostClick} className="flex-1 flex items-center justify-center gap-2 text-sm p-2 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200">
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                        Add from Post
-                    </button>
-                </div>
-            </div>
-        </DndProvider>
+            )}
+        </div>
     );
 };
-const generateLayoutGroupId = () => `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-// MAIN COMPONENT
-const BlogEditorPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
-    
-    // STATE
-    const [postId, setPostId] = useState(null);
-    const [saveStatus, setSaveStatus] = useState('Idle');
-    const [title, setTitle] = useState('');
-    const [content, setContent] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState(null);
-    const [isFeatured, setIsFeatured] = useState(false);
-    const [tags, setTags] = useState([]);
+
+const NavbarExtrasPortal = ({ children }) => {
+    const [mountNode, setMountNode] = useState(null);
+
+    useEffect(() => {
+        const node = document.getElementById('navbar-extras-portal-target');
+        setMountNode(node);
+        return () => {
+            if (node) {
+                node.innerHTML = '';
+            }
+        };
+    }, []);
+
+    return mountNode ? createPortal(children, mountNode) : null;
+};
+
+
+const BlogPage = () => {
+    const [posts, setPosts] = useState([]);
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [allCategories, setAllCategories] = useState([]);
-    const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
-    const [newCategoryName, setNewCategoryName] = useState('');
-    const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '', aspect: undefined });
-    const [scheduledTime, setScheduledTime] = useState('');
-    const [customSnippet, setCustomSnippet] = useState('');
-    const [metaDescription, setMetaDescription] = useState('');
-    const [keywords, setKeywords] = useState('');
-    const [coverImageAltText, setCoverImageAltText] = useState('');
-    const [thumbnailMode, setThumbnailMode] = useState('single');
-    const [storyThumbnails, setStoryThumbnails] = useState([]);
-    const [thumbnailOrientation, setThumbnailOrientation] = useState(null);
-    const [lockedAspectRatio, setLockedAspectRatio] = useState(null);
-    const [isAddFromPostModalOpen, setAddFromPostModalOpen] = useState(false);
-    const [postImagesForSelection, setPostImagesForSelection] = useState([]);
-    const [thumbPreview, setThumbPreview] = useState('');
-    const [finalThumbFile, setFinalThumbFile] = useState(null);
-    const [coverPreview, setCoverPreview] = useState('');
-    const [finalCoverFile, setFinalCoverFile] = useState(null);
-    const [sunEditorUploadHandler, setSunEditorUploadHandler] = useState(null);
-    const [thumbnailAltText, setThumbnailAltText] = useState('');
-    const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
-    const [pendingCrop, setPendingCrop] = useState(null);
-    const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
-    const [layoutGroupId, setLayoutGroupId] = useState(null);
-    const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [loadingCategories, setLoadingCategories] = useState(true);
+    const [selectedCategory, setSelectedCategory] = useState("All");
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [searchParams] = useSearchParams();
+    const searchTerm = searchParams.get('q') || "";
+    const [categoriesMap, setCategoriesMap] = useState({});
 
-    // REFS
-    const editorRef = useRef(null);
-    const fileInputRef = useRef(null);
-    const isContentLoaded = useRef(false);
-    const autoSaveTimer = useRef(null);
+    const [isDataReady, setIsDataReady] = useState(false);
+
+    const observer = useRef();
+    const lastPostElementRef = useCallback(node => {
+        if (loading) return;
+        if (observer.current) observer.current.disconnect();
+        observer.current = new IntersectionObserver(entries => {
+            if (entries[0].isIntersecting && hasMore) {
+                setPage(prevPage => prevPage + 1);
+            }
+        });
+        if (node) observer.current.observe(node);
+    }, [loading, hasMore]);
 
     useEffect(() => {
-        const fetchInitialData = async () => {
-            try {
-                const categoriesRes = await getCategories();
-                if (Array.isArray(categoriesRes.data)) setAllCategories(categoriesRes.data);
-                
-                if (id) {
-                    const postRes = await getPost(id);
-                    const post = postRes.data;
-                    setPostId(post.id);
-                    setTitle(post.title);
-                    setContent(post.content);
-                    
-                    if (post.category && categoriesRes.data) {
-                        const currentCategory = categoriesRes.data.find(c => c.name === post.category.name);
-                        setSelectedCategory(currentCategory || null);
-                    }
-                    
-                    setTags(post.tags || []);
-                    setIsFeatured(post.featured);
-                    setCustomSnippet(post.customSnippet || '');
-                    setMetaDescription(post.metaDescription || '');
-                    setKeywords(post.keywords || '');
-                    setCoverImageAltText(post.coverImageAltText || '');
-                    setPostUserFriendlySlug(post.userFriendlySlug || '');
-                    
-                    setLayoutStyle(post.layoutStyle || 'DEFAULT');
-                    setLayoutGroupId(post.layoutGroupId || null);
-
-                    if (post.thumbnails && post.thumbnails.length > 0) {
-                        setThumbnailMode('story');
-                        const orientation = post.thumbnailOrientation || 'landscape';
-                        setThumbnailOrientation(orientation);
-                        setLockedAspectRatio(orientation === 'landscape' ? 16/9 : 4/5);
-                        const loadedThumbnails = post.thumbnails.map(thumb => ({
-                            id: thumb.id,
-                            preview: `${API_URL}/api/uploads/${thumb.imageUrl}-small.webp`,
-                            altText: thumb.altText || '',
-                            source: 'existing',
-                            url: thumb.imageUrl,
-                            file: null
-                        })).sort((a, b) => a.displayOrder - b.displayOrder);
-                        setStoryThumbnails(loadedThumbnails);
-                    }
-                    if(post.coverImageUrl) setCoverPreview(`${API_URL}/api/uploads/${post.coverImageUrl}.webp`);
-                    if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
-                } else {
-                    if (categoriesRes.data?.length > 0) {
-                        setSelectedCategory(categoriesRes.data[0]);
-                    }
-                }
-            } catch (err) {
-                setError('Failed to load initial data.');
-                console.error(err);
-            }
-        };
-        fetchInitialData();
-    }, [id]);
-
-    const handleAutoSave = useCallback(async () => {
-        if (!title.trim() && !content.trim()) return;
-        setSaveStatus('Saving...');
-        try {
-            const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
-            const draftData = { title, content: editorContent, customSnippet, metaDescription, keywords };
-            if (postId) {
-                await updateDraft(postId, draftData);
-            } else {
-                const response = await createDraft(draftData);
-                setPostId(response.data.id);
-                navigate(`/dashboard/blog/edit/${response.data.userFriendlySlug}/${response.data.id}`, { replace: true });
-            }
-            setSaveStatus('Saved');
-        } catch (err) {
-            setSaveStatus('Error');
-            console.error("Auto-save failed:", err);
-        }
-    }, [title, content, customSnippet, metaDescription, keywords, postId, navigate]);
+        setPosts([]);
+        setPage(0);
+        setHasMore(true);
+    }, [selectedCategory, searchTerm]);
 
     useEffect(() => {
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => handleAutoSave(), 2000);
-        return () => clearTimeout(autoSaveTimer.current);
-    }, [title, content, customSnippet, metaDescription, keywords, handleAutoSave]);
+        if (!isDataReady) return;
 
-    const compressImage = async (file) => {
-        if (!file) return null;
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
-        try { return await imageCompression(file, options); } catch (e) { return file; }
-    };
-    
-    const onSelectFile = (e, type, aspect) => {
-        if (e.target.files && e.target.files.length > 0) {
-            const reader = new FileReader();
-            reader.addEventListener('load', () => setModalState({ isOpen: true, type, src: reader.result?.toString() || '', aspect }));
-            reader.readAsDataURL(e.target.files[0]);
-        }
-        e.target.value = null;
-    };
-    
-    const handleImageUploadBefore = (files, info, uploadHandler) => {
-        const file = files[0];
-        if (!file) return;
-        setSunEditorUploadHandler(() => uploadHandler);
-        const reader = new FileReader();
-        reader.addEventListener('load', () => setModalState({ isOpen: true, type: 'suneditor', src: reader.result?.toString() || '' }));
-        reader.readAsDataURL(file);
-        return false;
-    };
-    
-    const handleLockChoice = (choice) => {
-        const orientation = choice;
-        const aspect = orientation === 'landscape' ? 16/9 : 4/5;
-        setThumbnailOrientation(orientation);
-        setLockedAspectRatio(aspect);
-        if(pendingCrop) {
-            addCroppedImageToStory(pendingCrop.canvas);
-        }
-        setLockChoiceModalOpen(false);
-        setPendingCrop(null);
-    }
-
-    const addCroppedImageToStory = async (canvas) => {
-        const croppedBlob = await canvasToBlob(canvas);
-        const finalFile = await compressImage(croppedBlob);
-        const previewUrl = URL.createObjectURL(finalFile);
-        const newThumbnail = {
-            id: `new-${Date.now()}`,
-            preview: previewUrl,
-            altText: '',
-            source: 'new',
-            file: new File([finalFile], `thumbnail-${Date.now()}.webp`, { type: 'image/webp' }),
-        };
-        setStoryThumbnails(prev => [...prev, newThumbnail]);
-    }
-
-    const handleCropSave = async (canvas, cropDetails) => {
-        setModalState({ isOpen: false, type: null, src: '', aspect: undefined });
-        if (modalState.type === 'story-thumbnail') {
-            if (!thumbnailOrientation) {
-                const { width, height } = cropDetails;
-                const aspect = width / height;
-                const isSquare = aspect > 0.95 && aspect < 1.05;
-                if (isSquare) {
-                    setPendingCrop({canvas});
-                    setLockChoiceModalOpen(true);
-                    return;
-                } else {
-                    const orientation = width > height ? 'landscape' : 'portrait';
-                    setThumbnailOrientation(orientation);
-                    setLockedAspectRatio(aspect);
-                    addCroppedImageToStory(canvas);
-                }
-            } else {
-                addCroppedImageToStory(canvas);
-            }
-        } else {
-            const croppedBlob = await canvasToBlob(canvas);
-            const finalFile = await compressImage(croppedBlob);
-            const previewUrl = URL.createObjectURL(finalFile);
-            if (modalState.type === 'single-thumbnail') {
-                setFinalThumbFile(finalFile);
-                setThumbPreview(previewUrl);
-            } else if (modalState.type === 'cover') {
-                setFinalCoverFile(finalFile);
-                setCoverPreview(previewUrl);
-            } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
-                const formData = new FormData();
-                formData.append('file', finalFile, 'image.webp');
-                uploadFile(formData).then(res => sunEditorUploadHandler(res.data)).catch(err => {
-                    alert("Image upload failed in editor.");
-                    sunEditorUploadHandler();
-                });
-            }
-        }
-    };
-
-    const handleAddNewCategory = async () => {
-        if (!newCategoryName) return;
-        const isDuplicate = allCategories.some(c => c.name.toLowerCase() === newCategoryName.toLowerCase());
-        if (isDuplicate) return alert('Category name cannot be a duplicate.');
-        try {
-            const response = await addCategory({ name: newCategoryName });
-            setAllCategories([...allCategories, response.data]);
-            setSelectedCategory(response.data);
-            setNewCategoryName('');
-            setShowNewCategoryInput(false);
-        } catch (err) {
-            setError('Failed to add new category.');
-            console.error(err);
-        }
-    };
-
-    const handleAddFromPostClick = () => {
-        if (!editorRef.current) return;
-        const editorContent = editorRef.current.getContents(true);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(editorContent, 'text/html');
-        const images = Array.from(doc.querySelectorAll('img')).map(img => img.src);
-        setPostImagesForSelection(images);
-        setAddFromPostModalOpen(true);
-    };
-    
-    const handleSelectFromPost = (selectedUrls) => {
-        const newThumbnails = selectedUrls.map((url) => ({
-            id: `existing-${url}-${Date.now()}`,
-            preview: url,
-            altText: '',
-            source: 'existing',
-            file: null,
-            url: new URL(url).pathname.replace('/api/uploads/', ''),
-        }));
-        setStoryThumbnails([...storyThumbnails, ...newThumbnails]);
-        setAddFromPostModalOpen(false);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+        setLoading(true);
         setError('');
-        if (!editorRef.current) return setError("Editor is not yet available.");
-        if (!selectedCategory) return setError("Please select a category.");
-
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('content', editorRef.current.getContents(true));
-        formData.append('category', selectedCategory.name);
-        formData.append('featured', isFeatured);
-        formData.append('customSnippet', customSnippet);
-        formData.append('metaDescription', metaDescription);
-        formData.append('keywords', keywords);
-        formData.append('coverImageAltText', coverImageAltText);
-        tags.forEach(tag => formData.append('tags', tag));
-        if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
-        if (finalCoverFile) formData.append('coverImage', finalCoverFile);
-        
-        formData.append('layoutStyle', layoutStyle);
-        if (layoutStyle.startsWith('MULTI_COLUMN')) {
-            formData.append('layoutGroupId', layoutGroupId || generateLayoutGroupId());
-        } else {
-            formData.append('layoutGroupId', '');
-        }
-        formData.append('userFriendlySlug', postUserFriendlySlug);
-
-        if (thumbnailMode === 'story') {
-            formData.append('thumbnailOrientation', thumbnailOrientation);
-            const metadata = storyThumbnails.map((thumb, index) => ({
-                source: thumb.source,
-                fileName: thumb.source === 'new' ? thumb.file.name : null,
-                url: thumb.source === 'existing' ? thumb.url : null,
-                altText: thumb.altText,
-                displayOrder: index
-            }));
-            formData.append('thumbnailMetadata', JSON.stringify(metadata));
-            storyThumbnails.forEach(thumb => {
-                if (thumb.source === 'new') formData.append('newThumbnails', thumb.file);
+        getPaginatedPosts(page, 9).then(response => {
+            setPosts(prevPosts => {
+                const newPosts = response.data.content;
+                const existingIds = new Set(prevPosts.map(p => p.id));
+                const uniqueNewPosts = newPosts.filter(p => !existingIds.has(p.id));
+                return page === 0 ? newPosts : [...prevPosts, ...uniqueNewPosts];
             });
-        } else { 
-             if (finalThumbFile) {
-                const metadata = [{ source: 'new', fileName: 'thumbnail.webp', altText: thumbnailAltText, displayOrder: 0 }];
-                formData.append('thumbnailMetadata', JSON.stringify(metadata));
-                formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
-            } else if (thumbPreview) {
-                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
-                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
-                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
-            } else {
-                 formData.append('thumbnailMetadata', JSON.stringify([]));
-            }
-        }
+            setHasMore(!response.data.last);
+            setLoading(false);
+        }).catch(err => {
+            setError('Failed to fetch blog posts.');
+            setLoading(false);
+        });
+    }, [page, selectedCategory, searchTerm, isDataReady]);
 
-        try {
-            if (postId) {
-                await updatePost(postId, formData);
-            } else {
-                await createPost(formData);
-            }
-            navigate('/dashboard/manage-posts');
-        } catch (err) {
-            setError('Failed to save the post. Check console for details.');
-            console.error(err);
+    useEffect(() => {
+        getCategories().then(response => {
+            setCategories(response.data);
+            const newCategoriesMap = response.data.reduce((acc, cat) => {
+                acc[cat.name] = cat.slug;
+                return acc;
+            }, {});
+            setCategoriesMap(newCategoriesMap);
+        }).catch(err => console.error("Failed to fetch categories:", err))
+            .finally(() => {
+                setLoadingCategories(false);
+                setIsDataReady(true);
+            });
+    }, []);
+
+    const filteredPosts = useMemo(() => {
+        let postsToFilter = posts;
+        if (selectedCategory !== "All") {
+            postsToFilter = postsToFilter.filter(p => p.category?.name === selectedCategory);
         }
-    };
-    
-    const handleLayoutStyleChange = (e) => {
-        const newStyle = e.target.value;
-        setLayoutStyle(newStyle);
-        if (newStyle.startsWith('MULTI_COLUMN')) {
-            if (!layoutGroupId) {
-                setLayoutGroupId(generateLayoutGroupId());
-            }
-        } else {
-            setLayoutGroupId(null);
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            postsToFilter = postsToFilter.filter(p => p.title.toLowerCase().includes(term));
         }
+        return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    }, [posts, selectedCategory, searchTerm]);
+
+    const mobileLayout = useMemo(() => {
+        // This layout logic is complex and assumes image dimensions are known.
+        // By removing the async orientation check, we simplify and stabilize rendering.
+        return filteredPosts.map(post => {
+            const isStory = post.thumbnails && post.thumbnails.length > 1;
+            // Assume landscape for stories for a consistent banner layout on mobile.
+            const layout = isStory ? 'banner' : 'grid';
+            return { ...post, layout };
+        });
+    }, [filteredPosts]);
+
+    const desktopLayoutBlocks = useMemo(() => {
+        if (filteredPosts.length === 0) return [];
+        const blocks = []; let currentDefaultBlock = []; const multiColumnGroups = {};
+        filteredPosts.forEach(post => { if (post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && post.layoutGroupId) { if (!multiColumnGroups[post.layoutGroupId]) { multiColumnGroups[post.layoutGroupId] = { type: post.layoutStyle, posts: [] }; } multiColumnGroups[post.layoutGroupId].posts.push(post); } });
+        for (const groupId in multiColumnGroups) { multiColumnGroups[groupId].posts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)); }
+        const processedGroupIds = new Set();
+        filteredPosts.forEach(post => {
+            const style = post.layoutStyle || 'DEFAULT';
+            if (style === 'BANNER') { if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); currentDefaultBlock = []; } blocks.push({ id: `banner-${post.id}`, type: 'BANNER', posts: [post] }); } else if (style.startsWith('MULTI_COLUMN') && post.layoutGroupId) { if (processedGroupIds.has(post.layoutGroupId)) return; if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); currentDefaultBlock = []; } blocks.push({ id: post.layoutGroupId, ...multiColumnGroups[post.layoutGroupId] }); processedGroupIds.add(post.layoutGroupId); } else { currentDefaultBlock.push(post); }
+        });
+        if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); }
+        return blocks;
+    }, [filteredPosts]);
+
+    const latestPost = useMemo(() => { if (!posts || posts.length === 0) return null; return posts.reduce((latest, current) => new Date(current.updatedAt || current.createdAt) > new Date(latest.updatedAt || latest.createdAt) ? current : latest); }, [posts]);
+    const pageTitle = latestPost ? `Treishvaam Finance · ${latestPost.title}` : `Treishvaam Finance | Financial News & Analysis`;
+    const pageDescription = latestPost ? createSnippet(latestPost.content) : "Your trusted source for financial news and analysis.";
+    const imageUrl = latestPost?.thumbnails?.[0]?.imageUrl ? `${API_URL}/api/uploads/${latestPost.thumbnails[0].imageUrl}.webp` : "/logo512.png";
+    const marketSliderSettings = { dots: true, infinite: true, speed: 500, slidesToShow: 1, slidesToScroll: 1, arrows: false };
+
+    const renderDesktopLayout = () => {
+        if (desktopLayoutBlocks.length === 0 && !loading && page === 0) { return <div className="text-center p-10 col-span-full"><p>No posts found for your criteria.</p></div>; }
+        return desktopLayoutBlocks.map((block, blockIndex) => {
+            const isLastBlock = blockIndex === desktopLayoutBlocks.length - 1;
+            const blockStyle = { marginBottom: '2rem' };
+            if (block.type === 'BANNER') {
+                const isLastPost = isLastBlock && block.posts.length === 1;
+                return <BannerPostCard ref={isLastPost ? lastPostElementRef : null} key={block.id} article={block.posts[0]} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} />;
+            }
+            if (block.type.startsWith('MULTI_COLUMN')) {
+                const columnCount = parseInt(block.type.split('_')[2]) || 2;
+                const gridClass = `grid grid-cols-1 md:grid-cols-${columnCount} gap-px`;
+                return (<div style={blockStyle} key={block.id} className={gridClass}>{block.posts.map((article, postIndex) => { const isLastPost = isLastBlock && postIndex === block.posts.length - 1; return <GridPostCard ref={isLastPost ? lastPostElementRef : null} key={article.id} article={article} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} />; })}</div>);
+            }
+            if (block.type === 'DEFAULT') {
+                return (<div style={blockStyle} key={block.id} className="sm:columns-2 md:columns-3 lg:columns-4 gap-px">{block.posts.map((article, postIndex) => { const isLastPost = isLastBlock && postIndex === block.posts.length - 1; return <PostCard ref={isLastPost ? lastPostElementRef : null} key={article.id} article={article} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} />; })}</div>);
+            }
+            return null;
+        });
     };
+
+    if (page === 0 && loading) return <div className="text-center p-10">Loading posts...</div>;
+    if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
-            <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
-            {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
-            <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
+        <>
+            <DevelopmentNotice />
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
+                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/" />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+            </Helmet>
 
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-                    
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
-                        <div className="text-sm">
-                            {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
-                            {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
-                            {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
-                        </div>
-                    </div>
-
-                    {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
-                    
-                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
-                        
-                        <div>
-                            <label htmlFor="title" className="block text-gray-700 font-semibold mb-2">Title</label>
-                            <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} className="w-full p-2 border border-gray-300 rounded" required />
-                        </div>
-
-                        <div>
-                           <label htmlFor="userFriendlySlug" className="block text-gray-700 font-semibold mb-2">
-                                URL Slug (SEO Friendly)
-                           </label>
-                           <input 
-                               type="text" 
-                               id="userFriendlySlug" 
-                               value={postUserFriendlySlug} 
-                               onChange={e => setPostUserFriendlySlug(e.target.value)} 
-                               placeholder="e.g., guide-to-market-analysis"
-                               className="w-full p-2 border border-gray-300 rounded" 
-                           />
-                       </div>
-
-                        <div>
-                            <label htmlFor="keywords" className="block text-gray-700 font-semibold mb-2">Keywords (Comma-separated)</label>
-                            <input type="text" id="keywords" value={keywords} onChange={e => setKeywords(e.target.value)} className="w-full p-2 border border-gray-300 rounded" placeholder="e.g., investing, stocks, financial freedom" />
-                        </div>
-
-                        <div>
-                            <label htmlFor="metaDescription" className="block text-gray-700 font-semibold mb-2">Meta Description (for SEO)</label>
-                            <textarea id="metaDescription" value={metaDescription} onChange={e => setMetaDescription(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A brief summary for search engines (about 155 characters)." />
-                        </div>
-
-                        <div>
-                            <label htmlFor="customSnippet" className="block text-gray-700 font-semibold mb-2">Custom Snippet (for Previews)</label>
-                            <textarea id="customSnippet" value={customSnippet} onChange={e => setCustomSnippet(e.target.value)} rows="3" className="w-full p-2 border border-gray-300 rounded" placeholder="A short preview for display on the blog page." />
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="category" className="block text-gray-700 font-semibold mb-2">Category</label>
-                            <div className="flex items-center gap-2">
-                                <select
-                                    id="category"
-                                    value={selectedCategory ? selectedCategory.name : ''}
-                                    onChange={e => {
-                                        const cat = allCategories.find(c => c.name === e.target.value);
-                                        setSelectedCategory(cat);
-                                    }}
-                                    className="w-full p-2 border border-gray-300 rounded"
-                                >
-                                    <option value="">Select a category</option>
-                                    {allCategories && allCategories.map((cat) => (
-                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                                    ))}
-                                </select>
-                                <button type="button" onClick={() => setShowNewCategoryInput(!showNewCategoryInput)} className="p-2 bg-gray-200 rounded hover:bg-gray-300 text-lg font-bold">+</button>
-                            </div>
-                            {showNewCategoryInput && (
-                                <div className="flex items-center gap-2 mt-2">
-                                    <input type="text" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="New category name" className="w-full p-2 border border-gray-300 rounded" />
-                                    <button type="button" onClick={handleAddNewCategory} className="px-4 py-2 bg-sky-600 text-white rounded hover:bg-sky-700">Add</button>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="layoutStyle" className="block text-gray-700 font-semibold mb-2">Layout Style</label>
-                            <select id="layoutStyle" value={layoutStyle} onChange={handleLayoutStyleChange} className="w-full p-2 border border-gray-300 rounded">
-                                <option value="DEFAULT">Default (Masonry)</option>
-                                <option value="BANNER">Banner</option>
-                                <option value="MULTI_COLUMN_2">2 Column Row</option>
-                                <option value="MULTI_COLUMN_3">3 Column Row</option>
-                                <option value="MULTI_COLUMN_4">4 Column Row</option>
-                                <option value="MULTI_COLUMN_5">5 Column Row</option>
-                                <option value="MULTI_COLUMN_6">6 Column Row</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-gray-700 font-semibold mb-2">Tags</label>
-                            <TagsInput tags={tags} setTags={setTags} />
-                        </div>
-                        
-                        <div className="my-4">
-                            <label className="block text-gray-700 font-semibold mb-2">Thumbnail Mode</label>
-                            <div className="flex rounded-lg p-1 bg-gray-200">
-                                <button type="button" onClick={() => setThumbnailMode('single')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'single' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
-                                    Single Image
-                                </button>
-                                <button type="button" onClick={() => setThumbnailMode('story')} className={`flex-1 p-2 rounded-md text-sm font-semibold transition ${thumbnailMode === 'story' ? 'bg-white text-sky-600 shadow' : 'text-gray-600'}`}>
-                                    Story Thumbnails
-                                </button>
-                            </div>
-                        </div>
-
-                        {thumbnailMode === 'single' ? (
-                            <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                                <label className="block text-gray-700 font-semibold">Thumbnail Image</label>
-                                {thumbPreview && <img src={thumbPreview} alt="Thumbnail Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                                <button type="button" onClick={() => {
-                                    fileInputRef.current.multiple = false;
-                                    fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail');
-                                    fileInputRef.current.click();
-                                }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Thumbnail</button>
-                                <div>
-                                    <label htmlFor="thumbnailAltText" className="text-sm font-medium text-gray-600">Alt Text</label>
-                                    <input type="text" id="thumbnailAltText" value={thumbnailAltText} onChange={e => setThumbnailAltText(e.target.value)} placeholder="Describe the image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                                </div>
-                            </div>
-                        ) : (
-                            <StoryThumbnailManager 
-                                thumbnails={storyThumbnails} 
-                                setThumbnails={setStoryThumbnails} 
-                                onUploadClick={() => {
-                                    fileInputRef.current.multiple = false;
-                                    fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio);
-                                    fileInputRef.current.click();
-                                }}
-                                onAddFromPostClick={handleAddFromPostClick}
-                            />
-                        )}
-                        
-                        <div className="p-4 border rounded-lg space-y-3 bg-gray-50">
-                            <label className="block text-gray-700 font-semibold">Cover Image</label>
-                            {coverPreview && <img src={coverPreview} alt="Cover Preview" className="w-full h-auto aspect-video object-contain my-4 border rounded-lg bg-white" />}
-                            <button type="button" onClick={() => {
-                                fileInputRef.current.multiple = false;
-                                fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover');
-                                fileInputRef.current.click();
-                            }} className="w-full text-sm p-2 rounded-lg font-semibold bg-sky-50 text-sky-700 hover:bg-sky-100">Upload Cover Image</button>
-                             <div>
-                                <label htmlFor="coverImageAltText" className="text-sm font-medium text-gray-600">Cover Image Alt Text</label>
-                                <input type="text" id="coverImageAltText" value={coverImageAltText} onChange={e => setCoverImageAltText(e.target.value)} placeholder="Describe the cover image for SEO" className="w-full mt-1 p-2 text-sm border border-gray-300 rounded" />
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <label htmlFor="scheduledTime" className="block text-gray-700 font-semibold mb-2">Schedule Publication</label>
-                            <input
-                                type="datetime-local"
-                                id="scheduledTime"
-                                value={scheduledTime}
-                                onChange={e => setScheduledTime(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded"
-                            />
-                            <p className="text-xs text-gray-500 mt-1">Leave blank to publish immediately.</p>
-                        </div>
-
-                        <div className="flex items-center">
-                            <input type="checkbox" checked={isFeatured} onChange={e => setIsFeatured(e.target.checked)} className="h-5 w-5 text-sky-600 border-gray-300 rounded focus:ring-sky-500" />
-                            <span className="ml-2 text-gray-700">Mark as Featured</span>
-                        </div>
-
-                        <button type="submit" className="w-full bg-sky-600 text-white font-bold py-3 rounded-lg hover:bg-sky-700 transition">
-                           {postId ? 'Update Post' : 'Publish Post'}
-                        </button>
-                    </form>
+            <NavbarExtrasPortal>
+                <div className="w-64">
+                    <SearchAutocomplete />
                 </div>
-                <div className="w-full md:w-2/3 p-6 flex flex-col h-full overflow-y-auto">
-                    <label className="block text-gray-700 font-semibold mb-2">Content</label>
-                    <div className="flex-grow h-full">
-                        <Suspense fallback={<div>Loading editor...</div>}>
-                            <SunEditor
-                                setContents={content}
-                                onChange={setContent} 
-                                getSunEditorInstance={(sunEditor) => { editorRef.current = sunEditor; }}
-                                onImageUploadBefore={handleImageUploadBefore}
-                                onLoad={() => {
-                                    if (editorRef.current && content && !isContentLoaded.current) {
-                                        isContentLoaded.current = true;
-                                    }
-                                }}
-                                setOptions={{
-                                    height: 'auto',
-                                    minHeight: '400px',
-                                    buttonList: buttonList.complex,
-                                    pasteKeepFormats: true,
-                                    pasteTagsWhitelist: '.*'
-                                }}
-                            />
-                        </Suspense>
-                    </div>
+                <CategoryFilter
+                    categories={categories}
+                    selectedCategory={selectedCategory}
+                    setSelectedCategory={setSelectedCategory}
+                    loadingCategories={loadingCategories}
+                />
+                <h1 className="text-xl font-bold text-gray-900 hidden lg:block">Finance <span className="text-sky-600">World</span></h1>
+            </NavbarExtrasPortal>
+
+            <section className="bg-gray-50">
+                <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
+                    <aside className="lg:col-span-2 order-1 py-6"><div className="space-y-4"><NewsHighlights /><DeeperDive /></div></aside>
+                    <main className="lg:col-span-8 order-2 min-h-screen py-6 bg-white">{renderDesktopLayout()}{loading && <div className="text-center p-10 col-span-full">Loading more posts...</div>}{!hasMore && filteredPosts.length > 0 && <div className="text-center p-10 col-span-full text-gray-500">You've reached the end.</div>}</main>
+                    <aside className="lg:col-span-2 order-3 py-6"><div className="space-y-6"><IndexCharts /><MarketMovers /></div></aside>
                 </div>
-            </div>
-        </div>
+                <div className="sm:hidden">
+                    <div className="px-4 py-4"><div className="border-b border-gray-200 mb-4"><button onClick={() => setShowMobileFilters(!showMobileFilters)} className="w-full flex justify-between items-center py-3 text-lg font-semibold text-gray-800">{showMobileFilters ? 'Hide Filters' : 'Filters & Categories'}{showMobileFilters ? <FiX /> : <FiFilter />}</button>{showMobileFilters && (<div className="py-4"><BlogSidebar categories={categories} selectedCategory={setSelectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} /></div>)}</div></div>
+                    <div className="px-4"><NewsHighlights /></div>
+                    <div className="grid grid-cols-2 gap-2 p-2">
+                        {mobileLayout.map((article, index) => {
+                            const isLastPost = index === mobileLayout.length - 1;
+                            return <MobilePostCard ref={isLastPost ? lastPostElementRef : null} key={article.id} article={article} onCategoryClick={setSelectedCategory} layout={article.layout} categoriesMap={categoriesMap} />;
+                        })}
+                    </div>
+                    {loading && <div className="text-center p-4">Loading...</div>}
+                    {!hasMore && mobileLayout.length > 0 && <div className="text-center p-4 text-gray-500">You've reached the end.</div>}
+                    <div className="px-4 pb-4"><div className="mt-8 pt-6 border-t border-gray-200"><h3 className="text-xl font-bold text-gray-900 mb-4">Market Movers</h3><div className="market-slider-container pb-6 -mx-2"><style>{`.market-slider-container .slick-dots li button:before { font-size: 10px; color: #9ca3af; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style><Slider {...marketSliderSettings}><div className="px-2"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /></div><div className="px-2"><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /></div><div className="px-2"><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div></Slider></div><div className="mt-8"><IndexCharts /></div></div></div>
+                </div>
+            </section>
+        </>
     );
 };
-
-export default BlogEditorPage;
+export default BlogPage;
