@@ -37,10 +37,10 @@ const Navbar = () => {
                         <Link to="/" className="flex-shrink-0 flex items-center">
                             <img
                                 alt="Treishvaam Finance Logo"
-                                src="/logo.webp" // --- MODIFIED: Point to static optimized asset
+                                src="/logo.webp"
                                 className="h-12 w-auto mr-3"
-                                width="102"      // --- MODIFIED: Explicit width to prevent CLS
-                                height="48"       // --- MODIFIED: Explicit height to prevent CLS
+                                width="102"
+                                height="48"
                             />
                             <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
                         </Link>
