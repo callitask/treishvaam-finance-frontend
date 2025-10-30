@@ -25,13 +25,22 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
         if (isStory) {
+            const firstThumb = article.thumbnails[0] || {};
+            const aspectStyle = (firstThumb.width && firstThumb.height) ? { aspectRatio: `${firstThumb.width} / ${firstThumb.height}` } : {};
             return (
-                <div className="aspect-video bg-gray-100">
+                <div className="bg-gray-100" style={aspectStyle}>
                     <Slider ref={sliderRef} {...landscapeSettings}>
                         {article.thumbnails.map(thumb => (
                             <div key={thumb.id} className="px-px">
                                 <Link to={postLink} className="block w-full h-full">
-                                    <ResponsiveAuthImage baseName={thumb.imageUrl} alt={thumb.altText || article.title} className="w-full h-full object-cover" />
+                                    <ResponsiveAuthImage
+                                        baseName={thumb.imageUrl}
+                                        alt={thumb.altText || article.title}
+                                        className="w-full h-full object-cover"
+                                        width={thumb.width}
+                                        height={thumb.height}
+                                        blurHash={thumb.blurHash}
+                                    />
                                 </Link>
                             </div>
                         ))}
@@ -40,9 +49,17 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
             );
         }
         const singleThumbnail = article.thumbnails[0];
+        const aspectStyle = (singleThumbnail.width && singleThumbnail.height) ? { aspectRatio: `${singleThumbnail.width} / ${singleThumbnail.height}` } : {};
         return (
-            <Link to={postLink} className="block aspect-video bg-gray-100">
-                <ResponsiveAuthImage baseName={singleThumbnail.imageUrl} alt={singleThumbnail.altText || article.title} className="w-full h-full object-cover" />
+            <Link to={postLink} className="block bg-gray-100" style={aspectStyle}>
+                <ResponsiveAuthImage
+                    baseName={singleThumbnail.imageUrl}
+                    alt={singleThumbnail.altText || article.title}
+                    className="w-full h-full object-cover"
+                    width={singleThumbnail.width}
+                    height={singleThumbnail.height}
+                    blurHash={singleThumbnail.blurHash}
+                />
             </Link>
         );
     };
