@@ -13,7 +13,7 @@ import {
     TimeSeriesScale,
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
-import { sub, startOfDay, parseISO } from 'date-fns';
+import { sub, startOfDay } from 'date-fns';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { getWidgetData } from '../../apiConfig';
 
@@ -78,7 +78,6 @@ const MarketChart = ({ ticker, chartTitle }) => {
                     setError(`Incomplete data for ${ticker}.`);
                 }
             } catch (err) {
-                // Improved error message for user
                 setError('Market data is currently unavailable.');
                 console.error("Failed to fetch widget data:", err);
             } finally {
@@ -98,13 +97,19 @@ const MarketChart = ({ ticker, chartTitle }) => {
         const selectedFrame = timeframes.find(t => t.label === activeTimeframe);
 
         if (selectedFrame) {
+            let cutoffDate;
             if (selectedFrame.days === 'YTD') {
-                const startOfYear = startOfDay(new Date(now.getFullYear(), 0, 1));
-                filteredData = historicalData.filter(p => parseISO(p.priceDate) >= startOfYear);
+                cutoffDate = startOfDay(new Date(now.getFullYear(), 0, 1));
             } else {
-                const cutoffDate = startOfDay(sub(now, { days: selectedFrame.days }));
-                filteredData = historicalData.filter(p => parseISO(p.priceDate) >= cutoffDate);
+                cutoffDate = startOfDay(sub(now, { days: selectedFrame.days }));
             }
+
+            // UPDATED: More robust date filtering to prevent 't.split' errors
+            filteredData = historicalData.filter(p => {
+                if (!p.priceDate) return false;
+                // Use standard JS Date parsing which is robust for YYYY-MM-DD strings
+                return new Date(p.priceDate) >= cutoffDate;
+            });
         }
 
         const labels = filteredData.map(p => p.priceDate);
@@ -212,8 +217,8 @@ const MarketChart = ({ ticker, chartTitle }) => {
                         key={frame.label}
                         onClick={() => setActiveTimeframe(frame.label)}
                         className={`text-xs font-medium py-2 px-3 whitespace-nowrap transition-colors ${activeTimeframe === frame.label
-                                ? 'border-b-2 border-sky-600 text-sky-700'
-                                : 'text-gray-500 hover:text-gray-900'
+                            ? 'border-b-2 border-sky-600 text-sky-700'
+                            : 'text-gray-500 hover:text-gray-900'
                             }`}
                     >
                         {frame.label}
