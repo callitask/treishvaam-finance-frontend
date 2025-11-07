@@ -13,7 +13,7 @@ import {
     TimeSeriesScale,
 } from 'chart.js';
 import 'chartjs-adapter-date-fns';
-import { sub, startOfDay } from 'date-fns';
+import { sub, startOfDay, parse, isValid } from 'date-fns';
 import annotationPlugin from 'chartjs-plugin-annotation';
 import { getWidgetData } from '../../apiConfig';
 
@@ -31,7 +31,7 @@ ChartJS.register(
 );
 
 const formatMarketCap = (num) => {
-    if (!num || num === 0) return 'N/A';
+    if (!num || num === 0) return '-';
     if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
     if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
     if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
@@ -39,14 +39,14 @@ const formatMarketCap = (num) => {
 };
 
 const formatStat = (num) => {
-    if (num === null || num === undefined) return 'N/A';
-    return Number(num).toFixed(2);
+    if (num === null || num === undefined) return '-';
+    return Number(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const getChangeColor = (change) => {
-    if (change > 0) return 'text-green-600';
-    if (change < 0) return 'text-red-600';
-    return 'text-gray-600';
+    if (change > 0) return 'text-[#137333]'; // Google Finance Green
+    if (change < 0) return 'text-[#a50e0e]'; // Google Finance Red
+    return 'text-[#5f6368]'; // Gray
 };
 
 const timeframes = [
@@ -66,202 +66,137 @@ const MarketChart = ({ ticker, chartTitle }) => {
 
     useEffect(() => {
         if (!ticker) return;
-
-        const fetchWidgetData = async () => {
+        const fetchData = async () => {
             setLoading(true);
-            setError(null);
             try {
-                const response = await getWidgetData(ticker);
-                if (response.data && response.data.quoteData) {
-                    setWidgetData(response.data);
-                } else {
-                    setError(`Incomplete data for ${ticker}.`);
-                }
-            } catch (err) {
-                setError('Market data is currently unavailable.');
-                console.error("Failed to fetch widget data:", err);
-            } finally {
-                setLoading(false);
-            }
+                const res = await getWidgetData(ticker);
+                if (res.data && res.data.quoteData) setWidgetData(res.data);
+                else setError('No data');
+            } catch (e) { setError('Unavailable'); }
+            finally { setLoading(false); }
         };
-
-        fetchWidgetData();
+        fetchData();
     }, [ticker]);
 
-    const processedChartData = useMemo(() => {
-        if (!widgetData || !widgetData.historicalData) return null;
-
-        const { historicalData } = widgetData;
-        let filteredData = historicalData;
+    const processedData = useMemo(() => {
+        if (!widgetData?.historicalData?.length) return null;
+        let data = widgetData.historicalData;
         const now = startOfDay(new Date());
-        const selectedFrame = timeframes.find(t => t.label === activeTimeframe);
+        const frame = timeframes.find(t => t.label === activeTimeframe);
 
-        if (selectedFrame) {
-            let cutoffDate;
-            if (selectedFrame.days === 'YTD') {
-                cutoffDate = startOfDay(new Date(now.getFullYear(), 0, 1));
-            } else {
-                cutoffDate = startOfDay(sub(now, { days: selectedFrame.days }));
-            }
-
-            // UPDATED: More robust date filtering to prevent 't.split' errors
-            filteredData = historicalData.filter(p => {
-                if (!p.priceDate) return false;
-                // Use standard JS Date parsing which is robust for YYYY-MM-DD strings
-                return new Date(p.priceDate) >= cutoffDate;
+        if (frame && frame.label !== 'Max') {
+            const cutoff = frame.days === 'YTD' ? startOfDay(new Date(now.getFullYear(), 0, 1)) : sub(now, { days: frame.days });
+            data = data.filter(p => {
+                // Try standard Date parse first, typical for YYYY-MM-DD
+                let date = new Date(p.priceDate);
+                // If invalid, try explicit parsing (sometimes needed for Safari/older browsers if format varies)
+                if (!isValid(date)) date = parse(p.priceDate, 'yyyy-MM-dd', new Date());
+                return isValid(date) && date >= cutoff;
             });
         }
 
-        const labels = filteredData.map(p => p.priceDate);
-        const prices = filteredData.map(p => p.closePrice);
-        const firstPrice = prices.length > 0 ? prices[0] : 0;
-        const lastPrice = prices.length > 0 ? prices[prices.length - 1] : 0;
-        const chartColor = lastPrice >= firstPrice ? 'rgb(22, 163, 74)' : 'rgb(220, 38, 38)';
-        const chartBgColor = lastPrice >= firstPrice ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)';
+        if (data.length === 0) return null;
 
         return {
-            labels,
+            labels: data.map(p => p.priceDate),
             datasets: [{
-                label: 'Price ($)',
-                data: prices,
-                borderColor: chartColor,
-                backgroundColor: chartBgColor,
-                borderWidth: 2,
+                data: data.map(p => p.closePrice),
+                borderColor: data[data.length - 1].closePrice >= data[0].closePrice ? '#137333' : '#a50e0e',
+                borderWidth: 1.5,
                 fill: true,
+                backgroundColor: (context) => {
+                    const ctx = context.chart.ctx;
+                    const gradient = ctx.createLinearGradient(0, 0, 0, context.chart.height);
+                    const color = data[data.length - 1].closePrice >= data[0].closePrice ? '19, 115, 51' : '165, 14, 14';
+                    gradient.addColorStop(0, `rgba(${color}, 0.2)`);
+                    gradient.addColorStop(1, `rgba(${color}, 0.0)`);
+                    return gradient;
+                },
                 tension: 0.1,
                 pointRadius: 0,
-                pointHoverRadius: 5,
-                pointBackgroundColor: chartColor,
-            }],
+                pointHitRadius: 10,
+            }]
         };
     }, [widgetData, activeTimeframe]);
 
-    const chartOptions = useMemo(() => {
-        if (!widgetData || !widgetData.quoteData) return {};
-        const prevClose = widgetData.quoteData.previousClose;
-        return {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                title: { display: false },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: { label: (context) => `Price: $${Number(context.parsed.y).toFixed(2)}` }
-                },
-                annotation: {
-                    annotations: {
-                        prevCloseLine: {
-                            type: 'line',
-                            yMin: prevClose,
-                            yMax: prevClose,
-                            borderColor: 'rgb(156, 163, 175)',
-                            borderWidth: 1,
-                            borderDash: [6, 6],
-                            label: {
-                                content: `Prev: ${formatStat(prevClose)}`,
-                                enabled: true,
-                                position: 'start',
-                                backgroundColor: 'rgba(255,255,255,0.8)',
-                                color: '#6b7280',
-                                font: { size: 10 },
-                                yAdjust: -10,
-                            }
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    type: 'timeseries',
-                    time: { unit: 'month', displayFormats: { month: 'MMM yy' } },
-                    ticks: { font: { size: 10 }, color: '#6b7280', maxTicksLimit: 6 },
-                    grid: { display: false }
-                },
-                y: {
-                    display: true,
-                    ticks: { font: { size: 10 }, color: '#6b7280' },
-                    grid: { color: '#e5e7eb', drawBorder: false }
-                }
+    const options = useMemo(() => ({
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: false, title: false, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+            x: { display: false }, // Hide X-axis labels for cleaner look
+            y: {
+                display: true,
+                position: 'right',
+                grid: { color: '#f1f3f4', drawBorder: false },
+                ticks: { color: '#70757a', font: { size: 11 } }
             }
-        };
-    }, [widgetData]);
+        }
+    }), []);
 
-    if (loading) return <div className="p-4 text-center text-slate-500 text-sm h-96 flex items-center justify-center">Loading Widget...</div>;
-    if (error || !widgetData) return <div className="p-4 text-center text-red-500 text-sm h-96 flex items-center justify-center">{error}</div>;
+    if (loading) return <div className="h-64 flex items-center justify-center text-gray-500 text-sm">Loading...</div>;
+    if (error || !widgetData) return <div className="h-64 flex items-center justify-center text-gray-500 text-sm">Data unavailable</div>;
 
     const { quoteData } = widgetData;
     const changeColor = getChangeColor(quoteData.changeAmount);
 
     return (
-        <div className="p-4 w-full">
-            <div className="mb-4">
-                <h3 className="text-lg font-bold text-gray-900">{chartTitle} ({ticker})</h3>
-                <div className="flex items-baseline space-x-2 mt-1">
-                    <h2 className="text-3xl font-bold text-gray-900">{formatStat(quoteData.currentPrice)}</h2>
-                    <span className="text-base font-semibold text-gray-600">USD</span>
+        <div className="font-sans text-[#202124]">
+            {/* Header */}
+            <div className="mb-4 px-1">
+                <div className="text-lg font-medium">{chartTitle}</div>
+                <div className="flex items-baseline mt-1">
+                    <span className="text-[28px] font-normal leading-8">{formatStat(quoteData.currentPrice)}</span>
+                    <span className="text-sm text-[#5f6368] ml-1 font-normal">USD</span>
+                    <span className={`ml-2 text-sm font-medium ${changeColor}`}>
+                        {quoteData.changeAmount > 0 ? '+' : ''}{formatStat(quoteData.changeAmount)} ({formatStat(quoteData.changePercent)}%)
+                    </span>
                 </div>
-                <div className={`text-sm font-semibold ${changeColor} flex items-center mt-1`}>
-                    <span>{quoteData.changeAmount >= 0 ? '+' : ''}{formatStat(quoteData.changeAmount)}</span>
-                    <span className="ml-1">({quoteData.changePercent >= 0 ? '+' : ''}{formatStat(quoteData.changePercent)}%)</span>
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
-                    Updated: {new Date(quoteData.lastUpdated).toLocaleString()}
+                <div className="text-xs text-[#70757a] mt-1">
+                    {new Date(quoteData.lastUpdated).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} UTC · Market Closed
                 </div>
             </div>
 
-            <div className="flex items-center space-x-1 border-b border-gray-100 mb-4 overflow-x-auto">
-                {timeframes.map((frame) => (
-                    <button
-                        key={frame.label}
-                        onClick={() => setActiveTimeframe(frame.label)}
-                        className={`text-xs font-medium py-2 px-3 whitespace-nowrap transition-colors ${activeTimeframe === frame.label
-                            ? 'border-b-2 border-sky-600 text-sky-700'
-                            : 'text-gray-500 hover:text-gray-900'
-                            }`}
-                    >
-                        {frame.label}
+            {/* Tabs */}
+            <div className="flex border-b border-[#e8eaed] mb-4 overflow-x-auto no-scrollbar">
+                {timeframes.map(t => (
+                    <button key={t.label} onClick={() => setActiveTimeframe(t.label)}
+                        className={`px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors relative top-[1px]
+                            ${activeTimeframe === t.label ? 'text-[#1967d2] border-b-[3px] border-[#1967d2]' : 'text-[#5f6368] hover:text-[#202124]'}`}>
+                        {t.label}
                     </button>
                 ))}
             </div>
 
-            <div className="h-[250px] w-full mb-6">
-                {processedChartData && <Line options={chartOptions} data={processedChartData} />}
+            {/* Chart */}
+            <div className="h-[200px] mb-6">
+                {processedData ? <Line data={processedData} options={options} /> : <div className="h-full flex items-center justify-center text-sm text-gray-500">No chart data</div>}
             </div>
 
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm border-t border-gray-100 pt-4">
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">Open</span>
-                    <span className="font-medium">{formatStat(quoteData.openPrice)}</span>
+            {/* Compact Key Stats Grid */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs leading-5">
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">Previous close</span>
+                    <span className="text-[#202124]">{formatStat(quoteData.previousClose)}</span>
                 </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">High</span>
-                    <span className="font-medium">{formatStat(quoteData.dayHigh)}</span>
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">Day range</span>
+                    <span className="text-[#202124]">{formatStat(quoteData.dayLow)} - {formatStat(quoteData.dayHigh)}</span>
                 </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">Low</span>
-                    <span className="font-medium">{formatStat(quoteData.dayLow)}</span>
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">Year range</span>
+                    <span className="text-[#202124]">{formatStat(quoteData.fiftyTwoWeekLow)} - {formatStat(quoteData.fiftyTwoWeekHigh)}</span>
                 </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">Prev. Close</span>
-                    <span className="font-medium">{formatStat(quoteData.previousClose)}</span>
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">Market cap</span>
+                    <span className="text-[#202124]">{formatMarketCap(quoteData.marketCap)} USD</span>
                 </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">Mkt Cap</span>
-                    <span className="font-medium">{formatMarketCap(quoteData.marketCap)}</span>
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">P/E ratio</span>
+                    <span className="text-[#202124]">{formatStat(quoteData.peRatio)}</span>
                 </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">P/E Ratio</span>
-                    <span className="font-medium">{formatStat(quoteData.peRatio)}</span>
-                </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">Div Yield</span>
-                    <span className="font-medium">{formatStat(quoteData.dividendYield)}%</span>
-                </div>
-                <div className="flex justify-between py-1">
-                    <span className="text-gray-500">52W High</span>
-                    <span className="font-medium">{formatStat(quoteData.fiftyTwoWeekHigh)}</span>
+                <div className="flex justify-between border-b border-[#e8eaed] py-1">
+                    <span className="text-[#5f6368]">Dividend yield</span>
+                    <span className="text-[#202124]">{formatStat(quoteData.dividendYield)}%</span>
                 </div>
             </div>
         </div>
