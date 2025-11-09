@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MarketChart from './MarketChart';
-import { getWidgetData } from '../../apiConfig'; // FIXED: Correct import
+import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
+// Expanded Global List (mapped to ETF proxies)
 const indices = [
-    { symbol: 'SPY', name: 'S&P 500' }, // FIXED: Use ETF symbols directly now
+    { symbol: 'SPY', name: 'S&P 500' },
     { symbol: 'DIA', name: 'Dow Jones' },
     { symbol: 'QQQ', name: 'NASDAQ' },
+    { symbol: 'IWM', name: 'Russell 2K' },
+    { symbol: 'VTI', name: 'NYSE Comp' },
+    { symbol: 'VIXY', name: 'VIX' },
+    { symbol: 'EWG', name: 'DAX (DE)' },
+    { symbol: 'EWU', name: 'FTSE (UK)' },
+    { symbol: 'EWH', name: 'HSI (HK)' },
 ];
 
 const timeframes = [
@@ -15,6 +22,7 @@ const timeframes = [
     { label: 'YTD', days: 'YTD' },
     { label: '1Y', days: 365 },
     { label: '5Y', days: 1825 },
+    { label: 'Max', days: 99999 },
 ];
 
 const formatNumber = (num) => {
@@ -29,16 +37,16 @@ const IndexCharts = () => {
     const [activeIndex, setActiveIndex] = useState(0);
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
     const [loading, setLoading] = useState(true);
-    // Unified state for the new DTO structure
     const [widgetData, setWidgetData] = useState(null);
+    const tabsRef = useRef(null);
 
     const activeIndexData = indices[activeIndex];
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
+            setWidgetData(null); // Clear prev data while loading
             try {
-                // FIXED: Use the new single endpoint
                 const response = await getWidgetData(activeIndexData.symbol);
                 if (response.data) {
                     setWidgetData(response.data);
@@ -58,19 +66,17 @@ const IndexCharts = () => {
         const history = widgetData.historicalData;
         const tf = timeframes.find(t => t.label === activeTimeframe);
 
-        // Filter based on timeframe using the new data structure
         let filteredHistory = history;
         if (tf.days === 'YTD') {
             const currentYear = new Date().getFullYear();
             filteredHistory = history.filter(item => new Date(item.priceDate).getFullYear() === currentYear);
-        } else {
-            // Approximate days. For more accuracy, could use actual date comparison similar to MarketChart.js
+        } else if (tf.label !== 'Max') {
+            // Approximate days for speed
             const daysToTake = Math.min(history.length, Math.floor(tf.days * (252 / 365)));
             filteredHistory = history.slice(-daysToTake);
         }
 
         return {
-            // Map new DTO fields: priceDate and closePrice
             labels: filteredHistory.map(item => new Date(item.priceDate).toLocaleDateString()),
             prices: filteredHistory.map(item => item.closePrice)
         };
@@ -80,15 +86,43 @@ const IndexCharts = () => {
     const quote = widgetData?.quoteData;
     const isPos = quote?.changeAmount >= 0;
 
+    // Drag-to-scroll for tabs
+    const handleMouseDown = (e) => {
+        const ele = tabsRef.current;
+        if (!ele) return;
+        ele.style.cursor = 'grabbing';
+        ele.style.userSelect = 'none';
+        let pos = { left: ele.scrollLeft, x: e.clientX };
+        const onMouseMove = (e) => {
+            const dx = e.clientX - pos.x;
+            ele.scrollLeft = pos.left - dx;
+        };
+        const onMouseUp = () => {
+            ele.style.cursor = 'grab';
+            ele.style.removeProperty('user-select');
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    };
+
     return (
-        <div className="bg-white border border-gray-200 shadow-sm rounded-xl overflow-hidden font-sans">
-            {/* Tab Navigation */}
-            <div className="flex border-b border-gray-100 bg-gray-50/80 p-1">
+        <div className="bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden font-sans text-[11px]">
+            {/* Scrollable Tab Navigation */}
+            <div
+                ref={tabsRef}
+                onMouseDown={handleMouseDown}
+                className="flex border-b border-gray-100 bg-gray-50/80 overflow-x-auto no-scrollbar cursor-grab"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
                 {indices.map((idx, i) => (
                     <button
                         key={idx.symbol}
                         onClick={() => setActiveIndex(i)}
-                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${activeIndex === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                        className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap ${activeIndex === i
+                            ? 'bg-white text-blue-700 border-b-2 border-blue-700'
+                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                             }`}
                     >
                         {idx.name}
@@ -96,46 +130,32 @@ const IndexCharts = () => {
                 ))}
             </div>
 
-            <div className="p-4">
+            <div className="p-3 min-h-[260px]">
                 {loading || !quote ? (
-                    <div className="h-[300px] flex items-center justify-center text-gray-400 text-sm animate-pulse">
-                        Loading market data...
-                    </div>
+                    <div className="h-[200px] flex items-center justify-center text-gray-400 animate-pulse">Loading data...</div>
                 ) : (
                     <>
-                        {/* Header Price */}
-                        <div className="flex items-baseline justify-between mb-1">
-                            <div className="flex items-baseline gap-2">
-                                <span className="text-3xl font-extrabold text-gray-900">
-                                    {formatNumber(quote.currentPrice)}
-                                </span>
-                                <span className="text-xs font-semibold text-gray-500">USD</span>
-                            </div>
-                            <div className="flex items-center text-[10px] font-medium text-gray-400 uppercase tracking-wider">
-                                <Clock size={10} className="mr-1" /> Real-time
+                        <div className="flex items-baseline justify-between">
+                            <span className="text-2xl font-bold text-gray-900">
+                                {formatNumber(quote.currentPrice)}
+                                <span className="text-[10px] font-medium text-gray-500 ml-1">USD</span>
+                            </span>
+                            <div className={`flex items-center font-bold ${isPos ? 'text-green-600' : 'text-red-600'}`}>
+                                {isPos ? <TrendingUp size={14} className="mr-0.5" /> : <TrendingDown size={14} className="mr-0.5" />}
+                                {quote.changeAmount} ({quote.changePercent}%)
                             </div>
                         </div>
 
-                        {/* Change Indicator */}
-                        <div className={`flex items-center text-sm font-bold mb-4 ${isPos ? 'text-green-600' : 'text-red-600'}`}>
-                            {isPos ? <TrendingUp size={16} className="mr-1" /> : <TrendingDown size={16} className="mr-1" />}
-                            {isPos ? '+' : ''}{quote.changeAmount} ({isPos ? '+' : ''}{quote.changePercent}%)
-                        </div>
-
-                        {/* Chart */}
-                        <div className="h-[180px] -mx-1">
+                        <div className="h-[120px] my-3 -mx-1">
                             <MarketChart chartData={chartData} previousClose={quote.previousClose} isPositive={isPos} />
                         </div>
 
-                        {/* Timeframe Toggles */}
-                        <div className="flex justify-between border-t border-b border-gray-100 py-2 my-4">
+                        <div className="flex justify-between bg-gray-50 rounded-md p-1 mb-3">
                             {timeframes.map(tf => (
                                 <button
                                     key={tf.label}
                                     onClick={() => setActiveTimeframe(tf.label)}
-                                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${activeTimeframe === tf.label
-                                            ? 'bg-gray-900 text-white'
-                                            : 'text-gray-500 hover:bg-gray-100'
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTimeframe === tf.label ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
                                         }`}
                                 >
                                     {tf.label}
@@ -143,24 +163,11 @@ const IndexCharts = () => {
                             ))}
                         </div>
 
-                        {/* Key Stats Grid - Narrow Optimized */}
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                            <div className="flex justify-between py-1 border-b border-gray-50">
-                                <span className="text-gray-500">Open</span>
-                                <span className="font-medium text-gray-900">{formatNumber(quote.openPrice)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b border-gray-50">
-                                <span className="text-gray-500">High</span>
-                                <span className="font-medium text-gray-900">{formatNumber(quote.dayHigh)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b border-gray-50">
-                                <span className="text-gray-500">Prev Close</span>
-                                <span className="font-medium text-gray-900">{formatNumber(quote.previousClose)}</span>
-                            </div>
-                            <div className="flex justify-between py-1 border-b border-gray-50">
-                                <span className="text-gray-500">Low</span>
-                                <span className="font-medium text-gray-900">{formatNumber(quote.dayLow)}</span>
-                            </div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-500">
+                            <div className="flex justify-between"><span>Open</span><span className="font-medium text-gray-900">{formatNumber(quote.openPrice)}</span></div>
+                            <div className="flex justify-between"><span>High</span><span className="font-medium text-gray-900">{formatNumber(quote.dayHigh)}</span></div>
+                            <div className="flex justify-between"><span>Prev</span><span className="font-medium text-gray-900">{formatNumber(quote.previousClose)}</span></div>
+                            <div className="flex justify-between"><span>Low</span><span className="font-medium text-gray-900">{formatNumber(quote.dayLow)}</span></div>
                         </div>
                     </>
                 )}
