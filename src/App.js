@@ -1,3 +1,4 @@
+// src/App.js
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
@@ -21,6 +22,7 @@ const ManagePostsPage = lazy(() => import('./pages/ManagePostsPage'));
 const BlogEditorPage = lazy(() => import('./pages/BlogEditorPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ApiStatusPage = lazy(() => import('./pages/ApiStatusPage'));
+const AudiencePage = lazy(() => import('./pages/AudiencePage')); // NEW IMPORT
 
 // A simple loading component to show while pages are loading
 const PageLoader = () => (
@@ -60,6 +62,7 @@ function App() {
             <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="api-status" element={<ApiStatusPage />} />
+            <Route path="audience" element={<AudiencePage />} /> {/* NEW ROUTE */}
           </Route>
         </Routes>
       </Suspense>

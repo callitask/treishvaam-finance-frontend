@@ -1,8 +1,9 @@
+// src/layouts/DashboardLayout.js
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes, FaFileSignature, FaServer } from 'react-icons/fa';
+import { FaTachometerAlt, FaFileAlt, FaPlusSquare, FaBars, FaTimes, FaFileSignature, FaServer, FaChartBar } from 'react-icons/fa'; // Added FaChartBar
 
 const NavLink = ({ to, icon, children }) => {
     const location = useLocation();
@@ -10,9 +11,8 @@ const NavLink = ({ to, icon, children }) => {
     return (
         <Link
             to={to}
-            className={`flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-sky-100 hover:text-sky-600 rounded-lg transition-colors duration-200 ${
-                isActive ? 'bg-sky-100 text-sky-600' : ''
-            }`}
+            className={`flex items-center px-4 py-3 text-sm font-medium text-gray-700 hover:bg-sky-100 hover:text-sky-600 rounded-lg transition-colors duration-200 ${isActive ? 'bg-sky-100 text-sky-600' : ''
+                }`}
         >
             {icon}
             <span className="ml-3">{children}</span>
@@ -31,6 +31,7 @@ const DashboardLayout = () => {
                 <NavLink to="/dashboard/manage-posts#drafts" icon={<FaFileSignature />}>Drafts</NavLink>
                 <NavLink to="/dashboard/blog/new" icon={<FaPlusSquare />}>Create Post</NavLink>
                 <NavLink to="/dashboard/api-status" icon={<FaServer />}>API Status</NavLink>
+                <NavLink to="/dashboard/audience" icon={<FaChartBar />}>Audience</NavLink> {/* NEW LINK */}
             </nav>
         </div>
     );
@@ -45,7 +46,7 @@ const DashboardLayout = () => {
                 <div className={`fixed inset-0 z-30 flex transition-transform duration-300 ease-in-out md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <div className="w-64 bg-white flex flex-col flex-shrink-0 border-r">
                         <div className="flex justify-end p-2">
-                           <button onClick={() => setIsSidebarOpen(false)} className="text-2xl text-gray-600"><FaTimes /></button>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-2xl text-gray-600"><FaTimes /></button>
                         </div>
                         {sidebarContent}
                     </div>
@@ -55,7 +56,7 @@ const DashboardLayout = () => {
                     <div className="md:hidden flex items-center justify-between p-4 bg-white border-b">
                         <h2 className="text-lg font-semibold">Dashboard Menu</h2>
                         <button onClick={() => setIsSidebarOpen(true)} className="text-2xl text-gray-600">
-                             <FaBars />
+                            <FaBars />
                         </button>
                     </div>
                     <Outlet />

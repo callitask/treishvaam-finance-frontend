@@ -38,7 +38,7 @@ export const deletePost = (id) => api.delete(`/posts/${id}`);
 export const duplicatePost = (id) => api.post(`/posts/${id}/duplicate`);
 export const bulkDeletePosts = (ids) => api.delete('/posts/bulk', { data: ids });
 export const createDraft = (postData) => api.post('/posts/draft', postData);
-export const updateDraft = (id, postData) => api.put(`/posts/draft/${id}`, postData);
+export const updateDraft = (id, postData) => api.put('/posts/draft/${id}', postData);
 export const getDrafts = () => api.get('/posts/admin/drafts');
 
 /* -------------------- Files & Categories -------------------- */
@@ -75,13 +75,26 @@ export const flushIndices = (password) => api.post('/market/admin/flush-indices'
 // This single endpoint replaces historical, quote, and status calls
 export const getWidgetData = (ticker) => api.get(`/market/widget/${encodeURIComponent(ticker)}`);
 
-
 /* -------------------- API Status Panel -------------------- */
 export const getApiStatusHistory = () => api.get('/status/history');
 export const flushPermanentData = (password) => api.post('/market/admin/flush-permanent-data', { password });
 
-
 /* -------------------- Logo / Misc -------------------- */
 export const getLogo = () => api.get('/logo');
+
+/* -------------------- NEW: Analytics (Historical Data) -------------------- */
+/**
+ * Fetches historical audience data from the local database within a date range.
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ */
+export const getHistoricalAudienceData = (startDate, endDate) => {
+  return api.get(`/analytics`, {
+    params: {
+      startDate: startDate,
+      endDate: endDate
+    }
+  });
+};
 
 export default api;
