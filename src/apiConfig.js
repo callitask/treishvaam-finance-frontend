@@ -3,7 +3,6 @@ import axios from 'axios';
 
 /**
  * Backend base URL (no trailing slash)
- * If you run locally, you can toggle this to: http://localhost:8080
  */
 export const API_URL = 'https://backend.treishvaamgroup.com';
 
@@ -63,16 +62,12 @@ export const refreshNewsData = () => api.post('/news/admin/refresh');
 export const getTopGainers = () => api.get('/market/top-gainers');
 export const getTopLosers = () => api.get('/market/top-losers');
 export const getMostActive = () => api.get('/market/most-active');
-
 export const refreshMovers = () => api.post('/market/admin/refresh-movers');
-// ADDED BACK: To fix build error in admin components
 export const refreshIndices = () => api.post('/market/admin/refresh-indices');
 export const flushMovers = (password) => api.post('/market/admin/flush-movers', { password });
-// ADDED BACK: To fix build error
 export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
 
 /* -------------------- NEW: Market Widget -------------------- */
-// This single endpoint replaces historical, quote, and status calls
 export const getWidgetData = (ticker) => api.get(`/market/widget/${encodeURIComponent(ticker)}`);
 
 /* -------------------- API Status Panel -------------------- */
@@ -82,19 +77,39 @@ export const flushPermanentData = (password) => api.post('/market/admin/flush-pe
 /* -------------------- Logo / Misc -------------------- */
 export const getLogo = () => api.get('/logo');
 
-/* -------------------- NEW: Analytics (Historical Data) -------------------- */
+/* -------------------- Analytics (Historical Data) -------------------- */
+
 /**
- * Fetches historical audience data from the local database within a date range.
- * @param {string} startDate - YYYY-MM-DD
- * @param {string} endDate - YYYY-MM-DD
+ * Fetches historical audience data from the local database based on dynamic filters.
+ * @param {object} params - An object containing startDate, endDate, and all optional filters
+ * (e.g., country, region, city, deviceCategory, operatingSystem, osVersion, sessionSource)
  */
-export const getHistoricalAudienceData = (startDate, endDate) => {
-  return api.get(`/analytics`, {
-    params: {
-      startDate: startDate,
-      endDate: endDate
+export const getHistoricalAudienceData = (params) => {
+  // Filter out undefined/null/empty string values to keep the URL clean
+  const cleanParams = {};
+  for (const key in params) {
+    if (params[key]) { // Only add if value is truthy (not null, undefined, or empty string)
+      cleanParams[key] = params[key];
     }
-  });
+  }
+  return api.get(`/analytics`, { params: cleanParams });
 };
+
+/**
+ * Fetches the available, distinct filter options based on the current set of active filters.
+ * @param {object} params - An object containing startDate, endDate, and all optional filters
+ * (e.g., country, region, city, etc.)
+ */
+export const getFilterOptions = (params) => {
+  // Filter out undefined/null/empty string values
+  const cleanParams = {};
+  for (const key in params) {
+    if (params[key]) {
+      cleanParams[key] = params[key];
+    }
+  }
+  return api.get(`/analytics/filters`, { params: cleanParams });
+};
+
 
 export default api;
