@@ -24,8 +24,8 @@ const getTodayDateString = () => {
 const FILTER_TYPES = {
     country: 'Country',
     region: 'Region',
-    city: 'City',
-    deviceCategory: 'Device Category',
+    city: 'City', // Added back
+    // 'deviceCategory' removed
     operatingSystem: 'Operating System',
     osVersion: 'OS Version',
     sessionSource: 'Session Source',
@@ -225,8 +225,8 @@ const AudiencePage = () => {
         switch (type) {
             case 'country': return filterOptions.countries || [];
             case 'region': return filterOptions.regions || [];
-            case 'city': return filterOptions.cities || [];
-            case 'deviceCategory': return filterOptions.deviceCategories || [];
+            case 'city': return filterOptions.cities || []; // Added back
+            // 'deviceCategory' removed
             case 'operatingSystem': return filterOptions.operatingSystems || [];
             case 'osVersion': return filterOptions.osVersions || [];
             case 'sessionSource': return filterOptions.sessionSources || [];
