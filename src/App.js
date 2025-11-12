@@ -15,6 +15,7 @@ const EducationPage = lazy(() => import('./pages/EducationPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SinglePostPage = lazy(() => import('./pages/SinglePostPage'));
+const MarketDetailPage = lazy(() => import('./pages/MarketDetailPage')); // --- NEW ---
 
 // --- Lazy-loaded Admin Components ---
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -44,6 +45,7 @@ function App() {
             <Route path="/vision" element={<VisionPage />} />
             <Route path="/education" element={<EducationPage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/market/:ticker" element={<MarketDetailPage />} /> {/* --- NEW --- */}
             <Route path="/blog" element={<Navigate to="/" replace />} />
             <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
             <Route path="/login" element={<LoginPage />} />
