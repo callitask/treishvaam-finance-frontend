@@ -3,26 +3,31 @@ import MarketChart from './MarketChart';
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown, Clock } from 'lucide-react';
 
-// Expanded Global List (mapped to ETF proxies)
+// --- MODIFIED: This list now uses the REAL tickers and friendly names ---
 const indices = [
-    { symbol: 'SPY', name: 'S&P 500' },
-    { symbol: 'DIA', name: 'Dow Jones' },
-    { symbol: 'QQQ', name: 'NASDAQ' },
-    { symbol: 'IWM', name: 'Russell 2K' },
-    { symbol: 'VTI', name: 'NYSE Comp' },
-    { symbol: 'VIXY', name: 'VIX' },
-    { symbol: 'EWG', name: 'DAX (DE)' },
-    { symbol: 'EWU', name: 'FTSE (UK)' },
-    { symbol: 'EWH', name: 'HSI (HK)' },
+    { symbol: '^GSPC', name: 'S&P 500' },
+    { symbol: '^DJI', name: 'Dow Jones' },
+    { symbol: '^IXIC', name: 'NASDAQ' },
+    { symbol: '^RUT', name: 'Russell 2K' },
+    { symbol: '^NYA', name: 'NYSE Comp' },
+    { symbol: '^VIX', name: 'VIX' },
+    { symbol: '^GDAXI', name: 'DAX (DE)' },
+    { symbol: '^FTSE', name: 'FTSE (UK)' },
+    { symbol: '^HSI', name: 'HSI (HK)' },
+    { symbol: 'GC=F', name: 'Gold' },
+    { symbol: 'CL=F', name: 'Crude Oil' },
+    { symbol: '^NSEI', name: 'NIFTY 50' },
+    { symbol: '^BSESN', name: 'SENSEX' },
 ];
 
+// --- MODIFIED: Using data points for robust filtering ---
 const timeframes = [
-    { label: '1M', days: 30 },
-    { label: '6M', days: 180 },
-    { label: 'YTD', days: 'YTD' },
-    { label: '1Y', days: 365 },
-    { label: '5Y', days: 1825 },
-    { label: 'Max', days: 99999 },
+    { label: '1M', points: 22 },   // Approx 22 trading days in 1 month
+    { label: '6M', points: 126 },  // Approx 126 trading days in 6 months
+    { label: 'YTD', points: 'YTD' },
+    { label: '1Y', points: 252 },  // Approx 252 trading days in 1 year
+    { label: '5Y', points: 1260 }, // Approx 1260 trading days in 5 years
+    { label: 'Max', points: 99999 },
 ];
 
 const formatNumber = (num) => {
@@ -45,8 +50,9 @@ const IndexCharts = () => {
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
-            setWidgetData(null); // Clear prev data while loading
+            setWidgetData(null);
             try {
+                // This will now correctly call getWidgetData("^GSPC"), etc.
                 const response = await getWidgetData(activeIndexData.symbol);
                 if (response.data) {
                     setWidgetData(response.data);
@@ -60,6 +66,7 @@ const IndexCharts = () => {
         fetchData();
     }, [activeIndex, activeIndexData.symbol]);
 
+    // --- MODIFIED: This logic is now robust ---
     const getChartData = () => {
         if (!widgetData || !widgetData.historicalData) return { labels: [], prices: [] };
 
@@ -67,13 +74,12 @@ const IndexCharts = () => {
         const tf = timeframes.find(t => t.label === activeTimeframe);
 
         let filteredHistory = history;
-        if (tf.days === 'YTD') {
+        if (tf.points === 'YTD') {
             const currentYear = new Date().getFullYear();
             filteredHistory = history.filter(item => new Date(item.priceDate).getFullYear() === currentYear);
         } else if (tf.label !== 'Max') {
-            // Approximate days for speed
-            const daysToTake = Math.min(history.length, Math.floor(tf.days * (252 / 365)));
-            filteredHistory = history.slice(-daysToTake);
+            const pointsToTake = Math.min(history.length, tf.points);
+            filteredHistory = history.slice(-pointsToTake);
         }
 
         return {
@@ -86,7 +92,6 @@ const IndexCharts = () => {
     const quote = widgetData?.quoteData;
     const isPos = quote?.changeAmount >= 0;
 
-    // Drag-to-scroll for tabs
     const handleMouseDown = (e) => {
         const ele = tabsRef.current;
         if (!ele) return;
@@ -125,7 +130,7 @@ const IndexCharts = () => {
                             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                             }`}
                     >
-                        {idx.name}
+                        {idx.name} {/* This shows the friendly name */}
                     </button>
                 ))}
             </div>
@@ -142,7 +147,8 @@ const IndexCharts = () => {
                             </span>
                             <div className={`flex items-center font-bold ${isPos ? 'text-green-600' : 'text-red-600'}`}>
                                 {isPos ? <TrendingUp size={14} className="mr-0.5" /> : <TrendingDown size={14} className="mr-0.5" />}
-                                {quote.changeAmount} ({quote.changePercent}%)
+                                {/* Added formatNumber and toFixed(2) for safety */}
+                                {formatNumber(quote.changeAmount)} ({quote.changePercent ? quote.changePercent.toFixed(2) : '0.00'}%)
                             </div>
                         </div>
 
