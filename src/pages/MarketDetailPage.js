@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getWidgetData } from '../apiConfig';
-import MarketChart from '../components/market/MarketChart'; // --- FIX: Corrected import path ---
-import { TrendingUp, TrendingDown, ArrowLeft } from 'lucide-react';
+import MarketChart from '../components/market/MarketChart'; // Using the correct path
+import { TrendingUp, TrendingDown, ArrowLeft, Share2 } from 'lucide-react';
 
-// --- Copied from IndexCharts for consistent formatting ---
 const timeframes = [
+    { label: '1D', points: 1 }, // Note: 1D is hard to show without intraday data, but we'll filter
+    { label: '5D', points: 5 },
     { label: '1M', points: 22 },
     { label: '6M', points: 126 },
     { label: 'YTD', points: 'YTD' },
@@ -14,27 +15,73 @@ const timeframes = [
     { label: 'Max', points: 99999 },
 ];
 
-const formatNumber = (num, isCurrency = true) => {
+/**
+ * Formats numbers into compact, readable strings (e.g., 2.5T, 100.2M, 1.5K).
+ * Handles currency formatting and large non-currency numbers.
+ */
+const formatNumber = (num, style = 'decimal', currency = null) => {
     if (num === null || num === undefined || isNaN(num)) return 'N/A';
 
-    // For non-currency large numbers like Market Cap
-    if (!isCurrency) {
-        if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-        if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-        if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    const numAbs = Math.abs(num);
+    let suffix = '';
+    let value = num;
+
+    if (style === 'compact') {
+        if (numAbs >= 1e12) {
+            suffix = 'T';
+            value = num / 1e12;
+        } else if (numAbs >= 1e9) {
+            suffix = 'B';
+            value = num / 1e9;
+        } else if (numAbs >= 1e6) {
+            suffix = 'M';
+            value = num / 1e6;
+        } else if (numAbs >= 1e3) {
+            suffix = 'K';
+            value = num / 1e3;
+        }
     }
 
-    // Standard currency/price formatting
-    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-// --- End of copied code ---
+    let options = {
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2,
+    };
 
+    if (style === 'currency' && currency) {
+        options.style = 'currency';
+        options.currency = currency;
+    }
+
+    // For very large prices (like Bitcoin), don't show cents.
+    if (numAbs > 1000) {
+        options.minimumFractionDigits = 0;
+    }
+    // For single-digit prices, show more precision.
+    if (numAbs < 10) {
+        options.minimumFractionDigits = 2;
+    }
+
+    const formattedValue = new Intl.NumberFormat('en-US', options).format(value);
+
+    // Handle compact formatting's prefix ($)
+    if (style === 'compact' && suffix) {
+        // Re-format 'value' without currency style to attach suffix
+        const compactValue = new Intl.NumberFormat('en-US', {
+            maximumFractionDigits: 2,
+            minimumFractionDigits: (value < 10 && value > -10) ? 2 : 0, // 1.5B vs 300M
+        }).format(value);
+        return `${compactValue}${suffix}`;
+    }
+
+    return `${formattedValue}${suffix}`;
+};
 
 const MarketDetailPage = () => {
     const { ticker } = useParams();
     const [widgetData, setWidgetData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
+    const [showFullDesc, setShowFullDesc] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -51,7 +98,6 @@ const MarketDetailPage = () => {
         fetchData();
     }, [ticker]);
 
-    // --- Copied from IndexCharts for consistent chart data ---
     const getChartData = () => {
         if (!widgetData || !widgetData.historicalData) return { labels: [], prices: [] };
 
@@ -60,7 +106,13 @@ const MarketDetailPage = () => {
         if (!tf) return { labels: [], prices: [] };
 
         let filteredHistory = history;
-        if (tf.points === 'YTD') {
+
+        if (tf.label === '1D') {
+            // 1D will just show the last 2 points (today and prev close)
+            filteredHistory = history.slice(-2);
+        } else if (tf.label === '5D') {
+            filteredHistory = history.slice(-5);
+        } else if (tf.points === 'YTD') {
             const currentYear = new Date().getFullYear();
             filteredHistory = history.filter(item => new Date(item.priceDate).getFullYear() === currentYear);
         } else if (tf.label !== 'Max') {
@@ -73,7 +125,6 @@ const MarketDetailPage = () => {
             prices: filteredHistory.map(item => item.closePrice)
         };
     };
-    // --- End of copied code ---
 
     const chartData = getChartData();
     const quote = widgetData?.quoteData;
@@ -95,91 +146,117 @@ const MarketDetailPage = () => {
         );
     }
 
+    // --- Key Statistics Data Array ---
+    const stats = [
+        { label: 'Previous Close', value: formatNumber(quote.previousClose, 'currency', quote.currency) },
+        { label: 'Open', value: formatNumber(quote.openPrice, 'currency', quote.currency) },
+        { label: 'Day\'s Range', value: `${formatNumber(quote.dayLow, 'currency', quote.currency)} - ${formatNumber(quote.dayHigh, 'currency', quote.currency)}` },
+        { label: '52 Week Range', value: `${formatNumber(quote.fiftyTwoWeekLow, 'currency', quote.currency)} - ${formatNumber(quote.fiftyTwoWeekHigh, 'currency', quote.currency)}` },
+        { label: 'Volume', value: formatNumber(quote.volume, 'compact') },
+        { label: 'Market Cap', value: formatNumber(quote.marketCap, 'compact') },
+        { label: 'P/E Ratio (TTM)', value: formatNumber(quote.peRatio) },
+        { label: 'Dividend Yield', value: quote.dividendYield ? `${(quote.dividendYield * 100).toFixed(2)}%` : 'N/A' },
+    ];
+
+    // Truncate description
+    const description = quote.description || '';
+    const isLongDesc = description.length > 300;
+    const displayedDesc = showFullDesc ? description : description.substring(0, 300);
+
+
     return (
-        <div className="container mx-auto p-4 max-w-5xl font-sans">
-            {/* --- Header --- */}
-            <div className="mb-6">
-                <Link to="/" className="text-sm text-blue-600 hover:underline mb-2 inline-flex items-center">
-                    <ArrowLeft size={14} className="mr-1" /> Back
-                </Link>
-                <h1 className="text-3xl font-bold text-gray-900">{quote.name || decodeURIComponent(ticker)}</h1>
-                <div className="flex items-baseline space-x-2 mt-1">
-                    <span className="text-4xl font-bold text-gray-900">{formatNumber(quote.currentPrice)}</span>
-                    <span className="text-lg font-medium text-gray-500">{quote.currency}</span>
-                </div>
-                <div className={`flex items-center text-xl font-bold mt-1 ${isPos ? 'text-green-600' : 'text-red-600'}`}>
-                    {isPos ? <TrendingUp size={20} className="mr-1" /> : <TrendingDown size={20} className="mr-1" />}
-                    <span>{formatNumber(quote.changeAmount)}</span>
-                    <span className="ml-2">({quote.changePercent ? quote.changePercent.toFixed(2) : '0.00'}%)</span>
-                </div>
-            </div>
+        <div className="bg-gray-50 min-h-screen">
+            <div className="container mx-auto p-4 max-w-6xl font-sans">
 
-            {/* --- Chart & Timeframes --- */}
-            <div className="mb-6">
-                <div className="h-[300px] md:h-[400px] -mx-1">
-                    <MarketChart chartData={chartData} previousClose={quote.previousClose} isPositive={isPos} />
-                </div>
-                <div className="flex justify-center bg-gray-100 rounded-md p-1 mt-4 max-w-md mx-auto">
-                    {timeframes.map(tf => (
-                        <button
-                            key={tf.label}
-                            onClick={() => setActiveTimeframe(tf.label)}
-                            className={`flex-1 px-3 py-1 rounded text-xs font-bold transition-colors ${activeTimeframe === tf.label ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                                }`}
-                        >
-                            {tf.label}
+                {/* --- Component 2: Page Hero --- */}
+                <div className="mb-4">
+                    <Link to="/" className="text-sm text-blue-600 hover:underline mb-2 inline-flex items-center">
+                        <ArrowLeft size={14} className="mr-1" /> Back to Markets
+                    </Link>
+
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <h1 className="text-3xl font-bold text-gray-900">{quote.name || decodeURIComponent(ticker)}</h1>
+                            <div className="text-sm text-gray-500 mt-1">
+                                {ticker} · {quote.currency}
+                                {quote.lastUpdated && ` · As of ${new Date(quote.lastUpdated).toLocaleString()}`}
+                            </div>
+                        </div>
+                        <button className="p-2 rounded-full hover:bg-gray-200 text-gray-600">
+                            <Share2 size={18} />
                         </button>
-                    ))}
+                    </div>
+
+                    <div className="mt-2">
+                        <span className="text-4xl font-bold text-gray-900">{formatNumber(quote.currentPrice, 'currency', quote.currency)}</span>
+                        <div className={`flex items-center text-xl font-medium mt-1 ${isPos ? 'text-green-600' : 'text-red-600'}`}>
+                            {isPos ? <TrendingUp size={20} className="mr-1" /> : <TrendingDown size={20} className="mr-1" />}
+                            <span>{formatNumber(quote.changeAmount)}</span>
+                            <span className="ml-2">({quote.changePercent ? quote.changePercent.toFixed(2) : '0.00'}%)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* --- Component 3: Main Content Body (Asymmetric 2-Column Layout) --- */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    {/* --- 4a. Left Column (Wide) --- */}
+                    <div className="lg:col-span-2 bg-white border border-gray-200 shadow-sm rounded-lg p-4">
+
+                        {/* Module 1: Interactive Chart */}
+                        <div className="flex justify-center bg-gray-100 rounded-md p-1 mb-4">
+                            {timeframes.map(tf => (
+                                <button
+                                    key={tf.label}
+                                    onClick={() => setActiveTimeframe(tf.label)}
+                                    className={`flex-1 px-3 py-1 rounded text-xs font-bold transition-colors ${activeTimeframe === tf.label ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                >
+                                    {tf.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="h-[250px] md:h-[400px]">
+                            <MarketChart chartData={chartData} previousClose={quote.previousClose} isPositive={isPos} />
+                        </div>
+                    </div>
+
+                    {/* --- 4b. Right Column (Narrow) --- */}
+                    <div className="lg:col-span-1 space-y-6">
+
+                        {/* Module 1: Data Summary Card */}
+                        <div className="bg-white border border-gray-200 shadow-sm rounded-lg p-4">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-3">Key Statistics</h2>
+                            <div className="space-y-3 text-sm">
+                                {stats.map(stat => (
+                                    <div key={stat.label} className="flex justify-between border-b border-gray-100 pb-2">
+                                        <span className="text-gray-600">{stat.label}</span>
+                                        <span className="font-medium text-gray-900 text-right">{stat.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- "About" Section (Full Width Below Chart) --- */}
+                    {description && (
+                        <div className="lg:col-span-2 bg-white border border-gray-200 shadow-sm rounded-lg p-4">
+                            <h2 className="text-lg font-semibold text-gray-900 mb-3">About {quote.name}</h2>
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                                {displayedDesc}{!showFullDesc && isLongDesc ? '...' : ''}
+                            </p>
+                            {isLongDesc && (
+                                <button
+                                    onClick={() => setShowFullDesc(!showFullDesc)}
+                                    className="text-sm font-semibold text-blue-600 hover:underline mt-2"
+                                >
+                                    {showFullDesc ? 'Read Less' : 'Read More'}
+                                </button>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
-
-            {/* --- Key Statistics Grid --- */}
-            <div className="border-t border-gray-200 pt-6">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-4">Key Statistics</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 text-sm">
-
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Open</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.openPrice)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Day High</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.dayHigh)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Day Low</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.dayLow)}</span>
-                    </div>
-
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Previous Close</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.previousClose)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">52 Week High</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.fiftyTwoWeekHigh)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">52 Week Low</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.fiftyTwoWeekLow)}</span>
-                    </div>
-
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Market Cap</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.marketCap, false)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">P/E Ratio (TTM)</span>
-                        <span className="font-medium text-gray-900">{formatNumber(quote.peRatio)}</span>
-                    </div>
-                    <div className="flex justify-between border-b py-2">
-                        <span className="text-gray-600">Dividend Yield</span>
-                        <span className="font-medium text-gray-900">{quote.dividendYield ? (quote.dividendYield * 100).toFixed(2) : 'N/A'}%</span>
-                    </div>
-
-                </div>
-            </div>
-
         </div>
     );
 };
