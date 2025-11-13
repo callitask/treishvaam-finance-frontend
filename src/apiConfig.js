@@ -70,6 +70,9 @@ export const flushIndices = (password) => api.post('/market/admin/flush-indices'
 /* -------------------- NEW: Market Widget -------------------- */
 export const getWidgetData = (ticker) => api.get(`/market/widget/${encodeURIComponent(ticker)}`);
 
+/* -------------------- NEW: Global Ticker -------------------- */
+export const getQuotesBatch = (tickers) => api.post('/market/quotes/batch', tickers);
+
 /* -------------------- API Status Panel -------------------- */
 export const getApiStatusHistory = () => api.get('/status/history');
 export const flushPermanentData = (password) => api.post('/market/admin/flush-permanent-data', { password });

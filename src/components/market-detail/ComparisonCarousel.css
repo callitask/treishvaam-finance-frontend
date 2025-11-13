@@ -1,0 +1,58 @@
+/* * For src/pages/market-detail/ComparisonCarousel.js
+*/
+
+.carousel-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 16px; /* gap-4 */
+    padding-bottom: 12px; /* For scrollbar space */
+    
+    /* Smooth scrolling on touch */
+    -webkit-overflow-scrolling: touch;
+    
+    /* Scroll-snap properties */
+    scroll-snap-type: x mandatory;
+}
+
+/* Hide scrollbar */
+.carousel-container {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #d1d5db #f9fafb; /* thumb and track */
+}
+
+.carousel-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.carousel-container::-webkit-scrollbar-track {
+    background: #f9fafb; /* bg-gray-50 */
+    border-radius: 4px;
+}
+
+.carousel-container::-webkit-scrollbar-thumb {
+    background-color: #d1d5db; /* bg-gray-300 */
+    border-radius: 4px;
+    border: 2px solid #f9fafb; /* bg-gray-50 */
+}
+.carousel-container::-webkit-scrollbar-thumb:hover {
+    background-color: #9ca3af; /* bg-gray-400 */
+}
+
+
+.carousel-card {
+    flex: 0 0 180px; /* Fixed width for cards */
+    padding: 12px;
+    border: 1px solid #e5e7eb; /* border-gray-200 */
+    border-radius: 8px; /* rounded-lg */
+    background-color: #ffffff; /* bg-white */
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    
+    /* Snap to the start of the card */
+    scroll-snap-align: start;
+}
+
+.carousel-card:hover {
+    border-color: #9ca3af; /* border-gray-400 */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+}

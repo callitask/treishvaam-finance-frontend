@@ -1,0 +1,64 @@
+/*
+* For src/components/market/GlobalMarketTicker.js
+*/
+
+.global-ticker-row-container {
+    width: 100%;
+    overflow-x: auto;
+    /* Hide scrollbar */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.global-ticker-row-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+}
+
+.global-ticker-row {
+    display: flex;
+    flex-wrap: nowrap;
+    padding: 12px 0;
+}
+
+.global-ticker-card {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0 16px;
+    border-right: 1px solid #e5e7eb; /* border-gray-200 */
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.global-ticker-card:hover {
+    background-color: #f9fafb; /* bg-gray-50 */
+}
+
+.global-ticker-card:first-child {
+    padding-left: 4px;
+}
+.global-ticker-card:last-child {
+    border-right: none;
+}
+
+/* Skeleton loader styles */
+.global-ticker-card.skeleton {
+    cursor: default;
+}
+.global-ticker-card.skeleton:hover {
+    background-color: transparent;
+}
+.skeleton-line {
+    background-color: #e5e7eb; /* bg-gray-200 */
+    border-radius: 4px;
+    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
