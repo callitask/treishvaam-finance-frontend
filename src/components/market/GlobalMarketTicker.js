@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getQuotesBatch } from '../../apiConfig';
 import { Link } from 'react-router-dom';
-import './GlobalMarketTicker.css'; // We'll create this CSS file next
+import './GlobalMarketTicker.css';
 
 // Helper to format change percentage
 const formatChange = (change) => {
@@ -15,15 +15,15 @@ const getChangeColor = (change) => {
     return change >= 0 ? 'text-green-600' : 'text-red-600';
 };
 
-// Define the market categories and their tickers
+// --- UPDATED: Full Market Categories matching Backend ---
 const marketTabs = {
-    'Markets': ['^GSPC', '^IXIC', '^NSEI', 'GC=F', 'CL=F'],
+    'Markets': ['^GSPC', '^IXIC', '^NSEI', 'GC=F', 'CL=F', 'BTC-INR'],
     'US': ['^GSPC', '^DJI', '^IXIC', '^RUT', '^VIX'],
-    'Europe': ['^GDAXI', '^FTSE'],
-    'India': ['^NSEI', '^BSESN'],
+    'Europe': ['^GDAXI', '^FTSE', '^FCHI', '^IBEX', '^STOXX50E'],
+    'India': ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT', '^BSESCP'],
     'Commodities': ['GC=F', 'SI=F', 'CL=F'],
-    // 'Crypto': ['BTC-USD', 'ETH-USD', 'SOL-USD'], // Example for later
-    // 'Futures': ['ES=F', 'NQ=F', 'YM=F'], // Example for later
+    'Currencies': ['USDINR=X', 'EURINR=X', 'JPYINR=X', 'GBPINR=X', 'AUDINR=X'],
+    'Crypto': ['BTC-INR', 'ETH-INR', 'SOL-INR', 'XRP-INR', 'DOGE-INR']
 };
 
 const TickerCard = ({ quote }) => {
@@ -83,12 +83,12 @@ const GlobalMarketTicker = () => {
         <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
             <div className="container mx-auto px-4 max-w-6xl">
                 {/* Tab Navigation */}
-                <div className="flex items-center border-b border-gray-200">
+                <div className="flex items-center border-b border-gray-200 overflow-x-auto no-scrollbar">
                     {Object.keys(marketTabs).map(tabName => (
                         <button
                             key={tabName}
                             onClick={() => setActiveTab(tabName)}
-                            className={`px-4 py-2 text-sm font-semibold transition-colors
+                            className={`px-4 py-2 text-sm font-semibold transition-colors whitespace-nowrap
                                 ${activeTab === tabName
                                     ? 'border-b-2 border-blue-600 text-blue-600'
                                     : 'text-gray-500 hover:text-gray-900'

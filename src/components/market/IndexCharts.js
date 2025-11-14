@@ -1,28 +1,47 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom'; // --- NEW ---
+import { Link } from 'react-router-dom';
 import MarketChart from './MarketChart';
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-// --- MODIFIED: Split into two lists ---
-const globalIndices = [
-    { symbol: '^GSPC', name: 'S&P 500' },
-    { symbol: '^DJI', name: 'Dow Jones' },
-    { symbol: '^IXIC', name: 'NASDAQ' },
-    { symbol: '^RUT', name: 'Russell 2K' },
-    { symbol: '^NYA', name: 'NYSE Comp' },
-    { symbol: '^VIX', name: 'VIX' },
-    { symbol: '^GDAXI', name: 'DAX (DE)' },
-    { symbol: '^FTSE', name: 'FTSE (UK)' },
-    { symbol: '^HSI', name: 'HSI (HK)' },
-    { symbol: 'GC=F', name: 'Gold' },
-    { symbol: 'CL=F', name: 'Crude Oil' },
-];
-
-const indianIndices = [
-    { symbol: '^NSEI', name: 'NIFTY 50' },
-    { symbol: '^BSESN', name: 'SENSEX' },
-];
+// --- UPDATED: Full Market Categories matching Backend ---
+const MARKET_INDICES = {
+    'US': [
+        { symbol: '^DJI', name: 'Dow Jones' },
+        { symbol: '^GSPC', name: 'S&P 500' },
+        { symbol: '^IXIC', name: 'NASDAQ' },
+        { symbol: '^RUT', name: 'Russell 2K' },
+        { symbol: '^VIX', name: 'VIX' }
+    ],
+    'Europe': [
+        { symbol: '^GDAXI', name: 'DAX' },
+        { symbol: '^FTSE', name: 'FTSE 100' },
+        { symbol: '^FCHI', name: 'CAC 40' },
+        { symbol: '^IBEX', name: 'IBEX 35' },
+        { symbol: '^STOXX50E', name: 'STOXX 50' }
+    ],
+    'India': [
+        { symbol: '^NSEI', name: 'NIFTY 50' },
+        { symbol: '^BSESN', name: 'SENSEX' },
+        { symbol: '^NSEBANK', name: 'Nifty Bank' },
+        { symbol: '^CNXIT', name: 'Nifty IT' },
+        { symbol: '^BSESCP', name: 'BSE SmallCap' }
+    ],
+    'Currencies': [
+        { symbol: 'USDINR=X', name: 'USD / INR' },
+        { symbol: 'EURINR=X', name: 'EUR / INR' },
+        { symbol: 'JPYINR=X', name: 'JPY / INR' },
+        { symbol: 'GBPINR=X', name: 'GBP / INR' },
+        { symbol: 'AUDINR=X', name: 'AUD / INR' }
+    ],
+    'Crypto': [
+        { symbol: 'BTC-INR', name: 'Bitcoin' },
+        { symbol: 'ETH-INR', name: 'Ethereum' },
+        { symbol: 'SOL-INR', name: 'Solana' },
+        { symbol: 'XRP-INR', name: 'XRP' },
+        { symbol: 'DOGE-INR', name: 'Dogecoin' }
+    ]
+};
 
 const timeframes = [
     { label: '1M', points: 22 },
@@ -43,20 +62,19 @@ const formatNumber = (num) => {
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-
 const IndexCharts = () => {
-    const [activeMarket, setActiveMarket] = useState('Global'); // --- NEW ---
+    const [activeMarket, setActiveMarket] = useState('US'); // Default to US
     const [activeIndex, setActiveIndex] = useState(0);
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
     const [loading, setLoading] = useState(true);
     const [widgetData, setWidgetData] = useState(null);
     const tabsRef = useRef(null);
 
-    // --- NEW: Determine which list to show ---
-    const indicesToShow = activeMarket === 'Global' ? globalIndices : indianIndices;
+    // Determine which list to show based on active market tab
+    const indicesToShow = MARKET_INDICES[activeMarket] || [];
     const activeIndexData = indicesToShow[activeIndex] || indicesToShow[0];
 
-    // --- NEW: Reset index when market changes ---
+    // Reset index when market changes
     useEffect(() => {
         setActiveIndex(0);
         setWidgetData(null); // Clear old data
@@ -84,14 +102,14 @@ const IndexCharts = () => {
             }
         };
         fetchData();
-    }, [activeIndex, activeIndexData]); // Depend on activeIndexData
+    }, [activeIndexData]); // Depend on activeIndexData object
 
     const getChartData = () => {
         if (!widgetData || !widgetData.historicalData) return { labels: [], prices: [] };
 
         const history = widgetData.historicalData;
         const tf = timeframes.find(t => t.label === activeTimeframe);
-        if (!tf) return { labels: [], prices: [] }; // Safety check
+        if (!tf) return { labels: [], prices: [] };
 
         let filteredHistory = history;
         if (tf.points === 'YTD') {
@@ -135,23 +153,23 @@ const IndexCharts = () => {
     return (
         <div className="bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden font-sans text-[11px]">
 
-            {/* --- NEW: Market Tabs --- */}
-            <div className="flex border-b border-gray-200">
-                <button
-                    onClick={() => setActiveMarket('Global')}
-                    className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors ${activeMarket === 'Global' ? 'text-blue-700 border-b-2 border-blue-700' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                    Global
-                </button>
-                <button
-                    onClick={() => setActiveMarket('Indian')}
-                    className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors ${activeMarket === 'Indian' ? 'text-blue-700 border-b-2 border-blue-700' : 'text-gray-500 hover:text-gray-900'}`}
-                >
-                    Indian
-                </button>
+            {/* --- Market Categories Tabs --- */}
+            <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar">
+                {Object.keys(MARKET_INDICES).map((market) => (
+                    <button
+                        key={market}
+                        onClick={() => setActiveMarket(market)}
+                        className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors whitespace-nowrap 
+                            ${activeMarket === market
+                                ? 'text-blue-700 border-b-2 border-blue-700 bg-blue-50/50'
+                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                    >
+                        {market}
+                    </button>
+                ))}
             </div>
 
-            {/* Scrollable Index Tabs */}
+            {/* --- Scrollable Ticker Tabs --- */}
             <div
                 ref={tabsRef}
                 onMouseDown={handleMouseDown}
@@ -163,7 +181,7 @@ const IndexCharts = () => {
                         key={idx.symbol}
                         onClick={() => setActiveIndex(i)}
                         className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap ${activeIndex === i
-                            ? 'bg-white text-blue-700'
+                            ? 'bg-white text-blue-700 border-b-2 border-blue-200'
                             : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
                             }`}
                     >
@@ -172,16 +190,17 @@ const IndexCharts = () => {
                 ))}
             </div>
 
+            {/* --- Main Content Area --- */}
             <div className="p-3 min-h-[260px]">
                 {loading || !quote || !activeIndexData ? (
-                    <div className="h-[200px] flex items-center justify-center text-gray-400 animate-pulse">Loading data...</div>
+                    <div className="h-[200px] flex items-center justify-center text-gray-400 animate-pulse">
+                        {loading ? "Loading market data..." : "Select an index to view details"}
+                    </div>
                 ) : (
-                    // --- NEW: Link wrapper ---
-                    <Link to={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block">
+                    <Link to={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
                         <div className="flex items-baseline justify-between">
-                            <span className="text-2xl font-bold text-gray-900">
+                            <span className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
                                 {formatNumber(quote.currentPrice)}
-                                {/* --- MODIFIED: Dynamic Currency --- */}
                                 <span className="text-[10px] font-medium text-gray-500 ml-1">{quote.currency || ''}</span>
                             </span>
                             <div className={`flex items-center font-bold ${isPos ? 'text-green-600' : 'text-red-600'}`}>
@@ -198,7 +217,6 @@ const IndexCharts = () => {
                             {timeframes.map(tf => (
                                 <button
                                     key={tf.label}
-                                    // --- MODIFIED: Added event stoppers ---
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
