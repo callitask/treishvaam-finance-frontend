@@ -4,7 +4,7 @@ import MarketChart from './MarketChart';
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-// --- UPDATED: Full Market Categories matching Backend ---
+// --- UPDATED: Added 'Commodities' to match your backend & ticker bar ---
 const MARKET_INDICES = {
     'US': [
         { symbol: '^DJI', name: 'Dow Jones' },
@@ -26,6 +26,11 @@ const MARKET_INDICES = {
         { symbol: '^NSEBANK', name: 'Nifty Bank' },
         { symbol: '^CNXIT', name: 'Nifty IT' },
         { symbol: '^BSESCP', name: 'BSE SmallCap' }
+    ],
+    'Commodities': [
+        { symbol: 'GC=F', name: 'Gold' },
+        { symbol: 'CL=F', name: 'Crude Oil' },
+        { symbol: 'SI=F', name: 'Silver' }
     ],
     'Currencies': [
         { symbol: 'USDINR=X', name: 'USD / INR' },

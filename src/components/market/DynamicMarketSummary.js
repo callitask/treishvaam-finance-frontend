@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowUp, ArrowDown, ArrowRight, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom'; // --- ADDED: Import Link for navigation ---
 import { getQuotesBatch } from '../../apiConfig';
 
 // Configuration mapping Tabs to Yahoo Finance Tickers
@@ -129,9 +130,11 @@ const DynamicMarketSummary = () => {
                             if (isDown) trendColor = 'text-red-600';
 
                             return (
-                                <div
+                                // --- UPDATED: Wrapped in Link ---
+                                <Link
+                                    to={`/market/${encodeURIComponent(item.ticker)}`}
                                     key={item.ticker}
-                                    className="flex-none w-48 md:w-56 bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer snap-center group"
+                                    className="flex-none w-48 md:w-56 bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer snap-center group block"
                                 >
                                     {/* Top Row: Icon, Name, % Change */}
                                     <div className="flex justify-between items-start mb-3">
@@ -159,7 +162,7 @@ const DynamicMarketSummary = () => {
                                             {formatChange(item.changeAmount)}
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             );
                         })}
                     </div>
