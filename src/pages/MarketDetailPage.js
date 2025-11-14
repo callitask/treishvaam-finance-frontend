@@ -4,13 +4,12 @@ import { getWidgetData } from '../apiConfig';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
 // --- FIXED IMPORT PATHS ---
-// Changed paths to go UP one level from 'src/pages' to 'src/'
-// then DOWN to 'src/components/market-detail/'
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
 import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
 import DataSummary from '../components/market-detail/DataSummary';
 import AboutAsset from '../components/market-detail/AboutAsset';
+import DynamicMarketSummary from '../components/market/DynamicMarketSummary'; // --- NEW IMPORT ---
 
 const MarketDetailPage = () => {
     const { ticker } = useParams();
@@ -65,6 +64,9 @@ const MarketDetailPage = () => {
     return (
         <div className="bg-gray-50 min-h-screen">
             <div className="container mx-auto p-4 max-w-6xl font-sans">
+
+                {/* --- Component 1: Dynamic Market Summary Bar (NEW) --- */}
+                <DynamicMarketSummary />
 
                 {/* --- Component 2: Page Hero --- */}
                 <MarketHero quote={quoteData} />
