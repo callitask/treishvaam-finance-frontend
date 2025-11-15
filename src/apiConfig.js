@@ -37,7 +37,8 @@ export const deletePost = (id) => api.delete(`/posts/${id}`);
 export const duplicatePost = (id) => api.post(`/posts/${id}/duplicate`);
 export const bulkDeletePosts = (ids) => api.delete('/posts/bulk', { data: ids });
 export const createDraft = (postData) => api.post('/posts/draft', postData);
-export const updateDraft = (id, postData) => api.put('/posts/draft/${id}', postData);
+// FIXED: Changed single quotes ' to backticks `
+export const updateDraft = (id, postData) => api.put(`/posts/draft/${id}`, postData);
 export const getDrafts = () => api.get('/posts/admin/drafts');
 
 /* -------------------- Files & Categories -------------------- */
@@ -78,7 +79,8 @@ export const getApiStatusHistory = () => api.get('/status/history');
 export const flushPermanentData = (password) => api.post('/market/admin/flush-permanent-data', { password });
 
 /* -------------------- Logo / Misc -------------------- */
-export const getLogo = () => api.get('/logo');
+// FIXED: Removed /api/logo as it was deleted from backend
+// export const getLogo = () => api.get('/logo');
 
 /* -------------------- Analytics (Historical Data) -------------------- */
 
