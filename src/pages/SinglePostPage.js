@@ -34,6 +34,7 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
+                // This API call is now fixed thanks to your apiConfig.js update
                 const response = await getPostByUrlId(urlArticleId);
                 setPost(response.data);
             } catch (err) {
@@ -50,7 +51,7 @@ const SinglePostPage = () => {
         if (!post?.content) return;
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true }, ADD_ATTR: ['id'] });
-        
+
         const headingElements = tempDiv.querySelectorAll('h2, h3, h4');
         const extractedHeadings = Array.from(headingElements).map((el, index) => {
             const id = `heading-${index}-${el.tagName}`;
@@ -61,7 +62,7 @@ const SinglePostPage = () => {
         setHeadings(extractedHeadings);
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
-    
+
     const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
@@ -72,7 +73,7 @@ const SinglePostPage = () => {
 
         const scrollableDistance = contentHeight - viewportHeight;
         const scrolledFromTop = window.scrollY - articleTop;
-        
+
         if (scrolledFromTop > 0 && scrollableDistance > 0) {
             const scrollPercent = (scrolledFromTop / scrollableDistance) * 100;
             setProgress(Math.min(100, Math.max(0, scrollPercent)));
@@ -105,44 +106,15 @@ const SinglePostPage = () => {
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
-    // UPDATED URL
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `Treishvaam Finance · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
-    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo512.png`;
-    const homeUrl = window.location.origin;
-
-    const schema = {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": post.title,
-        "image": imageUrl,
-        "author": {
-            "@type": "Organization",
-            "name": "Treishvaam Finance",
-            "url": homeUrl
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "Treishvaam Finance",
-            "logo": {
-                "@type": "ImageObject",
-                "url": `${homeUrl}/logo512.png`
-            }
-        },
-        "datePublished": post.createdAt,
-        "dateModified": post.updatedAt,
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": pageUrl
-        },
-        "description": seoDescription,
-        "keywords": post.keywords || post.tags?.join(', ')
-    };
+    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo.webp`;
 
     return (
         <>
             <Helmet>
+                {/* These meta tags are now for client-side navigation and social sharing */}
                 <title>{pageTitle}</title>
                 <meta name="description" content={seoDescription} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
@@ -157,9 +129,11 @@ const SinglePostPage = () => {
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
-                <script type="application/ld+json">
-                    {JSON.stringify(schema)}
-                </script>
+
+                {/* FIX: The <script> for schema.org was removed from here.
+                  Your Java ViewController.java is now the *only* source for the Article schema,
+                  which resolves the "2 valid items" duplication.
+                */}
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">
@@ -173,17 +147,17 @@ const SinglePostPage = () => {
                             <span className="mx-2">·</span>
                             <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
                         </div>
-                        
+
                         {post.coverImageUrl && (
                             <div className="mb-8 rounded-lg overflow-hidden shadow-lg">
-                                <ResponsiveAuthImage baseName={post.coverImageUrl} alt={post.coverImageAltText || post.title} className="w-full h-auto object-cover"/>
+                                <ResponsiveAuthImage baseName={post.coverImageUrl} alt={post.coverImageAltText || post.title} className="w-full h-auto object-cover" />
                             </div>
                         )}
                     </header>
-                    
+
                     <main ref={articleRef}>
                         <article className="prose prose-lg max-w-none" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
-                        
+
                         <div className="mt-16 pt-8 border-t">
                             <ShareButtons url={pageUrl} title={post.title} />
                         </div>
@@ -192,11 +166,11 @@ const SinglePostPage = () => {
 
                 <aside className="lg:col-span-4 xl:col-span-3 py-8 hidden lg:block">
                     <div className="sticky top-24">
-                         <TableOfContents 
-                            headings={headings} 
-                            activeId={activeId} 
-                            progress={progress} 
-                         />
+                        <TableOfContents
+                            headings={headings}
+                            activeId={activeId}
+                            progress={progress}
+                        />
                     </div>
                 </aside>
             </div>
