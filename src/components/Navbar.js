@@ -46,10 +46,12 @@ const Navbar = () => {
                         </Link>
                         <nav className="hidden md:block ml-10">
                             <div className="flex items-baseline space-x-4">
+                                {/* 'Home' now points to the Blog content */}
                                 <NavLink to="/" className={getLinkClass} end>Home</NavLink>
                                 <NavLink to="/about" className={getLinkClass}>About</NavLink>
                                 <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
                                 <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
+
                                 {/* Login Dropdown */}
                                 <div className="relative">
                                     <button
@@ -117,8 +119,6 @@ const Navbar = () => {
                             <NavLink to="/" className={getMobileLinkClass} onClick={closeMobileMenu} end>Home</NavLink>
                             <NavLink to="/about" className={getMobileLinkClass} onClick={closeMobileMenu}>About</NavLink>
                             <NavLink to="/vision" className={getMobileLinkClass} onClick={closeMobileMenu}>Vision</NavLink>
-                            <NavLink to="/education" className={getMobileLinkClass} onClick={closeMobileMenu}>Learn</NavLink>
-                            <NavLink to="/blog" className={getMobileLinkClass} onClick={closeMobileMenu}>Blog</NavLink>
                             <NavLink to="/contact" className={getMobileLinkClass} onClick={closeMobileMenu}>Contact</NavLink>
                         </div>
                         <div className="pt-4 pb-3 border-t border-gray-200">

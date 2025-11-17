@@ -33,7 +33,6 @@ const ContactPage = () => {
         e.preventDefault();
         setStatus('Sending...');
         try {
-            // The 'response' variable was unused, so it has been removed.
             await api.post('/contact', formData);
             setStatus('Message sent successfully!');
             setFormData({ name: '', email: '', subject: '', message: '' });
@@ -46,7 +45,9 @@ const ContactPage = () => {
     return (
         <>
             <Helmet>
-                <title>Contact Us | Treishfin</title>
+                {/* SYNC FIX: Matches Backend format */}
+                <title>Treishfin · Contact Us</title>
+                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/contact" />
             </Helmet>
             <section className="hero-silver-gradient py-20 md:py-24">
                 <div className="container mx-auto px-6 text-center">
@@ -107,7 +108,7 @@ const ContactPage = () => {
                                     </div>
                                     <div className="flex flex-col items-center justify-center text-center">
                                         <div className="contact-info-icon-bg contact-info-icon-text flex items-center justify-center w-14 h-14 rounded-full mb-2 bg-sky-100 text-sky-700">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                             </svg>

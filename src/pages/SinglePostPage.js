@@ -13,7 +13,8 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const createSnippet = (html, length = 155) => {
+// SYNC FIX: Updated length to 160 to match Java ViewController
+const createSnippet = (html, length = 160) => {
     if (!html) return '';
     const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
     if (plainText.length <= length) return plainText;
@@ -34,7 +35,6 @@ const SinglePostPage = () => {
     useEffect(() => {
         const fetchPost = async () => {
             try {
-                // This API call is now fixed thanks to your apiConfig.js update
                 const response = await getPostByUrlId(urlArticleId);
                 setPost(response.data);
             } catch (err) {
@@ -107,33 +107,32 @@ const SinglePostPage = () => {
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
-    const pageTitle = `Treishvaam Finance · ${post.title}`;
-    const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 155);
+
+    // SYNC FIX: Changed prefix from "Treishvaam Finance" to "Treishfin" to match Server logic
+    const pageTitle = `Treishfin · ${post.title}`;
+    const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo.webp`;
 
     return (
         <>
             <Helmet>
-                {/* These meta tags are now for client-side navigation and social sharing */}
+                {/* Consistent Metadata with Server-Side Injection */}
                 <title>{pageTitle}</title>
                 <meta name="description" content={seoDescription} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
                 <link rel="canonical" href={pageUrl} />
+
                 <meta property="og:type" content="article" />
                 <meta property="og:url" content={pageUrl} />
                 <meta property="og:title" content={post.title} />
                 <meta property="og:description" content={seoDescription} />
                 <meta property="og:image" content={imageUrl} />
+
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:url" content={pageUrl} />
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
-
-                {/* FIX: The <script> for schema.org was removed from here.
-                  Your Java ViewController.java is now the *only* source for the Article schema,
-                  which resolves the "2 valid items" duplication.
-                */}
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">

@@ -5,7 +5,8 @@ const VisionPage = () => {
     return (
         <>
             <Helmet>
-                <title>Our Vision | Treishfin</title>
+                {/* SYNC FIX: Matches Backend format */}
+                <title>Treishfin · Our Vision</title>
                 <link rel="canonical" href="https://treishfin.treishvaamgroup.com/vision" />
             </Helmet>
             <section className="hero-silver-gradient py-20 md:py-24 flex items-center justify-center">

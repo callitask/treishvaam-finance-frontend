@@ -7,23 +7,21 @@ import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 
 // --- Lazy-loaded Page Components ---
+// BlogPage is now the Homepage
 const BlogPage = lazy(() => import('./pages/BlogPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
-const ServicesPage = lazy(() => import('./pages/ServicesPage'));
 const VisionPage = lazy(() => import('./pages/VisionPage'));
-const EducationPage = lazy(() => import('./pages/EducationPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SinglePostPage = lazy(() => import('./pages/SinglePostPage'));
-const MarketDetailPage = lazy(() => import('./pages/MarketDetailPage')); // --- NEW ---
+const MarketDetailPage = lazy(() => import('./pages/MarketDetailPage'));
 
 // --- Lazy-loaded Admin Components ---
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ManagePostsPage = lazy(() => import('./pages/ManagePostsPage'));
 const BlogEditorPage = lazy(() => import('./pages/BlogEditorPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ApiStatusPage = lazy(() => import('./pages/ApiStatusPage'));
-const AudiencePage = lazy(() => import('./pages/AudiencePage')); // NEW IMPORT
+const AudiencePage = lazy(() => import('./pages/AudiencePage'));
 
 // A simple loading component to show while pages are loading
 const PageLoader = () => (
@@ -39,14 +37,17 @@ function App() {
         <Routes>
           {/* Public Routes with MainLayout */}
           <Route element={<MainLayout />}>
+            {/* FIXED: BlogPage is now the Landing Page at '/' */}
             <Route path="/" element={<BlogPage />} />
+
             <Route path="/about" element={<AboutPage />} />
-            <Route path="/services" element={<ServicesPage />} />
             <Route path="/vision" element={<VisionPage />} />
-            <Route path="/education" element={<EducationPage />} />
             <Route path="/contact" element={<ContactPage />} />
-            <Route path="/market/:ticker" element={<MarketDetailPage />} /> {/* --- NEW --- */}
+            <Route path="/market/:ticker" element={<MarketDetailPage />} />
+
+            {/* Redirect old /blog traffic to home */}
             <Route path="/blog" element={<Navigate to="/" replace />} />
+
             <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
             <Route path="/login" element={<LoginPage />} />
           </Route>
@@ -62,9 +63,9 @@ function App() {
             <Route path="manage-posts" element={<ManagePostsPage />} />
             <Route path="blog/new" element={<BlogEditorPage />} />
             <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            {/* Removed Settings Route */}
             <Route path="api-status" element={<ApiStatusPage />} />
-            <Route path="audience" element={<AudiencePage />} /> {/* NEW ROUTE */}
+            <Route path="audience" element={<AudiencePage />} />
           </Route>
         </Routes>
       </Suspense>

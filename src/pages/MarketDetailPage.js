@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getWidgetData } from '../apiConfig';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Helmet } from 'react-helmet-async'; // IMPORTED
 
 // --- FIXED IMPORT PATHS ---
 import MarketHero from '../components/market-detail/MarketHero';
@@ -9,7 +10,7 @@ import MainChart from '../components/market-detail/MainChart';
 import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
 import DataSummary from '../components/market-detail/DataSummary';
 import AboutAsset from '../components/market-detail/AboutAsset';
-import DynamicMarketSummary from '../components/market/DynamicMarketSummary'; // --- NEW IMPORT ---
+import DynamicMarketSummary from '../components/market/DynamicMarketSummary';
 
 const MarketDetailPage = () => {
     const { ticker } = useParams();
@@ -39,6 +40,16 @@ const MarketDetailPage = () => {
     }, [ticker]);
 
     const { quoteData, historicalData, peers } = data || {};
+    const decodedTicker = decodeURIComponent(ticker);
+
+    // Fallback title while loading
+    const pageTitle = quoteData
+        ? `Treishfin · Market · ${quoteData.name} (${quoteData.ticker})`
+        : `Treishfin · Market · ${decodedTicker}`;
+
+    const pageDescription = quoteData
+        ? `Detailed financial analysis and live market data for ${quoteData.name} (${quoteData.ticker}). View charts, price history, and key statistics on Treishvaam Finance.`
+        : "Real-time market data and analysis on Treishvaam Finance.";
 
     if (loading) {
         return (
@@ -63,15 +74,24 @@ const MarketDetailPage = () => {
 
     return (
         <div className="bg-gray-50 min-h-screen">
+            {/* ADDED HELMET FOR DYNAMIC TITLE */}
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
+                <link rel="canonical" href={`https://treishfin.treishvaamgroup.com/market/${ticker}`} />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+            </Helmet>
+
             <div className="container mx-auto p-4 max-w-6xl font-sans">
 
-                {/* --- Component 1: Dynamic Market Summary Bar (NEW) --- */}
+                {/* --- Component 1: Dynamic Market Summary Bar --- */}
                 <DynamicMarketSummary />
 
                 {/* --- Component 2: Page Hero --- */}
                 <MarketHero quote={quoteData} />
 
-                {/* --- Component 3: Main Content Body (Asymmetric 2-Column Layout) --- */}
+                {/* --- Component 3: Main Content Body --- */}
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
 
                     {/* --- 4a. Left Column (Wide) --- */}
@@ -85,7 +105,7 @@ const MarketDetailPage = () => {
                             <ComparisonCarousel peers={peers} />
                         )}
 
-                        {/* Module 3: About (Moved to Left Col) */}
+                        {/* Module 3: About */}
                         {quoteData.description && (
                             <AboutAsset quote={quoteData} />
                         )}
