@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUp, ArrowDown, ArrowRight, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom'; // --- ADDED: Import Link for navigation ---
+import { Search, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { getQuotesBatch } from '../../apiConfig';
 
 // Configuration mapping Tabs to Yahoo Finance Tickers
@@ -99,8 +99,8 @@ const DynamicMarketSummary = () => {
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${activeTab === tab
-                                    ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
-                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                ? 'bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-100'
+                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                 }`}
                         >
                             {tab}
@@ -130,7 +130,6 @@ const DynamicMarketSummary = () => {
                             if (isDown) trendColor = 'text-red-600';
 
                             return (
-                                // --- UPDATED: Wrapped in Link ---
                                 <Link
                                     to={`/market/${encodeURIComponent(item.ticker)}`}
                                     key={item.ticker}

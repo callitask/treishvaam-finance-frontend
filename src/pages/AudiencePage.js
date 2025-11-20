@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { getHistoricalAudienceData, getFilterOptions } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
-    FaExclamationTriangle, FaChartBar, FaUser, FaGlobe, FaSearch, FaPlus, FaTimes
+    FaExclamationTriangle, FaChartBar, FaUser, FaGlobe, FaPlus, FaTimes
 } from 'react-icons/fa';
 
 // Helper component for table cell display
@@ -24,8 +24,7 @@ const getTodayDateString = () => {
 const FILTER_TYPES = {
     country: 'Country',
     region: 'Region',
-    city: 'City', // Added back
-    // 'deviceCategory' removed
+    city: 'City',
     operatingSystem: 'Operating System',
     osVersion: 'OS Version',
     sessionSource: 'Session Source',
@@ -137,7 +136,6 @@ const AudiencePage = () => {
             }
 
             // If user changes a value, reset dependent filters
-            // e.g., If 'country' changes, reset 'region' and 'city'
             const dependencies = FILTER_DEPENDENCIES[oldFilter.type];
             if (field === 'value' && dependencies) {
                 return newFilters.map(f => {
@@ -147,8 +145,6 @@ const AudiencePage = () => {
                     return f;
                 });
             }
-            // --- END CASCADING LOGIC ---
-
             return newFilters;
         });
     };
@@ -225,8 +221,7 @@ const AudiencePage = () => {
         switch (type) {
             case 'country': return filterOptions.countries || [];
             case 'region': return filterOptions.regions || [];
-            case 'city': return filterOptions.cities || []; // Added back
-            // 'deviceCategory' removed
+            case 'city': return filterOptions.cities || [];
             case 'operatingSystem': return filterOptions.operatingSystems || [];
             case 'osVersion': return filterOptions.osVersions || [];
             case 'sessionSource': return filterOptions.sessionSources || [];

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { API_URL, getCategories, getPaginatedPosts } from '../apiConfig';
+import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
-import { FiFilter, FiX, FiTrendingUp, FiBriefcase } from 'react-icons/fi';
+import { FiTrendingUp, FiBriefcase } from 'react-icons/fi';
 import DevelopmentNotice from '../components/DevelopmentNotice';
 import SearchAutocomplete from '../components/SearchAutocomplete';
 import Slider from "react-slick";
@@ -16,9 +16,6 @@ import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
-
-// Import helpers
-import { categoryStyles } from '../utils/blogUtils';
 
 const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
