@@ -13,7 +13,6 @@ const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-// SYNC FIX: Updated length to 160 to match Java ViewController
 const createSnippet = (html, length = 160) => {
     if (!html) return '';
     const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
@@ -24,8 +23,17 @@ const createSnippet = (html, length = 160) => {
 
 const SinglePostPage = () => {
     const { urlArticleId } = useParams();
-    const [post, setPost] = useState(null);
-    const [loading, setLoading] = useState(true);
+
+    // --- STATE HYDRATION LOGIC ---
+    // Check if the backend injected data for THIS specific article
+    const preloadedData = (typeof window !== 'undefined' &&
+        window.__PRELOADED_STATE__ &&
+        window.__PRELOADED_STATE__.urlArticleId === urlArticleId)
+        ? window.__PRELOADED_STATE__
+        : null;
+
+    const [post, setPost] = useState(preloadedData);
+    const [loading, setLoading] = useState(!preloadedData); // Skip loading if we have data
     const [error, setError] = useState(null);
     const [headings, setHeadings] = useState([]);
     const [activeId, setActiveId] = useState('');
@@ -33,6 +41,16 @@ const SinglePostPage = () => {
     const articleRef = useRef(null);
 
     useEffect(() => {
+        // If we have preloaded data, skip the fetch and clean up the global variable
+        if (post) {
+            setLoading(false);
+            // Optional: Clear it so navigating to another page doesn't reuse it incorrectly
+            if (window.__PRELOADED_STATE__ && window.__PRELOADED_STATE__.urlArticleId === urlArticleId) {
+                delete window.__PRELOADED_STATE__;
+            }
+            return;
+        }
+
         const fetchPost = async () => {
             try {
                 const response = await getPostByUrlId(urlArticleId);
@@ -45,7 +63,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [urlArticleId]);
+    }, [urlArticleId]); // Dependency on urlArticleId ensures we refetch if URL changes
 
     useEffect(() => {
         if (!post?.content) return;
@@ -108,7 +126,6 @@ const SinglePostPage = () => {
 
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`;
 
-    // SYNC FIX: Changed prefix from "Treishvaam Finance" to "Treishfin" to match Server logic
     const pageTitle = `Treishfin · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo.webp`;
@@ -116,7 +133,6 @@ const SinglePostPage = () => {
     return (
         <>
             <Helmet>
-                {/* Consistent Metadata with Server-Side Injection */}
                 <title>{pageTitle}</title>
                 <meta name="description" content={seoDescription} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}

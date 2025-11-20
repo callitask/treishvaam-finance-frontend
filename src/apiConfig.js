@@ -3,6 +3,7 @@ import axios from 'axios';
 
 /**
  * Backend base URL (no trailing slash)
+ * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT
  */
 export const API_URL = 'https://backend.treishvaamgroup.com';
 
@@ -37,7 +38,6 @@ export const deletePost = (id) => api.delete(`/posts/${id}`);
 export const duplicatePost = (id) => api.post(`/posts/${id}/duplicate`);
 export const bulkDeletePosts = (ids) => api.delete('/posts/bulk', { data: ids });
 export const createDraft = (postData) => api.post('/posts/draft', postData);
-// FIXED: Changed single quotes ' to backticks `
 export const updateDraft = (id, postData) => api.put(`/posts/draft/${id}`, postData);
 export const getDrafts = () => api.get('/posts/admin/drafts');
 
@@ -78,10 +78,6 @@ export const getQuotesBatch = (tickers) => api.post('/market/quotes/batch', tick
 export const getApiStatusHistory = () => api.get('/status/history');
 export const flushPermanentData = (password) => api.post('/market/admin/flush-permanent-data', { password });
 
-/* -------------------- Logo / Misc -------------------- */
-// FIXED: Removed /api/logo as it was deleted from backend
-// export const getLogo = () => api.get('/logo');
-
 /* -------------------- Analytics (Historical Data) -------------------- */
 
 /**
@@ -93,7 +89,7 @@ export const getHistoricalAudienceData = (params) => {
   // Filter out undefined/null/empty string values to keep the URL clean
   const cleanParams = {};
   for (const key in params) {
-    if (params[key]) { // Only add if value is truthy (not null, undefined, or empty string)
+    if (params[key]) {
       cleanParams[key] = params[key];
     }
   }
@@ -115,6 +111,5 @@ export const getFilterOptions = (params) => {
   }
   return api.get(`/analytics/filters`, { params: cleanParams });
 };
-
 
 export default api;
