@@ -63,6 +63,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [urlArticleId]); // Dependency on urlArticleId ensures we refetch if URL changes
 
     useEffect(() => {
