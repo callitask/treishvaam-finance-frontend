@@ -24,7 +24,8 @@ const getTodayDateString = () => {
 const FILTER_TYPES = {
     country: 'Country',
     region: 'Region',
-    city: 'City',
+    city: 'City', // Added back
+    // 'deviceCategory' removed
     operatingSystem: 'Operating System',
     osVersion: 'OS Version',
     sessionSource: 'Session Source',
@@ -136,6 +137,7 @@ const AudiencePage = () => {
             }
 
             // If user changes a value, reset dependent filters
+            // e.g., If 'country' changes, reset 'region' and 'city'
             const dependencies = FILTER_DEPENDENCIES[oldFilter.type];
             if (field === 'value' && dependencies) {
                 return newFilters.map(f => {
@@ -145,6 +147,8 @@ const AudiencePage = () => {
                     return f;
                 });
             }
+            // --- END CASCADING LOGIC ---
+
             return newFilters;
         });
     };
@@ -221,7 +225,8 @@ const AudiencePage = () => {
         switch (type) {
             case 'country': return filterOptions.countries || [];
             case 'region': return filterOptions.regions || [];
-            case 'city': return filterOptions.cities || [];
+            case 'city': return filterOptions.cities || []; // Added back
+            // 'deviceCategory' removed
             case 'operatingSystem': return filterOptions.operatingSystems || [];
             case 'osVersion': return filterOptions.osVersions || [];
             case 'sessionSource': return filterOptions.sessionSources || [];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router-dom'; // --- ADDED: Import Link for navigation ---
 import { getQuotesBatch } from '../../apiConfig';
 
 // Configuration mapping Tabs to Yahoo Finance Tickers
@@ -130,6 +130,7 @@ const DynamicMarketSummary = () => {
                             if (isDown) trendColor = 'text-red-600';
 
                             return (
+                                // --- UPDATED: Wrapped in Link ---
                                 <Link
                                     to={`/market/${encodeURIComponent(item.ticker)}`}
                                     key={item.ticker}
