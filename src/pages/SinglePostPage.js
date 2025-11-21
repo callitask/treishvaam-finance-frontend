@@ -129,7 +129,35 @@ const SinglePostPage = () => {
 
     const pageTitle = `Treishfin · ${post.title}`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
-    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `${window.location.origin}/logo.webp`;
+    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `https://treishfin.treishvaamgroup.com/logo.webp`;
+
+    // --- JSON-LD Schema for Rich Results ---
+    const schemaData = {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": pageUrl
+        },
+        "headline": post.title,
+        "image": [imageUrl],
+        "datePublished": post.createdAt,
+        "dateModified": post.updatedAt || post.createdAt,
+        "author": {
+            "@type": "Person",
+            "name": post.author || "Treishvaam Team",
+            "url": "https://treishfin.treishvaamgroup.com/about" // FIX: Provides a valid URL for the author
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://treishfin.treishvaamgroup.com/logo.webp"
+            }
+        },
+        "description": seoDescription
+    };
 
     return (
         <>
@@ -150,6 +178,11 @@ const SinglePostPage = () => {
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
+
+                {/* --- Inject Schema.org JSON-LD --- */}
+                <script type="application/ld+json">
+                    {JSON.stringify(schemaData)}
+                </script>
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto lg:grid lg:grid-cols-12 lg:gap-x-12 px-4 sm:px-6 lg:px-8">
