@@ -69,7 +69,8 @@ export const flushMovers = (password) => api.post('/market/admin/flush-movers', 
 export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
 
 /* -------------------- NEW: Market Widget -------------------- */
-export const getWidgetData = (ticker) => api.get(`/market/widget/${encodeURIComponent(ticker)}`);
+// FIX: Use Query Param (?ticker=...) instead of Path Variable to avoid 403 errors with special chars
+export const getWidgetData = (ticker) => api.get(`/market/widget?ticker=${encodeURIComponent(ticker)}`);
 
 /* -------------------- NEW: Global Ticker -------------------- */
 export const getQuotesBatch = (tickers) => api.post('/market/quotes/batch', tickers);
@@ -80,13 +81,7 @@ export const flushPermanentData = (password) => api.post('/market/admin/flush-pe
 
 /* -------------------- Analytics (Historical Data) -------------------- */
 
-/**
- * Fetches historical audience data from the local database based on dynamic filters.
- * @param {object} params - An object containing startDate, endDate, and all optional filters
- * (e.g., country, region, city, deviceCategory, operatingSystem, osVersion, sessionSource)
- */
 export const getHistoricalAudienceData = (params) => {
-  // Filter out undefined/null/empty string values to keep the URL clean
   const cleanParams = {};
   for (const key in params) {
     if (params[key]) {
@@ -96,13 +91,7 @@ export const getHistoricalAudienceData = (params) => {
   return api.get(`/analytics`, { params: cleanParams });
 };
 
-/**
- * Fetches the available, distinct filter options based on the current set of active filters.
- * @param {object} params - An object containing startDate, endDate, and all optional filters
- * (e.g., country, region, city, etc.)
- */
 export const getFilterOptions = (params) => {
-  // Filter out undefined/null/empty string values
   const cleanParams = {};
   for (const key in params) {
     if (params[key]) {
