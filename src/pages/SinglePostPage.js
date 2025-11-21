@@ -25,7 +25,7 @@ const SinglePostPage = () => {
     const { urlArticleId } = useParams();
 
     // --- STATE HYDRATION LOGIC ---
-    // Check if the backend injected data for THIS specific article
+    // Check if the backend injected data for THIS specific article via Cloudflare Worker
     const preloadedData = (typeof window !== 'undefined' &&
         window.__PRELOADED_STATE__ &&
         window.__PRELOADED_STATE__.urlArticleId === urlArticleId)
@@ -41,6 +41,14 @@ const SinglePostPage = () => {
     const articleRef = useRef(null);
 
     useEffect(() => {
+        // --- CRITICAL FIX: Prevent Duplicate Schema ---
+        // The Cloudflare Worker injects a static script with id="schema-json-ld".
+        // We remove it here so Helmet can take over without causing "2 valid items" in Google Search Console.
+        const staticSchema = document.getElementById('schema-json-ld');
+        if (staticSchema) {
+            staticSchema.remove();
+        }
+
         // If we have preloaded data, skip the fetch and clean up the global variable
         if (post) {
             setLoading(false);
@@ -146,7 +154,7 @@ const SinglePostPage = () => {
         "author": {
             "@type": "Person",
             "name": post.author || "Treishvaam Team",
-            "url": "https://treishfin.treishvaamgroup.com/about" // FIX: Provides a valid URL for the author
+            "url": "https://treishfin.treishvaamgroup.com/about"
         },
         "publisher": {
             "@type": "Organization",
