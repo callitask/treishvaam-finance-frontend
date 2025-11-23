@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
-import { FiTrendingUp, FiBriefcase, FiChevronDown, FiFilter, FiX } from 'react-icons/fi';
+import { FiTrendingUp, FiBriefcase, FiChevronDown } from 'react-icons/fi';
 import DevelopmentNotice from '../components/DevelopmentNotice';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
@@ -250,15 +250,15 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {/* --- Main Content Grid --- */}
+                {/* --- Main Content Grid (2:8:2 Ratio) --- */}
                 <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-6 container mx-auto px-4 pt-6">
-                    {/* Left: News & Deeper Dive */}
-                    <aside className="lg:col-span-3 xl:col-span-2 order-1 space-y-6">
+                    {/* Left: News & Deeper Dive (Width: 2/12) */}
+                    <aside className="lg:col-span-2 order-1 space-y-6">
                         <FeaturedColumn />
                     </aside>
 
-                    {/* Center: Blog Grid */}
-                    <div className="lg:col-span-6 xl:col-span-7 order-2">
+                    {/* Center: Blog Grid (Width: 8/12) */}
+                    <div className="lg:col-span-8 order-2">
                         <BlogGridDesktop
                             desktopLayoutBlocks={desktopLayoutBlocks}
                             lastPostElementRef={lastPostElementRef}
@@ -271,8 +271,8 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* Right: Market Data */}
-                    <aside className="lg:col-span-3 order-3 space-y-6">
+                    {/* Right: Market Data (Width: 2/12) */}
+                    <aside className="lg:col-span-2 order-3 space-y-6">
                         <MarketSidebar />
                     </aside>
                 </div>
