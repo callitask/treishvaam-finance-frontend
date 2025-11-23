@@ -20,7 +20,33 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
-    const CardContent = () => (<div className="p-3 flex flex-col flex-grow"><div className="flex justify-between items-start text-xs mb-2"><div className="flex items-center"><button onClick={() => onCategoryClick(categoryName)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{categoryName}</button><span className="text-gray-400 mx-2">|</span><span className="text-gray-500 font-medium">By Treishvaam Finance</span></div>{isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}</div><h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words"><Link to={postLink} className="hover:underline">{article.title}</Link></h3><p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p><div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between"><div className="text-xs text-gray-500"><span>{displayDate}</span></div><Link to={postLink} className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2">Read More</Link></div></div>);
+    const CardContent = () => (
+        <div className="p-3 flex flex-col flex-grow">
+            <div className="flex justify-between items-start text-xs mb-2">
+                <div className="flex items-center">
+                    <button onClick={() => onCategoryClick(categoryName)} className={`font-bold uppercase tracking-wider ${categoryClass} hover:underline`}>{categoryName}</button>
+                    <span className="text-gray-400 mx-2">|</span>
+                    <span className="text-gray-500 font-medium">By Treishvaam Finance</span>
+                </div>
+                {isNew && <span className="font-semibold text-red-500 flex-shrink-0">NEW</span>}
+            </div>
+            <h3 className="text-lg font-bold mb-2 text-gray-900 leading-tight break-words">
+                <Link to={postLink} className="hover:underline">{article.title}</Link>
+            </h3>
+            <p className="text-sm text-gray-700 flex-grow break-words">{createSnippet(article.customSnippet || article.content, 100)}</p>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <div className="text-xs text-gray-500"><span>{displayDate}</span></div>
+                {/* FIXED: Added aria-label for SEO/Accessibility */}
+                <Link
+                    to={postLink}
+                    aria-label={`Read more about ${article.title}`}
+                    className="text-sm font-semibold text-sky-600 hover:text-sky-800 flex-shrink-0 ml-2"
+                >
+                    Read More
+                </Link>
+            </div>
+        </div>
+    );
 
     const ThumbnailDisplay = () => {
         if (!hasThumbnails) return null;
@@ -32,7 +58,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
                     <Slider ref={sliderRef} {...landscapeSettings}>
                         {article.thumbnails.map(thumb => (
                             <div key={thumb.id} className="px-px">
-                                <Link to={postLink} className="block w-full h-full">
+                                <Link to={postLink} className="block w-full h-full" aria-label={`View story: ${article.title}`}>
                                     <ResponsiveAuthImage
                                         baseName={thumb.imageUrl}
                                         alt={thumb.altText || article.title}
@@ -51,7 +77,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
         const singleThumbnail = article.thumbnails[0];
         const aspectStyle = (singleThumbnail.width && singleThumbnail.height) ? { aspectRatio: `${singleThumbnail.width} / ${singleThumbnail.height}` } : {};
         return (
-            <Link to={postLink} className="block bg-gray-100" style={aspectStyle}>
+            <Link to={postLink} className="block bg-gray-100" style={aspectStyle} aria-label={`View article: ${article.title}`}>
                 <ResponsiveAuthImage
                     baseName={singleThumbnail.imageUrl}
                     alt={singleThumbnail.altText || article.title}

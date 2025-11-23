@@ -61,6 +61,7 @@ const MarketNewsFeed = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                        aria-label={`Read full story: ${article.title}`} // FIXED: Added specific label
                     >
                         <div className="flex">
                             {article.imageUrl && (
