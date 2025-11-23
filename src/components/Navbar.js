@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaSignOutAlt, FaChevronDown } from 'react-icons/fa';
+import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes } from 'react-icons/fa';
 import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
@@ -10,129 +10,175 @@ const Navbar = () => {
     const { auth, logout } = useAuth();
     const navigate = useNavigate();
 
+    // Format today's date for the "News" feel (e.g., "Sunday, Nov 23, 2025")
+    const today = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+    });
+
     const handleLogout = () => {
         logout();
         navigate('/login');
     };
 
-    const getLinkClass = ({ isActive }) =>
-        `px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${isActive
-            ? 'bg-sky-100 text-sky-700'
-            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+    // Styles for the bottom nav bar links
+    const getNavLinkClass = ({ isActive }) =>
+        `text-sm font-bold uppercase tracking-wider px-4 py-3 border-b-2 transition-colors duration-200 ${isActive
+            ? 'border-sky-600 text-sky-700'
+            : 'border-transparent text-gray-600 hover:text-sky-600 hover:border-gray-200'
         }`;
 
     const getMobileLinkClass = ({ isActive }) =>
-        `block px-3 py-2 rounded-md text-base font-medium transition-colors duration-200 ${isActive
-            ? 'bg-sky-100 text-sky-700'
-            : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+        `block px-4 py-2 text-base font-medium transition-colors duration-200 ${isActive
+            ? 'bg-sky-50 text-sky-700 border-l-4 border-sky-600'
+            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
         }`;
 
     const closeMobileMenu = () => setMobileMenuOpen(false);
 
     return (
-        <header className="bg-white shadow-md sticky top-0 z-50">
-            <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center justify-between h-20">
-                    <div className="flex items-center">
-                        <Link to="/" className="flex-shrink-0 flex items-center">
+        <header className="bg-white shadow-sm sticky top-0 z-50 font-sans">
+            {/* --- DESKTOP LAYOUT --- */}
+            <div className="hidden md:block">
+                {/* Row 1: Utility, Date, Brand, Search */}
+                <div className="container mx-auto px-6 h-20 flex items-center justify-between relative">
+
+                    {/* Left: Date & Tagline */}
+                    <div className="w-1/3 text-xs text-gray-500 font-medium flex flex-col justify-center">
+                        <span className="uppercase tracking-widest text-gray-400 mb-0.5">Bangalore</span>
+                        <span className="text-gray-700 font-bold">{today}</span>
+                    </div>
+
+                    {/* Center: BRANDING (Absolute Center) */}
+                    <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center">
+                        <Link to="/" className="flex items-center group">
                             <img
                                 alt="Treishvaam Finance Logo"
                                 src="/logo.webp"
-                                className="h-12 w-auto mr-3"
-                                width="102"
-                                height="48"
+                                className="h-10 w-auto mr-2 transition-transform duration-300 group-hover:scale-105"
+                                width="85"
+                                height="40"
                             />
-                            <span className="text-2xl font-bold header-logo-text">Treishvaam Finance</span>
+                            <div className="flex flex-col items-center">
+                                <span className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none font-serif">
+                                    TREISHVAAM <span className="text-sky-700">FINANCE</span>
+                                </span>
+                            </div>
                         </Link>
-                        <nav className="hidden md:block ml-10">
-                            <div className="flex items-baseline space-x-4">
-                                {/* 'Home' now points to the Blog content */}
-                                <NavLink to="/" className={getLinkClass} end>Home</NavLink>
-                                <NavLink to="/about" className={getLinkClass}>About</NavLink>
-                                <NavLink to="/vision" className={getLinkClass}>Vision</NavLink>
-                                <NavLink to="/contact" className={getLinkClass}>Contact</NavLink>
+                    </div>
 
-                                {/* Login Dropdown */}
-                                <div className="relative">
+                    {/* Right: Search & Auth */}
+                    <div className="w-1/3 flex justify-end items-center space-x-4">
+                        <div className="w-64">
+                            <SearchAutocomplete />
+                        </div>
+
+                        {/* Login / Dashboard */}
+                        <div className="relative">
+                            {auth.isAuthenticated ? (
+                                <div className="flex items-center space-x-3">
+                                    <NavLink to="/dashboard" className="text-sm font-semibold text-gray-700 hover:text-sky-600 transition">
+                                        Dashboard
+                                    </NavLink>
                                     <button
-                                        onMouseEnter={() => setLoginDropdownOpen(true)}
-                                        onMouseLeave={() => setLoginDropdownOpen(false)}
-                                        className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900 flex items-center"
+                                        onClick={handleLogout}
+                                        className="text-gray-400 hover:text-red-600 transition"
+                                        title="Logout"
                                     >
-                                        <span>Login</span>
-                                        <FaChevronDown className="ml-1 h-3 w-3" />
+                                        <FaSignOutAlt size={18} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="relative"
+                                    onMouseEnter={() => setLoginDropdownOpen(true)}
+                                    onMouseLeave={() => setLoginDropdownOpen(false)}>
+                                    <button className="flex items-center text-sm font-semibold text-gray-700 hover:text-sky-600 transition">
+                                        <FaUserCircle className="mr-1.5 text-lg text-gray-400" />
+                                        Login
                                     </button>
                                     {isLoginDropdownOpen && (
-                                        <div
-                                            onMouseEnter={() => setLoginDropdownOpen(true)}
-                                            onMouseLeave={() => setLoginDropdownOpen(false)}
-                                            className="absolute z-10 -ml-4 mt-1 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
-                                        >
-                                            <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" role="menuitem">
+                                        <div className="absolute right-0 mt-0 w-40 pt-2">
+                                            <div className="bg-white rounded-md shadow-xl border border-gray-100 py-1">
+                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700">
                                                     Admin Login
                                                 </Link>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                {auth.isAuthenticated && (
-                                    <NavLink to="/dashboard" className={getLinkClass}>Dashboard</NavLink>
-                                )}
-                            </div>
-                        </nav>
-                    </div>
-
-                    <div className="hidden md:flex items-center space-x-4">
-                        {/* This div is the portal target for blog page extras */}
-                        <div id="navbar-extras-portal-target" className="flex items-center space-x-4"></div>
-
-                        {auth.isAuthenticated ? (
-                            <button
-                                onClick={handleLogout}
-                                className="px-4 py-2 rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 transition duration-300 flex items-center"
-                            >
-                                <FaSignOutAlt className="mr-2" />
-                                Logout
-                            </button>
-                        ) : null}
-                    </div>
-
-                    <div className="md:hidden flex items-center">
-                        <button onClick={() => setMobileMenuOpen(!isMobileMenuOpen)} type="button" className="bg-white rounded-md p-2 inline-flex items-center justify-center text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500" aria-expanded="false">
-                            <span className="sr-only">Open main menu</span>
-                            {isMobileMenuOpen ? (
-                                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            ) : (
-                                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                             )}
-                        </button>
+                        </div>
                     </div>
                 </div>
 
+                {/* Row 2: Navigation Bar (Centered) */}
+                <div className="border-t border-gray-200 border-b-4 border-double border-gray-100">
+                    <div className="container mx-auto flex justify-center">
+                        <nav className="flex space-x-8">
+                            <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
+                            <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
+                            <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
+                            <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- MOBILE LAYOUT --- */}
+            <div className="md:hidden">
+                <div className="px-4 h-16 flex items-center justify-between border-b border-gray-200 bg-white relative">
+
+                    {/* Left: Hamburger */}
+                    <button
+                        onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
+                        className="text-gray-600 p-2 -ml-2 hover:bg-gray-100 rounded-md focus:outline-none"
+                    >
+                        {isMobileMenuOpen ? <FaTimes size={22} /> : <FaBars size={22} />}
+                    </button>
+
+                    {/* Center: Branding */}
+                    <Link to="/" className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
+                        <img src="/logo.webp" alt="Logo" className="h-8 w-auto mr-2" />
+                        <span className="text-lg font-bold text-gray-900 font-serif">
+                            Treishvaam
+                        </span>
+                    </Link>
+
+                    {/* Right: Date or Empty for balance */}
+                    <div className="text-[10px] text-gray-400 font-medium w-8 text-right">
+                        {/* Optional: Short date or icon */}
+                    </div>
+                </div>
+
+                {/* Mobile Menu Dropdown */}
                 {isMobileMenuOpen && (
-                    <div className="md:hidden" id="mobile-menu">
-                        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                            <div className="px-2 py-2">
-                                <SearchAutocomplete />
-                            </div>
+                    <div className="bg-white border-b border-gray-200 shadow-lg">
+                        <div className="p-4 border-b border-gray-100">
+                            <SearchAutocomplete />
+                        </div>
+                        <nav className="py-2">
                             <NavLink to="/" className={getMobileLinkClass} onClick={closeMobileMenu} end>Home</NavLink>
                             <NavLink to="/about" className={getMobileLinkClass} onClick={closeMobileMenu}>About</NavLink>
                             <NavLink to="/vision" className={getMobileLinkClass} onClick={closeMobileMenu}>Vision</NavLink>
                             <NavLink to="/contact" className={getMobileLinkClass} onClick={closeMobileMenu}>Contact</NavLink>
-                        </div>
-                        <div className="pt-4 pb-3 border-t border-gray-200">
-                            <div className="px-2 space-y-1">
+
+                            <div className="border-t border-gray-100 my-2 pt-2">
                                 {auth.isAuthenticated ? (
                                     <>
                                         <NavLink to="/dashboard" className={getMobileLinkClass} onClick={closeMobileMenu}>Dashboard</NavLink>
-                                        <button onClick={() => { handleLogout(); closeMobileMenu(); }} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 hover:text-red-700">Logout</button>
+                                        <button onClick={() => { handleLogout(); closeMobileMenu(); }} className="block w-full text-left px-4 py-2 text-base font-medium text-red-600 hover:bg-red-50">
+                                            Logout
+                                        </button>
                                     </>
                                 ) : (
-                                    <Link to="/login" className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-white cta-button-primary hover:bg-sky-700" onClick={closeMobileMenu}>Admin Login</Link>
+                                    <Link to="/login" className="block px-4 py-2 text-base font-medium text-sky-700 hover:bg-sky-50" onClick={closeMobileMenu}>
+                                        Admin Login
+                                    </Link>
                                 )}
                             </div>
-                        </div>
+                        </nav>
                     </div>
                 )}
             </div>

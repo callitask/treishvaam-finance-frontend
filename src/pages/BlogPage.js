@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
 import { FiTrendingUp, FiBriefcase } from 'react-icons/fi';
 import DevelopmentNotice from '../components/DevelopmentNotice';
-import SearchAutocomplete from '../components/SearchAutocomplete';
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -17,29 +15,40 @@ import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
 
+// Category Filter Component (Moved inline for cleaner access)
 const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const allCategories = ['All', ...categories.map(cat => cat.name)];
-    if (loadingCategories) return <div className="h-10 w-48 bg-gray-200 animate-pulse rounded-md"></div>;
+
+    if (loadingCategories) return <div className="h-10 w-48 bg-gray-100 animate-pulse rounded-md"></div>;
+
     return (
-        <div className="relative">
-            <button type="button" className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-colors duration-200 hover:bg-gray-50 text-sm font-medium text-gray-700 flex justify-between items-center" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+        <div className="relative z-30">
+            <button
+                type="button"
+                className="w-48 px-4 py-2 text-left bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500 transition-colors duration-200 hover:bg-gray-50 text-sm font-bold text-gray-700 flex justify-between items-center uppercase tracking-wide"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            >
                 {selectedCategory}
-                <svg className={`h-5 w-5 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                <svg className={`h-4 w-4 transition-transform duration-200 text-gray-500 ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
             </button>
-            {isDropdownOpen && (<div className="absolute z-20 mt-2 w-full origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none transition-all duration-100 ease-in-out"><div className="py-1">{allCategories.map(cat => (<div key={cat} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer" onClick={() => { setSelectedCategory(cat); setIsDropdownOpen(false); }}>{cat}</div>))}</div></div>)}
+            {isDropdownOpen && (
+                <div className="absolute left-0 mt-2 w-full bg-white rounded-md shadow-xl ring-1 ring-black ring-opacity-5 py-1 max-h-64 overflow-y-auto">
+                    {allCategories.map(cat => (
+                        <button
+                            key={cat}
+                            className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 ${selectedCategory === cat ? 'font-bold text-sky-700 bg-sky-50' : 'text-gray-700'}`}
+                            onClick={() => { setSelectedCategory(cat); setIsDropdownOpen(false); }}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
     );
-};
-
-const NavbarExtrasPortal = ({ children }) => {
-    const [mountNode, setMountNode] = useState(null);
-    useEffect(() => {
-        const node = document.getElementById('navbar-extras-portal-target');
-        setMountNode(node);
-        return () => { if (node) { node.innerHTML = ''; } };
-    }, []);
-    return mountNode ? createPortal(children, mountNode) : null;
 };
 
 const BlogPage = () => {
@@ -153,10 +162,8 @@ const BlogPage = () => {
         return blocks;
     }, [filteredPosts]);
 
-
-    // SYNC FIX: Using Static Title/Description to match Backend default and prevent flicker
     const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
-    const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance. Your daily source for insights on stocks, crypto, and trading.";
+    const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
     const imageUrl = "/logo.webp";
 
     const mobileMainSliderSettings = {
@@ -174,7 +181,7 @@ const BlogPage = () => {
 
     if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center">Loading initial data...</div>;
     if (page === 0 && loading && isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center">Loading posts...</div>;
-    if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. We apologize for any inconvenience and appreciate your patience. Please check back again shortly.</p></div>);
+    if (error) return (<div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 bg-gray-50"><div className="text-red-400 mb-4"><svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg></div><h2 className="text-2xl font-semibold text-gray-800 mb-2">Site is Currently Under Maintenance</h2><p className="max-w-md text-gray-600">We are performing essential updates to improve your experience. Please check back again shortly.</p></div>);
 
     return (
         <>
@@ -188,17 +195,29 @@ const BlogPage = () => {
                 <meta property="og:image" content={imageUrl} />
             </Helmet>
 
-            <NavbarExtrasPortal>
-                <div className="hidden sm:flex items-center gap-4">
-                    <div className="w-64"><SearchAutocomplete /></div>
-                    <CategoryFilter categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} />
-                    <h1 className="text-xl font-bold text-gray-900 hidden lg:block">Finance <span className="text-sky-600">World</span></h1>
+            <section className="bg-gray-50 pb-16 sm:pb-0 min-h-screen">
+                {/* --- Desktop Header Area (Title & Filters) --- */}
+                <div className="hidden sm:block container mx-auto px-4 pt-6 pb-2">
+                    <div className="flex flex-col md:flex-row justify-between items-center border-b-2 border-gray-200 pb-4 mb-4">
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-gray-900 font-serif tracking-tight">
+                                Financial News & Market Analysis
+                            </h1>
+                            <p className="text-sm text-gray-500 mt-1">Stay informed with real-time updates and expert insights.</p>
+                        </div>
+                        <div className="mt-4 md:mt-0">
+                            <CategoryFilter
+                                categories={categories}
+                                selectedCategory={selectedCategory}
+                                setSelectedCategory={setSelectedCategory}
+                                loadingCategories={loadingCategories}
+                            />
+                        </div>
+                    </div>
                 </div>
-            </NavbarExtrasPortal>
 
-            <section className="bg-gray-50 pb-16 sm:pb-0">
-                <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2">
-                    <aside className="lg:col-span-2 order-1 py-6 px-2">
+                <div className="hidden sm:grid grid-cols-1 lg:grid-cols-12 gap-2 container mx-auto px-2">
+                    <aside className="lg:col-span-2 order-1 py-2 px-2">
                         <FeaturedColumn />
                     </aside>
 
@@ -213,7 +232,7 @@ const BlogPage = () => {
                         postCount={filteredPosts.length}
                     />
 
-                    <aside className="lg:col-span-2 order-3 py-6 px-2">
+                    <aside className="lg:col-span-2 order-3 py-2 px-2">
                         <MarketSidebar />
                     </aside>
                 </div>
