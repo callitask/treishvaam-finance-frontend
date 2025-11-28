@@ -148,13 +148,29 @@ const BlogPage = () => {
 
     if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center text-gray-500">Loading content...</div>;
 
-    // Mobile Bottom Nav
+    // --- ENTERPRISE MOBILE NAVIGATION (Glass) ---
     const MobileBottomNav = () => (
-        <nav className="fixed bottom-0 left-0 right-0 h-16 glass-nav z-[90] flex justify-around items-center px-2 safe-pb">
-            <button onClick={() => { setActiveTab('home'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'home' ? 'text-sky-600' : 'text-gray-400'}`}><FiHome size={22} className={activeTab === 'home' ? 'fill-current' : ''} /><span className="text-[10px] font-medium tracking-wide">Home</span></button>
-            <button onClick={() => { setActiveTab('markets'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'markets' ? 'text-sky-600' : 'text-gray-400'}`}><FiTrendingUp size={22} /><span className="text-[10px] font-medium tracking-wide">Markets</span></button>
-            <button onClick={() => { setActiveTab('briefs'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'briefs' ? 'text-sky-600' : 'text-gray-400'}`}><FiLayers size={22} /><span className="text-[10px] font-medium tracking-wide">News</span></button>
-            <button onClick={() => { setActiveTab('vision'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'vision' ? 'text-sky-600' : 'text-gray-400'}`}><FiTarget size={22} /><span className="text-[10px] font-medium tracking-wide">Vision</span></button>
+        <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/90 backdrop-blur-md border-t border-gray-200/50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
+            {[
+                { id: 'home', label: 'Home', icon: FiHome },
+                { id: 'markets', label: 'Markets', icon: FiTrendingUp },
+                { id: 'briefs', label: 'News', icon: FiLayers },
+                { id: 'vision', label: 'Vision', icon: FiTarget }
+            ].map(({ id, label, icon: Icon }) => (
+                <button
+                    key={id}
+                    onClick={() => { setActiveTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform duration-200 group ${activeTab === id ? 'text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                    <Icon size={22} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
+                    <span className="text-[10px] font-bold tracking-wide">{label}</span>
+
+                    {/* Active Indicator Dot */}
+                    {activeTab === id && (
+                        <span className="absolute bottom-1 w-1 h-1 bg-sky-600 rounded-full animate-in zoom-in"></span>
+                    )}
+                </button>
+            ))}
         </nav>
     );
 
@@ -239,12 +255,42 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {/* --- MOBILE VIEW (Unchanged) --- */}
-                <div className="md:hidden pb-20">
-                    {activeTab === 'home' && <BlogSlideMobile mobileLayout={mobileLayout} lastPostElementRef={lastPostElementRef} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} loading={loading} page={page} hasMore={hasMore} />}
-                    {activeTab === 'markets' && <div className="animate-in fade-in duration-200"><MarketSlideMobile /></div>}
-                    {activeTab === 'briefs' && <div className="animate-in fade-in duration-200"><NewsTabMobile /></div>}
-                    {activeTab === 'vision' && <div className="animate-in fade-in duration-200"><VisionPage /></div>}
+                {/* --- MOBILE VIEW (ENTERPRISE APP LAYOUT) --- */}
+                <div className="md:hidden pb-20 pt-14"> {/* Added pt-14 to account for fixed header */}
+                    {activeTab === 'home' && (
+                        <BlogSlideMobile
+                            mobileLayout={mobileLayout}
+                            lastPostElementRef={lastPostElementRef}
+                            onCategoryClick={setSelectedCategory}
+                            categoriesMap={categoriesMap}
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            setSelectedCategory={setSelectedCategory}
+                            loadingCategories={loadingCategories}
+                            loading={loading}
+                            page={page}
+                            hasMore={hasMore}
+                        />
+                    )}
+
+                    {activeTab === 'markets' && (
+                        <div className="animate-in fade-in duration-200">
+                            <MarketSlideMobile />
+                        </div>
+                    )}
+
+                    {activeTab === 'briefs' && (
+                        <div className="animate-in fade-in duration-200">
+                            <NewsTabMobile />
+                        </div>
+                    )}
+
+                    {activeTab === 'vision' && (
+                        <div className="animate-in fade-in duration-200">
+                            <VisionPage />
+                        </div>
+                    )}
+
                     <MobileBottomNav />
                 </div>
             </section>
