@@ -1,7 +1,7 @@
 import React, { memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
-import ResponsiveAuthImage from '../ResponsiveAuthImage';
-import { formatDateTime } from '../../utils/blogUtils';
+import ResponsiveAuthImage from '../ResponsiveAuthImage'; // Correct: ../ goes to components
+import { formatDateTime } from '../../utils/blogUtils'; // Correct: ../../ goes to src
 import { FaRegBookmark } from 'react-icons/fa';
 
 const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false, isHero = false }, ref) => {
@@ -47,7 +47,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
         );
     }
 
-    // Standard List Card (High density)
+    // Standard List Card
     return (
         <div ref={ref} className="p-4 flex gap-4 items-start active:bg-gray-50 transition-colors">
             <div className="flex-1 flex flex-col justify-between h-full min-h-[5.5rem]">
