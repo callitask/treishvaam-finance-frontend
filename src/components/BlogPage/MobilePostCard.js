@@ -24,7 +24,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
                             eager={true}
                         />
                     ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">No Image</div>
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 font-serif text-sm">No Image</div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
 

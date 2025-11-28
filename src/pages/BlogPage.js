@@ -10,7 +10,7 @@ import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
-import NewsTabMobile from '../components/BlogPage/NewsTabMobile'; // --- NEW IMPORT ---
+import NewsTabMobile from '../components/BlogPage/NewsTabMobile'; // --- NEW COMPONENT ---
 import VisionPage from './VisionPage';
 
 // --- Category Filter (Desktop) ---
@@ -273,7 +273,7 @@ const BlogPage = () => {
 
                     {activeTab === 'briefs' && (
                         <div className="animate-in fade-in duration-200">
-                            <NewsTabMobile /> {/* --- USING NEW COMPONENT --- */}
+                            <NewsTabMobile /> {/* --- RENDERS THE NEW NEWS FEED --- */}
                         </div>
                     )}
 
