@@ -19,7 +19,6 @@ const Navbar = () => {
         navigate('/login');
     };
 
-    // Desktop Nav Link Styles - REDUCED HEIGHT (py-2 instead of py-4)
     const getNavLinkClass = ({ isActive }) =>
         `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
             ? 'border-sky-600 text-sky-700'
@@ -28,17 +27,16 @@ const Navbar = () => {
 
     return (
         <>
-            {/* MOBILE HEADER (Kept same as previous for consistency) */}
+            {/* MOBILE HEADER */}
             <header className="md:hidden bg-white sticky top-0 z-[100] border-b border-gray-200 shadow-sm safe-pt transition-all duration-300">
-                <div className="flex items-center justify-between px-4 h-14">
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-800" aria-label="Menu"><FaBars size={20} /></button>
+                <div className="flex items-center justify-between px-4 h-16">
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-gray-800" aria-label="Menu"><FaBars size={22} /></button>
                     <Link to="/" className="flex flex-col items-center" onClick={() => window.scrollTo(0, 0)}>
-                        <span className="text-lg font-black text-gray-900 font-serif uppercase leading-none">Treishvaam</span>
-                        <span className="text-[9px] font-bold text-sky-700 uppercase tracking-[0.2em] leading-none mt-0.5">Finance</span>
+                        <span className="text-xl font-black text-gray-900 tracking-tight font-serif uppercase leading-none">Treishvaam</span>
+                        <span className="text-[10px] font-bold text-sky-700 uppercase tracking-[0.2em] leading-none mt-0.5">Finance</span>
                     </Link>
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-gray-600"><FaSearch size={18} /></button>
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-gray-600"><FaSearch size={20} /></button>
                 </div>
-                {/* Mobile Drawer Overlay Logic (Standard) */}
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-[110] flex">
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
@@ -73,8 +71,8 @@ const Navbar = () => {
             {/* DESKTOP MASTHEAD */}
             <div className="hidden md:block bg-white font-sans">
                 {/* TIER 1: UTILITY BAR */}
-                <div className="bg-gray-100 text-gray-500 text-[11px] border-b border-gray-200">
-                    <div className="container mx-auto px-6 h-8 flex justify-between items-center">
+                <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
+                    <div className="container mx-auto px-6 h-9 flex justify-between items-center">
                         <div className="flex items-center space-x-4 font-medium tracking-wide">
                             <span>{today}</span>
                             <span className="w-px h-3 bg-gray-300"></span>
@@ -109,26 +107,25 @@ const Navbar = () => {
                     </div>
                 </div>
 
-                {/* TIER 2: BRAND AUTHORITY - REDUCED SIZE */}
-                <div className="bg-white py-6">
+                {/* TIER 2: BRAND AUTHORITY - RESTORED SIZE */}
+                <div className="bg-white py-10">
                     <div className="container mx-auto flex flex-col items-center justify-center">
                         <Link to="/" className="text-center group">
-                            {/* Changed text-5xl to text-3xl */}
-                            <h1 className="text-3xl font-black text-gray-900 font-serif tracking-tight group-hover:opacity-90 transition-opacity">
+                            {/* Restored text-4xl/5xl for Grandeur */}
+                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                                 TREISHVAAM FINANCE
                             </h1>
-                            <p className="text-[10px] text-gray-500 font-bold tracking-[0.3em] uppercase mt-1 text-sky-700">
+                            <p className="text-xs text-gray-500 font-bold tracking-[0.3em] uppercase mt-2 text-sky-700">
                                 Market Intelligence & Analysis
                             </p>
                         </Link>
                     </div>
                 </div>
 
-                {/* TIER 3: STICKY NAVIGATION - TIGHTER BORDERS */}
+                {/* TIER 3: STICKY NAVIGATION */}
                 <div className="sticky top-0 z-50 bg-white border-y border-gray-200 shadow-sm">
                     <div className="container mx-auto px-6 relative">
-                        {/* Reduced height h-14 to h-11 */}
-                        <div className="flex justify-center items-center h-11">
+                        <div className="flex justify-center items-center h-12">
                             <nav className="flex space-x-1">
                                 <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
                                 <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>

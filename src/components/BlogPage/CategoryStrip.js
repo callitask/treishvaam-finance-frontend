@@ -5,16 +5,14 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
     const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
     const megaMenuRef = useRef(null);
 
-    // Filter "All" plus the API categories
     const allCategories = ['All', ...categories.map(cat => cat.name)];
 
-    // Show only the first 10 items in the strip to avoid endless scrolling
-    const visibleCount = 10;
+    // Show top 8 categories, hide the rest
+    const visibleCount = 8;
     const visibleCategories = allCategories.slice(0, visibleCount);
     const hiddenCategories = allCategories.slice(visibleCount);
     const hasMore = hiddenCategories.length > 0;
 
-    // Close Mega Menu when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (megaMenuRef.current && !megaMenuRef.current.contains(event.target)) {
@@ -33,10 +31,8 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
 
     if (loading) {
         return (
-            <div className="w-full h-10 bg-white border-b border-gray-200 animate-pulse flex items-center px-4 gap-4 justify-center">
-                {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-3 w-16 bg-gray-100 rounded"></div>
-                ))}
+            <div className="w-full h-14 bg-white border-b border-gray-200 animate-pulse flex items-center px-4 gap-4 justify-center">
+                {[...Array(6)].map((_, i) => <div key={i} className="h-4 w-20 bg-gray-100 rounded"></div>)}
             </div>
         );
     }
@@ -45,8 +41,8 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
         <div className="w-full bg-white border-b border-gray-200 z-40 relative shadow-sm">
             <div className="container mx-auto px-6 relative">
 
-                {/* HORIZONTAL STRIP */}
-                <div className="flex items-center justify-center h-10 gap-6">
+                {/* HORIZONTAL STRIP - Restored Height h-14 */}
+                <div className="flex items-center justify-center h-14 gap-8">
                     {visibleCategories.map((cat) => {
                         const isActive = selectedCategory === cat;
                         return (
@@ -54,7 +50,7 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
                                 key={cat}
                                 onClick={() => handleCategoryClick(cat)}
                                 className={`
-                                    h-full flex items-center text-[11px] font-bold uppercase tracking-wider transition-all duration-200 border-b-2
+                                    h-full flex items-center text-xs font-bold uppercase tracking-widest transition-all duration-200 border-b-[3px]
                                     ${isActive
                                         ? 'border-sky-600 text-sky-700'
                                         : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200'
@@ -66,12 +62,12 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
                         );
                     })}
 
-                    {/* "MORE" BUTTON - Triggers the Mega Menu */}
+                    {/* MORE BUTTON */}
                     {hasMore && (
                         <button
                             onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
                             className={`
-                                h-full flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors border-b-2
+                                h-full flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors border-b-[3px]
                                 ${isMegaMenuOpen ? 'text-sky-700 border-sky-600' : 'text-gray-400 border-transparent hover:text-sky-600'}
                             `}
                         >
@@ -80,12 +76,12 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
                     )}
                 </div>
 
-                {/* MEGA MENU OVERLAY (The "Wide Box") */}
+                {/* MEGA MENU OVERLAY */}
                 {isMegaMenuOpen && hasMore && (
-                    <div className="absolute left-0 right-0 top-full mt-px bg-white border-b border-gray-200 shadow-xl py-6 animate-in slide-in-from-top-2 duration-200 z-50" ref={megaMenuRef}>
+                    <div className="absolute left-0 right-0 top-full mt-px bg-white border-b border-gray-200 shadow-xl py-8 animate-in slide-in-from-top-2 duration-200 z-50" ref={megaMenuRef}>
                         <div className="container mx-auto px-4">
-                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-100 pb-2">All Sections</h4>
-                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-y-3 gap-x-4">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-100 pb-2">All Departments</h4>
+                            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-y-4 gap-x-6">
                                 {allCategories.map(cat => (
                                     <button
                                         key={cat}
