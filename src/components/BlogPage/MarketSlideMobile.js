@@ -1,7 +1,7 @@
 import React from 'react';
 import Slider from "react-slick";
 import TopMoversCard from '../market/TopMoversCard';
-// FIX: Using ../../ to reach src/apiConfig.js
+// FIX: Double dot (../../) to reach src/apiConfig.js
 import { getMostActive, getTopGainers, getTopLosers } from '../../apiConfig';
 import IndexCharts from '../market/IndexCharts';
 import GlobalMarketTicker from '../market/GlobalMarketTicker';
@@ -14,7 +14,7 @@ const MarketSlideMobile = () => {
         slidesToShow: 1,
         slidesToScroll: 1,
         arrows: false,
-        className: "pb-8"
+        className: "pb-8" // Add padding for dots
     };
 
     return (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// FIX: Using ../../ to reach src/apiConfig.js
+// FIX: Double dot (../../) to reach src/apiConfig.js
 import { getNewsHighlights, getArchivedNews } from '../../apiConfig';
 import { FaClock, FaExternalLinkAlt, FaGlobeAmericas, FaBolt } from 'react-icons/fa';
 
