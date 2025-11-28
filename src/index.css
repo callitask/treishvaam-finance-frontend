@@ -1,7 +1,6 @@
 /* src/index.css */
 /* --- Base Styles & Fonts --- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-/* NEW: Importing Merriweather for Enterprise Headings */
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
 
 @tailwind base;
@@ -12,6 +11,8 @@ body {
   font-family: 'Inter', sans-serif;
   color: #111827; /* gray-900 */
   background-color: #f9fafb; /* Enterprise light gray background */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* --- Enterprise Shimmer Effect (Skeleton) --- */
@@ -36,8 +37,28 @@ body {
 
 .market-data-value {
     font-family: 'Inter', sans-serif;
-    font-feature-settings: "tnum"; /* Tabular numbers (aligns digits vertically) */
+    font-feature-settings: "tnum"; /* Tabular numbers */
     font-variant-numeric: tabular-nums;
+}
+
+/* --- App-Like Utilities (New) --- */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.glass-nav {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(229, 231, 235, 0.5);
+}
+
+.safe-pb {
+    padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* --- Professional Table of Contents --- */
@@ -64,7 +85,6 @@ body {
   @apply text-blue-600 bg-blue-100 font-semibold;
 }
 
-/* --- Vertical Progress Bar Styles --- */
 .toc-progress-track {
   @apply absolute top-0 left-0 h-full w-1 bg-gray-300 overflow-hidden;
 }
@@ -73,22 +93,18 @@ body {
   transition: height 0.15s ease-linear;
 }
 
-/* --- Article Typography & Scroll Margin --- */
 .prose {
     font-family: 'Merriweather', serif;
     @apply text-gray-800;
 }
-
 .prose p {
     @apply leading-8 mb-5;
 }
-
 .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
     font-family: 'Inter', sans-serif;
     scroll-margin-top: 100px;
 }
 
-/* --- Custom Component Styles --- */
 @layer components {
   .cta-button-primary {
     @apply bg-sky-600;

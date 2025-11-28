@@ -3,35 +3,53 @@ import Slider from "react-slick";
 import TopMoversCard from '../market/TopMoversCard';
 import { getMostActive, getTopGainers, getTopLosers } from '../../apiConfig';
 import IndexCharts from '../market/IndexCharts';
+import GlobalMarketTicker from '../market/GlobalMarketTicker';
 
 const MarketSlideMobile = () => {
-    // Added 'centerPadding' and adjusted settings to ensure cards don't touch screen edges abruptly if they peek.
     const marketSliderSettings = {
         dots: true,
-        infinite: false, // Better for strictly 3 categories
+        infinite: false,
         speed: 500,
         slidesToShow: 1,
         slidesToScroll: 1,
         arrows: false,
-        centerMode: false // Ensure full card is shown 
+        className: "pb-8"
     };
 
     return (
-        <div className="p-4 outline-none bg-gray-50 min-h-screen">
-            <div className="mt-4 pt-4">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 px-1">Market Movers</h3>
-                {/* Added mx-auto and max-w to constrain width on larger mobile screens if needed */}
-                <div className="market-slider-container pb-8">
-                    <style>{`.market-slider-container .slick-dots { bottom: 0px; } .market-slider-container .slick-dots li button:before { font-size: 8px; color: #d1d5db; opacity: 1; } .market-slider-container .slick-dots li.slick-active button:before { color: #0284c7; }`}</style>
+        <div className="bg-gray-50 min-h-screen pb-20">
+            {/* Sticky Ticker */}
+            <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
+                <GlobalMarketTicker />
+            </div>
+
+            <div className="p-4 space-y-6">
+                {/* Section 1: Indices Chart */}
+                <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">Global Indices</h3>
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    </div>
+                    <div className="p-2">
+                        <IndexCharts />
+                    </div>
+                </section>
+
+                {/* Section 2: Movers Swiper */}
+                <section>
+                    <h3 className="font-serif font-bold text-xl text-gray-900 mb-3 px-1">Market Movers</h3>
                     <Slider {...marketSliderSettings}>
-                        <div className="px-1"><TopMoversCard title="Most Active" fetchData={getMostActive} type="active" /></div>
-                        <div className="px-1"><TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" /></div>
-                        <div className="px-1"><TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" /></div>
+                        <div className="px-1">
+                            <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
+                        </div>
+                        <div className="px-1">
+                            <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
+                        </div>
+                        <div className="px-1">
+                            <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                        </div>
                     </Slider>
-                </div>
-                <div className="mt-6">
-                    <IndexCharts />
-                </div>
+                </section>
             </div>
         </div>
     );
