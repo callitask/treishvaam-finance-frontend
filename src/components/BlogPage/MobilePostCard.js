@@ -2,7 +2,7 @@ import React, { memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import { formatDateTime } from '../../utils/blogUtils';
-import { FaRegBookmark, FaClock } from 'react-icons/fa';
+import { FaClock } from 'react-icons/fa';
 
 const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false, isHero = false }, ref) => {
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);

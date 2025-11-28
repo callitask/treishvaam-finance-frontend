@@ -1,18 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { FiFilter, FiX } from 'react-icons/fi';
+import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import BlogSidebar from './BlogSidebar';
 import MobilePostCard from './MobilePostCard';
 
 // ==============================================================================
-// SUB-COMPONENT: CategoryStripMobile (Defined Internally to fix import error)
+// SUB-COMPONENT: CategoryStripMobile
 // ==============================================================================
 const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory }) => {
     const scrollRef = useRef(null);
-    // Ensure "All" is always first
     const allCategories = ['All', ...categories.map(cat => cat.name)];
 
-    // Auto-scroll the strip to keep the selected category in view
     useEffect(() => {
         if (scrollRef.current) {
             const selectedBtn = scrollRef.current.querySelector('[data-selected="true"]');
@@ -66,13 +62,11 @@ const BlogSlideMobile = ({
     categories,
     selectedCategory,
     setSelectedCategory,
-    loadingCategories,
     loading,
     page,
     hasMore
 }) => {
 
-    // Logic: Split the feed into Hero, Briefing Rail, and List
     const heroPost = mobileLayout[0];
     const railPosts = mobileLayout.slice(1, 4);
     const listPosts = mobileLayout.slice(4);
@@ -87,7 +81,7 @@ const BlogSlideMobile = ({
                 setSelectedCategory={setSelectedCategory}
             />
 
-            {/* 2. HERO POST (Full Bleed Vertical Poster) */}
+            {/* 2. HERO POST */}
             {heroPost && (
                 <div className="mb-2 border-b border-gray-200">
                     <MobilePostCard
@@ -99,7 +93,7 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 3. BRIEFING RAIL (Horizontal Swipe) */}
+            {/* 3. BRIEFING RAIL */}
             {railPosts.length > 0 && (
                 <div className="py-5 pl-4 bg-white border-b border-gray-100 mb-2">
                     <div className="flex items-center justify-between pr-4 mb-3">
