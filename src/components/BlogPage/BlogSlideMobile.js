@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FiFilter, FiX } from 'react-icons/fi';
 import SearchAutocomplete from '../SearchAutocomplete';
-import BlogSidebar from './BlogSidebar'; // Note the new path
+import BlogSidebar from './BlogSidebar';
 import MobilePostCard from './MobilePostCard';
 
 const BlogSlideMobile = ({
@@ -49,6 +49,8 @@ const BlogSlideMobile = ({
                 <div className="grid grid-cols-2 gap-2 p-2">
                     {mobileLayout.map((article, index) => {
                         const isLastPost = index === mobileLayout.length - 1;
+                        // PERFORMANCE FIX: Prioritize loading the very first image for LCP
+                        const isLCP = index === 0;
                         return <MobilePostCard
                             ref={isLastPost ? lastPostElementRef : null}
                             key={article.id}
@@ -56,6 +58,7 @@ const BlogSlideMobile = ({
                             onCategoryClick={onCategoryClick}
                             layout={article.layout}
                             categoriesMap={categoriesMap}
+                            eager={isLCP}
                         />;
                     })}
                 </div>

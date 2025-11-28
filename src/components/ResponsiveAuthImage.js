@@ -3,7 +3,7 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { API_URL } from '../apiConfig';
 
-const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
+const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false }) => {
     // Render a simple placeholder if baseName is invalid.
     if (!baseName || typeof baseName !== 'string') {
         return <div className={`bg-gray-200 ${className}`} />;
@@ -27,6 +27,23 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad }) => {
         `${API_URL}/api/uploads/${cleanedBaseName}-medium.webp 600w`,
         `${API_URL}/api/uploads/${cleanedBaseName}.webp 1200w`
     ].join(', ');
+
+    // PERFORMANCE FIX: If 'eager' is true (LCP images), use standard <img> tag
+    // This avoids JS delays from the lazy-load library and enables browser prioritization
+    if (eager) {
+        return (
+            <img
+                alt={alt}
+                src={src}
+                srcSet={srcSet}
+                sizes={sizes}
+                className={className}
+                onLoad={onLoad}
+                loading="eager"
+                fetchpriority="high" // Critical for LCP optimization
+            />
+        );
+    }
 
     return (
         <LazyLoadImage

@@ -134,6 +134,7 @@ const Navbar = () => {
                     <button
                         onClick={() => setMobileMenuOpen(!isMobileMenuOpen)}
                         className="text-gray-600 p-2 -ml-2 hover:bg-gray-100 rounded-md focus:outline-none"
+                        aria-label="Toggle mobile menu" // ACCESSIBILITY FIX
                     >
                         {isMobileMenuOpen ? <FaTimes size={22} /> : <FaBars size={22} />}
                     </button>
