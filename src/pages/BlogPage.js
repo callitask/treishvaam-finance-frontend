@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Layout components
+import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
 import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
@@ -85,7 +86,7 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Separation for Hero Section (MEMOIZED FIX) ---
+    // --- Separation for Hero Section ---
     const { heroPost, gridPosts } = useMemo(() => {
         if (filteredPosts.length > 0) {
             return {
@@ -134,45 +135,26 @@ const BlogPage = () => {
         "url": canonicalUrl
     };
 
-    // --- Render States ---
-
     if (error) {
         return (
             <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 text-center">
                 <FiAlertCircle className="w-12 h-12 text-red-500 mb-3" />
                 <h3 className="text-lg font-bold text-gray-800">Unable to load content</h3>
                 <p className="text-sm text-gray-600 mb-6">{error}</p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-2 bg-sky-600 text-white rounded-full font-semibold shadow-md hover:bg-sky-700 transition-colors"
-                >
-                    Retry
-                </button>
+                <button onClick={() => window.location.reload()} className="px-6 py-2 bg-sky-600 text-white rounded-full font-semibold shadow-md hover:bg-sky-700 transition-colors">Retry</button>
             </div>
         );
     }
 
     if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center text-gray-500">Loading content...</div>;
 
-    // --- Mobile Bottom Nav ---
+    // Mobile Bottom Nav
     const MobileBottomNav = () => (
         <nav className="fixed bottom-0 left-0 right-0 h-16 glass-nav z-[90] flex justify-around items-center px-2 safe-pb">
-            <button onClick={() => { setActiveTab('home'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'home' ? 'text-sky-600' : 'text-gray-400'}`}>
-                <FiHome size={22} className={activeTab === 'home' ? 'fill-current' : ''} />
-                <span className="text-[10px] font-medium tracking-wide">Home</span>
-            </button>
-            <button onClick={() => { setActiveTab('markets'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'markets' ? 'text-sky-600' : 'text-gray-400'}`}>
-                <FiTrendingUp size={22} />
-                <span className="text-[10px] font-medium tracking-wide">Markets</span>
-            </button>
-            <button onClick={() => { setActiveTab('briefs'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'briefs' ? 'text-sky-600' : 'text-gray-400'}`}>
-                <FiLayers size={22} />
-                <span className="text-[10px] font-medium tracking-wide">News</span>
-            </button>
-            <button onClick={() => { setActiveTab('vision'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'vision' ? 'text-sky-600' : 'text-gray-400'}`}>
-                <FiTarget size={22} />
-                <span className="text-[10px] font-medium tracking-wide">Vision</span>
-            </button>
+            <button onClick={() => { setActiveTab('home'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'home' ? 'text-sky-600' : 'text-gray-400'}`}><FiHome size={22} className={activeTab === 'home' ? 'fill-current' : ''} /><span className="text-[10px] font-medium tracking-wide">Home</span></button>
+            <button onClick={() => { setActiveTab('markets'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'markets' ? 'text-sky-600' : 'text-gray-400'}`}><FiTrendingUp size={22} /><span className="text-[10px] font-medium tracking-wide">Markets</span></button>
+            <button onClick={() => { setActiveTab('briefs'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'briefs' ? 'text-sky-600' : 'text-gray-400'}`}><FiLayers size={22} /><span className="text-[10px] font-medium tracking-wide">News</span></button>
+            <button onClick={() => { setActiveTab('vision'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'vision' ? 'text-sky-600' : 'text-gray-400'}`}><FiTarget size={22} /><span className="text-[10px] font-medium tracking-wide">Vision</span></button>
         </nav>
     );
 
@@ -187,10 +169,10 @@ const BlogPage = () => {
 
             <section className="bg-white min-h-screen font-sans">
 
-                {/* --- DESKTOP VIEW (ENTERPRISE DESIGN PHASE 3) --- */}
+                {/* --- DESKTOP VIEW (3-COLUMN ENTERPRISE LAYOUT) --- */}
                 <div className="hidden md:block">
 
-                    {/* Level 2: Sticky Category Strip (Top 56px / 3.5rem from Navbar) */}
+                    {/* Category Strip */}
                     <div className="sticky top-[110px] z-40">
                         <CategoryStrip
                             categories={categories}
@@ -200,27 +182,41 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* Level 3: Global Market Ticker */}
+                    {/* Market Ticker */}
                     <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
 
-                    {/* Level 4: Main Content Grid */}
-                    <div className="container mx-auto px-6 pt-10">
+                    {/* Main Content Grid */}
+                    <div className="container mx-auto px-4 lg:px-6 pt-10 pb-20">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
-                        {/* HERO SECTION (Phase 3) */}
-                        <HeroSection featuredPost={heroPost} />
+                            {/* COLUMN 1: THE BRIEFING (News Sidebar) - 2.5/12 */}
+                            <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
+                                <div className="sticky top-40 space-y-8">
+                                    <div className="border-b-2 border-black pb-2 mb-4">
+                                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">
+                                            The Briefing
+                                        </h3>
+                                    </div>
+                                    <FeaturedColumn />
+                                </div>
+                            </aside>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                            {/* COLUMN 2: THE FEED (Hero + Grid) - 6.5/12 */}
+                            <div className="lg:col-span-8 xl:col-span-6 order-2 px-0 lg:px-4">
+                                {/* Lead Story */}
+                                <HeroSection featuredPost={heroPost} />
 
-                            {/* Center: Main Feed (Span 9) */}
-                            <div className="lg:col-span-8 order-1 border-r border-gray-100 pr-8">
-                                <div className="flex items-center gap-2 mb-6">
-                                    <span className="w-1.5 h-6 bg-sky-600"></span>
-                                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest font-serif">
+                                {/* Section Header */}
+                                <div className="flex items-center gap-3 mb-6">
+                                    <span className="w-2 h-8 bg-sky-600"></span>
+                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">
                                         Latest Analysis
                                     </h2>
                                 </div>
+
+                                {/* Main Feed */}
                                 <BlogGridDesktop
                                     desktopLayoutBlocks={desktopLayoutBlocks}
                                     lastPostElementRef={lastPostElementRef}
@@ -233,9 +229,11 @@ const BlogPage = () => {
                                 />
                             </div>
 
-                            {/* Right: Market Sidebar (Span 3) */}
-                            <aside className="lg:col-span-4 order-2 space-y-10">
-                                <MarketSidebar />
+                            {/* COLUMN 3: MARKET TERMINAL (Data Sidebar) - 3/12 */}
+                            <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
+                                <div className="sticky top-40 space-y-10">
+                                    <MarketSidebar />
+                                </div>
                             </aside>
                         </div>
                     </div>
@@ -243,40 +241,10 @@ const BlogPage = () => {
 
                 {/* --- MOBILE VIEW (Unchanged) --- */}
                 <div className="md:hidden pb-20">
-                    {activeTab === 'home' && (
-                        <BlogSlideMobile
-                            mobileLayout={mobileLayout}
-                            lastPostElementRef={lastPostElementRef}
-                            onCategoryClick={setSelectedCategory}
-                            categoriesMap={categoriesMap}
-                            categories={categories}
-                            selectedCategory={selectedCategory}
-                            setSelectedCategory={setSelectedCategory}
-                            loadingCategories={loadingCategories}
-                            loading={loading}
-                            page={page}
-                            hasMore={hasMore}
-                        />
-                    )}
-
-                    {activeTab === 'markets' && (
-                        <div className="animate-in fade-in duration-200">
-                            <MarketSlideMobile />
-                        </div>
-                    )}
-
-                    {activeTab === 'briefs' && (
-                        <div className="animate-in fade-in duration-200">
-                            <NewsTabMobile />
-                        </div>
-                    )}
-
-                    {activeTab === 'vision' && (
-                        <div className="animate-in fade-in duration-200">
-                            <VisionPage />
-                        </div>
-                    )}
-
+                    {activeTab === 'home' && <BlogSlideMobile mobileLayout={mobileLayout} lastPostElementRef={lastPostElementRef} onCategoryClick={setSelectedCategory} categoriesMap={categoriesMap} categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} loadingCategories={loadingCategories} loading={loading} page={page} hasMore={hasMore} />}
+                    {activeTab === 'markets' && <div className="animate-in fade-in duration-200"><MarketSlideMobile /></div>}
+                    {activeTab === 'briefs' && <div className="animate-in fade-in duration-200"><NewsTabMobile /></div>}
+                    {activeTab === 'vision' && <div className="animate-in fade-in duration-200"><VisionPage /></div>}
                     <MobileBottomNav />
                 </div>
             </section>
