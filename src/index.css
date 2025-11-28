@@ -1,8 +1,8 @@
 /* src/index.css */
 /* --- Base Styles & Fonts --- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-/* NEW: Importing Merriweather font for the article body */
-@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap');
+/* NEW: Importing Merriweather for Enterprise Headings */
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -11,22 +11,46 @@
 body {
   font-family: 'Inter', sans-serif;
   color: #111827; /* gray-900 */
+  background-color: #f9fafb; /* Enterprise light gray background */
+}
+
+/* --- Enterprise Shimmer Effect (Skeleton) --- */
+.skeleton {
+    background: #f3f4f6;
+    background-image: linear-gradient(to right, #f3f4f6 0%, #edeef1 20%, #f3f4f6 40%, #f3f4f6 100%);
+    background-repeat: no-repeat;
+    background-size: 800px 100%; 
+    animation: shimmer 1.5s infinite linear forwards;
+}
+
+@keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+/* --- Enterprise Typography Classes --- */
+.article-title {
+    font-family: 'Merriweather', serif;
+    letter-spacing: -0.01em; 
+}
+
+.market-data-value {
+    font-family: 'Inter', sans-serif;
+    font-feature-settings: "tnum"; /* Tabular numbers (aligns digits vertically) */
+    font-variant-numeric: tabular-nums;
 }
 
 /* --- Professional Table of Contents --- */
 .toc-container {
-  /* UPDATED: Removed rounded-lg for sharp corners */
   @apply relative border border-gray-200 bg-gray-50;
 }
 .toc-header {
-  /* UPDATED: Reduced padding for a compact look */
   @apply w-full flex justify-between items-center p-2 font-semibold text-gray-800 text-left;
 }
 .toc-chevron {
   @apply w-5 h-5 text-gray-500 transition-transform duration-200;
 }
 .toc-body {
-  /* UPDATED: Reduced padding for a compact look */
   @apply p-2 border-t border-gray-200;
 }
 .toc-list-item {
@@ -42,29 +66,23 @@ body {
 
 /* --- Vertical Progress Bar Styles --- */
 .toc-progress-track {
-  /* UPDATED: Removed rounded-l-lg for sharp corners */
   @apply absolute top-0 left-0 h-full w-1 bg-gray-300 overflow-hidden;
 }
 .toc-progress-fill {
-  /* UPDATED: Changed color to "cherry-cola" red */
   @apply w-full bg-[#9A031E];
   transition: height 0.15s ease-linear;
 }
 
-
 /* --- Article Typography & Scroll Margin --- */
 .prose {
-    /* NEW: Applying serif font for a classic news/article feel */
     font-family: 'Merriweather', serif;
     @apply text-gray-800;
 }
 
-/* UPDATED: Enhancing readability with both line-height and margin-bottom */
 .prose p {
-    @apply leading-8 mb-5; /* Corresponds to line-height: 2rem and margin-bottom: 1.25rem */
+    @apply leading-8 mb-5;
 }
 
-/* Keep headings with the default sans-serif font for contrast */
 .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
     font-family: 'Inter', sans-serif;
     scroll-margin-top: 100px;
