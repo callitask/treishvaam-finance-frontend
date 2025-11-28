@@ -47,11 +47,12 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                 <div className="px-1">
                     <table className="w-full">
                         <thead>
+                            {/* Optimization: Fixed Widths to prevent CLS */}
                             <tr className="text-left text-gray-400 uppercase font-medium text-[10px]">
-                                <th className="py-1 px-1">Symbol</th>
-                                <th className="py-1 px-1 text-right">Price</th>
-                                <th className="py-1 px-1 text-right">Chg</th>
-                                <th className="py-1 px-1 text-right">%</th>
+                                <th className="py-1 px-1 w-[40%]">Symbol</th>
+                                <th className="py-1 px-1 text-right w-[20%]">Price</th>
+                                <th className="py-1 px-1 text-right w-[20%]">Chg</th>
+                                <th className="py-1 px-1 text-right w-[20%]">%</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,11 +78,12 @@ const TopMoversCard = ({ title, fetchData, type }) => {
             <div className="px-1">
                 <table className="w-full">
                     <thead>
+                        {/* Optimization: Fixed Widths to prevent CLS */}
                         <tr className="text-left text-gray-500 uppercase font-medium text-[10px]">
-                            <th className="py-1 px-1 font-semibold">Symbol</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">Price</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">Chg</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap">%Chg</th>
+                            <th className="py-1 px-1 font-semibold w-[40%]">Symbol</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">Price</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">Chg</th>
+                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">%Chg</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
