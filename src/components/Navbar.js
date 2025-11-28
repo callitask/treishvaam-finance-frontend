@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch } from 'react-icons/fa';
+import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch, FaFacebookF, FaLinkedinIn, FaInstagram } from 'react-icons/fa';
 import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
@@ -11,7 +11,7 @@ const Navbar = () => {
     const navigate = useNavigate();
 
     const today = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'short', day: 'numeric',
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
     const handleLogout = () => {
@@ -19,43 +19,45 @@ const Navbar = () => {
         navigate('/login');
     };
 
+    // Desktop Nav Link Styles
     const getNavLinkClass = ({ isActive }) =>
-        `text-sm font-bold uppercase tracking-wider px-4 py-3 border-b-2 transition-colors duration-200 ${isActive
+        `text-sm font-bold uppercase tracking-widest px-6 py-4 border-b-2 transition-all duration-300 ${isActive
             ? 'border-sky-600 text-sky-700'
-            : 'border-transparent text-gray-600 hover:text-sky-600 hover:border-gray-200'
+            : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
         }`;
 
     return (
         <>
-            {/* --- MOBILE ENTERPRISE HEADER --- */}
-            <header className="md:hidden bg-white/95 backdrop-blur-sm sticky top-0 z-[100] border-b border-gray-200 shadow-sm safe-pt transition-all duration-300">
-                <div className="flex items-center justify-between px-4 h-14">
-
+            {/* =========================================================================
+               MOBILE HEADER (Optimized for small screens)
+               ========================================================================= */}
+            <header className="md:hidden bg-white sticky top-0 z-[100] border-b border-gray-200 shadow-sm safe-pt transition-all duration-300">
+                <div className="flex items-center justify-between px-4 h-16">
                     {/* Left: Menu Trigger */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -ml-2 text-gray-800 rounded-full active:bg-gray-100 transition-colors"
+                        className="p-2 -ml-2 text-gray-800"
                         aria-label="Menu"
                     >
-                        <FaBars size={20} />
+                        <FaBars size={22} />
                     </button>
 
-                    {/* Center: BRANDING (Requested Full Name) */}
-                    <Link to="/" className="flex items-center gap-2" onClick={() => window.scrollTo(0, 0)}>
-                        <img src="/logo.webp" alt="Logo" className="h-7 w-7 object-contain" />
-                        <div className="flex flex-col items-center leading-none">
-                            <span className="text-[13px] font-black text-gray-900 tracking-tight font-serif uppercase">
-                                TREISHVAAM FINANCE
-                            </span>
-                        </div>
+                    {/* Center: BRANDING */}
+                    <Link to="/" className="flex flex-col items-center" onClick={() => window.scrollTo(0, 0)}>
+                        <span className="text-xl font-black text-gray-900 tracking-tight font-serif uppercase leading-none">
+                            Treishvaam
+                        </span>
+                        <span className="text-[10px] font-bold text-sky-700 uppercase tracking-[0.2em] leading-none mt-0.5">
+                            Finance
+                        </span>
                     </Link>
 
-                    {/* Right: Search */}
+                    {/* Right: Search Trigger (Placeholder for now, opens menu) */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -mr-2 text-gray-600 hover:text-sky-700 active:bg-gray-100 rounded-full"
+                        className="p-2 -mr-2 text-gray-600"
                     >
-                        <FaSearch size={18} />
+                        <FaSearch size={20} />
                     </button>
                 </div>
 
@@ -73,17 +75,17 @@ const Navbar = () => {
                             </div>
 
                             {/* Search inside Drawer */}
-                            <div className="p-4 bg-white">
+                            <div className="p-4 bg-white border-b border-gray-100">
                                 <SearchAutocomplete />
                             </div>
 
                             {/* Nav Links */}
                             <nav className="flex-1 overflow-y-auto py-2">
                                 <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 hover:bg-gray-50 border-b border-gray-50">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-sky-500 mr-3"></span> Home
+                                    Home
                                 </Link>
                                 <Link to="/market/global" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 hover:bg-gray-50 border-b border-gray-50">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 mr-3"></span> Markets
+                                    Markets
                                 </Link>
                                 <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 hover:bg-gray-50 border-b border-gray-50">
                                     About Us
@@ -96,7 +98,7 @@ const Navbar = () => {
                                 </Link>
                             </nav>
 
-                            {/* Footer / Auth */}
+                            {/* Mobile Footer / Auth */}
                             <div className="p-5 border-t border-gray-100 bg-gray-50 safe-pb">
                                 {auth.isAuthenticated ? (
                                     <div className="space-y-3">
@@ -118,38 +120,43 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* --- DESKTOP NAVBAR (Hidden on Mobile) --- */}
-            <div className="hidden md:block bg-white shadow-sm sticky top-0 z-50 font-sans">
-                <div className="container mx-auto px-6 h-20 flex items-center justify-between relative">
-                    <div className="w-1/3 text-xs text-gray-500 font-medium flex flex-col justify-center">
-                        <span className="uppercase tracking-widest text-gray-400 mb-0.5">Bangalore</span>
-                        <span className="text-gray-700 font-bold">{today}</span>
-                    </div>
-                    <div className="absolute left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center">
-                        <Link to="/" className="flex items-center group">
-                            <img alt="Logo" src="/logo.webp" className="h-10 w-auto mr-2 transition-transform duration-300 group-hover:scale-105" />
-                            <div className="flex flex-col items-center">
-                                <span className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none font-serif">
-                                    TREISHVAAM <span className="text-sky-700">FINANCE</span>
-                                </span>
+            {/* =========================================================================
+               DESKTOP MASTHEAD (Enterprise Design)
+               ========================================================================= */}
+            <div className="hidden md:block bg-white font-sans">
+
+                {/* TIER 1: UTILITY BAR */}
+                <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
+                    <div className="container mx-auto px-6 h-9 flex justify-between items-center">
+                        {/* Date & Location */}
+                        <div className="flex items-center space-x-4 font-medium tracking-wide">
+                            <span>{today}</span>
+                            <span className="w-px h-3 bg-gray-300"></span>
+                            <span>Bengaluru, IN</span>
+                        </div>
+
+                        {/* Socials & Auth */}
+                        <div className="flex items-center space-x-6">
+                            <div className="flex space-x-4 border-r border-gray-300 pr-6">
+                                <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#0077b5] transition-colors"><FaLinkedinIn /></a>
+                                <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#1877F2] transition-colors"><FaFacebookF /></a>
+                                <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#E1306C] transition-colors"><FaInstagram /></a>
                             </div>
-                        </Link>
-                    </div>
-                    <div className="w-1/3 flex justify-end items-center space-x-4">
-                        <div className="w-64"><SearchAutocomplete /></div>
-                        <div className="relative">
+
                             {auth.isAuthenticated ? (
                                 <div className="flex items-center space-x-3">
-                                    <NavLink to="/dashboard" className="text-sm font-semibold text-gray-700 hover:text-sky-600 transition">Dashboard</NavLink>
-                                    <button onClick={handleLogout} className="text-gray-400 hover:text-red-600 transition" title="Logout"><FaSignOutAlt size={18} /></button>
+                                    <Link to="/dashboard" className="font-bold text-gray-700 hover:text-sky-600">Dashboard</Link>
+                                    <button onClick={handleLogout} className="text-gray-400 hover:text-red-600" title="Logout"><FaSignOutAlt /></button>
                                 </div>
                             ) : (
                                 <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
-                                    <button className="flex items-center text-sm font-semibold text-gray-700 hover:text-sky-600 transition"><FaUserCircle className="mr-1.5 text-lg text-gray-400" />Login</button>
+                                    <button className="flex items-center font-bold text-gray-700 hover:text-sky-600 transition uppercase tracking-wider text-[10px]">
+                                        <FaUserCircle className="mr-1.5 text-sm text-gray-400" /> Sign In
+                                    </button>
                                     {isLoginDropdownOpen && (
-                                        <div className="absolute right-0 mt-0 w-40 pt-2">
-                                            <div className="bg-white rounded-md shadow-xl border border-gray-100 py-1">
-                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-sky-50 hover:text-sky-700">Admin Login</Link>
+                                        <div className="absolute right-0 top-full pt-2 z-50">
+                                            <div className="bg-white rounded shadow-xl border border-gray-100 py-1 w-32">
+                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Admin Login</Link>
                                             </div>
                                         </div>
                                     )}
@@ -158,14 +165,39 @@ const Navbar = () => {
                         </div>
                     </div>
                 </div>
-                <div className="border-t border-gray-200 border-b-4 border-double border-gray-100">
-                    <div className="container mx-auto flex justify-center">
-                        <nav className="flex space-x-8">
-                            <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
-                            <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
-                            <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
-                            <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
-                        </nav>
+
+                {/* TIER 2: BRAND AUTHORITY */}
+                <div className="bg-white py-10">
+                    <div className="container mx-auto flex flex-col items-center justify-center">
+                        <Link to="/" className="text-center group">
+                            <h1 className="text-5xl font-black text-gray-900 font-serif tracking-tight group-hover:opacity-90 transition-opacity">
+                                TREISHVAAM FINANCE
+                            </h1>
+                            <p className="text-sm text-gray-500 font-bold tracking-[0.3em] uppercase mt-2 text-sky-700">
+                                Market Intelligence & Analysis
+                            </p>
+                        </Link>
+                    </div>
+                </div>
+
+                {/* TIER 3: STICKY NAVIGATION */}
+                <div className="sticky top-0 z-50 bg-white border-y border-gray-200 shadow-sm">
+                    <div className="container mx-auto px-6 relative">
+                        <div className="flex justify-center items-center h-14">
+                            {/* Navigation Links */}
+                            <nav className="flex space-x-1">
+                                <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
+                                <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>
+                                <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
+                                <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
+                                <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
+                            </nav>
+
+                            {/* Integrated Search (Absolute Right) */}
+                            <div className="absolute right-6 top-1/2 transform -translate-y-1/2 w-64">
+                                <SearchAutocomplete />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
