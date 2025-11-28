@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
-import { FiHome, FiTrendingUp, FiLayers, FiTarget } from 'react-icons/fi';
+import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Layout components
 import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
@@ -10,7 +10,7 @@ import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
-import NewsTabMobile from '../components/BlogPage/NewsTabMobile'; // --- NEW COMPONENT ---
+import NewsTabMobile from '../components/BlogPage/NewsTabMobile';
 import VisionPage from './VisionPage';
 
 // --- Category Filter (Desktop) ---
@@ -169,6 +169,24 @@ const BlogPage = () => {
         "url": canonicalUrl
     };
 
+    // --- Render States ---
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 text-center">
+                <FiAlertCircle className="w-12 h-12 text-red-500 mb-3" />
+                <h3 className="text-lg font-bold text-gray-800">Unable to load content</h3>
+                <p className="text-sm text-gray-600 mb-6">{error}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-2 bg-sky-600 text-white rounded-full font-semibold shadow-md hover:bg-sky-700 transition-colors"
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
     if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center text-gray-500">Loading content...</div>;
 
     // --- Mobile Bottom Nav ---
@@ -273,7 +291,7 @@ const BlogPage = () => {
 
                     {activeTab === 'briefs' && (
                         <div className="animate-in fade-in duration-200">
-                            <NewsTabMobile /> {/* --- RENDERS THE NEW NEWS FEED --- */}
+                            <NewsTabMobile />
                         </div>
                     )}
 
