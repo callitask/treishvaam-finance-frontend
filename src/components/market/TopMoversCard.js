@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import MarketChart from './MarketChart';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
-// --- ENTERPRISE SKELETON ROW ---
 const RowSkeleton = () => (
-    <tr className="animate-pulse border-b border-gray-50 last:border-none">
-        <td className="py-2.5 px-1"><div className="h-3 bg-gray-100 rounded w-12"></div></td>
-        <td className="py-2.5 px-1"><div className="h-3 bg-gray-100 rounded w-16 ml-auto"></div></td>
-        <td className="py-2.5 px-1"><div className="h-3 bg-gray-100 rounded w-12 ml-auto"></div></td>
-        <td className="py-2.5 px-1"><div className="h-3 bg-gray-100 rounded w-10 ml-auto"></div></td>
-    </tr>
+    <div className="flex justify-between py-3 border-b border-gray-100 animate-pulse">
+        <div className="h-4 bg-gray-100 w-1/3 rounded"></div>
+        <div className="h-4 bg-gray-100 w-1/4 rounded"></div>
+    </div>
 );
 
 const TopMoversCard = ({ title, fetchData, type }) => {
@@ -18,107 +16,101 @@ const TopMoversCard = ({ title, fetchData, type }) => {
     const [selectedStock, setSelectedStock] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
         const loadData = async () => {
             try {
                 setLoading(true);
-                setError(null);
                 const response = await fetchData();
-                setData(response.data || []);
+                if (isMounted) setData(response.data || []);
             } catch (err) {
-                setError('Data unavailable');
-                console.error("Failed to fetch top movers:", err);
+                console.error(err);
+                if (isMounted) setError(true);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
         loadData();
+        return () => { isMounted = false; };
     }, [fetchData]);
 
-    const getRowColor = (stock) => {
-        const change = parseFloat(stock.changeAmount);
-        if (type === 'gainer' || (type === 'active' && change >= 0)) return 'text-green-600';
-        if (type === 'loser' || (type === 'active' && change < 0)) return 'text-red-600';
-        return 'text-gray-800';
+    const getRowColor = (change) => {
+        if (change > 0) return 'text-green-600';
+        if (change < 0) return 'text-red-600';
+        return 'text-gray-500';
     };
 
     const renderContent = () => {
-        if (loading) {
-            return (
-                <div className="px-1">
-                    <table className="w-full">
-                        <thead>
-                            {/* Optimization: Fixed Widths to prevent CLS */}
-                            <tr className="text-left text-gray-400 uppercase font-medium text-[10px]">
-                                <th className="py-1 px-1 w-[40%]">Symbol</th>
-                                <th className="py-1 px-1 text-right w-[20%]">Price</th>
-                                <th className="py-1 px-1 text-right w-[20%]">Chg</th>
-                                <th className="py-1 px-1 text-right w-[20%]">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {[...Array(5)].map((_, i) => <RowSkeleton key={i} />)}
-                        </tbody>
-                    </table>
-                </div>
-            );
-        }
-
-        // --- GRACEFUL ERROR STATE ---
-        if (error || data.length === 0) {
-            return (
-                <div className="p-6 text-center">
-                    <p className="text-xs text-gray-400 font-medium bg-gray-50 py-2 rounded">
-                        {title} data temporarily unavailable
-                    </p>
-                </div>
-            );
-        }
+        if (loading) return <div className="space-y-1">{[...Array(5)].map((_, i) => <RowSkeleton key={i} />)}</div>;
+        if (error || data.length === 0) return <div className="py-6 text-center text-xs text-gray-400 font-medium italic">Data unavailable</div>;
 
         return (
-            <div className="px-1">
-                <table className="w-full">
-                    <thead>
-                        {/* Optimization: Fixed Widths to prevent CLS */}
-                        <tr className="text-left text-gray-500 uppercase font-medium text-[10px]">
-                            <th className="py-1 px-1 font-semibold w-[40%]">Symbol</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">Price</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">Chg</th>
-                            <th className="py-1 px-1 font-semibold text-right whitespace-nowrap w-[20%]">%Chg</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {data.slice(0, 5).map((stock) => (
-                            <tr
-                                key={stock.ticker}
-                                className="text-[11px] cursor-pointer hover:bg-gray-50 transition-colors duration-150"
-                                onClick={() => setSelectedStock(stock.ticker)}
+            <div className="flex flex-col">
+                {/* Header Row */}
+                <div className="flex text-[10px] font-bold text-gray-400 uppercase tracking-wider py-2 border-b border-gray-100">
+                    <div className="w-[45%]">Symbol</div>
+                    <div className="w-[25%] text-right">Price</div>
+                    <div className="w-[30%] text-right">% Chg</div>
+                </div>
+
+                {data.slice(0, 5).map((stock) => {
+                    const change = parseFloat(stock.changeAmount);
+                    const percent = stock.changePercentage ? stock.changePercentage.replace('%', '') : '0.00';
+                    const colorClass = getRowColor(change);
+                    const isSelected = selectedStock === stock.ticker;
+
+                    return (
+                        <div key={stock.ticker}>
+                            <div
+                                onClick={() => setSelectedStock(isSelected ? null : stock.ticker)}
+                                className={`flex items-center py-2.5 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors group ${isSelected ? 'bg-gray-50' : ''}`}
                             >
-                                <td className="py-2 px-1 font-bold text-gray-800 truncate font-sans">{stock.ticker}</td>
-                                <td className="py-2 px-1 text-right font-medium text-gray-900 whitespace-nowrap market-data-value">
-                                    ${parseFloat(stock.price).toFixed(2)}
-                                </td>
-                                <td className={`py-2 px-1 text-right font-bold whitespace-nowrap market-data-value ${getRowColor(stock)}`}>
-                                    {parseFloat(stock.changeAmount) >= 0 ? '+' : ''}{parseFloat(stock.changeAmount).toFixed(2)}
-                                </td>
-                                <td className={`py-2 px-1 text-right font-bold whitespace-nowrap market-data-value ${getRowColor(stock)}`}>
-                                    {stock.changePercentage}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {selectedStock && <div className="mt-2 border-t border-gray-100 pt-2"><MarketChart ticker={selectedStock} /></div>}
+                                {/* Ticker & Name */}
+                                <div className="w-[45%] pr-2">
+                                    <div className="font-bold text-sm text-gray-800 font-mono group-hover:text-blue-600 transition-colors">{stock.ticker}</div>
+                                    <div className="text-[10px] text-gray-400 truncate">{stock.name}</div>
+                                </div>
+
+                                {/* Price */}
+                                <div className="w-[25%] text-right text-sm font-medium text-gray-900 tabular-nums">
+                                    {parseFloat(stock.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </div>
+
+                                {/* Change % */}
+                                <div className={`w-[30%] text-right text-sm font-bold tabular-nums flex justify-end items-center gap-1 ${colorClass}`}>
+                                    {change > 0 ? <ArrowUp size={12} /> : change < 0 ? <ArrowDown size={12} /> : null}
+                                    {percent}%
+                                </div>
+                            </div>
+
+                            {/* Expandable Chart Area */}
+                            {isSelected && (
+                                <div className="py-2 border-b border-gray-100 bg-gray-50 animate-in slide-in-from-top-1 duration-200">
+                                    <div className="h-24">
+                                        <MarketChart ticker={stock.ticker} />
+                                    </div>
+                                    <div className="text-center mt-1">
+                                        <a href={`/market/${encodeURIComponent(stock.ticker)}`} className="text-[10px] font-bold text-blue-600 hover:underline uppercase tracking-wide">
+                                            View Full Details &rarr;
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
             </div>
         );
     };
 
     return (
-        <div className="bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden">
-            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-                <h4 className="font-bold text-xs text-gray-700 uppercase tracking-wide">{title}</h4>
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h3 className="text-xs font-black text-gray-700 uppercase tracking-widest">{title}</h3>
+                <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`}></div>
             </div>
-            {renderContent()}
+            <div className="px-4 pb-2">
+                {renderContent()}
+            </div>
         </div>
     );
 };
