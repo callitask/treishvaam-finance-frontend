@@ -13,55 +13,9 @@ import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
 import NewsTabMobile from '../components/BlogPage/NewsTabMobile';
 import VisionPage from './VisionPage';
 
-// --- Category Filter (Desktop) ---
-const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef(null);
-    const allCategories = ['All', ...categories.map(cat => cat.name)];
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsDropdownOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    if (loadingCategories) return <div className="h-10 w-48 bg-gray-200 animate-pulse rounded-lg"></div>;
-
-    return (
-        <div className="relative z-30" ref={dropdownRef}>
-            <button
-                type="button"
-                className="group flex items-center justify-between w-48 px-4 py-2.5 bg-white border border-gray-200 rounded-lg shadow-sm hover:border-sky-500 hover:ring-1 hover:ring-sky-500 transition-all duration-200"
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            >
-                <span className={`text-sm font-semibold truncate ${selectedCategory === 'All' ? 'text-gray-600' : 'text-sky-700'}`}>
-                    {selectedCategory}
-                </span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180 text-sky-500' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-            </button>
-
-            {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-xl ring-1 ring-black ring-opacity-5 overflow-hidden origin-top-right animate-in fade-in zoom-in-95 duration-100">
-                    <div className="py-1 max-h-64 overflow-y-auto custom-scrollbar">
-                        {allCategories.map(cat => (
-                            <button
-                                key={cat}
-                                className={`block w-full text-left px-4 py-2.5 text-sm transition-colors ${selectedCategory === cat ? 'bg-sky-50 text-sky-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-                                onClick={() => { setSelectedCategory(cat); setIsDropdownOpen(false); }}
-                            >
-                                {cat}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
+// NEW COMPONENTS (Phase 2)
+import CategoryStrip from '../components/BlogPage/CategoryStrip';
+import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -222,51 +176,57 @@ const BlogPage = () => {
 
             <section className="bg-gray-50 min-h-screen">
 
-                {/* --- DESKTOP VIEW --- */}
-                <div className="hidden sm:block">
-                    <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[80px] z-20">
-                        <div className="container mx-auto px-4 py-4">
-                            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                                <div>
-                                    <h1 className="text-2xl font-bold text-gray-900 font-serif tracking-tight flex items-center gap-2">
-                                        <span className="w-1.5 h-6 bg-sky-600 rounded-full"></span>
-                                        Market Analysis & News
-                                    </h1>
-                                    <p className="text-sm text-gray-500 mt-1 pl-3.5">Real-time insights for smarter investing.</p>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs font-semibold uppercase text-gray-400 tracking-wider">Filter by:</span>
-                                    <CategoryFilter
-                                        categories={categories}
-                                        selectedCategory={selectedCategory}
-                                        setSelectedCategory={setSelectedCategory}
-                                        loadingCategories={loadingCategories}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                {/* --- DESKTOP VIEW (ENTERPRISE DESIGN) --- */}
+                <div className="hidden md:block">
+
+                    {/* Level 2: Sticky Category Strip (Top 56px / 3.5rem from Navbar) */}
+                    <div className="sticky top-14 z-40">
+                        <CategoryStrip
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            setSelectedCategory={setSelectedCategory}
+                            loading={loadingCategories}
+                        />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 container mx-auto px-4 pt-6">
-                        <aside className="lg:col-span-2 order-1 space-y-6"><FeaturedColumn /></aside>
-                        <div className="lg:col-span-8 order-2">
-                            <BlogGridDesktop
-                                desktopLayoutBlocks={desktopLayoutBlocks}
-                                lastPostElementRef={lastPostElementRef}
-                                onCategoryClick={setSelectedCategory}
-                                categoriesMap={categoriesMap}
-                                loading={loading}
-                                page={page}
-                                hasMore={hasMore}
-                                postCount={filteredPosts.length}
-                            />
+                    {/* Level 3: Global Market Ticker (Moves with flow) */}
+                    <div className="border-b border-gray-200 bg-white">
+                        <GlobalMarketTicker />
+                    </div>
+
+                    {/* Level 4: Main Content Grid */}
+                    <div className="container mx-auto px-4 pt-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+                            {/* Left: Featured/News Column */}
+                            <aside className="lg:col-span-3 xl:col-span-2 order-1 space-y-8">
+                                <FeaturedColumn />
+                            </aside>
+
+                            {/* Center: Main Feed */}
+                            <div className="lg:col-span-6 xl:col-span-7 order-2">
+                                <BlogGridDesktop
+                                    desktopLayoutBlocks={desktopLayoutBlocks}
+                                    lastPostElementRef={lastPostElementRef}
+                                    onCategoryClick={setSelectedCategory}
+                                    categoriesMap={categoriesMap}
+                                    loading={loading}
+                                    page={page}
+                                    hasMore={hasMore}
+                                    postCount={filteredPosts.length}
+                                />
+                            </div>
+
+                            {/* Right: Market Sidebar */}
+                            <aside className="lg:col-span-3 order-3 space-y-8">
+                                <MarketSidebar />
+                            </aside>
                         </div>
-                        <aside className="lg:col-span-2 order-3 space-y-6"><MarketSidebar /></aside>
                     </div>
                 </div>
 
-                {/* --- MOBILE VIEW --- */}
-                <div className="sm:hidden pb-20">
+                {/* --- MOBILE VIEW (Unchanged for now) --- */}
+                <div className="md:hidden pb-20">
                     {activeTab === 'home' && (
                         <BlogSlideMobile
                             mobileLayout={mobileLayout}
