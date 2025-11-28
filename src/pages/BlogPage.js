@@ -256,7 +256,7 @@ const BlogPage = () => {
                 </div>
 
                 {/* --- MOBILE VIEW (ENTERPRISE APP LAYOUT) --- */}
-                <div className="md:hidden pb-20 pt-14"> {/* Added pt-14 to account for fixed header */}
+                <div className="md:hidden pb-20 pt-14">
                     {activeTab === 'home' && (
                         <BlogSlideMobile
                             mobileLayout={mobileLayout}

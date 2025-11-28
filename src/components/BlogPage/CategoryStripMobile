@@ -16,7 +16,7 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
 
     return (
         <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
-            <div
+            <div 
                 ref={scrollRef}
                 className="flex items-center overflow-x-auto no-scrollbar py-0 px-2 gap-1 h-12"
             >
@@ -32,8 +32,8 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
                             }}
                             className={`
                                 flex-shrink-0 px-4 h-full flex items-center justify-center text-[13px] font-medium transition-all duration-200 whitespace-nowrap border-b-[3px]
-                                ${isActive
-                                    ? 'border-sky-600 text-sky-700 font-bold'
+                                ${isActive 
+                                    ? 'border-sky-600 text-sky-700 font-bold' 
                                     : 'border-transparent text-gray-500 hover:text-gray-800'
                                 }
                             `}

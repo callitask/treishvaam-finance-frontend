@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
-import { categoryStyles, formatDateTime } from '../../utils/blogUtils';
+import { formatDateTime } from '../../utils/blogUtils';
 
 const FeedGridCard = ({ article, onCategoryClick, categoriesMap }) => {
     const { displayDate } = formatDateTime(article.updatedAt || article.createdAt);

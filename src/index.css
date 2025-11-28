@@ -6,19 +6,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --- GLOBAL APP BEHAVIOR --- */
+html, body {
+  /* Prevent bounce effect and zoom issues */
+  overscroll-behavior-y: none; 
+  touch-action: manipulation;  
+}
+
 body {
   font-family: 'Inter', sans-serif;
   color: #111827;
   background-color: #f9fafb;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Prevent horizontal scroll on mobile */
-  overflow-x: hidden;
-  /* Native touch feel */
+  /* CRITICAL: Prevents horizontal scroll causing white space on right */
+  overflow-x: hidden; 
   -webkit-overflow-scrolling: touch; 
 }
 
-/* --- Enterprise Shimmer (Skeleton) --- */
+/* --- APP FEEL --- */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 .skeleton {
     background: #f3f4f6;
     background-image: linear-gradient(to right, #f3f4f6 0%, #edeef1 20%, #f3f4f6 40%, #f3f4f6 100%);
@@ -32,25 +41,9 @@ body {
     100% { background-position: 400px 0; }
 }
 
-/* --- App-Like Utilities --- */
-/* Hide Scrollbar but keep functionality */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-/* Frosted Glass Bottom Nav */
-.glass-nav {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-top: 1px solid rgba(229, 231, 235, 0.5);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.02);
-}
-
-/* Safe Area Spacing for modern phones */
 .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-pt { padding-top: env(safe-area-inset-top); }
 
-/* Typography */
 .article-title { font-family: 'Merriweather', serif; letter-spacing: -0.01em; }
 .market-data-value { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 
@@ -58,10 +51,8 @@ body {
 .prose p { @apply leading-8 mb-5; }
 .prose h2, .prose h3 { font-family: 'Inter', sans-serif; scroll-margin-top: 100px; }
 
-/* --- Table of Contents --- */
-.toc-container { @apply relative border border-gray-200 bg-gray-50; }
-.toc-link.active { @apply text-blue-600 bg-blue-100 font-semibold; }
-.toc-progress-fill { @apply w-full bg-[#9A031E]; transition: height 0.15s ease-linear; }
+/* --- FIX FOR 123 DOTS --- */
+.slick-dots { display: none !important; }
 
 @layer components {
   .cta-button-primary { @apply bg-sky-600; }
