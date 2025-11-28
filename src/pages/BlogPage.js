@@ -5,7 +5,6 @@ import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Layout components
-import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
 import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
@@ -16,7 +15,7 @@ import VisionPage from './VisionPage';
 // NEW COMPONENTS (Phases 2 & 3)
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
-import HeroSection from '../components/BlogPage/HeroSection'; // New Phase 3 Component
+import HeroSection from '../components/BlogPage/HeroSection';
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -86,10 +85,16 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Separation for Hero Section ---
-    // The first post becomes the Hero. The rest go to the grid.
-    const heroPost = filteredPosts.length > 0 ? filteredPosts[0] : null;
-    const gridPosts = filteredPosts.length > 0 ? filteredPosts.slice(1) : [];
+    // --- Separation for Hero Section (MEMOIZED FIX) ---
+    const { heroPost, gridPosts } = useMemo(() => {
+        if (filteredPosts.length > 0) {
+            return {
+                heroPost: filteredPosts[0],
+                gridPosts: filteredPosts.slice(1)
+            };
+        }
+        return { heroPost: null, gridPosts: [] };
+    }, [filteredPosts]);
 
     // --- Layout ---
     const mobileLayout = useMemo(() => {
