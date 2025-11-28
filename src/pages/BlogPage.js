@@ -13,9 +13,10 @@ import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
 import NewsTabMobile from '../components/BlogPage/NewsTabMobile';
 import VisionPage from './VisionPage';
 
-// NEW COMPONENTS (Phase 2)
+// NEW COMPONENTS (Phases 2 & 3)
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
+import HeroSection from '../components/BlogPage/HeroSection'; // New Phase 3 Component
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -85,18 +86,23 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
+    // --- Separation for Hero Section ---
+    // The first post becomes the Hero. The rest go to the grid.
+    const heroPost = filteredPosts.length > 0 ? filteredPosts[0] : null;
+    const gridPosts = filteredPosts.length > 0 ? filteredPosts.slice(1) : [];
+
     // --- Layout ---
     const mobileLayout = useMemo(() => {
         return filteredPosts.map(post => ({ ...post }));
     }, [filteredPosts]);
 
     const desktopLayoutBlocks = useMemo(() => {
-        if (filteredPosts.length === 0) return [];
+        if (gridPosts.length === 0) return [];
         const blocks = []; let currentDefaultBlock = []; const multiColumnGroups = {};
-        filteredPosts.forEach(post => { if (post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && post.layoutGroupId) { if (!multiColumnGroups[post.layoutGroupId]) { multiColumnGroups[post.layoutGroupId] = { type: post.layoutStyle, posts: [] }; } multiColumnGroups[post.layoutGroupId].posts.push(post); } });
+        gridPosts.forEach(post => { if (post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && post.layoutGroupId) { if (!multiColumnGroups[post.layoutGroupId]) { multiColumnGroups[post.layoutGroupId] = { type: post.layoutStyle, posts: [] }; } multiColumnGroups[post.layoutGroupId].posts.push(post); } });
         for (const groupId in multiColumnGroups) { multiColumnGroups[groupId].posts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)); }
         const processedGroupIds = new Set();
-        filteredPosts.forEach(post => {
+        gridPosts.forEach(post => {
             const style = post.layoutStyle || 'DEFAULT';
             if (style === 'BANNER') {
                 if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); currentDefaultBlock = []; }
@@ -110,7 +116,7 @@ const BlogPage = () => {
         });
         if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); }
         return blocks;
-    }, [filteredPosts]);
+    }, [gridPosts]);
 
     const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
     const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
@@ -174,13 +180,13 @@ const BlogPage = () => {
                 <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
             </Helmet>
 
-            <section className="bg-gray-50 min-h-screen">
+            <section className="bg-white min-h-screen font-sans">
 
-                {/* --- DESKTOP VIEW (ENTERPRISE DESIGN) --- */}
+                {/* --- DESKTOP VIEW (ENTERPRISE DESIGN PHASE 3) --- */}
                 <div className="hidden md:block">
 
                     {/* Level 2: Sticky Category Strip (Top 56px / 3.5rem from Navbar) */}
-                    <div className="sticky top-14 z-40">
+                    <div className="sticky top-[110px] z-40">
                         <CategoryStrip
                             categories={categories}
                             selectedCategory={selectedCategory}
@@ -189,22 +195,27 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* Level 3: Global Market Ticker (Moves with flow) */}
-                    <div className="border-b border-gray-200 bg-white">
+                    {/* Level 3: Global Market Ticker */}
+                    <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
 
                     {/* Level 4: Main Content Grid */}
-                    <div className="container mx-auto px-4 pt-8">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="container mx-auto px-6 pt-10">
 
-                            {/* Left: Featured/News Column */}
-                            <aside className="lg:col-span-3 xl:col-span-2 order-1 space-y-8">
-                                <FeaturedColumn />
-                            </aside>
+                        {/* HERO SECTION (Phase 3) */}
+                        <HeroSection featuredPost={heroPost} />
 
-                            {/* Center: Main Feed */}
-                            <div className="lg:col-span-6 xl:col-span-7 order-2">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+
+                            {/* Center: Main Feed (Span 9) */}
+                            <div className="lg:col-span-8 order-1 border-r border-gray-100 pr-8">
+                                <div className="flex items-center gap-2 mb-6">
+                                    <span className="w-1.5 h-6 bg-sky-600"></span>
+                                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-widest font-serif">
+                                        Latest Analysis
+                                    </h2>
+                                </div>
                                 <BlogGridDesktop
                                     desktopLayoutBlocks={desktopLayoutBlocks}
                                     lastPostElementRef={lastPostElementRef}
@@ -213,19 +224,19 @@ const BlogPage = () => {
                                     loading={loading}
                                     page={page}
                                     hasMore={hasMore}
-                                    postCount={filteredPosts.length}
+                                    postCount={gridPosts.length}
                                 />
                             </div>
 
-                            {/* Right: Market Sidebar */}
-                            <aside className="lg:col-span-3 order-3 space-y-8">
+                            {/* Right: Market Sidebar (Span 3) */}
+                            <aside className="lg:col-span-4 order-2 space-y-10">
                                 <MarketSidebar />
                             </aside>
                         </div>
                     </div>
                 </div>
 
-                {/* --- MOBILE VIEW (Unchanged for now) --- */}
+                {/* --- MOBILE VIEW (Unchanged) --- */}
                 <div className="md:hidden pb-20">
                     {activeTab === 'home' && (
                         <BlogSlideMobile
