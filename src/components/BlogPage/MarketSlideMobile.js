@@ -13,12 +13,12 @@ const MarketSlideMobile = () => {
         slidesToShow: 1,
         slidesToScroll: 1,
         arrows: false,
-        className: "pb-8"
+        className: "pb-8" // Add padding for dots
     };
 
     return (
         <div className="bg-gray-50 min-h-screen pb-20">
-            {/* Sticky Ticker */}
+            {/* Sticky Ticker Tape */}
             <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
                 <GlobalMarketTicker />
             </div>
@@ -37,7 +37,9 @@ const MarketSlideMobile = () => {
 
                 {/* Section 2: Movers Swiper */}
                 <section>
-                    <h3 className="font-serif font-bold text-xl text-gray-900 mb-3 px-1">Market Movers</h3>
+                    <h3 className="font-serif font-bold text-xl text-gray-900 mb-3 px-1 border-l-4 border-sky-600 pl-2">
+                        Market Movers
+                    </h3>
                     <Slider {...marketSliderSettings}>
                         <div className="px-1">
                             <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />

@@ -2,17 +2,18 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
-import { FiHome, FiTrendingUp, FiLayers, FiTarget } from 'react-icons/fi'; // Icons for tabs
+import { FiHome, FiTrendingUp, FiLayers, FiTarget } from 'react-icons/fi';
 
-// Import layout components
+// Layout components
 import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
 import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
-import VisionPage from './VisionPage'; // Direct import for mobile tab
+import NewsTabMobile from '../components/BlogPage/NewsTabMobile'; // --- NEW IMPORT ---
+import VisionPage from './VisionPage';
 
-// --- Re-Mastered Category Filter (Desktop Only) ---
+// --- Category Filter (Desktop) ---
 const CategoryFilter = ({ categories, selectedCategory, setSelectedCategory, loadingCategories }) => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef(null);
@@ -77,9 +78,9 @@ const BlogPage = () => {
     const [isDataReady, setIsDataReady] = useState(false);
 
     // --- Mobile Tab State ---
-    const [activeTab, setActiveTab] = useState('home'); // 'home', 'markets', 'briefs', 'vision'
+    const [activeTab, setActiveTab] = useState('home');
 
-    // --- Infinite Scroll Logic ---
+    // --- Infinite Scroll ---
     const observer = useRef();
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
@@ -122,7 +123,7 @@ const BlogPage = () => {
             .finally(() => { setLoadingCategories(false); setIsDataReady(true); });
     }, []);
 
-    // --- Filtering Logic ---
+    // --- Filtering ---
     const filteredPosts = useMemo(() => {
         let postsToFilter = posts;
         if (selectedCategory !== "All") { postsToFilter = postsToFilter.filter(p => p.category?.name === selectedCategory); }
@@ -130,12 +131,9 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Layout Logic ---
+    // --- Layout ---
     const mobileLayout = useMemo(() => {
-        return filteredPosts.map(post => {
-            // Mobile layout logic handled in BlogSlideMobile now
-            return { ...post };
-        });
+        return filteredPosts.map(post => ({ ...post }));
     }, [filteredPosts]);
 
     const desktopLayoutBlocks = useMemo(() => {
@@ -160,7 +158,6 @@ const BlogPage = () => {
         return blocks;
     }, [filteredPosts]);
 
-    // --- SEO Data ---
     const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
     const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
     const canonicalUrl = "https://treishfin.treishvaamgroup.com/";
@@ -174,22 +171,22 @@ const BlogPage = () => {
 
     if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center text-gray-500">Loading content...</div>;
 
-    // --- Mobile Bottom Nav Component ---
+    // --- Mobile Bottom Nav ---
     const MobileBottomNav = () => (
-        <nav className="fixed bottom-0 left-0 right-0 h-16 glass-nav z-50 flex justify-around items-center px-2 safe-pb">
-            <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'home' ? 'text-sky-600' : 'text-gray-400'}`}>
+        <nav className="fixed bottom-0 left-0 right-0 h-16 glass-nav z-[90] flex justify-around items-center px-2 safe-pb">
+            <button onClick={() => { setActiveTab('home'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'home' ? 'text-sky-600' : 'text-gray-400'}`}>
                 <FiHome size={22} className={activeTab === 'home' ? 'fill-current' : ''} />
                 <span className="text-[10px] font-medium tracking-wide">Home</span>
             </button>
-            <button onClick={() => setActiveTab('markets')} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'markets' ? 'text-sky-600' : 'text-gray-400'}`}>
+            <button onClick={() => { setActiveTab('markets'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'markets' ? 'text-sky-600' : 'text-gray-400'}`}>
                 <FiTrendingUp size={22} />
                 <span className="text-[10px] font-medium tracking-wide">Markets</span>
             </button>
-            <button onClick={() => setActiveTab('briefs')} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'briefs' ? 'text-sky-600' : 'text-gray-400'}`}>
+            <button onClick={() => { setActiveTab('briefs'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'briefs' ? 'text-sky-600' : 'text-gray-400'}`}>
                 <FiLayers size={22} />
-                <span className="text-[10px] font-medium tracking-wide">Briefs</span>
+                <span className="text-[10px] font-medium tracking-wide">News</span>
             </button>
-            <button onClick={() => setActiveTab('vision')} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'vision' ? 'text-sky-600' : 'text-gray-400'}`}>
+            <button onClick={() => { setActiveTab('vision'); window.scrollTo(0, 0); }} className={`flex flex-col items-center justify-center w-1/4 h-full space-y-1 ${activeTab === 'vision' ? 'text-sky-600' : 'text-gray-400'}`}>
                 <FiTarget size={22} />
                 <span className="text-[10px] font-medium tracking-wide">Vision</span>
             </button>
@@ -207,7 +204,7 @@ const BlogPage = () => {
 
             <section className="bg-gray-50 min-h-screen">
 
-                {/* --- DESKTOP VIEW (Hidden on Mobile) --- */}
+                {/* --- DESKTOP VIEW --- */}
                 <div className="hidden sm:block">
                     <div className="bg-white border-b border-gray-200 shadow-sm sticky top-[80px] z-20">
                         <div className="container mx-auto px-4 py-4">
@@ -250,9 +247,8 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {/* --- MOBILE VIEW (App Shell) --- */}
+                {/* --- MOBILE VIEW --- */}
                 <div className="sm:hidden pb-20">
-                    {/* Dynamic Content Area based on Tab */}
                     {activeTab === 'home' && (
                         <BlogSlideMobile
                             mobileLayout={mobileLayout}
@@ -270,25 +266,23 @@ const BlogPage = () => {
                     )}
 
                     {activeTab === 'markets' && (
-                        <div className="animate-in fade-in duration-300">
+                        <div className="animate-in fade-in duration-200">
                             <MarketSlideMobile />
                         </div>
                     )}
 
                     {activeTab === 'briefs' && (
-                        <div className="p-4 animate-in fade-in duration-300 space-y-4">
-                            <h2 className="text-xl font-serif font-bold text-gray-900 border-l-4 border-sky-600 pl-3">News Briefs</h2>
-                            <FeaturedColumn />
+                        <div className="animate-in fade-in duration-200">
+                            <NewsTabMobile /> {/* --- USING NEW COMPONENT --- */}
                         </div>
                     )}
 
                     {activeTab === 'vision' && (
-                        <div className="animate-in fade-in duration-300">
-                            <VisionPage /> {/* Renders content directly */}
+                        <div className="animate-in fade-in duration-200">
+                            <VisionPage />
                         </div>
                     )}
 
-                    {/* Fixed Bottom Navigation */}
                     <MobileBottomNav />
                 </div>
             </section>
