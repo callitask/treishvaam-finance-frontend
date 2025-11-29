@@ -34,9 +34,8 @@ const Navbar = () => {
             const minute = now.getUTCMinutes();
             const totalMinutes = hour * 60 + minute;
 
-            // US Market (approx UTC): 13:30 to 20:00
-            const openTime = 13 * 60 + 30;
-            const closeTime = 20 * 60;
+            const openTime = 13 * 60 + 30; // 13:30 UTC
+            const closeTime = 20 * 60;     // 20:00 UTC
             const isWeekday = day >= 1 && day <= 5;
             const isOpen = isWeekday && totalMinutes >= openTime && totalMinutes < closeTime;
 
@@ -60,9 +59,9 @@ const Navbar = () => {
                 if (currentScrollY < 10) {
                     setIsVisible(true);
                 } else if (currentScrollY > lastScrollY && currentScrollY > 60) {
-                    setIsVisible(false); // Hide on scroll down
+                    setIsVisible(false);
                 } else {
-                    setIsVisible(true); // Show on scroll up
+                    setIsVisible(true);
                 }
                 setLastScrollY(currentScrollY);
             }
@@ -80,37 +79,29 @@ const Navbar = () => {
     return (
         <>
             {/* =========================================================================
-               MOBILE HEADER (Enterprise Grade)
+               MOBILE HEADER (Enterprise Grade - Compact)
                ========================================================================= */}
             <header
                 className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
             >
-                {/* Solid White Background (No Translucency) */}
+                {/* Solid White Background */}
                 <div className="absolute inset-0 bg-white border-b border-gray-200 shadow-sm"></div>
 
-                <div className="relative flex items-center justify-between px-4 h-16">
+                <div className="relative flex items-center justify-between px-4 h-14">
                     {/* Left: Menu */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
                         className="p-2 -ml-2 text-slate-800 active:bg-gray-100 rounded-full transition-colors"
                         aria-label="Open Menu"
                     >
-                        <FaBars size={22} />
+                        <FaBars size={20} />
                     </button>
 
-                    {/* Center: Branding */}
-                    <Link to="/" className="flex flex-col items-center justify-center pt-1" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        {/* Company Name */}
-                        <span className="text-xl font-black text-slate-900 font-serif leading-none tracking-tight">
-                            TREISHFIN
+                    {/* Center: Branding (Single Line, Caps, Black) */}
+                    <Link to="/" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                        <span className="text-sm font-black text-slate-900 font-serif tracking-wide uppercase truncate">
+                            TREISHVAAM FINANCE
                         </span>
-
-                        {/* Descriptor Line */}
-                        <div className="flex items-center mt-1 text-[8px] font-medium leading-none font-sans tracking-tight">
-                            <span className="text-slate-900">Treishvaam Finance</span>
-                            <span className="mx-1 text-slate-300">|</span>
-                            <span className="text-sky-700 font-bold">Market Intelligence & Analysis</span>
-                        </div>
                     </Link>
 
                     {/* Right: Search */}
@@ -119,7 +110,7 @@ const Navbar = () => {
                         className="p-2 -mr-2 text-slate-600 active:bg-gray-100 rounded-full transition-colors"
                         aria-label="Search"
                     >
-                        <FaSearch size={20} />
+                        <FaSearch size={18} />
                     </button>
                 </div>
 
@@ -161,7 +152,7 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP HEADER (Kept consistent) */}
+            {/* DESKTOP HEADER (Unchanged) */}
             <div className="hidden md:block bg-white font-sans">
                 <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">

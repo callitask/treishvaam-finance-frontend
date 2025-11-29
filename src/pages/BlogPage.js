@@ -15,7 +15,7 @@ import HeroSection from '../components/BlogPage/HeroSection';
 // Mobile Components
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 
-// --- LAZY LOAD MOBILE TABS (Performance Fix for TBT/JS Parse) ---
+// Lazy Load Mobile Tabs
 const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/MarketSlideMobile'));
 const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
 const VisionPage = React.lazy(() => import('./VisionPage'));
@@ -88,7 +88,7 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Desktop Layout Logic ---
+    // --- Layout Logic ---
     const { heroPost, gridPosts } = useMemo(() => {
         if (filteredPosts.length > 0) {
             return {
@@ -154,7 +154,7 @@ const BlogPage = () => {
         </div>
     );
 
-    // --- FIXED BOTTOM NAVIGATION (App Shell) ---
+    // --- FIXED BOTTOM NAVIGATION ---
     const MobileBottomNav = () => (
         <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
             {[
@@ -170,9 +170,7 @@ const BlogPage = () => {
                 >
                     <Icon size={20} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
                     <span className="text-[10px] font-bold tracking-wide">{label}</span>
-                    {activeTab === id && (
-                        <span className="absolute bottom-1 w-1 h-1 bg-sky-700 rounded-full animate-in zoom-in"></span>
-                    )}
+                    {activeTab === id && <span className="absolute bottom-1 w-1 h-1 bg-sky-700 rounded-full animate-in zoom-in"></span>}
                 </button>
             ))}
         </nav>
@@ -189,7 +187,7 @@ const BlogPage = () => {
 
             <section className="bg-white min-h-screen font-sans">
 
-                {/* --- DESKTOP LAYOUT (Unchanged) --- */}
+                {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
                     <div className="sticky top-[110px] z-40">
                         <CategoryStrip
@@ -238,9 +236,9 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {/* --- MOBILE APP LAYOUT (New Shell) --- */}
-                {/* FIXED: pt-16 ensures content starts exactly below the fixed Navbar (h-16) */}
-                <div className="md:hidden pb-20 pt-16">
+                {/* --- MOBILE LAYOUT --- */}
+                {/* Fixed: pt-14 matches Navbar height to prevent gap */}
+                <div className="md:hidden pb-20 pt-14">
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile
