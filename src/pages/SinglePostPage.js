@@ -8,7 +8,7 @@ import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareButtons from '../components/ShareButtons';
 import throttle from 'lodash/throttle';
 import TableOfContents from '../components/TableOfContents';
-import { AudioPlayer } from '../components/AudioPlayer'; // <--- FIXED: Named Import
+import { AudioPlayer } from '../components/AudioPlayer';
 import { ChevronRight, Calendar, User, Tag, Clock } from 'lucide-react';
 
 const formatDate = (dateString) => {
@@ -74,7 +74,9 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [urlArticleId]);
+        // Added 'post' to dependency array to satisfy linter. 
+        // The check 'if (post) return' above prevents infinite re-fetching.
+    }, [urlArticleId, post]);
 
     useEffect(() => {
         if (!post?.content) return;

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Square, Volume2 } from 'lucide-react';
 
-// NAMED EXPORT
+// NAMED EXPORT (Fixed)
 export const AudioPlayer = ({ title, content }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
@@ -15,7 +15,6 @@ export const AudioPlayer = ({ title, content }) => {
         }
     }, []);
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             window.speechSynthesis.cancel();
@@ -24,7 +23,6 @@ export const AudioPlayer = ({ title, content }) => {
 
     const getTextFromHtml = (html) => {
         const tempDiv = document.createElement('div');
-        // Replace block tags with spaces/newlines to ensure natural pauses
         let processedHtml = html
             .replace(/<\/p>/gi, '. ')
             .replace(/<\/h[1-6]>/gi, '. ')
@@ -43,12 +41,11 @@ export const AudioPlayer = ({ title, content }) => {
             return;
         }
 
-        window.speechSynthesis.cancel(); // Stop any previous speech
+        window.speechSynthesis.cancel();
 
         const cleanText = `${title}. ${getTextFromHtml(content)}`;
         const utterance = new SpeechSynthesisUtterance(cleanText);
 
-        // Config (Optional: Adjustable pitch/rate)
         utterance.rate = 1.0;
         utterance.pitch = 1.0;
         utterance.volume = 1.0;
@@ -58,7 +55,6 @@ export const AudioPlayer = ({ title, content }) => {
             setIsPaused(false);
         };
 
-        // Error handling
         utterance.onerror = (e) => {
             console.error('Speech synthesis error:', e);
             setIsPlaying(false);

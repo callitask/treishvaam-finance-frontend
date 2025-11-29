@@ -2,7 +2,7 @@
 import React from 'react';
 import IndexCharts from '../market/IndexCharts';
 import MarketMovers from '../market/MarketMovers';
-import { WatchlistSidebar } from '../market/WatchlistSidebar'; // <--- FIXED: Named Import
+import { WatchlistSidebar } from '../market/WatchlistSidebar'; // <--- FIXED IMPORT
 
 const MarketSidebar = () => {
     return (

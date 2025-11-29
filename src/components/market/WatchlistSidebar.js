@@ -5,7 +5,7 @@ import { getQuotesBatch } from '../../apiConfig';
 import { Link } from 'react-router-dom';
 import { ArrowUp, ArrowDown, Star, Loader2 } from 'lucide-react';
 
-// NAMED EXPORT
+// NAMED EXPORT (Fixed)
 export const WatchlistSidebar = () => {
     const { watchlist, toggleWatchlist } = useWatchlist();
     const [quotes, setQuotes] = useState([]);
@@ -21,7 +21,6 @@ export const WatchlistSidebar = () => {
             setLoading(true);
             try {
                 const response = await getQuotesBatch(watchlist);
-                // Maintain the order of the watchlist
                 const orderedQuotes = watchlist.map(ticker =>
                     response.data.find(q => q.ticker === ticker)
                 ).filter(Boolean);
@@ -35,12 +34,10 @@ export const WatchlistSidebar = () => {
         };
 
         fetchQuotes();
-        // Poll every 30 seconds
         const interval = setInterval(fetchQuotes, 30000);
         return () => clearInterval(interval);
     }, [watchlist]);
 
-    // Empty State
     if (watchlist.length === 0) {
         return (
             <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-6 text-center shadow-sm mb-8 transition-colors duration-300">
@@ -55,7 +52,6 @@ export const WatchlistSidebar = () => {
 
     return (
         <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden shadow-sm mb-8 transition-colors duration-300">
-            {/* Header */}
             <div className="px-4 py-3 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-900">
                 <h3 className="text-xs font-black text-gray-700 dark:text-gray-200 uppercase tracking-widest flex items-center gap-2">
                     <Star size={12} className="text-amber-400 fill-amber-400" />
@@ -64,7 +60,6 @@ export const WatchlistSidebar = () => {
                 {loading && <Loader2 size={12} className="animate-spin text-gray-400" />}
             </div>
 
-            {/* List */}
             <div className="divide-y divide-gray-100 dark:divide-slate-700">
                 {quotes.map(quote => {
                     const change = quote.changeAmount || 0;
@@ -74,13 +69,10 @@ export const WatchlistSidebar = () => {
                     return (
                         <div key={quote.ticker} className="p-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group relative">
                             <Link to={`/market/${encodeURIComponent(quote.ticker)}`} className="flex justify-between items-center">
-                                {/* Left: Ticker & Name */}
                                 <div className="min-w-0 flex-1 pr-4">
                                     <div className="font-bold text-sm text-gray-900 dark:text-white truncate">{quote.ticker}</div>
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{quote.name}</div>
                                 </div>
-
-                                {/* Right: Price & Change */}
                                 <div className="text-right">
                                     <div className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">
                                         {quote.currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -91,8 +83,6 @@ export const WatchlistSidebar = () => {
                                     </div>
                                 </div>
                             </Link>
-
-                            {/* Hover Action: Remove */}
                             <button
                                 onClick={(e) => {
                                     e.preventDefault();

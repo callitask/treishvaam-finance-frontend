@@ -4,7 +4,7 @@ import { getMostActive, getTopGainers, getTopLosers } from '../../apiConfig';
 import GlobalMarketTicker from '../market/GlobalMarketTicker';
 import TopMoversCard from '../market/TopMoversCard';
 import IndexCharts from '../market/IndexCharts';
-import { WatchlistSidebar } from '../market/WatchlistSidebar'; // <--- Import Watchlist
+import { WatchlistSidebar } from '../market/WatchlistSidebar'; // <--- FIXED IMPORT
 
 const MarketSlideMobile = () => {
     const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'watchlist', 'movers'
@@ -71,14 +71,14 @@ const MarketSlideMobile = () => {
                     </div>
                 )}
 
-                {/* VIEW B: WATCHLIST (New) */}
+                {/* VIEW B: WATCHLIST */}
                 {activeTab === 'watchlist' && (
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                         <WatchlistSidebar />
                     </div>
                 )}
 
-                {/* VIEW C: MOVERS (Gainers/Losers) */}
+                {/* VIEW C: MOVERS */}
                 {activeTab === 'movers' && (
                     <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                         <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
