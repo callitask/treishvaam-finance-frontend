@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import MobilePostCard from './MobilePostCard';
 import CategoryStripMobile from './CategoryStripMobile';
+import GlobalMarketTicker from '../market/GlobalMarketTicker'; // Imported
 
 const BlogSlideMobile = ({
     mobileLayout,
@@ -17,28 +18,28 @@ const BlogSlideMobile = ({
 }) => {
 
     // --- DATA SPLIT LOGIC ---
-    // 1. Hero: Index 0 (Big Poster)
     const heroPost = mobileLayout[0];
-
-    // 2. Horizontal Rail: Index 1-5 (Briefing)
     const railPosts = mobileLayout.slice(1, 6);
-
-    // 3. Vertical List: Index 6+ (Infinite Scroll)
     const listPosts = mobileLayout.slice(6);
 
     return (
-        <div className="min-h-screen bg-gray-100 pb-24 w-full overflow-x-hidden">
+        <div className="min-h-screen bg-white pb-24 w-full overflow-x-hidden">
 
-            {/* 1. STICKY CATEGORY NAV */}
+            {/* 1. MARKET TICKER BAR (New Addition) */}
+            {/* This fills the gray space. It scrolls naturally with the page. */}
+            <GlobalMarketTicker mobileMode={true} />
+
+            {/* 2. STICKY CATEGORY NAV */}
+            {/* Sticks to top-14 (under Navbar) when Ticker scrolls out of view */}
             <CategoryStripMobile
                 categories={categories}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
             />
 
-            {/* 2. HERO STORY */}
+            {/* 3. HERO STORY */}
             {heroPost && (
-                <div className="mb-0">
+                <div className="mb-0 border-t border-gray-100">
                     <MobilePostCard
                         article={heroPost}
                         onCategoryClick={onCategoryClick}
@@ -48,7 +49,7 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 3. HORIZONTAL "MUST READS" RAIL */}
+            {/* 4. HORIZONTAL "MUST READS" RAIL */}
             {railPosts.length > 0 && (
                 <div className="py-5 pl-4 bg-white border-b border-gray-200 mb-3">
                     <div className="flex items-center justify-between pr-4 mb-3">
@@ -78,7 +79,7 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 4. MAIN VERTICAL FEED */}
+            {/* 5. MAIN VERTICAL FEED */}
             <div className="bg-white border-t border-gray-200">
                 <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                     <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">Latest Stories</h4>
@@ -104,7 +105,7 @@ const BlogSlideMobile = ({
                 )}
             </div>
 
-            {/* 5. LOADING STATE (Skeletons) */}
+            {/* 6. LOADING STATE (Skeletons) */}
             {loading && (
                 <div className="p-4 space-y-4 bg-white">
                     {[...Array(3)].map((_, i) => (

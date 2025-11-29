@@ -15,7 +15,6 @@ const getChangeColor = (change) => {
     return change >= 0 ? 'text-green-600' : 'text-red-600';
 };
 
-// --- UPDATED: Full Market Categories matching Backend ---
 const marketTabs = {
     'Markets': ['^GSPC', '^IXIC', '^NSEI', 'GC=F', 'CL=F', 'BTC-INR'],
     'US': ['^GSPC', '^DJI', '^IXIC', '^RUT', '^VIX'],
@@ -33,12 +32,12 @@ const TickerCard = ({ quote }) => {
 
     return (
         <Link to={`/market/${encodeURIComponent(quote.ticker)}`} className="global-ticker-card">
-            <span className="font-semibold text-gray-800">{quote.name}</span>
-            <div className={`flex items-baseline gap-2 ${color}`}>
-                <span className="font-medium">
+            <span className="font-bold text-gray-900 text-xs truncate max-w-[100px] block">{quote.name}</span>
+            <div className={`flex items-baseline gap-1.5 ${color} text-xs`}>
+                <span className="font-semibold tabular-nums tracking-tight">
                     {quote.currentPrice ? quote.currentPrice.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : '...'}
                 </span>
-                <span className="text-xs font-medium">
+                <span className="font-bold text-[10px]">
                     {change >= 0 ? '+' : ''}{formatChange(change)}
                 </span>
             </div>
@@ -46,7 +45,7 @@ const TickerCard = ({ quote }) => {
     );
 };
 
-const GlobalMarketTicker = () => {
+const GlobalMarketTicker = ({ mobileMode = false }) => {
     const [activeTab, setActiveTab] = useState('Markets');
     const [quotes, setQuotes] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -54,7 +53,7 @@ const GlobalMarketTicker = () => {
     useEffect(() => {
         const fetchQuotes = async () => {
             setLoading(true);
-            setQuotes([]); // Clear old quotes
+            setQuotes([]);
             try {
                 const tickers = marketTabs[activeTab];
                 if (!tickers || tickers.length === 0) {
@@ -62,11 +61,9 @@ const GlobalMarketTicker = () => {
                     return;
                 }
                 const response = await getQuotesBatch(tickers);
-
-                // Preserve order from marketTabs
                 const orderedQuotes = tickers.map(ticker =>
                     response.data.find(q => q.ticker === ticker)
-                ).filter(Boolean); // Filter out any nulls if API failed for one
+                ).filter(Boolean);
 
                 setQuotes(orderedQuotes);
             } catch (error) {
@@ -79,19 +76,33 @@ const GlobalMarketTicker = () => {
         fetchQuotes();
     }, [activeTab]);
 
+    // Conditional Styling for Mobile vs Desktop
+    const containerClasses = mobileMode
+        ? "w-full bg-white border-b border-gray-200"
+        : "bg-white border-b border-gray-200 sticky top-0 z-40";
+
+    const innerClasses = mobileMode
+        ? "w-full"
+        : "container mx-auto px-4 max-w-6xl";
+
+    const tabButtonClasses = mobileMode
+        ? "px-3 py-2 text-xs font-bold transition-colors whitespace-nowrap"
+        : "px-4 py-2 text-sm font-semibold transition-colors whitespace-nowrap";
+
     return (
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
-            <div className="container mx-auto px-4 max-w-6xl">
-                {/* Tab Navigation */}
-                <div className="flex items-center border-b border-gray-200 overflow-x-auto no-scrollbar">
+        <div className={containerClasses}>
+            <div className={innerClasses}>
+
+                {/* 1. Category Tabs */}
+                <div className="flex items-center border-b border-gray-100 overflow-x-auto no-scrollbar">
                     {Object.keys(marketTabs).map(tabName => (
                         <button
                             key={tabName}
                             onClick={() => setActiveTab(tabName)}
-                            className={`px-4 py-2 text-sm font-semibold transition-colors whitespace-nowrap
+                            className={`${tabButtonClasses}
                                 ${activeTab === tabName
-                                    ? 'border-b-2 border-blue-600 text-blue-600'
-                                    : 'text-gray-500 hover:text-gray-900'
+                                    ? 'border-b-2 border-sky-600 text-sky-700'
+                                    : 'text-gray-500 hover:text-gray-900 border-b-2 border-transparent'
                                 }
                             `}
                         >
@@ -100,14 +111,14 @@ const GlobalMarketTicker = () => {
                     ))}
                 </div>
 
-                {/* Data Ticker Row */}
-                <div className="global-ticker-row-container">
+                {/* 2. Ticker Data Row */}
+                <div className="global-ticker-row-container py-1">
                     <div className="global-ticker-row">
                         {loading && (
-                            [...Array(5)].map((_, i) => (
-                                <div key={i} className="global-ticker-card skeleton">
-                                    <div className="skeleton-line w-24 h-4"></div>
-                                    <div className="skeleton-line w-20 h-3 mt-1"></div>
+                            [...Array(4)].map((_, i) => (
+                                <div key={i} className="global-ticker-card skeleton px-4 py-2 border-r border-gray-100 min-w-[120px]">
+                                    <div className="skeleton-line w-16 h-3 mb-1 bg-gray-200 rounded"></div>
+                                    <div className="skeleton-line w-12 h-3 bg-gray-200 rounded"></div>
                                 </div>
                             ))
                         )}
