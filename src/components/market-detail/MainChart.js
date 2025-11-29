@@ -1,60 +1,65 @@
-import React, { useState } from 'react';
-// --- THIS IS THE FIX ---
-// Path changed from '../../components/market/MarketChart' to '../market/MarketChart'
-import MarketChart from '../market/MarketChart';
+// src/components/market-detail/MainChart.js
+import React, { useState, useMemo } from 'react';
+import TradingViewChart from '../market/TradingViewChart';
 import './MainChart.css';
 
 const timeframes = [
-    { label: '1D', points: 1 }, // Will show today vs. prev close
-    { label: '5D', points: 5 },
-    { label: '1M', points: 22 },
-    { label: '6M', points: 126 },
-    { label: 'YTD', points: 'YTD' },
-    { label: '1Y', points: 252 },
-    { label: '5Y', points: 1260 },
-    { label: 'Max', points: 99999 },
+    { label: '1W', days: 7 },
+    { label: '1M', days: 30 },
+    { label: '3M', days: 90 },
+    { label: 'YTD', type: 'ytd' },
+    { label: '1Y', days: 365 },
+    { label: '5Y', days: 1825 },
+    { label: 'Max', days: 99999 },
 ];
 
 const MainChart = ({ history, quote }) => {
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
 
-    const getChartData = () => {
-        if (!history || history.length === 0) return { labels: [], prices: [] };
+    // 1. Transform Data for TradingView
+    // TradingView expects { time: 'YYYY-MM-DD', value: 123.45 } and MUST be sorted ascending
+    const fullChartData = useMemo(() => {
+        if (!history || history.length === 0) return [];
+        // Clone and sort just in case
+        return [...history]
+            .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
+            .map(item => ({
+                time: item.priceDate,
+                value: parseFloat(item.closePrice)
+            }));
+    }, [history]);
+
+    // 2. Filter Data based on Timeframe
+    const filteredData = useMemo(() => {
+        if (fullChartData.length === 0) return [];
 
         const tf = timeframes.find(t => t.label === activeTimeframe);
-        if (!tf) return { labels: [], prices: [] };
+        if (!tf) return fullChartData;
 
-        let filteredHistory = [...history]; // Create a copy
+        const now = new Date();
+        let cutoffDate = new Date();
 
-        if (tf.label === '1D') {
-            // For 1D, show previous close and current price
-            return {
-                labels: ['Previous Close', 'Current'],
-                prices: [quote.previousClose, quote.currentPrice]
-            };
+        if (tf.type === 'ytd') {
+            cutoffDate = new Date(now.getFullYear(), 0, 1); // Jan 1st of current year
+        } else {
+            cutoffDate.setDate(now.getDate() - tf.days);
         }
 
-        if (tf.label === 'YTD') {
-            const currentYear = new Date().getFullYear();
-            filteredHistory = filteredHistory.filter(item => new Date(item.priceDate).getFullYear() === currentYear);
-        } else if (tf.label !== 'Max') {
-            const pointsToTake = Math.min(filteredHistory.length, tf.points);
-            filteredHistory = filteredHistory.slice(-pointsToTake);
-        }
+        return fullChartData.filter(item => new Date(item.time) >= cutoffDate);
+    }, [fullChartData, activeTimeframe]);
 
-        return {
-            labels: filteredHistory.map(item => new Date(item.priceDate).toLocaleDateString()),
-            prices: filteredHistory.map(item => item.closePrice)
-        };
-    };
-
-    const chartData = getChartData();
-    const isPos = quote.changeAmount >= 0;
+    // 3. Determine Chart Color (Green if ending higher than starting)
+    const chartColor = useMemo(() => {
+        if (filteredData.length < 2) return '#0ea5e9'; // Default Blue
+        const startPrice = filteredData[0].value;
+        const endPrice = filteredData[filteredData.length - 1].value;
+        return endPrice >= startPrice ? '#22c55e' : '#ef4444'; // Green or Red
+    }, [filteredData]);
 
     return (
-        <div className="bg-white border border-gray-200 shadow-sm rounded-lg p-4">
+        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-lg p-4 transition-colors duration-300">
             {/* Time-Range Selector */}
-            <div className="timeframe-selector-group">
+            <div className="timeframe-selector-group mb-4">
                 {timeframes.map(tf => (
                     <button
                         key={tf.label}
@@ -66,13 +71,19 @@ const MainChart = ({ history, quote }) => {
                 ))}
             </div>
 
-            {/* Line Chart */}
-            <div className="h-[250px] md:h-[400px] mt-4">
-                <MarketChart
-                    chartData={chartData}
-                    previousClose={quote.previousClose}
-                    isPositive={isPos}
-                />
+            {/* TradingView Chart Area */}
+            <div className="h-[300px] md:h-[400px] w-full">
+                {filteredData.length > 0 ? (
+                    <TradingViewChart
+                        data={filteredData}
+                        color={chartColor}
+                        height={400}
+                    />
+                ) : (
+                    <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                        No chart data available for this timeframe.
+                    </div>
+                )}
             </div>
         </div>
     );

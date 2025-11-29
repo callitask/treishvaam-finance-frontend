@@ -1,34 +1,52 @@
-/* * For src/pages/market-detail/MainChart.js
-*/
+/* src/components/market-detail/MainChart.css */
 
 .timeframe-selector-group {
     display: flex;
     justify-content: center;
-    background-color: #f3f4f6; /* bg-gray-100 */
+    background-color: #f3f4f6; /* light: bg-gray-100 */
     border-radius: 8px;
     padding: 4px;
-    flex-wrap: wrap; /* Allow wrapping on small screens */
+    flex-wrap: wrap; 
+}
+
+/* Dark Mode override via global class */
+.dark .timeframe-selector-group {
+    background-color: #1e293b; /* dark: bg-slate-800 */
 }
 
 .timeframe-button {
     flex: 1 1 0%;
     padding: 6px 12px;
     border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600; /* semibold */
-    color: #4b5563; /* text-gray-600 */
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b; /* text-slate-500 */
     transition: all 0.2s ease-in-out;
     border: none;
     background-color: transparent;
     cursor: pointer;
 }
 
+.dark .timeframe-button {
+    color: #94a3b8; /* text-slate-400 */
+}
+
 .timeframe-button:hover:not(.active) {
     background-color: #e5e7eb; /* bg-gray-200 */
 }
 
+.dark .timeframe-button:hover:not(.active) {
+    background-color: #334155; /* bg-slate-700 */
+}
+
 .timeframe-button.active {
     background-color: #ffffff; /* bg-white */
-    color: #1f2937; /* text-gray-900 */
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); /* shadow-sm */
+    color: #0f172a; /* text-slate-900 */
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.dark .timeframe-button.active {
+    background-color: #475569; /* bg-slate-600 */
+    color: #ffffff;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
 }

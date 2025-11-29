@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+// src/components/market/IndexCharts.js
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import MarketChart from './MarketChart';
+import TradingViewChart from './TradingViewChart'; // <--- NEW IMPORT
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 
-// --- UPDATED: Added 'Commodities' to match your backend & ticker bar ---
 const MARKET_INDICES = {
     'US': [
         { symbol: '^DJI', name: 'Dow Jones' },
@@ -48,50 +48,34 @@ const MARKET_INDICES = {
     ]
 };
 
-const timeframes = [
-    { label: '1M', points: 22 },
-    { label: '6M', points: 126 },
-    { label: 'YTD', points: 'YTD' },
-    { label: '1Y', points: 252 },
-    { label: '5Y', points: 1260 },
-    { label: 'Max', points: 99999 },
-];
-
 const formatNumber = (num) => {
     if (num === null || num === undefined || isNaN(num)) return '-';
-    // Handle large numbers
     if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T';
     if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
     if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    // Handle small numbers and standard formatting
     return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
 const IndexCharts = () => {
-    const [activeMarket, setActiveMarket] = useState('US'); // Default to US
+    const [activeMarket, setActiveMarket] = useState('US');
     const [activeIndex, setActiveIndex] = useState(0);
-    const [activeTimeframe, setActiveTimeframe] = useState('1Y');
     const [loading, setLoading] = useState(true);
     const [widgetData, setWidgetData] = useState(null);
     const tabsRef = useRef(null);
 
-    // Determine which list to show based on active market tab
     const indicesToShow = MARKET_INDICES[activeMarket] || [];
     const activeIndexData = indicesToShow[activeIndex] || indicesToShow[0];
 
-    // Reset index when market changes
     useEffect(() => {
         setActiveIndex(0);
-        setWidgetData(null); // Clear old data
+        setWidgetData(null);
     }, [activeMarket]);
 
     useEffect(() => {
-        // Ensure activeIndexData is valid before fetching
         if (!activeIndexData) {
             setLoading(false);
             return;
         }
-
         const fetchData = async () => {
             setLoading(true);
             setWidgetData(null);
@@ -107,33 +91,22 @@ const IndexCharts = () => {
             }
         };
         fetchData();
-    }, [activeIndexData]); // Depend on activeIndexData object
+    }, [activeIndexData]);
 
-    const getChartData = () => {
-        if (!widgetData || !widgetData.historicalData) return { labels: [], prices: [] };
-
-        const history = widgetData.historicalData;
-        const tf = timeframes.find(t => t.label === activeTimeframe);
-        if (!tf) return { labels: [], prices: [] };
-
-        let filteredHistory = history;
-        if (tf.points === 'YTD') {
-            const currentYear = new Date().getFullYear();
-            filteredHistory = history.filter(item => new Date(item.priceDate).getFullYear() === currentYear);
-        } else if (tf.label !== 'Max') {
-            const pointsToTake = Math.min(history.length, tf.points);
-            filteredHistory = history.slice(-pointsToTake);
-        }
-
-        return {
-            labels: filteredHistory.map(item => new Date(item.priceDate).toLocaleDateString()),
-            prices: filteredHistory.map(item => item.closePrice)
-        };
-    };
-
-    const chartData = getChartData();
+    // Data Preparation
     const quote = widgetData?.quoteData;
     const isPos = quote?.changeAmount >= 0;
+
+    const chartData = useMemo(() => {
+        if (!widgetData || !widgetData.historicalData) return [];
+        // Sort and map for TradingView
+        return [...widgetData.historicalData]
+            .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
+            .map(item => ({
+                time: item.priceDate,
+                value: parseFloat(item.closePrice)
+            }));
+    }, [widgetData]);
 
     const handleMouseDown = (e) => {
         const ele = tabsRef.current;
@@ -156,90 +129,77 @@ const IndexCharts = () => {
     };
 
     return (
-        <div className="bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden font-sans text-[11px]">
+        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-lg overflow-hidden font-sans text-[11px] transition-colors duration-300">
 
-            {/* --- Market Categories Tabs --- */}
-            <div className="flex border-b border-gray-200 overflow-x-auto no-scrollbar">
+            {/* Market Tabs */}
+            <div className="flex border-b border-gray-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
                 {Object.keys(MARKET_INDICES).map((market) => (
                     <button
                         key={market}
                         onClick={() => setActiveMarket(market)}
                         className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors whitespace-nowrap 
                             ${activeMarket === market
-                                ? 'text-blue-700 border-b-2 border-blue-700 bg-blue-50/50'
-                                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}
+                                ? 'text-blue-700 dark:text-blue-400 border-b-2 border-blue-700 dark:border-blue-400 bg-blue-50/50 dark:bg-slate-700'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
                     >
                         {market}
                     </button>
                 ))}
             </div>
 
-            {/* --- Scrollable Ticker Tabs --- */}
+            {/* Ticker Tabs */}
             <div
                 ref={tabsRef}
                 onMouseDown={handleMouseDown}
-                className="flex border-b border-gray-100 bg-gray-50/80 overflow-x-auto no-scrollbar cursor-grab"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className="flex border-b border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800 overflow-x-auto no-scrollbar cursor-grab"
             >
                 {indicesToShow.map((idx, i) => (
                     <button
                         key={idx.symbol}
                         onClick={() => setActiveIndex(i)}
-                        className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap ${activeIndex === i
-                            ? 'bg-white text-blue-700 border-b-2 border-blue-200'
-                            : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
+                        className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap 
+                            ${activeIndex === i
+                                ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 border-b-2 border-blue-200 dark:border-blue-900'
+                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                     >
                         {idx.name}
                     </button>
                 ))}
             </div>
 
-            {/* --- Main Content Area --- */}
+            {/* Content */}
             <div className="p-3 min-h-[260px]">
                 {loading || !quote || !activeIndexData ? (
-                    <div className="h-[200px] flex items-center justify-center text-gray-400 animate-pulse">
-                        {loading ? "Loading market data..." : "Select an index to view details"}
+                    <div className="h-[200px] flex items-center justify-center text-gray-400 dark:text-gray-500 animate-pulse">
+                        {loading ? "Loading market data..." : "Select an index"}
                     </div>
                 ) : (
                     <Link to={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
-                        <div className="flex items-baseline justify-between">
-                            <span className="text-2xl font-bold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <div className="flex items-baseline justify-between mb-2">
+                            <span className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                                 {formatNumber(quote.currentPrice)}
                                 <span className="text-[10px] font-medium text-gray-500 ml-1">{quote.currency || ''}</span>
                             </span>
-                            <div className={`flex items-center font-bold ${isPos ? 'text-green-600' : 'text-red-600'}`}>
+                            <div className={`flex items-center font-bold ${isPos ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                 {isPos ? <TrendingUp size={14} className="mr-0.5" /> : <TrendingDown size={14} className="mr-0.5" />}
                                 {formatNumber(quote.changeAmount)} ({quote.changePercent ? quote.changePercent.toFixed(2) : '0.00'}%)
                             </div>
                         </div>
 
-                        <div className="h-[120px] my-3 -mx-1">
-                            <MarketChart chartData={chartData} previousClose={quote.previousClose} isPositive={isPos} />
+                        {/* Updated Chart */}
+                        <div className="h-[150px] -mx-1">
+                            <TradingViewChart
+                                data={chartData}
+                                color={isPos ? '#22c55e' : '#ef4444'}
+                                height={150}
+                            />
                         </div>
 
-                        <div className="flex justify-between bg-gray-50 rounded-md p-1 mb-3">
-                            {timeframes.map(tf => (
-                                <button
-                                    key={tf.label}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        setActiveTimeframe(tf.label);
-                                    }}
-                                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${activeTimeframe === tf.label ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-900'
-                                        }`}
-                                >
-                                    {tf.label}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-500">
-                            <div className="flex justify-between"><span>Open</span><span className="font-medium text-gray-900">{formatNumber(quote.openPrice)}</span></div>
-                            <div className="flex justify-between"><span>High</span><span className="font-medium text-gray-900">{formatNumber(quote.dayHigh)}</span></div>
-                            <div className="flex justify-between"><span>Prev</span><span className="font-medium text-gray-900">{formatNumber(quote.previousClose)}</span></div>
-                            <div className="flex justify-between"><span>Low</span><span className="font-medium text-gray-900">{formatNumber(quote.dayLow)}</span></div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-3">
+                            <div className="flex justify-between"><span>Open</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.openPrice)}</span></div>
+                            <div className="flex justify-between"><span>High</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.dayHigh)}</span></div>
+                            <div className="flex justify-between"><span>Prev</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.previousClose)}</span></div>
+                            <div className="flex justify-between"><span>Low</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.dayLow)}</span></div>
                         </div>
                     </Link>
                 )}
