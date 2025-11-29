@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
@@ -9,14 +9,16 @@ import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
 import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
-import MarketSlideMobile from '../components/BlogPage/MarketSlideMobile';
-import NewsTabMobile from '../components/BlogPage/NewsTabMobile';
-import VisionPage from './VisionPage';
 
 // NEW COMPONENTS (Phases 2 & 3)
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 import HeroSection from '../components/BlogPage/HeroSection';
+
+// --- LAZY LOAD MOBILE COMPONENTS (Performance Optimization) ---
+const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/MarketSlideMobile'));
+const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
+const VisionPage = React.lazy(() => import('./VisionPage'));
 
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
@@ -146,11 +148,16 @@ const BlogPage = () => {
         );
     }
 
-    if (page === 0 && loading && !isDataReady) return <div className="text-center p-10 min-h-screen flex items-center justify-center text-gray-500">Loading content...</div>;
+    if (page === 0 && loading && !isDataReady) return (
+        <div className="text-center p-10 min-h-screen flex flex-col items-center justify-center text-gray-500">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-sky-600 rounded-full animate-spin mb-4"></div>
+            <p className="text-xs font-bold uppercase tracking-widest">Loading Treishvaam...</p>
+        </div>
+    );
 
     // --- ENTERPRISE MOBILE NAVIGATION (Glass) ---
     const MobileBottomNav = () => (
-        <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/90 backdrop-blur-md border-t border-gray-200/50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
+        <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
             {[
                 { id: 'home', label: 'Home', icon: FiHome },
                 { id: 'markets', label: 'Markets', icon: FiTrendingUp },
@@ -160,14 +167,14 @@ const BlogPage = () => {
                 <button
                     key={id}
                     onClick={() => { setActiveTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-90 transition-transform duration-200 group ${activeTab === id ? 'text-sky-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform duration-100 group ${activeTab === id ? 'text-sky-700' : 'text-gray-400 hover:text-gray-600'}`}
                 >
-                    <Icon size={22} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
+                    <Icon size={20} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
                     <span className="text-[10px] font-bold tracking-wide">{label}</span>
 
                     {/* Active Indicator Dot */}
                     {activeTab === id && (
-                        <span className="absolute bottom-1 w-1 h-1 bg-sky-600 rounded-full animate-in zoom-in"></span>
+                        <span className="absolute bottom-1 w-1 h-1 bg-sky-700 rounded-full animate-in zoom-in"></span>
                     )}
                 </button>
             ))}
@@ -226,7 +233,7 @@ const BlogPage = () => {
 
                                 {/* Section Header */}
                                 <div className="flex items-center gap-3 mb-6">
-                                    <span className="w-2 h-8 bg-sky-600"></span>
+                                    <span className="w-2 h-8 bg-sky-700"></span>
                                     <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">
                                         Latest Analysis
                                     </h2>
@@ -257,39 +264,42 @@ const BlogPage = () => {
 
                 {/* --- MOBILE VIEW (ENTERPRISE APP LAYOUT) --- */}
                 <div className="md:hidden pb-20 pt-14">
-                    {activeTab === 'home' && (
-                        <BlogSlideMobile
-                            mobileLayout={mobileLayout}
-                            lastPostElementRef={lastPostElementRef}
-                            onCategoryClick={setSelectedCategory}
-                            categoriesMap={categoriesMap}
-                            categories={categories}
-                            selectedCategory={selectedCategory}
-                            setSelectedCategory={setSelectedCategory}
-                            loadingCategories={loadingCategories}
-                            loading={loading}
-                            page={page}
-                            hasMore={hasMore}
-                        />
-                    )}
+                    {/* Lazy load non-active tabs to reduce bundle size */}
+                    <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
+                        {activeTab === 'home' && (
+                            <BlogSlideMobile
+                                mobileLayout={mobileLayout}
+                                lastPostElementRef={lastPostElementRef}
+                                onCategoryClick={setSelectedCategory}
+                                categoriesMap={categoriesMap}
+                                categories={categories}
+                                selectedCategory={selectedCategory}
+                                setSelectedCategory={setSelectedCategory}
+                                loadingCategories={loadingCategories}
+                                loading={loading}
+                                page={page}
+                                hasMore={hasMore}
+                            />
+                        )}
 
-                    {activeTab === 'markets' && (
-                        <div className="animate-in fade-in duration-200">
-                            <MarketSlideMobile />
-                        </div>
-                    )}
+                        {activeTab === 'markets' && (
+                            <div className="animate-in fade-in duration-200">
+                                <MarketSlideMobile />
+                            </div>
+                        )}
 
-                    {activeTab === 'briefs' && (
-                        <div className="animate-in fade-in duration-200">
-                            <NewsTabMobile />
-                        </div>
-                    )}
+                        {activeTab === 'briefs' && (
+                            <div className="animate-in fade-in duration-200">
+                                <NewsTabMobile />
+                            </div>
+                        )}
 
-                    {activeTab === 'vision' && (
-                        <div className="animate-in fade-in duration-200">
-                            <VisionPage />
-                        </div>
-                    )}
+                        {activeTab === 'vision' && (
+                            <div className="animate-in fade-in duration-200">
+                                <VisionPage />
+                            </div>
+                        )}
+                    </Suspense>
 
                     <MobileBottomNav />
                 </div>

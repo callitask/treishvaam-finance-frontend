@@ -1,5 +1,5 @@
 /* src/index.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
 
 @tailwind base;
@@ -8,32 +8,40 @@
 
 /* --- GLOBAL APP BEHAVIOR --- */
 html, body {
-  /* Prevent bounce effect and zoom issues */
   overscroll-behavior-y: none; 
-  touch-action: manipulation;  
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   font-family: 'Inter', sans-serif;
   color: #111827;
-  background-color: #f9fafb;
+  background-color: #f8fafc; /* Slightly cooler gray for enterprise feel */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* CRITICAL: Prevents horizontal scroll causing white space on right */
   overflow-x: hidden; 
-  -webkit-overflow-scrolling: touch; 
+  text-rendering: optimizeLegibility;
 }
 
-/* --- APP FEEL --- */
+/* --- UTILITIES --- */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+.safe-pt { padding-top: env(safe-area-inset-top); }
+
+/* --- TYPOGRAPHY --- */
+.font-serif { font-family: 'Merriweather', serif; }
+.font-sans { font-family: 'Inter', sans-serif; }
+
+/* --- SKELETON LOADER (Shimmer Effect) --- */
 .skeleton {
-    background: #f3f4f6;
-    background-image: linear-gradient(to right, #f3f4f6 0%, #edeef1 20%, #f3f4f6 40%, #f3f4f6 100%);
+    background: #e5e7eb;
+    background-image: linear-gradient(to right, #e5e7eb 0%, #f3f4f6 20%, #e5e7eb 40%, #e5e7eb 100%);
     background-repeat: no-repeat;
     background-size: 800px 100%; 
     animation: shimmer 1.5s infinite linear forwards;
+    will-change: background-position; /* GPU optim */
 }
 
 @keyframes shimmer {
@@ -41,19 +49,6 @@ body {
     100% { background-position: 400px 0; }
 }
 
-.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-.safe-pt { padding-top: env(safe-area-inset-top); }
-
-.article-title { font-family: 'Merriweather', serif; letter-spacing: -0.01em; }
-.market-data-value { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
-
-.prose { font-family: 'Merriweather', serif; @apply text-gray-800; }
-.prose p { @apply leading-8 mb-5; }
-.prose h2, .prose h3 { font-family: 'Inter', sans-serif; scroll-margin-top: 100px; }
-
-/* --- FIX FOR 123 DOTS --- */
-.slick-dots { display: none !important; }
-
 @layer components {
-  .cta-button-primary { @apply bg-sky-600; }
+  .cta-button-primary { @apply bg-sky-700 hover:bg-sky-800 text-white shadow-sm; }
 }

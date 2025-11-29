@@ -33,9 +33,7 @@ const Navbar = () => {
             const hour = now.getUTCHours();
             const minute = now.getUTCMinutes();
 
-            // US Market: 9:30 AM - 4:00 PM ET
-            // UTC: Approx 13:30 - 20:00 (Standard) or 14:30 - 21:00 (DST)
-            // Simplified logic: 13:30 UTC to 20:00 UTC Mon-Fri
+            // US Market: 9:30 AM - 4:00 PM ET -> Approx 13:30 - 20:00 UTC
             const totalMinutes = hour * 60 + minute;
             const openTime = 13 * 60 + 30; // 13:30
             const closeTime = 20 * 60;     // 20:00
@@ -45,7 +43,7 @@ const Navbar = () => {
 
             setMarketStatus({
                 isOpen: isOpen,
-                color: isOpen ? 'text-green-500' : 'text-gray-400'
+                color: isOpen ? 'text-green-600' : 'text-gray-400'
             });
         };
 
@@ -59,9 +57,11 @@ const Navbar = () => {
         const controlNavbar = () => {
             if (typeof window !== 'undefined') {
                 const currentScrollY = window.scrollY;
+                // Throttle slightly or use a threshold
+                if (Math.abs(currentScrollY - lastScrollY) < 10) return;
 
                 if (currentScrollY < 10) {
-                    setIsVisible(true); // Always show at top
+                    setIsVisible(true);
                 } else if (currentScrollY > lastScrollY && currentScrollY > 60) {
                     setIsVisible(false); // Hide on scroll down
                 } else {
@@ -71,73 +71,68 @@ const Navbar = () => {
             }
         };
 
-        window.addEventListener('scroll', controlNavbar);
+        window.addEventListener('scroll', controlNavbar, { passive: true });
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
 
     const getNavLinkClass = ({ isActive }) =>
         `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
-            ? 'border-sky-600 text-sky-700'
+            ? 'border-sky-700 text-sky-700'
             : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
         }`;
 
     return (
         <>
             {/* =========================================================================
-               MOBILE HEADER (Smart Glass Architecture)
+               MOBILE HEADER (Enterprise Grade)
                ========================================================================= */}
             <header
-                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
+                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
             >
-                {/* Glass Layer */}
-                <div className="absolute inset-0 bg-white/85 backdrop-blur-md border-b border-gray-200/50 shadow-sm"></div>
+                {/* Glass Layer with stronger border for contrast */}
+                <div className="absolute inset-0 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm"></div>
 
                 <div className="relative flex items-center justify-between px-4 h-14">
                     {/* Left: Menu */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -ml-2 text-gray-800 active:scale-90 transition-transform"
-                        aria-label="Menu"
+                        className="p-2 -ml-2 text-gray-800 active:bg-gray-100 rounded-full transition-colors"
+                        aria-label="Open Menu" // ACCESSIBILITY FIX
                     >
                         <FaBars size={20} />
                     </button>
 
-                    {/* Center: Branding + Status */}
-                    <Link to="/" className="flex flex-col items-center" onClick={() => window.scrollTo(0, 0)}>
-                        <span className="text-lg font-black text-gray-900 font-serif uppercase leading-none tracking-tight">
+                    {/* Center: Branding */}
+                    <Link to="/" className="flex flex-col items-center" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                        <span className="text-xl font-black text-gray-900 font-serif uppercase leading-none tracking-tight">
                             Treishvaam
                         </span>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[9px] font-bold text-sky-700 uppercase tracking-[0.2em] leading-none">
-                                Finance
-                            </span>
-                            {/* Live Dot */}
-                            <div className="flex items-center gap-1 bg-gray-100/50 px-1.5 py-0.5 rounded-full border border-gray-200/50">
-                                <FaCircle className={`w-1.5 h-1.5 ${marketStatus.color} ${marketStatus.isOpen ? 'animate-pulse' : ''}`} />
-                                <span className="text-[8px] font-semibold text-gray-500 uppercase tracking-tight">
-                                    {marketStatus.isOpen ? 'LIVE' : 'CLOSED'}
-                                </span>
-                            </div>
-                        </div>
                     </Link>
 
                     {/* Right: Search */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -mr-2 text-gray-600 active:scale-90 transition-transform"
+                        className="p-2 -mr-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors"
+                        aria-label="Search" // ACCESSIBILITY FIX
                     >
                         <FaSearch size={18} />
                     </button>
                 </div>
 
-                {/* Mobile Drawer (Standard) */}
+                {/* Mobile Drawer */}
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-[110] flex h-screen w-screen">
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
                         <div className="relative w-[85%] max-w-sm bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
                             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 safe-pt">
                                 <span className="font-bold text-xl text-gray-900 font-serif">Menu</span>
-                                <button onClick={() => setMobileMenuOpen(false)} className="text-gray-500 p-2 bg-white rounded-full border shadow-sm active:scale-90 transition-transform"><FaTimes size={18} /></button>
+                                <button
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="text-gray-500 p-2 bg-white rounded-full border shadow-sm active:scale-95 transition-transform"
+                                    aria-label="Close Menu" // ACCESSIBILITY FIX
+                                >
+                                    <FaTimes size={18} />
+                                </button>
                             </div>
                             <div className="p-4 bg-white border-b border-gray-100"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
@@ -150,7 +145,7 @@ const Navbar = () => {
                             <div className="p-5 border-t border-gray-100 bg-gray-50 safe-pb">
                                 {auth.isAuthenticated ? (
                                     <div className="space-y-3">
-                                        <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-center w-full py-3 bg-sky-600 text-white rounded-xl font-bold shadow-md hover:bg-sky-700 transition-colors">Dashboard</Link>
+                                        <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-center w-full py-3 bg-sky-700 text-white rounded-xl font-bold shadow-md hover:bg-sky-800 transition-colors">Dashboard</Link>
                                         <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="block text-center w-full py-2 text-red-600 font-semibold text-sm">Sign Out</button>
                                     </div>
                                 ) : (
@@ -162,29 +157,32 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP MASTHEAD (Unchanged) */}
+            {/* DESKTOP MASTHEAD (unchanged logic, just safer styling) */}
             <div className="hidden md:block bg-white font-sans">
                 <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">
                         <div className="flex items-center space-x-4 font-medium tracking-wide">
                             <span>{today}</span>
                             <span className="w-px h-3 bg-gray-300"></span>
-                            <span>Bengaluru, IN</span>
+                            <div className="flex items-center gap-2">
+                                <FaCircle className={`w-2 h-2 ${marketStatus.color}`} />
+                                <span>{marketStatus.isOpen ? 'Market Open' : 'Market Closed'}</span>
+                            </div>
                         </div>
                         <div className="flex items-center space-x-6">
                             <div className="flex space-x-4 border-r border-gray-300 pr-6">
-                                <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#0077b5]"><FaLinkedinIn /></a>
-                                <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#1877F2]"><FaFacebookF /></a>
-                                <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" className="hover:text-[#E1306C]"><FaInstagram /></a>
+                                <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="LinkedIn" className="hover:text-[#0077b5]"><FaLinkedinIn /></a>
+                                <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Facebook" className="hover:text-[#1877F3]"><FaFacebookF /></a>
+                                <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Instagram" className="hover:text-[#E1306C]"><FaInstagram /></a>
                             </div>
                             {auth.isAuthenticated ? (
                                 <div className="flex items-center space-x-3">
-                                    <Link to="/dashboard" className="font-bold text-gray-700 hover:text-sky-600">Dashboard</Link>
+                                    <Link to="/dashboard" className="font-bold text-gray-700 hover:text-sky-700">Dashboard</Link>
                                     <button onClick={handleLogout} className="text-gray-400 hover:text-red-600" title="Logout"><FaSignOutAlt /></button>
                                 </div>
                             ) : (
                                 <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
-                                    <button className="flex items-center font-bold text-gray-700 hover:text-sky-600 transition uppercase tracking-wider text-[10px]">
+                                    <button className="flex items-center font-bold text-gray-700 hover:text-sky-700 transition uppercase tracking-wider text-[10px]">
                                         <FaUserCircle className="mr-1.5 text-sm text-gray-400" /> Sign In
                                     </button>
                                     {isLoginDropdownOpen && (
@@ -205,7 +203,7 @@ const Navbar = () => {
                             <h1 className="text-5xl font-black text-gray-900 font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                                 TREISHVAAM FINANCE
                             </h1>
-                            <p className="text-xs text-gray-500 font-bold tracking-[0.3em] uppercase mt-2 text-sky-700">
+                            <p className="text-xs text-gray-500 font-bold tracking-[0.3em] uppercase mt-2 text-sky-800">
                                 Market Intelligence & Analysis
                             </p>
                         </Link>
