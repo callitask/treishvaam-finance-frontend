@@ -14,10 +14,11 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
     }, [selectedCategory]);
 
     return (
-        <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        // FIXED: Solid bg-white (no transparency) and adjusted top position to match Navbar (h-16)
+        <div className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm">
             <div
                 ref={scrollRef}
-                className="flex items-center overflow-x-auto no-scrollbar py-2 px-3 gap-2"
+                className="flex items-center overflow-x-auto no-scrollbar py-2.5 px-3 gap-2"
             >
                 {allCategories.map((cat) => {
                     const isActive = selectedCategory === cat;
@@ -30,10 +31,10 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
                                 window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                             className={`
-                                flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide transition-all duration-200 whitespace-nowrap border
+                                flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap border
                                 ${isActive
-                                    ? 'bg-sky-700 border-sky-700 text-white shadow-md'
-                                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-800'
+                                    ? 'bg-slate-800 border-slate-800 text-white shadow-md'
+                                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-900'
                                 }
                             `}
                         >

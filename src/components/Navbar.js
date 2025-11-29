@@ -11,7 +11,9 @@ const Navbar = () => {
     // --- SMART SCROLL STATE ---
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
-    const [marketStatus, setMarketStatus] = useState({ isOpen: false, text: 'Closed' });
+
+    // Market status for Desktop only
+    const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-gray-400' });
 
     const { auth, logout } = useAuth();
     const navigate = useNavigate();
@@ -55,7 +57,7 @@ const Navbar = () => {
         const controlNavbar = () => {
             if (typeof window !== 'undefined') {
                 const currentScrollY = window.scrollY;
-                if (Math.abs(currentScrollY - lastScrollY) < 10) return; // Throttle small movements
+                if (Math.abs(currentScrollY - lastScrollY) < 10) return;
 
                 if (currentScrollY < 10) {
                     setIsVisible(true);
@@ -80,48 +82,55 @@ const Navbar = () => {
     return (
         <>
             {/* =========================================================================
-               MOBILE HEADER (Smart Native Shell)
+               MOBILE HEADER (Enterprise Grade)
                ========================================================================= */}
             <header
-                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-in-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
+                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
             >
-                {/* High-blur glass effect */}
-                <div className="absolute inset-0 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-sm"></div>
+                {/* Solid White Background (No Translucency) for Clean Look */}
+                <div className="absolute inset-0 bg-white border-b border-gray-200 shadow-sm"></div>
 
-                <div className="relative flex items-center justify-between px-4 h-14">
+                <div className="relative flex items-center justify-between px-4 h-16">
                     {/* Left: Menu */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -ml-2 text-gray-800 active:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 -ml-2 text-slate-800 active:bg-gray-100 rounded-full transition-colors"
                         aria-label="Open Menu"
                     >
-                        <FaBars size={20} />
+                        <FaBars size={22} />
                     </button>
 
-                    {/* Center: Branding */}
-                    <Link to="/" className="flex flex-col items-center" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        <span className="text-xl font-black text-gray-900 font-serif uppercase leading-none tracking-tight">
-                            Treishvaam
+                    {/* Center: Full Enterprise Branding */}
+                    <Link to="/" className="flex flex-col items-center justify-center" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                        <span className="text-xl font-black text-slate-900 font-serif uppercase leading-none tracking-tight">
+                            TREISHVAAM
                         </span>
+                        <div className="flex items-center gap-1 mt-1">
+                            <span className="h-px w-3 bg-sky-600"></span>
+                            <span className="text-[10px] font-bold text-sky-700 font-sans uppercase tracking-[0.25em] leading-none">
+                                FINANCE
+                            </span>
+                            <span className="h-px w-3 bg-sky-600"></span>
+                        </div>
                     </Link>
 
                     {/* Right: Search */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
-                        className="p-2 -mr-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors"
+                        className="p-2 -mr-2 text-slate-600 active:bg-gray-100 rounded-full transition-colors"
                         aria-label="Search"
                     >
-                        <FaSearch size={18} />
+                        <FaSearch size={20} />
                     </button>
                 </div>
 
-                {/* Mobile Drawer (Overlay) */}
+                {/* Mobile Drawer */}
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-[110] flex h-screen w-screen">
-                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
                         <div className="relative w-[85%] max-w-sm bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
                             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 safe-pt">
-                                <span className="font-bold text-xl text-gray-900 font-serif">Menu</span>
+                                <span className="font-bold text-xl text-slate-900 font-serif">Menu</span>
                                 <button
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="text-gray-500 p-2 bg-white rounded-full border shadow-sm active:scale-95 transition-transform"
@@ -145,7 +154,7 @@ const Navbar = () => {
                                         <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="block text-center w-full py-2 text-red-600 font-semibold text-sm">Sign Out</button>
                                     </div>
                                 ) : (
-                                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-gray-900 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Admin Login</Link>
+                                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-slate-900 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Admin Login</Link>
                                 )}
                             </div>
                         </div>
@@ -153,7 +162,7 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP HEADER (Kept consistent) */}
+            {/* DESKTOP MASTHEAD (Unchanged) */}
             <div className="hidden md:block bg-white font-sans">
                 <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">
