@@ -2,7 +2,8 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { ThemeProvider } from './context/ThemeContext'; // <--- IMPORT
+import { ThemeProvider } from './context/ThemeContext';
+import { WatchlistProvider } from './context/WatchlistContext'; // <--- IMPORT
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -32,37 +33,39 @@ const PageLoader = () => (
 function App() {
   return (
     <AuthProvider>
-      <ThemeProvider> {/* <--- WRAPPER ADDED */}
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            {/* Public Routes with MainLayout */}
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<BlogPage />} />
-              <Route path="/about" element={<AboutPage />} />
-              <Route path="/vision" element={<VisionPage />} />
-              <Route path="/contact" element={<ContactPage />} />
-              <Route path="/market/:ticker" element={<MarketDetailPage />} />
-              <Route path="/blog" element={<Navigate to="/" replace />} />
-              <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
-              <Route path="/login" element={<LoginPage />} />
-            </Route>
+      <ThemeProvider>
+        <WatchlistProvider> {/* <--- WRAPPER ADDED */}
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public Routes with MainLayout */}
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<BlogPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/vision" element={<VisionPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/market/:ticker" element={<MarketDetailPage />} />
+                <Route path="/blog" element={<Navigate to="/" replace />} />
+                <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
+                <Route path="/login" element={<LoginPage />} />
+              </Route>
 
-            <Route path="/manage-posts" element={<Navigate to="/dashboard/manage-posts" replace />} />
+              <Route path="/manage-posts" element={<Navigate to="/dashboard/manage-posts" replace />} />
 
-            {/* Private Admin Routes */}
-            <Route
-              path="/dashboard"
-              element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
-            >
-              <Route index element={<DashboardPage />} />
-              <Route path="manage-posts" element={<ManagePostsPage />} />
-              <Route path="blog/new" element={<BlogEditorPage />} />
-              <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
-              <Route path="api-status" element={<ApiStatusPage />} />
-              <Route path="audience" element={<AudiencePage />} />
-            </Route>
-          </Routes>
-        </Suspense>
+              {/* Private Admin Routes */}
+              <Route
+                path="/dashboard"
+                element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
+              >
+                <Route index element={<DashboardPage />} />
+                <Route path="manage-posts" element={<ManagePostsPage />} />
+                <Route path="blog/new" element={<BlogEditorPage />} />
+                <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
+                <Route path="api-status" element={<ApiStatusPage />} />
+                <Route path="audience" element={<AudiencePage />} />
+              </Route>
+            </Routes>
+          </Suspense>
+        </WatchlistProvider> {/* <--- END WRAPPER */}
       </ThemeProvider>
     </AuthProvider>
   );
