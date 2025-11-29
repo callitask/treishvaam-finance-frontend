@@ -1,3 +1,4 @@
+// src/components/BlogPage/MobilePostCard.js
 import React, { memo, forwardRef } from 'react';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
@@ -13,17 +14,16 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
     const thumbnail = article.thumbnails && article.thumbnails.length > 0 ? article.thumbnails[0] : null;
 
     // --- VIEW 1: HERO CARD (Cinematic 16:9) ---
-    // Reduced height to avoid taking up the whole screen
     if (isHero) {
         return (
-            <div ref={ref} className="relative w-full aspect-video overflow-hidden bg-gray-900 group shadow-md mb-2">
+            <div ref={ref} className="relative w-full aspect-video overflow-hidden bg-slate-900 group shadow-md mb-2">
                 <Link to={postLink} aria-label={article.title} className="block w-full h-full relative">
                     {thumbnail ? (
                         <ResponsiveAuthImage
                             baseName={thumbnail.imageUrl}
                             alt={thumbnail.altText || article.title}
                             className="w-full h-full object-cover opacity-90 transition-transform duration-700 ease-in-out group-active:scale-105"
-                            eager={true} // Priority loading
+                            eager={true}
                             width={600}
                         />
                     ) : (
@@ -60,28 +60,28 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
 
     // --- VIEW 2: COMPACT LIST CARD ---
     return (
-        <div ref={ref} className="p-4 flex gap-4 items-start active:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 bg-white">
+        <div ref={ref} className="p-4 flex gap-4 items-start active:bg-gray-50 dark:active:bg-slate-800 transition-colors border-b border-gray-100 dark:border-slate-800 last:border-0 bg-white dark:bg-slate-900">
             <div className="flex-1 flex flex-col h-full min-h-[5rem]">
                 <div className="mb-auto">
                     <div className="flex items-center gap-2 mb-1">
-                        <span onClick={(e) => { e.preventDefault(); onCategoryClick(categoryName); }} className="text-[10px] font-bold uppercase tracking-widest text-sky-700">
+                        <span onClick={(e) => { e.preventDefault(); onCategoryClick(categoryName); }} className="text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-400">
                             {categoryName}
                         </span>
                         {isNew && <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>}
                     </div>
                     <Link to={postLink}>
-                        <h3 className="text-[15px] font-bold text-gray-900 font-serif leading-[1.35] line-clamp-3 mb-1">
+                        <h3 className="text-[15px] font-bold text-gray-900 dark:text-gray-100 font-serif leading-[1.35] line-clamp-3 mb-1">
                             {article.title}
                         </h3>
                     </Link>
                 </div>
                 <div className="flex items-center gap-3 mt-2">
-                    <span className="text-[10px] text-gray-400 font-medium font-sans">{displayDate}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-medium font-sans">{displayDate}</span>
                 </div>
             </div>
 
             {thumbnail && (
-                <Link to={postLink} className="w-[90px] h-[65px] flex-shrink-0 rounded bg-gray-100 shadow-sm border border-gray-100 overflow-hidden relative">
+                <Link to={postLink} className="w-[90px] h-[65px] flex-shrink-0 rounded bg-gray-100 dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden relative">
                     <ResponsiveAuthImage
                         baseName={thumbnail.imageUrl}
                         alt={thumbnail.altText || article.title}

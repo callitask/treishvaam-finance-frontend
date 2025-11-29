@@ -1,3 +1,4 @@
+// src/components/BlogPage/CategoryStripMobile.js
 import React, { useRef, useEffect } from 'react';
 
 const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory }) => {
@@ -14,8 +15,7 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
     }, [selectedCategory]);
 
     return (
-        // FIXED: top-14 (3.5rem) matches Navbar height perfectly. Solid white bg.
-        <div className="sticky top-14 z-30 bg-white border-b border-gray-200 shadow-sm">
+        <div className="sticky top-14 z-30 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-sm transition-colors duration-300">
             <div
                 ref={scrollRef}
                 className="flex items-center overflow-x-auto no-scrollbar py-2.5 px-3 gap-2"
@@ -33,8 +33,8 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
                             className={`
                                 flex-shrink-0 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap border
                                 ${isActive
-                                    ? 'bg-slate-800 border-slate-800 text-white shadow-md'
-                                    : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-900'
+                                    ? 'bg-slate-800 dark:bg-sky-600 border-slate-800 dark:border-sky-600 text-white shadow-md'
+                                    : 'bg-gray-50 dark:bg-slate-800 border-gray-200 dark:border-slate-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-slate-600 hover:text-gray-900 dark:hover:text-gray-200'
                                 }
                             `}
                         >
