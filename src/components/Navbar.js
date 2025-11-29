@@ -25,19 +25,18 @@ const Navbar = () => {
         navigate('/login');
     };
 
-    // --- MARKET STATUS LOGIC (UTC Check for US Market) ---
+    // --- MARKET STATUS LOGIC ---
     useEffect(() => {
         const checkMarketStatus = () => {
             const now = new Date();
-            const day = now.getUTCDay(); // 0=Sun, 6=Sat
+            const day = now.getUTCDay();
             const hour = now.getUTCHours();
             const minute = now.getUTCMinutes();
-
-            // US Market: 9:30 AM - 4:00 PM ET -> Approx 13:30 - 20:00 UTC
             const totalMinutes = hour * 60 + minute;
-            const openTime = 13 * 60 + 30; // 13:30
-            const closeTime = 20 * 60;     // 20:00
 
+            // US Market (approx UTC): 13:30 to 20:00
+            const openTime = 13 * 60 + 30;
+            const closeTime = 20 * 60;
             const isWeekday = day >= 1 && day <= 5;
             const isOpen = isWeekday && totalMinutes >= openTime && totalMinutes < closeTime;
 
@@ -46,7 +45,6 @@ const Navbar = () => {
                 color: isOpen ? 'text-green-600' : 'text-gray-400'
             });
         };
-
         checkMarketStatus();
         const interval = setInterval(checkMarketStatus, 60000);
         return () => clearInterval(interval);
@@ -57,8 +55,7 @@ const Navbar = () => {
         const controlNavbar = () => {
             if (typeof window !== 'undefined') {
                 const currentScrollY = window.scrollY;
-                // Throttle slightly or use a threshold
-                if (Math.abs(currentScrollY - lastScrollY) < 10) return;
+                if (Math.abs(currentScrollY - lastScrollY) < 10) return; // Throttle small movements
 
                 if (currentScrollY < 10) {
                     setIsVisible(true);
@@ -70,7 +67,6 @@ const Navbar = () => {
                 setLastScrollY(currentScrollY);
             }
         };
-
         window.addEventListener('scroll', controlNavbar, { passive: true });
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
@@ -84,20 +80,20 @@ const Navbar = () => {
     return (
         <>
             {/* =========================================================================
-               MOBILE HEADER (Enterprise Grade)
+               MOBILE HEADER (Smart Native Shell)
                ========================================================================= */}
             <header
-                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
+                className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-in-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
             >
-                {/* Glass Layer with stronger border for contrast */}
-                <div className="absolute inset-0 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm"></div>
+                {/* High-blur glass effect */}
+                <div className="absolute inset-0 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-sm"></div>
 
                 <div className="relative flex items-center justify-between px-4 h-14">
                     {/* Left: Menu */}
                     <button
                         onClick={() => setMobileMenuOpen(true)}
                         className="p-2 -ml-2 text-gray-800 active:bg-gray-100 rounded-full transition-colors"
-                        aria-label="Open Menu" // ACCESSIBILITY FIX
+                        aria-label="Open Menu"
                     >
                         <FaBars size={20} />
                     </button>
@@ -113,13 +109,13 @@ const Navbar = () => {
                     <button
                         onClick={() => setMobileMenuOpen(true)}
                         className="p-2 -mr-2 text-gray-600 active:bg-gray-100 rounded-full transition-colors"
-                        aria-label="Search" // ACCESSIBILITY FIX
+                        aria-label="Search"
                     >
                         <FaSearch size={18} />
                     </button>
                 </div>
 
-                {/* Mobile Drawer */}
+                {/* Mobile Drawer (Overlay) */}
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-[110] flex h-screen w-screen">
                         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
@@ -129,7 +125,7 @@ const Navbar = () => {
                                 <button
                                     onClick={() => setMobileMenuOpen(false)}
                                     className="text-gray-500 p-2 bg-white rounded-full border shadow-sm active:scale-95 transition-transform"
-                                    aria-label="Close Menu" // ACCESSIBILITY FIX
+                                    aria-label="Close Menu"
                                 >
                                     <FaTimes size={18} />
                                 </button>
@@ -157,7 +153,7 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP MASTHEAD (unchanged logic, just safer styling) */}
+            {/* DESKTOP HEADER (Kept consistent) */}
             <div className="hidden md:block bg-white font-sans">
                 <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">

@@ -4,18 +4,18 @@ import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
-// Layout components
+// Desktop Components
 import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
 import MarketSidebar from '../components/BlogPage/MarketSidebar';
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
-import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
-
-// NEW COMPONENTS (Phases 2 & 3)
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 import HeroSection from '../components/BlogPage/HeroSection';
 
-// --- LAZY LOAD MOBILE COMPONENTS (Performance Optimization) ---
+// Mobile Components
+import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
+
+// --- LAZY LOAD MOBILE TABS (Performance Fix for TBT/JS Parse) ---
 const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/MarketSlideMobile'));
 const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
 const VisionPage = React.lazy(() => import('./VisionPage'));
@@ -37,7 +37,7 @@ const BlogPage = () => {
     // --- Mobile Tab State ---
     const [activeTab, setActiveTab] = useState('home');
 
-    // --- Infinite Scroll ---
+    // --- Infinite Scroll Logic ---
     const observer = useRef();
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
@@ -88,7 +88,7 @@ const BlogPage = () => {
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Separation for Hero Section ---
+    // --- Desktop Layout Logic ---
     const { heroPost, gridPosts } = useMemo(() => {
         if (filteredPosts.length > 0) {
             return {
@@ -99,7 +99,6 @@ const BlogPage = () => {
         return { heroPost: null, gridPosts: [] };
     }, [filteredPosts]);
 
-    // --- Layout ---
     const mobileLayout = useMemo(() => {
         return filteredPosts.map(post => ({ ...post }));
     }, [filteredPosts]);
@@ -155,7 +154,7 @@ const BlogPage = () => {
         </div>
     );
 
-    // --- ENTERPRISE MOBILE NAVIGATION (Glass) ---
+    // --- FIXED BOTTOM NAVIGATION (App Shell) ---
     const MobileBottomNav = () => (
         <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
             {[
@@ -171,8 +170,6 @@ const BlogPage = () => {
                 >
                     <Icon size={20} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
                     <span className="text-[10px] font-bold tracking-wide">{label}</span>
-
-                    {/* Active Indicator Dot */}
                     {activeTab === id && (
                         <span className="absolute bottom-1 w-1 h-1 bg-sky-700 rounded-full animate-in zoom-in"></span>
                     )}
@@ -192,10 +189,8 @@ const BlogPage = () => {
 
             <section className="bg-white min-h-screen font-sans">
 
-                {/* --- DESKTOP VIEW (3-COLUMN ENTERPRISE LAYOUT) --- */}
+                {/* --- DESKTOP LAYOUT (Unchanged) --- */}
                 <div className="hidden md:block">
-
-                    {/* Category Strip */}
                     <div className="sticky top-[110px] z-40">
                         <CategoryStrip
                             categories={categories}
@@ -204,42 +199,25 @@ const BlogPage = () => {
                             loading={loadingCategories}
                         />
                     </div>
-
-                    {/* Market Ticker */}
                     <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
-
-                    {/* Main Content Grid */}
                     <div className="container mx-auto px-4 lg:px-6 pt-10 pb-20">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-                            {/* COLUMN 1: THE BRIEFING (News Sidebar) - 2.5/12 */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
                                 <div className="sticky top-40 space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
-                                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">
-                                            The Briefing
-                                        </h3>
+                                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
                                     </div>
                                     <FeaturedColumn />
                                 </div>
                             </aside>
-
-                            {/* COLUMN 2: THE FEED (Hero + Grid) - 6.5/12 */}
                             <div className="lg:col-span-8 xl:col-span-6 order-2 px-0 lg:px-4">
-                                {/* Lead Story */}
                                 <HeroSection featuredPost={heroPost} />
-
-                                {/* Section Header */}
                                 <div className="flex items-center gap-3 mb-6">
                                     <span className="w-2 h-8 bg-sky-700"></span>
-                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">
-                                        Latest Analysis
-                                    </h2>
+                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">Latest Analysis</h2>
                                 </div>
-
-                                {/* Main Feed */}
                                 <BlogGridDesktop
                                     desktopLayoutBlocks={desktopLayoutBlocks}
                                     lastPostElementRef={lastPostElementRef}
@@ -251,8 +229,6 @@ const BlogPage = () => {
                                     postCount={gridPosts.length}
                                 />
                             </div>
-
-                            {/* COLUMN 3: MARKET TERMINAL (Data Sidebar) - 3/12 */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
                                 <div className="sticky top-40 space-y-10">
                                     <MarketSidebar />
@@ -262,9 +238,8 @@ const BlogPage = () => {
                     </div>
                 </div>
 
-                {/* --- MOBILE VIEW (ENTERPRISE APP LAYOUT) --- */}
+                {/* --- MOBILE APP LAYOUT (New Shell) --- */}
                 <div className="md:hidden pb-20 pt-14">
-                    {/* Lazy load non-active tabs to reduce bundle size */}
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile

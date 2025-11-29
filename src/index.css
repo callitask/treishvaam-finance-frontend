@@ -6,17 +6,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- GLOBAL APP BEHAVIOR --- */
+/* --- GLOBAL APP BEHAVIOR (Native Feel) --- */
 html, body {
-  overscroll-behavior-y: none; 
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none; /* Prevents "rubber banding" on iOS */
+  touch-action: manipulation;  /* Improves touch response */
+  -webkit-tap-highlight-color: transparent; /* Removes blue tap box */
 }
 
 body {
   font-family: 'Inter', sans-serif;
   color: #111827;
-  background-color: #f8fafc; /* Slightly cooler gray for enterprise feel */
+  background-color: #f8fafc; /* Cool gray, typical of enterprise apps */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden; 
@@ -27,21 +27,22 @@ body {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Safe Area Insets for iPhone Notches */
 .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-pt { padding-top: env(safe-area-inset-top); }
 
-/* --- TYPOGRAPHY --- */
-.font-serif { font-family: 'Merriweather', serif; }
-.font-sans { font-family: 'Inter', sans-serif; }
+/* --- TYPOGRAPHY SYSTEM --- */
+.font-serif { font-family: 'Merriweather', serif; } /* For Headlines (Authority) */
+.font-sans { font-family: 'Inter', sans-serif; }   /* For UI/Data (Readability) */
 
-/* --- SKELETON LOADER (Shimmer Effect) --- */
+/* --- SKELETON LOADER (Shimmer) --- */
 .skeleton {
     background: #e5e7eb;
     background-image: linear-gradient(to right, #e5e7eb 0%, #f3f4f6 20%, #e5e7eb 40%, #e5e7eb 100%);
     background-repeat: no-repeat;
     background-size: 800px 100%; 
     animation: shimmer 1.5s infinite linear forwards;
-    will-change: background-position; /* GPU optim */
+    will-change: background-position;
 }
 
 @keyframes shimmer {

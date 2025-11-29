@@ -4,7 +4,6 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
     const scrollRef = useRef(null);
     const allCategories = ['All', ...categories.map(cat => cat.name)];
 
-    // Auto-scroll to selected category
     useEffect(() => {
         if (scrollRef.current) {
             const selectedBtn = scrollRef.current.querySelector('[data-selected="true"]');
