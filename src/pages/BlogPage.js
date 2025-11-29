@@ -239,7 +239,8 @@ const BlogPage = () => {
                 </div>
 
                 {/* --- MOBILE APP LAYOUT (New Shell) --- */}
-                <div className="md:hidden pb-20 pt-14">
+                {/* FIXED: pt-16 ensures content starts exactly below the fixed Navbar (h-16) */}
+                <div className="md:hidden pb-20 pt-16">
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile

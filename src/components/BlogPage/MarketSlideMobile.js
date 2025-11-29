@@ -1,76 +1,79 @@
-import React from 'react';
-import Slider from "react-slick";
-import TopMoversCard from '../market/TopMoversCard';
+import React, { useState } from 'react';
 import { getMostActive, getTopGainers, getTopLosers } from '../../apiConfig';
-import IndexCharts from '../market/IndexCharts';
 import GlobalMarketTicker from '../market/GlobalMarketTicker';
+import TopMoversCard from '../market/TopMoversCard';
+import IndexCharts from '../market/IndexCharts';
 
 const MarketSlideMobile = () => {
-    // SLIDER SETTINGS
-    const marketSliderSettings = {
-        dots: false, // Hides 123
-        infinite: false,
-        speed: 500,
-        slidesToShow: 1.05, // Peek effect
-        slidesToScroll: 1,
-        arrows: false,
-        className: "pb-4",
-    };
+    const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'movers'
 
     return (
-        <div className="bg-gray-50 min-h-screen pb-24 w-full overflow-x-hidden">
+        <div className="min-h-screen bg-slate-50 pb-24 w-full">
 
-            {/* Header */}
-            <div className="sticky top-14 z-20 bg-white/95 backdrop-blur-md border-b border-gray-200 px-5 py-4 flex justify-between items-center shadow-sm">
-                <h2 className="text-base font-black text-gray-900 uppercase tracking-tight">Market Terminal</h2>
-                <div className="flex items-center gap-2 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
-                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                    <span className="text-[10px] font-bold text-green-700">LIVE</span>
+            {/* 1. Header & Tabs */}
+            <div className="sticky top-14 z-20 bg-white border-b border-gray-200 shadow-sm">
+                <div className="px-4 py-3 flex items-center justify-between">
+                    <h2 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                        <span className="w-1.5 h-4 bg-emerald-500 rounded-sm"></span>
+                        Market Data
+                    </h2>
+                    {/* Tab Switcher */}
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                        <button
+                            onClick={() => setActiveTab('overview')}
+                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${activeTab === 'overview' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'}`}
+                        >
+                            Indices
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('movers')}
+                            className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-all ${activeTab === 'movers' ? 'bg-white text-emerald-700 shadow-sm' : 'text-gray-500'}`}
+                        >
+                            Movers
+                        </button>
+                    </div>
+                </div>
+
+                {/* 2. Global Ticker Tape (Sticky context) */}
+                <div className="border-t border-gray-100 bg-gray-50/50">
+                    <GlobalMarketTicker />
                 </div>
             </div>
 
-            {/* Ticker Tape */}
-            <div className="bg-white border-b border-gray-200 mb-4">
-                <GlobalMarketTicker />
-            </div>
+            {/* 3. Main Content Area */}
+            <div className="p-4 space-y-6">
 
-            <div className="space-y-6">
-
-                {/* Section 1: Indices Chart */}
-                <section className="bg-white py-6 border-y border-gray-200 shadow-sm">
-                    <div className="px-5 mb-4 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-sky-600 rounded-full"></span>
-                        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Global Indices</h3>
-                    </div>
-                    <div className="px-3">
-                        <IndexCharts />
-                    </div>
-                </section>
-
-                {/* Section 2: Movers Deck */}
-                <section className="overflow-hidden">
-                    <div className="px-5 mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <span className="w-1 h-4 bg-amber-500 rounded-full"></span>
-                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wide">Top Movers</h3>
+                {/* VIEW A: OVERVIEW (Indices) */}
+                {activeTab === 'overview' && (
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/30 flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wide">Global Indices</h3>
+                                <span className="text-[10px] text-gray-400">Live Updates</span>
+                            </div>
+                            {/* Reusing existing logic but containerized for mobile */}
+                            <div className="p-2">
+                                <IndexCharts />
+                            </div>
                         </div>
-                        <span className="text-[10px] text-gray-400 font-medium">Swipe cards →</span>
-                    </div>
 
-                    <div className="pl-5 w-full">
-                        <Slider {...marketSliderSettings}>
-                            <div className="pr-4 outline-none">
-                                <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
-                            </div>
-                            <div className="pr-4 outline-none">
-                                <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
-                            </div>
-                            <div className="pr-4 outline-none">
-                                <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
-                            </div>
-                        </Slider>
+                        <div className="mt-6 bg-blue-50 border border-blue-100 rounded-xl p-4 text-center">
+                            <h4 className="text-blue-900 font-bold text-sm mb-1">Looking for specific stocks?</h4>
+                            <p className="text-blue-700 text-xs mb-3">Use the search bar in the menu to find detailed quotes for thousands of global assets.</p>
+                        </div>
                     </div>
-                </section>
+                )}
+
+                {/* VIEW B: MOVERS (Gainers/Losers) */}
+                {activeTab === 'movers' && (
+                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {/* High density cards */}
+                        <TopMoversCard title="Most Active" fetchData={getMostActive} type="active" />
+                        <TopMoversCard title="Top Gainers" fetchData={getTopGainers} type="gainer" />
+                        <TopMoversCard title="Top Losers" fetchData={getTopLosers} type="loser" />
+                    </div>
+                )}
+
             </div>
         </div>
     );

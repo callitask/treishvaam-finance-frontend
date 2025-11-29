@@ -4,6 +4,7 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
     const scrollRef = useRef(null);
     const allCategories = ['All', ...categories.map(cat => cat.name)];
 
+    // Auto-scroll to selected category
     useEffect(() => {
         if (scrollRef.current) {
             const selectedBtn = scrollRef.current.querySelector('[data-selected="true"]');
@@ -14,7 +15,7 @@ const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory
     }, [selectedCategory]);
 
     return (
-        // FIXED: Solid bg-white (no transparency) and adjusted top position to match Navbar (h-16)
+        // FIXED: top-16 ensures it sits perfectly below the h-16 Navbar with no gap.
         <div className="sticky top-16 z-30 bg-white border-b border-gray-200 shadow-sm">
             <div
                 ref={scrollRef}

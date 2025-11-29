@@ -11,8 +11,6 @@ const Navbar = () => {
     // --- SMART SCROLL STATE ---
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
-
-    // Market status for Desktop only
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-gray-400' });
 
     const { auth, logout } = useAuth();
@@ -87,7 +85,7 @@ const Navbar = () => {
             <header
                 className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}
             >
-                {/* Solid White Background (No Translucency) for Clean Look */}
+                {/* Solid White Background (No Translucency) */}
                 <div className="absolute inset-0 bg-white border-b border-gray-200 shadow-sm"></div>
 
                 <div className="relative flex items-center justify-between px-4 h-16">
@@ -100,17 +98,18 @@ const Navbar = () => {
                         <FaBars size={22} />
                     </button>
 
-                    {/* Center: Full Enterprise Branding */}
-                    <Link to="/" className="flex flex-col items-center justify-center" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-                        <span className="text-xl font-black text-slate-900 font-serif uppercase leading-none tracking-tight">
-                            TREISHVAAM
+                    {/* Center: Branding */}
+                    <Link to="/" className="flex flex-col items-center justify-center pt-1" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                        {/* Company Name */}
+                        <span className="text-xl font-black text-slate-900 font-serif leading-none tracking-tight">
+                            TREISHFIN
                         </span>
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="h-px w-3 bg-sky-600"></span>
-                            <span className="text-[10px] font-bold text-sky-700 font-sans uppercase tracking-[0.25em] leading-none">
-                                FINANCE
-                            </span>
-                            <span className="h-px w-3 bg-sky-600"></span>
+
+                        {/* Descriptor Line */}
+                        <div className="flex items-center mt-1 text-[8px] font-medium leading-none font-sans tracking-tight">
+                            <span className="text-slate-900">Treishvaam Finance</span>
+                            <span className="mx-1 text-slate-300">|</span>
+                            <span className="text-sky-700 font-bold">Market Intelligence & Analysis</span>
                         </div>
                     </Link>
 
@@ -162,7 +161,7 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP MASTHEAD (Unchanged) */}
+            {/* DESKTOP HEADER (Kept consistent) */}
             <div className="hidden md:block bg-white font-sans">
                 <div className="bg-gray-100 text-gray-500 text-xs border-b border-gray-200">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">
