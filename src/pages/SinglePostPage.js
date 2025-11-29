@@ -1,3 +1,4 @@
+// src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPostByUrlId, API_URL } from '../apiConfig';
@@ -7,6 +8,7 @@ import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareButtons from '../components/ShareButtons';
 import throttle from 'lodash/throttle';
 import TableOfContents from '../components/TableOfContents';
+import { AudioPlayer } from '../components/AudioPlayer'; // <--- FIXED: Named Import
 import { ChevronRight, Calendar, User, Tag, Clock } from 'lucide-react';
 
 const formatDate = (dateString) => {
@@ -22,7 +24,6 @@ const createSnippet = (html, length = 160) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
-// Estimate reading time based on word count
 const calculateReadingTime = (content) => {
     const text = content.replace(/<[^>]*>/g, '');
     const wordCount = text.split(/\s+/).length;
@@ -33,7 +34,6 @@ const calculateReadingTime = (content) => {
 const SinglePostPage = () => {
     const { urlArticleId } = useParams();
 
-    // --- STATE HYDRATION LOGIC ---
     const preloadedData = (typeof window !== 'undefined' &&
         window.__PRELOADED_STATE__ &&
         window.__PRELOADED_STATE__.urlArticleId === urlArticleId)
@@ -49,7 +49,6 @@ const SinglePostPage = () => {
     const articleRef = useRef(null);
 
     useEffect(() => {
-        // --- CRITICAL FIX: Prevent Duplicate Schema ---
         const staticSchema = document.getElementById('schema-json-ld');
         if (staticSchema) {
             staticSchema.remove();
@@ -75,7 +74,6 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [urlArticleId]);
 
     useEffect(() => {
@@ -131,13 +129,12 @@ const SinglePostPage = () => {
         };
     }, [handleScroll]);
 
-    if (loading) return <div className="text-center py-20">Loading post...</div>;
+    if (loading) return <div className="text-center py-20 text-gray-500 dark:text-gray-400">Loading post...</div>;
     if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
-    if (!post) return <div className="text-center py-20">Post not found.</div>;
+    if (!post) return <div className="text-center py-20 text-gray-500">Post not found.</div>;
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
-    // --- URL & Metadata ---
     const categorySlug = post.category?.slug || 'uncategorized';
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `${post.title} - Treishvaam Finance`;
@@ -146,9 +143,6 @@ const SinglePostPage = () => {
     const authorName = post.author || "Treishvaam Team";
     const categoryName = post.category?.name || "General";
 
-    // --- JSON-LD Schemas ---
-
-    // 1. BreadcrumbList Schema
     const breadcrumbSchema = {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
@@ -161,7 +155,7 @@ const SinglePostPage = () => {
             "@type": "ListItem",
             "position": 2,
             "name": categoryName,
-            "item": `https://treishfin.treishvaamgroup.com/category/${categorySlug}` // Assumes category page exists or points to filter
+            "item": `https://treishfin.treishvaamgroup.com/category/${categorySlug}`
         }, {
             "@type": "ListItem",
             "position": 3,
@@ -170,14 +164,10 @@ const SinglePostPage = () => {
         }]
     };
 
-    // 2. Article Schema
     const articleSchema = {
         "@context": "https://schema.org",
         "@type": "Article",
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": pageUrl
-        },
+        "mainEntityOfPage": { "@type": "WebPage", "@id": pageUrl },
         "headline": post.title,
         "image": [imageUrl],
         "datePublished": post.createdAt,
@@ -190,10 +180,7 @@ const SinglePostPage = () => {
         "publisher": {
             "@type": "Organization",
             "name": "Treishvaam Finance",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://treishfin.treishvaamgroup.com/logo.webp"
-            }
+            "logo": { "@type": "ImageObject", "url": "https://treishfin.treishvaamgroup.com/logo.webp" }
         },
         "description": seoDescription
     };
@@ -205,60 +192,45 @@ const SinglePostPage = () => {
                 <meta name="description" content={seoDescription} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
                 <link rel="canonical" href={pageUrl} />
-
                 <meta property="og:type" content="article" />
                 <meta property="og:url" content={pageUrl} />
                 <meta property="og:title" content={post.title} />
                 <meta property="og:description" content={seoDescription} />
                 <meta property="og:image" content={imageUrl} />
-
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:url" content={pageUrl} />
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
-
-                {/* Inject Multiple Schemas */}
                 <script type="application/ld+json">
                     {JSON.stringify([breadcrumbSchema, articleSchema])}
                 </script>
             </Helmet>
 
-            {/* --- Main Container --- */}
-            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 dark:bg-slate-900 transition-colors duration-300">
                 <div className="lg:grid lg:grid-cols-12 lg:gap-12">
-
-                    {/* --- Left Column: Content (Width: 8/12 or 9/12) --- */}
                     <div className="lg:col-span-8 xl:col-span-9">
-
-                        {/* Breadcrumbs */}
-                        <nav className="flex items-center text-sm text-gray-500 mb-6 font-medium">
-                            <Link to="/" className="hover:text-sky-600 transition-colors">Home</Link>
+                        <nav className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
+                            <Link to="/" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                             <ChevronRight className="w-4 h-4 mx-2" />
-                            <span className="text-gray-900">{categoryName}</span>
+                            <span className="text-gray-900 dark:text-white">{categoryName}</span>
                         </nav>
 
-                        {/* Article Header */}
                         <header className="mb-10">
-                            {/* Category Pill */}
-                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-bold uppercase tracking-wider mb-4">
+                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 text-xs font-bold uppercase tracking-wider mb-4">
                                 <Tag className="w-3 h-3 mr-1.5" />
                                 {categoryName}
                             </div>
-
-                            {/* Title */}
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 leading-tight mb-6 font-serif">
+                            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6 font-serif">
                                 {post.title}
                             </h1>
-
-                            {/* Meta Row */}
-                            <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-sm text-gray-500 border-b border-gray-100 pb-8">
+                            <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-slate-800 pb-8">
                                 <div className="flex items-center">
-                                    <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3 text-gray-500">
+                                    <div className="w-10 h-10 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center mr-3 text-gray-500 dark:text-gray-300">
                                         <User className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <p className="text-gray-900 font-semibold leading-none">{authorName}</p>
+                                        <p className="text-gray-900 dark:text-white font-semibold leading-none">{authorName}</p>
                                         <p className="text-xs mt-1">Financial Analyst</p>
                                     </div>
                                 </div>
@@ -271,11 +243,14 @@ const SinglePostPage = () => {
                                     <span>{calculateReadingTime(post.content)}</span>
                                 </div>
                             </div>
+
+                            {/* AUDIO PLAYER INJECTION */}
+                            <AudioPlayer title={post.title} content={post.content} />
+
                         </header>
 
-                        {/* Cover Image */}
                         {post.coverImageUrl && (
-                            <div className="mb-10 rounded-xl overflow-hidden shadow-lg">
+                            <div className="mb-10 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-slate-800">
                                 <ResponsiveAuthImage
                                     baseName={post.coverImageUrl}
                                     alt={post.coverImageAltText || post.title}
@@ -284,29 +259,30 @@ const SinglePostPage = () => {
                             </div>
                         )}
 
-                        {/* Main Article Content */}
                         <main ref={articleRef}>
                             <article
-                                className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:font-bold prose-p:text-gray-700 prose-p:leading-8 prose-a:text-sky-600 prose-img:rounded-xl"
+                                className="prose prose-lg max-w-none 
+                                    prose-headings:font-serif prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white 
+                                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-8 
+                                    prose-a:text-sky-600 dark:prose-a:text-sky-400 
+                                    prose-strong:text-gray-900 dark:prose-strong:text-white
+                                    prose-li:text-gray-700 dark:prose-li:text-gray-300
+                                    prose-img:rounded-xl"
                                 dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)}
                             />
-
-                            {/* Share Section */}
-                            <div className="mt-16 pt-8 border-t border-gray-200">
+                            <div className="mt-16 pt-8 border-t border-gray-200 dark:border-slate-800">
                                 <ShareButtons url={pageUrl} title={post.title} />
                             </div>
-
-                            {/* Author Bio Card */}
-                            <div className="mt-12 bg-gray-50 rounded-xl p-8 flex flex-col sm:flex-row items-start gap-6 border border-gray-100">
-                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm text-sky-600 shrink-0 border border-gray-200">
+                            <div className="mt-12 bg-gray-50 dark:bg-slate-800 rounded-xl p-8 flex flex-col sm:flex-row items-start gap-6 border border-gray-100 dark:border-slate-700">
+                                <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center shadow-sm text-sky-600 dark:text-sky-400 shrink-0 border border-gray-200 dark:border-slate-600">
                                     <User className="w-8 h-8" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-900 mb-2">About the Author</h3>
-                                    <p className="text-gray-600 text-sm leading-relaxed">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">About the Author</h3>
+                                    <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">
                                         {authorName} is a dedicated financial analyst at Treishvaam Finance. With a passion for simplifying complex market dynamics, they provide actionable insights to empower investors.
                                     </p>
-                                    <Link to="/about" className="inline-block mt-3 text-sm font-semibold text-sky-600 hover:underline">
+                                    <Link to="/about" className="inline-block mt-3 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:underline">
                                         Read full bio &rarr;
                                     </Link>
                                 </div>
@@ -314,14 +290,11 @@ const SinglePostPage = () => {
                         </main>
                     </div>
 
-                    {/* --- Right Column: Sidebar (Width: 4/12 or 3/12) --- */}
                     <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
                         <div className="sticky top-24 space-y-8">
-
-                            {/* Table of Contents */}
-                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                <div className="p-4 border-b border-gray-100 bg-gray-50">
-                                    <h3 className="font-bold text-gray-900 text-sm uppercase tracking-wider">In this article</h3>
+                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden transition-colors duration-300">
+                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900">
+                                    <h3 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">In this article</h3>
                                 </div>
                                 <div className="p-4">
                                     <TableOfContents
@@ -331,16 +304,13 @@ const SinglePostPage = () => {
                                     />
                                 </div>
                             </div>
-
-                            {/* Ad / CTA Placeholder */}
-                            <div className="bg-sky-50 rounded-xl p-6 text-center border border-sky-100">
-                                <h4 className="font-bold text-sky-900 mb-2">Stay Updated</h4>
-                                <p className="text-sm text-sky-700 mb-4">Join our community for daily market insights.</p>
-                                <Link to="/contact" className="block w-full py-2 px-4 bg-sky-600 text-white rounded-lg font-semibold text-sm hover:bg-sky-700 transition-colors">
+                            <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-6 text-center border border-sky-100 dark:border-sky-800/50">
+                                <h4 className="font-bold text-sky-900 dark:text-sky-200 mb-2">Stay Updated</h4>
+                                <p className="text-sm text-sky-700 dark:text-sky-300 mb-4">Join our community for daily market insights.</p>
+                                <Link to="/contact" className="block w-full py-2 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-sm transition-colors">
                                     Get in Touch
                                 </Link>
                             </div>
-
                         </div>
                     </aside>
                 </div>
@@ -348,5 +318,4 @@ const SinglePostPage = () => {
         </>
     );
 }
-
 export default SinglePostPage;
