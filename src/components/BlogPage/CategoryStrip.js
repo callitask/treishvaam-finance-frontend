@@ -1,50 +1,48 @@
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 
-const CategoryStripMobile = ({ categories, selectedCategory, setSelectedCategory }) => {
-    const scrollRef = useRef(null);
+const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, loading }) => {
     const allCategories = ['All', ...categories.map(cat => cat.name)];
 
-    // Auto-scroll to selected category
-    useEffect(() => {
-        if (scrollRef.current) {
-            const selectedBtn = scrollRef.current.querySelector('[data-selected="true"]');
-            if (selectedBtn) {
-                selectedBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            }
-        }
-    }, [selectedCategory]);
+    if (loading) {
+        return (
+            <div className="w-full h-12 bg-white border-b border-gray-200 animate-pulse flex items-center px-4 gap-4">
+                <div className="h-4 w-16 bg-gray-100 rounded"></div>
+                <div className="h-4 w-20 bg-gray-100 rounded"></div>
+                <div className="h-4 w-14 bg-gray-100 rounded"></div>
+                <div className="h-4 w-24 bg-gray-100 rounded"></div>
+            </div>
+        );
+    }
 
     return (
-        <div className="sticky top-14 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-sm">
-            <div
-                ref={scrollRef}
-                className="flex items-center overflow-x-auto no-scrollbar py-0 px-2 gap-1 h-12"
-            >
-                {allCategories.map((cat) => {
-                    const isActive = selectedCategory === cat;
-                    return (
-                        <button
-                            key={cat}
-                            data-selected={isActive}
-                            onClick={() => {
-                                setSelectedCategory(cat);
-                                window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className={`
-                                flex-shrink-0 px-4 h-full flex items-center justify-center text-[13px] font-medium transition-all duration-200 whitespace-nowrap border-b-[3px]
-                                ${isActive
-                                    ? 'border-sky-600 text-sky-700 font-bold'
-                                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                                }
-                            `}
-                        >
-                            {cat}
-                        </button>
-                    );
-                })}
+        <div className="w-full bg-white border-b border-gray-200 z-40 relative">
+            <div className="container mx-auto px-4">
+                <div className="flex items-center h-12 overflow-x-auto no-scrollbar gap-1">
+                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4 flex-shrink-0">
+                        Sections
+                    </span>
+                    {allCategories.map((cat) => {
+                        const isActive = selectedCategory === cat;
+                        return (
+                            <button
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`
+                                    px-4 h-full flex items-center text-xs font-bold uppercase tracking-wide transition-all duration-200 whitespace-nowrap border-b-2
+                                    ${isActive
+                                        ? 'border-sky-600 text-sky-700 bg-sky-50/50'
+                                        : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                    }
+                                `}
+                            >
+                                {cat}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
 };
 
-export default CategoryStripMobile;
+export default CategoryStrip;

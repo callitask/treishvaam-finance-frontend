@@ -6,39 +6,54 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- GLOBAL APP BEHAVIOR (Native Feel) --- */
+/* --- GLOBAL APP BEHAVIOR --- */
 html, body {
-  overscroll-behavior-y: none; /* Prevents "rubber banding" on iOS */
-  touch-action: manipulation;  /* Improves touch response */
-  -webkit-tap-highlight-color: transparent; /* Removes blue tap box */
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   font-family: 'Inter', sans-serif;
-  color: #111827;
-  background-color: #f8fafc; /* Cool gray, typical of enterprise apps */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden; 
-  text-rendering: optimizeLegibility;
+  @apply bg-slate-50 text-gray-900 transition-colors duration-300; 
+}
+
+/* Dark Mode Overrides for Body */
+.dark body {
+  @apply bg-slate-900 text-gray-100;
 }
 
 /* --- UTILITIES --- */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Safe Area Insets for iPhone Notches */
 .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
 .safe-pt { padding-top: env(safe-area-inset-top); }
 
-/* --- TYPOGRAPHY SYSTEM --- */
-.font-serif { font-family: 'Merriweather', serif; } /* For Headlines (Authority) */
-.font-sans { font-family: 'Inter', sans-serif; }   /* For UI/Data (Readability) */
+.font-serif { font-family: 'Merriweather', serif; }
+.font-sans { font-family: 'Inter', sans-serif; }
 
-/* --- SKELETON LOADER (Shimmer) --- */
+/* --- SKELETON LOADER (Adaptive) --- */
 .skeleton {
-    background: #e5e7eb;
-    background-image: linear-gradient(to right, #e5e7eb 0%, #f3f4f6 20%, #e5e7eb 40%, #e5e7eb 100%);
+    @apply bg-gray-200 dark:bg-slate-700; 
+    background-image: linear-gradient(to right, var(--tw-gradient-stops)); 
+}
+
+/* Light Mode Skeleton Gradient */
+.skeleton {
+    --tw-gradient-from: #e5e7eb; 
+    --tw-gradient-to: #e5e7eb;
+    --tw-gradient-stops: var(--tw-gradient-from), #f3f4f6, var(--tw-gradient-to);
+}
+
+/* Dark Mode Skeleton Gradient */
+.dark .skeleton {
+    --tw-gradient-from: #334155; /* slate-700 */
+    --tw-gradient-to: #334155;
+    --tw-gradient-stops: var(--tw-gradient-from), #1e293b, var(--tw-gradient-to); 
+}
+
+.skeleton {
     background-repeat: no-repeat;
     background-size: 800px 100%; 
     animation: shimmer 1.5s infinite linear forwards;
@@ -51,5 +66,11 @@ body {
 }
 
 @layer components {
-  .cta-button-primary { @apply bg-sky-700 hover:bg-sky-800 text-white shadow-sm; }
+  .cta-button-primary { 
+      @apply bg-sky-700 hover:bg-sky-800 text-white shadow-sm dark:bg-sky-600 dark:hover:bg-sky-500; 
+  }
+  
+  .card-base {
+      @apply bg-white border border-gray-200 shadow-sm rounded-lg dark:bg-slate-800 dark:border-slate-700;
+  }
 }
