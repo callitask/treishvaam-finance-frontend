@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
-import { FaLinkedin, FaFileAlt, FaEye, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+// FIX: Removed 'FaEye' from imports
+import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ApiStatusPanel from '../components/ApiStatusPanel';
 

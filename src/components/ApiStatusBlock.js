@@ -17,7 +17,9 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [isFlushing, setIsFlushing] = useState(false);
     const [showAllLogs, setShowAllLogs] = useState(false);
-    const { hours, minutes, seconds, isFinished } = useCountdown(nextRefreshTime);
+
+    // FIX: Removed unused 'seconds'
+    const { hours, minutes, isFinished } = useCountdown(nextRefreshTime);
 
     // Get the most recent log for the header status
     const latestLog = logs && logs.length > 0 ? logs[0] : null;
@@ -145,7 +147,7 @@ const LogItem = ({ log }) => {
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit', // <--- Added seconds
+        second: '2-digit',
         hour12: true
     }) : 'Unknown Date';
 
