@@ -9,7 +9,6 @@ const ApiStatusPanel = () => {
     const [modalState, setModalState] = useState({ isOpen: false, onConfirm: null, title: '' });
     const [isActionLoading, setIsActionLoading] = useState(false);
 
-
     const fetchLogs = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -27,13 +26,13 @@ const ApiStatusPanel = () => {
     }, [fetchLogs]);
 
     const handleFlushRequest = (flushHandler, title) => {
-        setModalState({ 
-            isOpen: true, 
-            onConfirm: (password) => flushHandler(password), 
-            title: title 
+        setModalState({
+            isOpen: true,
+            onConfirm: (password) => flushHandler(password),
+            title: title
         });
     };
-    
+
     const handleModalConfirm = async (password) => {
         if (modalState.onConfirm) {
             setIsActionLoading(true);
@@ -49,36 +48,33 @@ const ApiStatusPanel = () => {
             }
         }
     };
-    
 
+    // --- CONFIGURATION UPDATED FOR ENTERPRISE PIPELINE ---
     const blockConfigs = [
         {
-            title: "US Market Indices (Charts)",
-            logFilters: ["Market Chart"],
-            onRefresh: refreshIndices,
-            flushHandler: flushIndices,
+            title: "Data Pipeline (Python)",
+            desc: "Daily script for historical charts & quotes.",
+            logFilters: ["Market Data Pipeline (Python)", "Python Data Update"],
+            onRefresh: refreshIndices, // Triggers python script
+            flushHandler: flushIndices, // Clears cache if needed
+            nextRefreshTime: getNextScheduledTime(1, 0, "UTC") // 1 AM UTC
+        },
+        {
+            title: "Market Movers API",
+            desc: "Top Gainers, Losers, and Most Active (FMP).",
+            logFilters: ["Market Movers -", "Market Data - Top"], // Catches new and old logs
+            onRefresh: refreshMovers,
+            flushHandler: flushMovers,
+            nextRefreshTime: getNextScheduledTime(22, 0, "UTC") // 10 PM UTC
+        },
+        {
+            title: "News Aggregator",
+            desc: "External news fetching service.",
+            logFilters: ["News Highlights"],
+            // Assuming refreshNews exists in imports if needed, else null
+            onRefresh: null,
+            flushHandler: null,
             nextRefreshTime: null
-        },
-        {
-            title: "Top Gainers (US)",
-            logFilters: ["Market Data - Top Gainers (US)"],
-            onRefresh: refreshMovers,
-            flushHandler: flushMovers,
-            nextRefreshTime: getNextScheduledTime(22, 0, "UTC")
-        },
-        {
-            title: "Top Losers (US)",
-            logFilters: ["Market Data - Top Losers (US)"],
-            onRefresh: refreshMovers,
-            flushHandler: flushMovers,
-            nextRefreshTime: getNextScheduledTime(22, 0, "UTC")
-        },
-        {
-            title: "Most Active (US)",
-            logFilters: ["Market Data - Most Active (US)"],
-            onRefresh: refreshMovers,
-            flushHandler: flushMovers,
-            nextRefreshTime: getNextScheduledTime(22, 0, "UTC")
         }
     ];
 
@@ -87,14 +83,24 @@ const ApiStatusPanel = () => {
     };
 
     return (
-        <div className="bg-gray-50 p-4 sm:p-6 lg:p-8">
-             <h2 className="text-2xl font-bold mb-6 text-gray-800">API Status & Control Center</h2>
-            {isLoading ? <p>Loading logs...</p> : (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 mb-8">
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-900">System Status</h2>
+                    <p className="text-sm text-gray-500">Monitor data pipelines and API health.</p>
+                </div>
+                <button onClick={fetchLogs} className="text-sm text-blue-600 hover:underline">
+                    Refresh Logs
+                </button>
+            </div>
+
+            {isLoading ? <p className="text-sm text-gray-500">Loading status logs...</p> : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {blockConfigs.map((config) => (
                         <ApiStatusBlock
                             key={config.title}
                             title={config.title}
+                            desc={config.desc}
                             logs={filterLogs(config.logFilters)}
                             onRefresh={config.onRefresh}
                             onFlush={(handler) => handleFlushRequest((password) => handler(password, config.flushHandler), `Flush ${config.title}`)}
@@ -117,16 +123,11 @@ const ApiStatusPanel = () => {
 function getNextScheduledTime(hour, minute, timeZone) {
     const now = new Date();
     let nextRefresh = new Date();
-    
     nextRefresh.setUTCHours(hour, minute, 0, 0);
-
     if (now.getTime() > nextRefresh.getTime()) {
         nextRefresh.setUTCDate(nextRefresh.getUTCDate() + 1);
     }
-    
-    // This doesn't account for MON-FRI, but is fine for a countdown.
     return nextRefresh;
 }
-
 
 export default ApiStatusPanel;
