@@ -15,6 +15,9 @@ import HeroSection from '../components/BlogPage/HeroSection';
 // Mobile Components
 import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
 
+// Utils
+import { distributeContent } from '../utils/editorialDistributor';
+
 // Lazy Load Mobile Tabs
 const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/MarketSlideMobile'));
 const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
@@ -85,45 +88,14 @@ const BlogPage = () => {
         let postsToFilter = posts;
         if (selectedCategory !== "All") { postsToFilter = postsToFilter.filter(p => p.category?.name === selectedCategory); }
         if (searchTerm) { const term = searchTerm.toLowerCase(); postsToFilter = postsToFilter.filter(p => p.title.toLowerCase().includes(term)); }
+        // Ensure standard date sort as baseline
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Layout Logic ---
-    const { heroPost, gridPosts } = useMemo(() => {
-        if (filteredPosts.length > 0) {
-            return {
-                heroPost: filteredPosts[0],
-                gridPosts: filteredPosts.slice(1)
-            };
-        }
-        return { heroPost: null, gridPosts: [] };
+    // --- Layout Logic (New Editorial Distributor) ---
+    const { hero, mustRead, briefing, feed } = useMemo(() => {
+        return distributeContent(filteredPosts);
     }, [filteredPosts]);
-
-    const mobileLayout = useMemo(() => {
-        return filteredPosts.map(post => ({ ...post }));
-    }, [filteredPosts]);
-
-    const desktopLayoutBlocks = useMemo(() => {
-        if (gridPosts.length === 0) return [];
-        const blocks = []; let currentDefaultBlock = []; const multiColumnGroups = {};
-        gridPosts.forEach(post => { if (post.layoutStyle && post.layoutStyle.startsWith('MULTI_COLUMN') && post.layoutGroupId) { if (!multiColumnGroups[post.layoutGroupId]) { multiColumnGroups[post.layoutGroupId] = { type: post.layoutStyle, posts: [] }; } multiColumnGroups[post.layoutGroupId].posts.push(post); } });
-        for (const groupId in multiColumnGroups) { multiColumnGroups[groupId].posts.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt)); }
-        const processedGroupIds = new Set();
-        gridPosts.forEach(post => {
-            const style = post.layoutStyle || 'DEFAULT';
-            if (style === 'BANNER') {
-                if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); currentDefaultBlock = []; }
-                blocks.push({ id: `banner-${post.id}`, type: 'BANNER', posts: [post] });
-            } else if (style.startsWith('MULTI_COLUMN') && post.layoutGroupId) {
-                if (processedGroupIds.has(post.layoutGroupId)) return;
-                if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); currentDefaultBlock = []; }
-                blocks.push({ id: post.layoutGroupId, ...multiColumnGroups[post.layoutGroupId] });
-                processedGroupIds.add(post.layoutGroupId);
-            } else { currentDefaultBlock.push(post); }
-        });
-        if (currentDefaultBlock.length > 0) { blocks.push({ id: `default-${blocks.length}`, type: 'DEFAULT', posts: currentDefaultBlock }); }
-        return blocks;
-    }, [gridPosts]);
 
     const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
     const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
@@ -202,6 +174,8 @@ const BlogPage = () => {
                     </div>
                     <div className="container mx-auto px-4 lg:px-6 pt-10 pb-20">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+
+                            {/* LEFT COLUMN: The Briefing */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
                                 <div className="sticky top-40 space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
@@ -210,23 +184,33 @@ const BlogPage = () => {
                                     <FeaturedColumn />
                                 </div>
                             </aside>
+
+                            {/* CENTER COLUMN: Main Editorial Feed */}
                             <div className="lg:col-span-8 xl:col-span-6 order-2 px-0 lg:px-4">
-                                <HeroSection featuredPost={heroPost} />
+
+                                {/* 1. HERO SECTION */}
+                                <HeroSection featuredPost={hero} />
+
                                 <div className="flex items-center gap-3 mb-6">
                                     <span className="w-2 h-8 bg-sky-700"></span>
                                     <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">Latest Analysis</h2>
                                 </div>
+
+                                {/* 2. SMART GRID (Must Read + Briefs + Standard) */}
                                 <BlogGridDesktop
-                                    desktopLayoutBlocks={desktopLayoutBlocks}
+                                    mustReadPost={mustRead}
+                                    briefingPosts={briefing}
+                                    feedPosts={feed}
                                     lastPostElementRef={lastPostElementRef}
                                     onCategoryClick={setSelectedCategory}
                                     categoriesMap={categoriesMap}
                                     loading={loading}
                                     page={page}
                                     hasMore={hasMore}
-                                    postCount={gridPosts.length}
                                 />
                             </div>
+
+                            {/* RIGHT COLUMN: Market Data */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
                                 <div className="sticky top-40 space-y-10">
                                     <MarketSidebar />
@@ -237,12 +221,11 @@ const BlogPage = () => {
                 </div>
 
                 {/* --- MOBILE LAYOUT --- */}
-                {/* Fixed: pt-14 matches Navbar height to prevent gap */}
                 <div className="md:hidden pb-20 pt-14">
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile
-                                mobileLayout={mobileLayout}
+                                mobileLayout={filteredPosts} // Mobile still handles raw list for swipe perf, but could be upgraded later
                                 lastPostElementRef={lastPostElementRef}
                                 onCategoryClick={setSelectedCategory}
                                 categoriesMap={categoriesMap}

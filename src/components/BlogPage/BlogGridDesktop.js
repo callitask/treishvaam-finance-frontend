@@ -1,6 +1,6 @@
 import React from 'react';
 import FeedRowCard from './FeedRowCard';
-import FeedTextCard from './FeedTextCard'; // The new component
+import FeedTextCard from './FeedTextCard';
 import FeedGridCard from './FeedGridCard';
 
 // Skeleton for loading state
@@ -20,7 +20,9 @@ const FeedSkeleton = () => (
 );
 
 const BlogGridDesktop = ({
-    desktopLayoutBlocks,
+    mustReadPost,
+    briefingPosts,
+    feedPosts,
     lastPostElementRef,
     onCategoryClick,
     categoriesMap,
@@ -29,45 +31,29 @@ const BlogGridDesktop = ({
     hasMore
 }) => {
 
-    // Flatten logic
-    let allPosts = [];
-    if (desktopLayoutBlocks && desktopLayoutBlocks.length > 0) {
-        desktopLayoutBlocks.forEach(block => {
-            if (block.posts && Array.isArray(block.posts)) {
-                allPosts = [...allPosts, ...block.posts];
-            }
-        });
-    }
-
     if (loading && page === 0) return <FeedSkeleton />;
-    if (allPosts.length === 0) return <div className="py-20 text-center"><p className="text-gray-500 italic">No analysis found.</p></div>;
 
-    // --- THE "RHYTHM" SPLIT LOGIC ---
-    // 1. The Anchor (First post)
-    const anchorPost = allPosts[0];
-
-    // 2. The Briefing Strip (Next 3 posts)
-    const briefingPosts = allPosts.slice(1, 4);
-
-    // 3. The Grid (Everything else)
-    const gridPosts = allPosts.slice(4);
+    // Check if we have literally no content to show in this grid area
+    if (!mustReadPost && briefingPosts.length === 0 && feedPosts.length === 0) {
+        return <div className="py-20 text-center"><p className="text-gray-500 italic">No analysis found.</p></div>;
+    }
 
     return (
         <div className="w-full">
 
-            {/* ZONE 1: THE ANCHOR */}
-            {anchorPost && (
+            {/* ZONE 1: THE SECONDARY LEAD (Must Read) */}
+            {mustReadPost && (
                 <div className="mb-8">
                     <FeedRowCard
-                        article={anchorPost}
+                        article={mustReadPost}
                         onCategoryClick={onCategoryClick}
                         categoriesMap={categoriesMap}
                     />
                 </div>
             )}
 
-            {/* ZONE 2: THE BRIEFING STRIP (Row of 3 Text Cards) */}
-            {briefingPosts.length > 0 && (
+            {/* ZONE 2: THE BRIEFING STRIP (Market Briefs) */}
+            {briefingPosts && briefingPosts.length > 0 && (
                 <div className="mb-10 py-6 border-y border-gray-100 bg-white">
                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
                         Quick Reads
@@ -85,8 +71,8 @@ const BlogGridDesktop = ({
                 </div>
             )}
 
-            {/* ZONE 3: THE ARCHIVE GRID (2-Col) */}
-            {gridPosts.length > 0 && (
+            {/* ZONE 3: THE MAIN FEED (Standard) */}
+            {feedPosts.length > 0 && (
                 <div>
                     <div className="flex items-center gap-2 mb-6">
                         <span className="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
@@ -96,8 +82,8 @@ const BlogGridDesktop = ({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-                        {gridPosts.map((article, index) => {
-                            const isLast = index === gridPosts.length - 1;
+                        {feedPosts.map((article, index) => {
+                            const isLast = index === feedPosts.length - 1;
                             return (
                                 <div key={article.id} ref={isLast ? lastPostElementRef : null}>
                                     <FeedGridCard
@@ -119,7 +105,7 @@ const BlogGridDesktop = ({
                 </div>
             )}
 
-            {!hasMore && allPosts.length > 0 && (
+            {!hasMore && feedPosts.length > 0 && (
                 <div className="mt-12 py-8 text-center border-t border-gray-100">
                     <span className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
                         End of Feed
