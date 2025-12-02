@@ -5,30 +5,6 @@ import { Helmet } from 'react-helmet-async';
 import { ShieldCheck, Users, TrendingUp, Lightbulb, Linkedin } from 'lucide-react';
 
 const AboutPage = () => {
-    // Schema for the Organization and Founder
-    const structuredData = {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Treishvaam Finance",
-        "url": "https://treishfin.treishvaamgroup.com",
-        "logo": "https://treishfin.treishvaamgroup.com/logo.webp",
-        "founder": {
-            "@type": "Person",
-            "name": "Amitsagar Kandpal",
-            "alternateName": "Treishvaam",
-            "jobTitle": "Founder",
-            "alumniOf": "University of Delhi",
-            "sameAs": [
-                "https://www.linkedin.com/in/amitsagarkandpal"
-            ]
-        },
-        "sameAs": [
-            "https://www.linkedin.com/company/treishvaamfinance",
-            "https://instagram.com/treishvaamfinance",
-            "https://facebook.com/treishvaamfinance"
-        ]
-    };
-
     return (
         <>
             <Helmet>
@@ -47,10 +23,6 @@ const AboutPage = () => {
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="About Treishvaam Finance" />
                 <meta name="twitter:description" content="Meet the team bridging the gap between complex markets and financial freedom." />
-
-                <script type="application/ld+json">
-                    {JSON.stringify(structuredData)}
-                </script>
             </Helmet>
 
             {/* --- Hero Section --- */}

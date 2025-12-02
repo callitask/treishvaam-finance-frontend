@@ -93,7 +93,6 @@ const BlogPage = () => {
     }, [posts, selectedCategory, searchTerm]);
 
     // --- Layout Logic (New Editorial Distributor) ---
-    // This sorts posts into buckets (Hero, Must Read, etc.) for BOTH Desktop and Mobile
     const { hero, mustRead, briefing, feed } = useMemo(() => {
         return distributeContent(filteredPosts);
     }, [filteredPosts]);
@@ -101,13 +100,6 @@ const BlogPage = () => {
     const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
     const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
     const canonicalUrl = "https://treishfin.treishvaamgroup.com/";
-
-    const schemaData = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "Treishvaam Finance",
-        "url": canonicalUrl
-    };
 
     if (error) {
         return (
@@ -155,7 +147,6 @@ const BlogPage = () => {
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
                 <link rel="canonical" href={canonicalUrl} />
-                <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
             </Helmet>
 
             <section className="bg-white min-h-screen font-sans">

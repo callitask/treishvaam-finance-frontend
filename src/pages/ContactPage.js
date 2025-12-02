@@ -47,33 +47,12 @@ const ContactPage = () => {
         }
     };
 
-    // JSON-LD Schema
-    const schemaData = {
-        "@context": "https://schema.org",
-        "@type": "ContactPage",
-        "name": "Contact Treishvaam Finance",
-        "description": "Get in touch with our team for inquiries about courses, partnerships, or market analysis.",
-        "mainEntity": {
-            "@type": "Organization",
-            "name": "Treishvaam Finance",
-            "contactPoint": {
-                "@type": "ContactPoint",
-                "telephone": contactInfo.phone,
-                "email": contactInfo.email,
-                "contactType": "customer service",
-                "areaServed": "IN",
-                "availableLanguage": ["English", "Hindi"]
-            }
-        }
-    };
-
     return (
         <>
             <Helmet>
                 <title>Contact Us | Treishvaam Finance</title>
                 <meta name="description" content="Reach out to Treishvaam Finance for expert financial insights, course details, or partnership opportunities. We are here to help." />
                 <link rel="canonical" href="https://treishfin.treishvaamgroup.com/contact" />
-                <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
             </Helmet>
 
             <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 flex items-center justify-center relative">
