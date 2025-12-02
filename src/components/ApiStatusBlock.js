@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
-import { FaSync, FaTrash, FaCheckCircle, FaExclamationCircle, FaChevronDown, FaChevronUp, FaClock } from 'react-icons/fa';
+import { FaSync, FaTrash, FaCheckCircle, FaExclamationCircle, FaChevronDown, FaChevronUp, FaClock, FaTerminal, FaHistory } from 'react-icons/fa';
 import { useCountdown } from '../hooks/useCountdown';
+
+// Helper to parse Java LocalDateTime arrays [2025, 12, 2, 10, 0, 0] or ISO strings
+const parseJavaDate = (dateData) => {
+    if (!dateData) return null;
+    if (Array.isArray(dateData)) {
+        const [year, month, day, hour, minute, second] = dateData;
+        // JS Date month is 0-indexed (0=Jan, 11=Dec)
+        return new Date(year, month - 1, day, hour || 0, minute || 0, second || 0);
+    }
+    return new Date(dateData);
+};
 
 const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime }) => {
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -8,11 +19,17 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
     const [showAllLogs, setShowAllLogs] = useState(false);
     const { hours, minutes, seconds, isFinished } = useCountdown(nextRefreshTime);
 
+    // Get the most recent log for the header status
+    const latestLog = logs && logs.length > 0 ? logs[0] : null;
+    const isHealthy = latestLog?.status === 'SUCCESS';
+    const isPending = latestLog?.status === 'PENDING';
+
     const handleRefresh = async () => {
         if (!onRefresh) return;
         setIsRefreshing(true);
         await onRefresh();
-        setIsRefreshing(false);
+        // Keep spinning briefly to show interaction
+        setTimeout(() => setIsRefreshing(false), 1000);
     };
 
     const handleFlush = async (password, flushFn) => {
@@ -27,93 +44,132 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
 
     const formatTime = (t) => t.toString().padStart(2, '0');
     const countdownText = isFinished
-        ? "Due"
+        ? "Due Now"
         : `${formatTime(hours)}h ${formatTime(minutes)}m`;
 
-    const logsToShow = showAllLogs ? logs : logs.slice(0, 5); // Default show 5
+    const logsToShow = showAllLogs ? logs : logs.slice(0, 5);
 
     return (
-        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 flex flex-col h-full">
-            <div className="flex justify-between items-start mb-3">
-                <div>
-                    <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                        {title}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-full transition-all duration-200 hover:shadow-md">
+            {/* --- CARD HEADER --- */}
+            <div className="p-5 border-b border-gray-100 flex justify-between items-start bg-gray-50/50 rounded-t-xl">
+                <div className="flex gap-3">
+                    {/* Status Icon */}
+                    <div className={`mt-1 w-2.5 h-2.5 rounded-full shadow-sm ${isPending ? 'bg-amber-400 animate-pulse' : (isHealthy ? 'bg-emerald-500' : 'bg-red-500')}`}></div>
+
+                    <div>
+                        <h3 className="font-bold text-gray-900 text-base leading-none flex items-center gap-2">
+                            {title}
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1.5 font-medium">{desc}</p>
+
+                        {/* Next Run Indicator */}
                         {nextRefreshTime && (
-                            <span className="text-[10px] font-normal px-2 py-0.5 bg-gray-200 rounded-full text-gray-600 flex items-center gap-1">
-                                <FaClock size={8} /> {countdownText}
-                            </span>
+                            <div className="flex items-center gap-1.5 mt-2 text-[10px] uppercase tracking-wider font-bold text-gray-400">
+                                <FaClock size={10} />
+                                <span>Next Run: <span className="text-gray-600">{countdownText}</span></span>
+                            </div>
                         )}
-                    </h3>
-                    {desc && <p className="text-xs text-gray-500 mt-0.5">{desc}</p>}
+                    </div>
                 </div>
 
-                <div className="flex items-center space-x-1">
+                {/* Actions */}
+                <div className="flex items-center gap-1">
                     {onRefresh && (
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="p-1.5 text-sky-600 hover:bg-sky-100 rounded transition disabled:opacity-50"
+                            className="p-2 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all disabled:opacity-50"
                             title="Run Pipeline Now"
                         >
-                            <FaSync size={12} className={isRefreshing ? 'animate-spin' : ''} />
+                            <FaSync size={14} className={isRefreshing ? 'animate-spin text-sky-600' : ''} />
                         </button>
                     )}
                     {onFlush && (
                         <button
                             onClick={() => onFlush(handleFlush)}
                             disabled={isFlushing}
-                            className="p-1.5 text-red-500 hover:bg-red-100 rounded transition disabled:opacity-50"
-                            title="Flush Data"
+                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                            title="Flush Data Cache"
                         >
-                            <FaTrash size={12} />
+                            <FaTrash size={14} />
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Scrollable Logs Container */}
-            <div className="flex-1 min-h-[100px] bg-white border border-gray-200 rounded-md overflow-hidden flex flex-col">
-                <div className="overflow-y-auto max-h-48 p-2 space-y-2 custom-scrollbar">
-                    {logsToShow.length > 0 ? logsToShow.map(log => (
-                        <LogItem key={log.id} log={log} />
-                    )) : (
-                        <div className="h-full flex items-center justify-center text-xs text-gray-400 italic">
-                            No logs found.
+            {/* --- LOGS SECTION --- */}
+            <div className="flex-1 p-0 flex flex-col min-h-[160px]">
+                <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    <FaTerminal size={10} /> System Logs
+                </div>
+
+                <div className="flex-1 overflow-y-auto max-h-60 custom-scrollbar p-0">
+                    {logsToShow.length > 0 ? (
+                        <div className="divide-y divide-gray-50">
+                            {logsToShow.map(log => (
+                                <LogItem key={log.id} log={log} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="h-32 flex flex-col items-center justify-center text-gray-300">
+                            <FaHistory size={24} className="mb-2 opacity-20" />
+                            <span className="text-xs">No logs recorded</span>
                         </div>
                     )}
                 </div>
-            </div>
 
-            {logs.length > 5 && (
-                <button
-                    onClick={() => setShowAllLogs(!showAllLogs)}
-                    className="text-xs text-center text-gray-500 hover:text-gray-800 mt-2 font-medium flex items-center justify-center gap-1 w-full"
-                >
-                    {showAllLogs ? 'Collapse' : `View ${logs.length - 5} older logs`}
-                    {showAllLogs ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />}
-                </button>
-            )}
+                {logs.length > 5 && (
+                    <button
+                        onClick={() => setShowAllLogs(!showAllLogs)}
+                        className="w-full py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 hover:bg-gray-50 border-t border-gray-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                        {showAllLogs ? <FaChevronUp /> : <FaChevronDown />}
+                        {showAllLogs ? 'Collapse History' : `Show ${logs.length - 5} More`}
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
 
 const LogItem = ({ log }) => {
     const isSuccess = log.status === 'SUCCESS';
-    // Format: "Dec 2, 10:30 PM"
-    const dateStr = new Date(log.lastFetchTime).toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
-    });
+    const isPending = log.status === 'PENDING';
+
+    const dateObj = parseJavaDate(log.lastFetchTime);
+
+    // Exact Time Format: "Dec 2, 10:30:45 PM"
+    const dateStr = dateObj ? dateObj.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit', // <--- Added seconds
+        hour12: true
+    }) : 'Unknown Date';
 
     return (
-        <div className={`text-xs border-l-2 pl-2 ${isSuccess ? 'border-green-500' : 'border-red-500'}`}>
-            <div className="flex justify-between items-center mb-0.5">
-                <span className={`font-bold ${isSuccess ? 'text-green-700' : 'text-red-700'}`}>
-                    {log.status}
-                </span>
-                <span className="text-[10px] text-gray-400">{dateStr}</span>
+        <div className="px-5 py-3 hover:bg-gray-50 transition-colors group">
+            <div className="flex justify-between items-start mb-1">
+                <div className="flex items-center gap-2">
+                    {isPending ? (
+                        <FaSync size={10} className="animate-spin text-amber-500" />
+                    ) : (
+                        isSuccess ? <FaCheckCircle size={10} className="text-emerald-500" /> : <FaExclamationCircle size={10} className="text-red-500" />
+                    )}
+                    <span className={`text-xs font-bold ${isPending ? 'text-amber-600' : (isSuccess ? 'text-emerald-700' : 'text-red-700')}`}>
+                        {log.status}
+                    </span>
+                </div>
+                <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">{dateStr}</span>
             </div>
-            <div className="text-gray-600 leading-tight">
-                <span className="font-semibold text-gray-500">{log.triggerSource}:</span> {log.details}
+
+            <div className="pl-5">
+                <div className="text-xs text-gray-700 font-medium break-words leading-relaxed">
+                    <span className="text-gray-400 font-normal mr-1">[{log.triggerSource}]:</span>
+                    {log.details}
+                </div>
             </div>
         </div>
     );
