@@ -88,11 +88,12 @@ const BlogPage = () => {
         let postsToFilter = posts;
         if (selectedCategory !== "All") { postsToFilter = postsToFilter.filter(p => p.category?.name === selectedCategory); }
         if (searchTerm) { const term = searchTerm.toLowerCase(); postsToFilter = postsToFilter.filter(p => p.title.toLowerCase().includes(term)); }
-        // Ensure standard date sort as baseline
+        // Ensure standard date sort as baseline before distribution
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
     // --- Layout Logic (New Editorial Distributor) ---
+    // This sorts posts into buckets (Hero, Must Read, etc.) for BOTH Desktop and Mobile
     const { hero, mustRead, briefing, feed } = useMemo(() => {
         return distributeContent(filteredPosts);
     }, [filteredPosts]);
@@ -225,7 +226,13 @@ const BlogPage = () => {
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile
-                                mobileLayout={filteredPosts} // Mobile still handles raw list for swipe perf, but could be upgraded later
+                                // NEW: Pass explicit sections to Mobile
+                                heroPost={hero}
+                                mustReadPost={mustRead}
+                                briefingPosts={briefing}
+                                feedPosts={feed}
+
+                                // Standard Props
                                 lastPostElementRef={lastPostElementRef}
                                 onCategoryClick={setSelectedCategory}
                                 categoriesMap={categoriesMap}

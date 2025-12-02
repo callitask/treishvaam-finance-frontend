@@ -1,4 +1,3 @@
-// src/components/BlogPage/BlogSlideMobile.js
 import React from 'react';
 import { Link } from 'react-router-dom';
 import MobilePostCard from './MobilePostCard';
@@ -6,7 +5,10 @@ import CategoryStripMobile from './CategoryStripMobile';
 import GlobalMarketTicker from '../market/GlobalMarketTicker';
 
 const BlogSlideMobile = ({
-    mobileLayout,
+    heroPost,
+    mustReadPost,
+    briefingPosts,
+    feedPosts,
     lastPostElementRef,
     onCategoryClick,
     categoriesMap,
@@ -18,9 +20,11 @@ const BlogSlideMobile = ({
     hasMore
 }) => {
 
-    const heroPost = mobileLayout[0];
-    const railPosts = mobileLayout.slice(1, 6);
-    const listPosts = mobileLayout.slice(6);
+    // Construct the "Rail" content from Must Read + Briefings
+    const railPosts = [
+        ...(mustReadPost ? [mustReadPost] : []),
+        ...(briefingPosts || [])
+    ];
 
     return (
         <div className="min-h-screen bg-white dark:bg-slate-900 pb-24 w-full overflow-x-hidden transition-colors duration-300">
@@ -35,7 +39,7 @@ const BlogSlideMobile = ({
                 setSelectedCategory={setSelectedCategory}
             />
 
-            {/* 3. HERO STORY */}
+            {/* 3. HERO STORY (Explicitly the Editor's Choice) */}
             {heroPost && (
                 <div className="mb-0 border-t border-gray-100 dark:border-slate-800">
                     <MobilePostCard
@@ -47,7 +51,7 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 4. MUST READS RAIL */}
+            {/* 4. MUST READS RAIL (Combines "Must Read" & "Briefings") */}
             {railPosts.length > 0 && (
                 <div className="py-5 pl-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 mb-3">
                     <div className="flex items-center justify-between pr-4 mb-3">
@@ -61,7 +65,7 @@ const BlogSlideMobile = ({
                         {railPosts.map(post => (
                             <Link
                                 key={post.id}
-                                to={`/category/${post.category?.slug || 'news'}/${post.userFriendlySlug}/${post.urlArticleId}`}
+                                to={`/category/${categoriesMap[post.category?.name] || 'news'}/${post.userFriendlySlug}/${post.urlArticleId}`}
                                 className="flex-shrink-0 w-64 bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm active:scale-95 transition-transform"
                             >
                                 <div className="flex items-center gap-2 mb-2">
@@ -77,15 +81,15 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 5. MAIN FEED */}
+            {/* 5. MAIN FEED (Standard Grid Posts) */}
             <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800">
                 <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50">
                     <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Latest Stories</h4>
                 </div>
 
-                {listPosts.length > 0 ? (
-                    listPosts.map((article, index) => {
-                        const isLastPost = index === listPosts.length - 1;
+                {feedPosts.length > 0 ? (
+                    feedPosts.map((article, index) => {
+                        const isLastPost = index === feedPosts.length - 1;
                         return (
                             <MobilePostCard
                                 key={article.id}
@@ -119,7 +123,7 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {!hasMore && mobileLayout.length > 0 && (
+            {!hasMore && feedPosts.length > 0 && (
                 <div className="py-8 text-center bg-gray-100 dark:bg-slate-950">
                     <div className="w-12 h-1 bg-gray-300 dark:bg-slate-700 mx-auto rounded-full mb-2"></div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">End of Feed</p>
