@@ -4,7 +4,7 @@ import imageCompression from 'browser-image-compression';
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 
 // Import New Utils
-import { canvasToBlob, generateLayoutGroupId } from '../utils/editorUtils';
+import { canvasToBlob } from '../utils/editorUtils';
 
 // Import New Modals
 import CropModal from '../components/BlogEditor/modals/CropModal';
@@ -15,7 +15,7 @@ import AddFromPostModal from '../components/BlogEditor/modals/AddFromPostModal';
 import MetaPanel from '../components/BlogEditor/MetaPanel';
 import SeoPanel from '../components/BlogEditor/SeoPanel';
 import CategoryPanel from '../components/BlogEditor/CategoryPanel';
-import LayoutPanel from '../components/BlogEditor/LayoutPanel';
+import PlacementPanel from '../components/BlogEditor/PlacementPanel'; // REPLACED LayoutPanel
 import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
 import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
@@ -42,9 +42,15 @@ const BlogEditorPage = () => {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '', aspect: undefined });
     const [scheduledTime, setScheduledTime] = useState('');
+
+    // --- SEO & SNIPPET STATE ---
     const [customSnippet, setCustomSnippet] = useState('');
     const [metaDescription, setMetaDescription] = useState('');
     const [keywords, setKeywords] = useState('');
+    const [seoTitle, setSeoTitle] = useState('');
+    const [canonicalUrl, setCanonicalUrl] = useState('');
+    const [focusKeyword, setFocusKeyword] = useState('');
+
     const [coverImageAltText, setCoverImageAltText] = useState('');
     const [thumbnailMode, setThumbnailMode] = useState('single');
     const [storyThumbnails, setStoryThumbnails] = useState([]);
@@ -60,8 +66,9 @@ const BlogEditorPage = () => {
     const [thumbnailAltText, setThumbnailAltText] = useState('');
     const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
     const [pendingCrop, setPendingCrop] = useState(null);
-    const [layoutStyle, setLayoutStyle] = useState('DEFAULT');
-    const [layoutGroupId, setLayoutGroupId] = useState(null);
+
+    // --- NEW PLACEMENT STATE ---
+    const [displaySection, setDisplaySection] = useState('STANDARD');
     const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
 
     // REFS
@@ -93,11 +100,15 @@ const BlogEditorPage = () => {
                     setCustomSnippet(post.customSnippet || '');
                     setMetaDescription(post.metaDescription || '');
                     setKeywords(post.keywords || '');
+
+                    // Populate New Fields
+                    setSeoTitle(post.seoTitle || '');
+                    setCanonicalUrl(post.canonicalUrl || '');
+                    setFocusKeyword(post.focusKeyword || '');
+                    setDisplaySection(post.displaySection || 'STANDARD');
+
                     setCoverImageAltText(post.coverImageAltText || '');
                     setPostUserFriendlySlug(post.userFriendlySlug || '');
-
-                    setLayoutStyle(post.layoutStyle || 'DEFAULT');
-                    setLayoutGroupId(post.layoutGroupId || null);
 
                     if (post.thumbnails && post.thumbnails.length > 0) {
                         setThumbnailMode('story');
@@ -300,17 +311,19 @@ const BlogEditorPage = () => {
         formData.append('customSnippet', customSnippet);
         formData.append('metaDescription', metaDescription);
         formData.append('keywords', keywords);
+
+        // --- NEW FIELDS ---
+        formData.append('seoTitle', seoTitle);
+        formData.append('canonicalUrl', canonicalUrl);
+        formData.append('focusKeyword', focusKeyword);
+        formData.append('displaySection', displaySection);
+        // ------------------
+
         formData.append('coverImageAltText', coverImageAltText);
         tags.forEach(tag => formData.append('tags', tag));
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
 
-        formData.append('layoutStyle', layoutStyle);
-        if (layoutStyle.startsWith('MULTI_COLUMN')) {
-            formData.append('layoutGroupId', layoutGroupId || generateLayoutGroupId());
-        } else {
-            formData.append('layoutGroupId', '');
-        }
         formData.append('userFriendlySlug', postUserFriendlySlug);
 
         if (thumbnailMode === 'story') {
@@ -353,18 +366,6 @@ const BlogEditorPage = () => {
         }
     };
 
-    const handleLayoutStyleChange = (e) => {
-        const newStyle = e.target.value;
-        setLayoutStyle(newStyle);
-        if (newStyle.startsWith('MULTI_COLUMN')) {
-            if (!layoutGroupId) {
-                setLayoutGroupId(generateLayoutGroupId());
-            }
-        } else {
-            setLayoutGroupId(null);
-        }
-    };
-
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
@@ -396,13 +397,22 @@ const BlogEditorPage = () => {
                             onUserFriendlySlugChange={setPostUserFriendlySlug}
                         />
 
+                        {/* Updated SEO Panel with new props */}
                         <SeoPanel
+                            title={title}
                             keywords={keywords}
                             onKeywordsChange={setKeywords}
                             metaDescription={metaDescription}
                             onMetaDescriptionChange={setMetaDescription}
                             customSnippet={customSnippet}
                             onCustomSnippetChange={setCustomSnippet}
+                            // New Props
+                            seoTitle={seoTitle}
+                            onSeoTitleChange={setSeoTitle}
+                            canonicalUrl={canonicalUrl}
+                            onCanonicalUrlChange={setCanonicalUrl}
+                            focusKeyword={focusKeyword}
+                            onFocusKeywordChange={setFocusKeyword}
                         />
 
                         <CategoryPanel
@@ -416,9 +426,10 @@ const BlogEditorPage = () => {
                             onAddNewCategory={handleAddNewCategory}
                         />
 
-                        <LayoutPanel
-                            layoutStyle={layoutStyle}
-                            onLayoutStyleChange={handleLayoutStyleChange}
+                        {/* REPLACED LayoutPanel WITH PlacementPanel */}
+                        <PlacementPanel
+                            displaySection={displaySection}
+                            onDisplaySectionChange={setDisplaySection}
                             tags={tags}
                             onTagsChange={setTags}
                         />
@@ -426,7 +437,6 @@ const BlogEditorPage = () => {
                         <ThumbnailPanel
                             thumbnailMode={thumbnailMode}
                             onThumbnailModeChange={setThumbnailMode}
-                            // Single mode
                             thumbPreview={thumbPreview}
                             thumbnailAltText={thumbnailAltText}
                             onThumbnailAltTextChange={setThumbnailAltText}
@@ -435,7 +445,6 @@ const BlogEditorPage = () => {
                                 fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail');
                                 fileInputRef.current.click();
                             }}
-                            // Story mode
                             storyThumbnails={storyThumbnails}
                             setStoryThumbnails={setStoryThumbnails}
                             onAddFromPostClick={handleAddFromPostClick}
@@ -468,7 +477,7 @@ const BlogEditorPage = () => {
                     </form>
                 </div>
 
-                {/* --- REFACTORED EDITOR --- */}
+                {/* EDITOR */}
                 <EditorForm
                     content={content}
                     onContentChange={setContent}
