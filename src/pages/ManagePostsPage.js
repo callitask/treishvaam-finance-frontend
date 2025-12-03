@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { FaPlus } from 'react-icons/fa';
+import { FaPlus, FaFileSignature } from 'react-icons/fa';
 import { useManagePosts } from '../hooks/useManagePosts';
 
 // Sub-components
@@ -24,14 +24,31 @@ const ManagePostsPage = () => {
         totalItems, totalPages
     } = useManagePosts();
 
+    // Dynamic Title Logic
+    const getPageTitle = () => {
+        switch (view) {
+            case 'DRAFT': return 'Manage Drafts';
+            case 'SCHEDULED': return 'Scheduled Content';
+            case 'PUBLISHED': return 'Published Posts';
+            default: return 'Content Management';
+        }
+    };
+
     return (
         <div className="p-6 md:p-8 max-w-[1600px] mx-auto min-h-screen">
 
             {/* Header */}
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Content Management</h1>
-                    <p className="text-slate-500 mt-1 text-sm">Create, edit, and organize your digital assets.</p>
+                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+                        {view === 'DRAFT' && <FaFileSignature className="text-slate-400" />}
+                        {getPageTitle()}
+                    </h1>
+                    <p className="text-slate-500 mt-1 text-sm">
+                        {view === 'DRAFT'
+                            ? 'Review, edit, and publish your work-in-progress.'
+                            : 'Create, edit, and organize your digital assets.'}
+                    </p>
                 </div>
                 <Link
                     to="/dashboard/blog/new"
@@ -70,6 +87,7 @@ const ManagePostsPage = () => {
             {/* Data Grid */}
             <PostTable
                 posts={posts}
+                currentView={view} // Pass view to toggle columns
                 loading={loading}
                 selectedIds={selectedIds}
                 onSelectAll={handleSelectAll}

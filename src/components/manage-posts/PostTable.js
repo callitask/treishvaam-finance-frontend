@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaEdit, FaTrash, FaCopy, FaEye, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
+import { FaEdit, FaTrash, FaCopy, FaEye, FaSort, FaSortUp, FaSortDown, FaPenFancy } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 
@@ -37,9 +37,11 @@ const SortHeader = ({ label, sortKey, currentSort, onSort }) => {
 };
 
 const PostTable = ({
-    posts, loading, selectedIds, onSelectAll, onSelectOne,
+    posts, currentView, loading, selectedIds, onSelectAll, onSelectOne,
     sortConfig, onSort, onDelete, onDuplicate
 }) => {
+    const isDraftView = currentView === 'DRAFT';
+
     if (loading) {
         return (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8 text-center">
@@ -53,8 +55,19 @@ const PostTable = ({
 
     if (posts.length === 0) {
         return (
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
-                <p className="text-gray-500 italic">No posts found matching your criteria.</p>
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-16 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-400">
+                    {isDraftView ? <FaPenFancy size={24} /> : <FaCopy size={24} />}
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">No {isDraftView ? 'Drafts' : 'Posts'} Found</h3>
+                <p className="text-gray-500 italic mt-1">
+                    {isDraftView ? 'Start writing a new story to see it here.' : 'Adjust your filters or create new content.'}
+                </p>
+                {isDraftView && (
+                    <Link to="/dashboard/blog/new" className="mt-4 inline-block text-sm font-bold text-sky-600 hover:underline">
+                        Create New Draft
+                    </Link>
+                )}
             </div>
         );
     }
@@ -76,7 +89,12 @@ const PostTable = ({
                             <SortHeader label="Title" sortKey="title" currentSort={sortConfig} onSort={onSort} />
                             <SortHeader label="Category" sortKey="category" currentSort={sortConfig} onSort={onSort} />
                             <SortHeader label="Status" sortKey="status" currentSort={sortConfig} onSort={onSort} />
-                            <SortHeader label="Date" sortKey="updatedAt" currentSort={sortConfig} onSort={onSort} />
+                            <SortHeader
+                                label={isDraftView ? "Last Saved" : "Date"}
+                                sortKey="updatedAt"
+                                currentSort={sortConfig}
+                                onSort={onSort}
+                            />
                             <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -119,16 +137,21 @@ const PostTable = ({
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                                     {new Date(post.updatedAt || post.createdAt).toLocaleDateString()}
+                                    <span className="block text-[10px] text-gray-400">
+                                        {new Date(post.updatedAt || post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end space-x-3">
                                         <Link
                                             to={`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`}
-                                            className="text-gray-400 hover:text-sky-600 transition-colors"
+                                            className={`flex items-center gap-1 transition-colors ${isDraftView ? 'text-sky-600 font-bold hover:text-sky-800' : 'text-gray-400 hover:text-sky-600'}`}
                                             title="Edit"
                                         >
                                             <FaEdit />
+                                            {isDraftView && <span className="text-xs">Edit</span>}
                                         </Link>
+
                                         <button
                                             onClick={() => onDuplicate(post.id)}
                                             className="text-gray-400 hover:text-blue-600 transition-colors"
@@ -136,6 +159,7 @@ const PostTable = ({
                                         >
                                             <FaCopy />
                                         </button>
+
                                         {post.status === 'PUBLISHED' && (
                                             <a
                                                 href={`/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`}
@@ -147,6 +171,7 @@ const PostTable = ({
                                                 <FaEye />
                                             </a>
                                         )}
+
                                         <button
                                             onClick={() => onDelete(post.id)}
                                             className="text-gray-400 hover:text-red-600 transition-colors"
