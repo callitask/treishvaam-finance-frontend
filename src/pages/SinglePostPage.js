@@ -48,10 +48,11 @@ const SinglePostPage = () => {
     const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
+    // --- FIX: Remove Server-Side Schema on Mount ---
     useEffect(() => {
-        const staticSchema = document.getElementById('schema-json-ld');
-        if (staticSchema) {
-            staticSchema.remove();
+        const serverSchema = document.getElementById('server-schema');
+        if (serverSchema) {
+            serverSchema.remove();
         }
 
         if (post) {
@@ -74,9 +75,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-        // Added 'post' to dependency array to satisfy linter. 
-        // The check 'if (post) return' above prevents infinite re-fetching.
-    }, [urlArticleId, post]);
+    }, [urlArticleId, post]); // 'post' dependency is safe due to the if(post) check
 
     useEffect(() => {
         if (!post?.content) return;
@@ -142,7 +141,13 @@ const SinglePostPage = () => {
     const pageTitle = `${post.title} - Treishvaam Finance`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `https://treishfin.treishvaamgroup.com/logo.webp`;
-    const authorName = post.author || "Treishvaam Team";
+
+    // --- FIX: Author Name Sanitization ---
+    // This hides the raw email from the frontend schema
+    let authorName = post.author || "Treishvaam Team";
+    if (authorName === "callitask@gmail.com") {
+        authorName = "Treishvaam";
+    }
     const categoryName = post.category?.name || "General";
 
     const breadcrumbSchema = {
@@ -177,7 +182,9 @@ const SinglePostPage = () => {
         "author": {
             "@type": "Person",
             "name": authorName,
-            "url": "https://treishfin.treishvaamgroup.com/about"
+            "url": "https://treishfin.treishvaamgroup.com/about",
+            // Added LinkedIn to match Worker schema
+            "sameAs": ["https://www.linkedin.com/in/amitsagarkandpal"]
         },
         "publisher": {
             "@type": "Organization",
