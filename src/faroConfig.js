@@ -5,7 +5,7 @@ const initFaro = () => {
     // Safe guard against non-browser environments
     if (typeof window === 'undefined') return;
 
-    // Only initialize in production or if explicitly enabled
+    // Initialize in production OR if specifically testing on the live domain
     if (process.env.NODE_ENV === 'production' || window.location.hostname.includes('treishvaamgroup.com')) {
         try {
             initializeFaro({
@@ -16,7 +16,9 @@ const initFaro = () => {
                     environment: 'production'
                 },
                 instrumentations: [
+                    // Load mandatory instrumentations (Console, Errors, Web Vitals)
                     ...getWebInstrumentations(),
+                    // Load tracing instrumentation for API correlations
                     new TracingInstrumentation(),
                 ],
             });
