@@ -5,7 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { initFaro } from './faroConfig'; // --- ADDED ---
+import initFaro from './faroConfig'; // CHANGED: Default import
 
 // Initialize Real User Monitoring (RUM)
 initFaro();
@@ -15,7 +15,6 @@ root.render(
   <React.StrictMode>
     <Router>
       <AuthProvider>
-        {/* Add HelmetProvider around your App */}
         <HelmetProvider>
           <App />
         </HelmetProvider>
