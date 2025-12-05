@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
-// FIX: Removed 'FaEye' from imports
 import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ApiStatusPanel from '../components/ApiStatusPanel';
@@ -11,7 +10,9 @@ const DashboardPage = () => {
     const [posts, setPosts] = useState([]);
     const [error, setError] = useState('');
     const API_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend.treishvaamgroup.com';
-    const linkedInAuthUrl = `${API_URL}/api/oauth2/authorization/linkedin`;
+
+    // FIX: Updated to V1 endpoint
+    const linkedInAuthUrl = `${API_URL}/api/v1/oauth2/authorization/linkedin`;
 
     useEffect(() => {
         const fetchPostsForStats = async () => {

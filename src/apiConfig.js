@@ -3,12 +3,12 @@ import axios from 'axios';
 
 /**
  * Backend base URL (no trailing slash)
- * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT
+ * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT (VERSION 1)
  */
 export const API_URL = 'https://backend.treishvaamgroup.com';
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: `${API_URL}/api/v1`, // CHANGED TO V1
 });
 
 // Attach JWT from localStorage when present
@@ -69,7 +69,6 @@ export const flushMovers = (password) => api.post('/market/admin/flush-movers', 
 export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
 
 /* -------------------- NEW: Market Widget -------------------- */
-// FIX: Use Query Param (?ticker=...) instead of Path Variable to avoid 403 errors with special chars
 export const getWidgetData = (ticker) => api.get(`/market/widget?ticker=${encodeURIComponent(ticker)}`);
 
 /* -------------------- NEW: Global Ticker -------------------- */
