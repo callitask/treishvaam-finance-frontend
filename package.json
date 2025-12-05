@@ -4,6 +4,8 @@
   "private": true,
   "homepage": "https://treishfin.treishvaamgroup.com",
   "dependencies": {
+    "@grafana/faro-web-sdk": "^2.0.2",
+    "@grafana/faro-web-tracing": "^2.0.2",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
