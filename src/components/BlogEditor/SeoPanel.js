@@ -41,9 +41,11 @@ const SeoPanel = ({
 
             {/* 2. Focus Keyword */}
             <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Focus Keyword</label>
+                <label htmlFor="focusKeyword" className="block text-xs font-bold text-gray-700 uppercase mb-1">Focus Keyword</label>
                 <input
                     type="text"
+                    id="focusKeyword"
+                    name="focusKeyword"
                     value={focusKeyword || ''}
                     onChange={e => onFocusKeywordChange(e.target.value)}
                     className="w-full p-2 text-sm border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
@@ -54,13 +56,15 @@ const SeoPanel = ({
             {/* 3. SEO Title */}
             <div>
                 <div className="flex justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700 uppercase">SEO Title Tag</label>
+                    <label htmlFor="seoTitle" className="block text-xs font-bold text-gray-700 uppercase">SEO Title Tag</label>
                     <span className={`text-xs ${displayTitle.length > 60 ? 'text-red-500' : 'text-gray-400'}`}>
                         {displayTitle.length} / 60
                     </span>
                 </div>
                 <input
                     type="text"
+                    id="seoTitle"
+                    name="seoTitle"
                     value={seoTitle || ''}
                     onChange={e => onSeoTitleChange(e.target.value)}
                     className="w-full p-2 text-sm border border-gray-300 rounded focus:border-sky-500 focus:ring-1 focus:ring-sky-500 outline-none"
@@ -71,12 +75,14 @@ const SeoPanel = ({
             {/* 4. Meta Description */}
             <div>
                 <div className="flex justify-between mb-1">
-                    <label className="block text-xs font-bold text-gray-700 uppercase">Meta Description</label>
+                    <label htmlFor="metaDescription" className="block text-xs font-bold text-gray-700 uppercase">Meta Description</label>
                     <span className={`text-xs ${displayDesc.length > 160 ? 'text-red-500' : 'text-gray-400'}`}>
                         {displayDesc.length} / 160
                     </span>
                 </div>
                 <textarea
+                    id="metaDescription"
+                    name="metaDescription"
                     rows="3"
                     value={metaDescription || ''}
                     onChange={e => onMetaDescriptionChange(e.target.value)}
@@ -92,11 +98,13 @@ const SeoPanel = ({
                     <span className="group-open:rotate-180 transition-transform">▼</span>
                 </summary>
                 <div className="mt-3 pl-2 border-l-2 border-gray-100">
-                    <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-2">
+                    <label htmlFor="canonicalUrl" className="block text-xs font-bold text-gray-700 mb-1 flex items-center gap-2">
                         Canonical URL <FaInfoCircle className="text-gray-300" title="Use this if the content was originally published elsewhere." />
                     </label>
                     <input
                         type="text"
+                        id="canonicalUrl"
+                        name="canonicalUrl"
                         value={canonicalUrl || ''}
                         onChange={e => onCanonicalUrlChange(e.target.value)}
                         className="w-full p-2 text-xs border border-gray-300 rounded bg-gray-50 focus:bg-white transition-colors"
@@ -104,9 +112,11 @@ const SeoPanel = ({
                     />
 
                     <div className="mt-3">
-                        <label className="block text-xs font-bold text-gray-700 mb-1">Meta Keywords</label>
+                        <label htmlFor="keywords" className="block text-xs font-bold text-gray-700 mb-1">Meta Keywords</label>
                         <input
                             type="text"
+                            id="keywords"
+                            name="keywords"
                             value={keywords || ''}
                             onChange={e => onKeywordsChange(e.target.value)}
                             className="w-full p-2 text-xs border border-gray-300 rounded bg-gray-50 focus:bg-white"
