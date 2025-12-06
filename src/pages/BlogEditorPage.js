@@ -368,7 +368,16 @@ const BlogEditorPage = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" />
+            {/* Added id and name attributes to fix the warning */}
+            <input
+                type="file"
+                id="file-upload"
+                name="file-upload"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+            />
+
             <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
