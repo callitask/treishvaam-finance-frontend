@@ -12,7 +12,8 @@ const formatNumber = (num, style = 'decimal', currency = 'USD') => {
 
     if (style === 'currency') {
         options.style = 'currency';
-        options.currency = currency;
+        // FIX: Fallback to 'USD' if currency is null/undefined/empty to prevent crash
+        options.currency = (currency && currency !== 'null') ? currency : 'USD';
         if (numAbs > 1000) options.minimumFractionDigits = 0;
     }
 
@@ -24,7 +25,13 @@ const formatNumber = (num, style = 'decimal', currency = 'USD') => {
         return num.toString();
     }
 
-    return new Intl.NumberFormat('en-US', options).format(num);
+    try {
+        return new Intl.NumberFormat('en-US', options).format(num);
+    } catch (e) {
+        // Fallback if currency code is still invalid (e.g., "XYZ")
+        console.error("Formatting error:", e);
+        return num.toString();
+    }
 };
 
 const DataSummary = ({ quote }) => {
