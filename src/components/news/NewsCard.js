@@ -1,7 +1,8 @@
 import React from 'react';
-import { ExternalLink, Clock } from 'lucide-react';
+import { ExternalLink, Clock, Zap, ChevronRight } from 'lucide-react';
+import ResponsiveAuthImage from '../ResponsiveAuthImage'; // Utilizing your existing optimized image component
 
-// Helper to extract domain for favicon
+// Helper to extract domain for favicon/source label
 const getDomain = (url) => {
     try {
         if (!url) return 'news';
@@ -27,83 +28,133 @@ const timeAgo = (dateString) => {
     return `${Math.floor(hours / 24)}d`;
 };
 
-const NewsCard = ({ article, variant }) => {
+const NewsCard = ({ article, variant = 'brief' }) => {
     if (!article) return null;
 
     const domain = getDomain(article.link);
-    // Using Google's favicon service for reliable enterprise logos
+    const sourceName = article.source || domain;
+    // Enterprise fallback: Use Google's favicon service if no image is present
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
     const timeDisplay = timeAgo(article.publishedAt);
 
-    // VARIANT: FEATURED (Lead Story)
-    if (variant === 'featured') {
+    // --- DESIGN A: HERO (The Lead Story) ---
+    // High impact, background image, gradient text
+    if (variant === 'hero') {
         return (
             <a
                 href={article.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block group relative overflow-hidden rounded-xl border border-gray-200 bg-white hover:border-sky-500 hover:shadow-md transition-all duration-300 mb-3"
+                className="block group relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-gray-200 bg-slate-900 shadow-md mb-6"
             >
-                <div className="absolute top-0 left-0 w-1 h-full bg-sky-600 group-hover:w-1.5 transition-all"></div>
+                {/* Background Image */}
+                {article.imageUrl ? (
+                    <img
+                        src={article.imageUrl}
+                        alt={article.title}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"
+                    />
+                ) : (
+                    // Fallback abstract pattern if no image
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center opacity-50">
+                        <img src={faviconUrl} alt="" className="w-16 h-16 opacity-20 grayscale" />
+                    </div>
+                )}
 
-                <div className="p-4 pl-5">
-                    <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                            <img
-                                src={faviconUrl}
-                                alt={article.source || domain}
-                                className="w-5 h-5 rounded-sm opacity-80"
-                                onError={(e) => e.target.style.display = 'none'}
-                            />
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">
-                                {article.source || domain}
-                            </span>
-                        </div>
-                        <span className="text-[10px] font-medium text-gray-400 bg-gray-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                {/* Gradient Overlay for Text Readability */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent"></div>
+
+                {/* Content Layer */}
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white shadow-sm">
+                            <Zap size={10} className="fill-current" /> Lead Story
+                        </span>
+                        <span className="text-[10px] font-medium text-gray-300 flex items-center gap-1 bg-black/40 px-2 py-0.5 rounded backdrop-blur-md">
                             <Clock size={10} /> {timeDisplay}
                         </span>
                     </div>
 
-                    <h3 className="text-base font-bold text-gray-900 leading-snug font-serif group-hover:text-sky-700 transition-colors mb-2">
+                    <h3 className="text-lg font-black leading-tight text-white font-serif drop-shadow-sm line-clamp-3 mb-2 group-hover:text-sky-200 transition-colors">
                         {article.title}
                     </h3>
 
-                    <div className="flex items-center text-xs text-gray-400 font-medium group-hover:text-sky-600 transition-colors">
-                        Read Full Story <ExternalLink size={12} className="ml-1" />
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-300 uppercase tracking-wide">
+                        {/* Source Logo (Small) */}
+                        <img src={faviconUrl} alt="" className="w-4 h-4 rounded-sm bg-white p-0.5" onError={(e) => e.target.style.display = 'none'} />
+                        {sourceName}
                     </div>
                 </div>
             </a>
         );
     }
 
-    // VARIANT: COMPACT (Standard List)
+    // --- DESIGN B: STANDARD (Key Stories) ---
+    // Row layout: Thumbnail (Left) + Text (Right)
+    if (variant === 'standard') {
+        return (
+            <a
+                href={article.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex gap-4 py-4 border-b border-dashed border-gray-200 hover:bg-gray-50/50 transition-colors"
+            >
+                {/* Thumbnail Column */}
+                <div className="shrink-0 relative w-[85px] h-[65px] rounded-lg overflow-hidden border border-gray-100 bg-gray-100">
+                    {article.imageUrl ? (
+                        <img
+                            src={article.imageUrl}
+                            alt=""
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                            <img src={faviconUrl} alt="" className="w-6 h-6 opacity-40 grayscale" />
+                        </div>
+                    )}
+                </div>
+
+                {/* Text Column */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <h4 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2 font-serif group-hover:text-sky-700 transition-colors">
+                        {article.title}
+                    </h4>
+
+                    <div className="flex items-center justify-between mt-1.5">
+                        <div className="flex items-center gap-1.5">
+                            <img src={faviconUrl} alt="" className="w-3 h-3 rounded-full grayscale opacity-70" onError={(e) => e.target.style.display = 'none'} />
+                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{sourceName}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400 font-mono">{timeDisplay}</span>
+                    </div>
+                </div>
+            </a>
+        );
+    }
+
+    // --- DESIGN C: BRIEF (The Wire) ---
+    // Ultra-compact text only. Best for list density.
     return (
         <a
             href={article.link}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-all group"
+            className="group block py-2.5 px-3 border-l-2 border-transparent hover:border-sky-500 hover:bg-slate-50 transition-all"
         >
-            <div className="shrink-0 mt-1">
-                <img
-                    src={faviconUrl}
-                    alt=""
-                    className="w-4 h-4 rounded-sm opacity-60 group-hover:opacity-100 transition-opacity"
-                    onError={(e) => e.target.style.display = 'none'}
-                />
+            <div className="flex items-baseline justify-between gap-4 mb-0.5">
+                <span className="text-[10px] font-bold text-sky-700 uppercase tracking-wider truncate max-w-[100px]">
+                    {sourceName}
+                </span>
+                <span className="text-[9px] font-mono text-gray-400 shrink-0">
+                    {timeDisplay}
+                </span>
             </div>
 
-            <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-semibold text-gray-700 group-hover:text-sky-700 leading-snug mb-1 line-clamp-2">
+            <div className="flex items-start gap-2">
+                <h5 className="text-xs font-medium text-gray-700 leading-snug group-hover:text-gray-900 line-clamp-2">
                     {article.title}
-                </h4>
-                <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                    <span className="font-medium text-gray-500">
-                        {article.source ? article.source.replace(/_/g, ' ') : domain}
-                    </span>
-                    <span>•</span>
-                    <span>{timeDisplay} ago</span>
-                </div>
+                </h5>
+                <ChevronRight size={12} className="text-gray-300 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity -ml-1" />
             </div>
         </a>
     );
