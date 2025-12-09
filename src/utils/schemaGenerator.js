@@ -18,6 +18,7 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
     const breadcrumbSchema = {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
+        "name": "Breadcrumbs",
         "itemListElement": [{
             "@type": "ListItem",
             "position": 1,
@@ -81,7 +82,6 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
     const schemas = [breadcrumbSchema, articleSchema];
 
     // 3. Video Object Schema (Auto-Detection)
-    // Scans content for standard YouTube embed codes
     const videoRegex = /src="https:\/\/(?:www\.)?youtube\.com\/embed\/([^"?]+)/;
     const match = post.content ? post.content.match(videoRegex) : null;
 
@@ -92,7 +92,7 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
             "@type": "VideoObject",
             "name": post.title,
             "description": seoDescription,
-            "thumbnailUrl": imageUrl, // Uses the post cover as the video thumbnail preview
+            "thumbnailUrl": imageUrl,
             "uploadDate": post.createdAt,
             "embedUrl": `https://www.youtube.com/embed/${videoId}`,
             "contentUrl": `https://www.youtube.com/watch?v=${videoId}`
