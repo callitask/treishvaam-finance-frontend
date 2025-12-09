@@ -1,6 +1,6 @@
 /**
  * Enterprise Schema Generator
- * Generates JSON-LD structured data following Google's "NewsArticle" and "BlogPosting" guidelines.
+ * Generates JSON-LD structured data following Google's "NewsArticle", "BlogPosting", and "VideoObject" guidelines.
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -9,13 +9,12 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
     const categoryName = post.category?.name || "General";
 
     // Determine Schema Type: News vs Blog
-    // NewsArticle gets preferential treatment in Top Stories but requires strict data (dates, author).
     const isNews = ['News', 'Markets', 'Crypto', 'Economy', 'Stocks'].includes(categoryName);
     const schemaType = isNews ? 'NewsArticle' : 'BlogPosting';
 
     const seoDescription = post.metaDescription || post.customSnippet || post.title;
 
-    // 1. Breadcrumb Schema (Navigation Hierarchy)
+    // 1. Breadcrumb Schema
     const breadcrumbSchema = {
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
@@ -37,7 +36,7 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
         }]
     };
 
-    // 2. Article Schema (The Core Content)
+    // 2. Article Schema
     const articleSchema = {
         "@context": "https://schema.org",
         "@type": schemaType,
@@ -49,7 +48,7 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
         "image": {
             "@type": "ImageObject",
             "url": imageUrl,
-            "width": 1200, // Explicit hints for Google
+            "width": 1200,
             "height": 675
         },
         "datePublished": post.createdAt,
@@ -58,7 +57,6 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
             "@type": "Person",
             "name": authorName,
             "url": "https://treishfin.treishvaamgroup.com/about",
-            // Add social links if available in user profile later
             "jobTitle": "Financial Analyst"
         },
         "publisher": {
@@ -73,12 +71,34 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
         },
         "description": seoDescription,
         "keywords": post.keywords || "",
-        "articleBody": post.customSnippet || "", // Full content often not needed here if on page
+        "articleBody": post.customSnippet || "",
         "speakable": {
             "@type": "SpeakableSpecification",
             "cssSelector": ["h1", ".prose > p:first-of-type"]
         }
     };
 
-    return [breadcrumbSchema, articleSchema];
+    const schemas = [breadcrumbSchema, articleSchema];
+
+    // 3. Video Object Schema (Auto-Detection)
+    // Scans content for standard YouTube embed codes
+    const videoRegex = /src="https:\/\/(?:www\.)?youtube\.com\/embed\/([^"?]+)/;
+    const match = post.content ? post.content.match(videoRegex) : null;
+
+    if (match && match[1]) {
+        const videoId = match[1];
+        const videoSchema = {
+            "@context": "https://schema.org",
+            "@type": "VideoObject",
+            "name": post.title,
+            "description": seoDescription,
+            "thumbnailUrl": imageUrl, // Uses the post cover as the video thumbnail preview
+            "uploadDate": post.createdAt,
+            "embedUrl": `https://www.youtube.com/embed/${videoId}`,
+            "contentUrl": `https://www.youtube.com/watch?v=${videoId}`
+        };
+        schemas.push(videoSchema);
+    }
+
+    return schemas;
 };
