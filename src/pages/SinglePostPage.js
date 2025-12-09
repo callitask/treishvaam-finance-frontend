@@ -4,12 +4,12 @@ import { useParams, Link } from 'react-router-dom';
 import { getPostByUrlId, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import ResponsiveAuthImage from '../components/ResponsiveAuthImage';
 import ShareButtons from '../components/ShareButtons';
 import throttle from 'lodash/throttle';
 import TableOfContents from '../components/TableOfContents';
 import { AudioPlayer } from '../components/AudioPlayer';
 import { ChevronRight, Calendar, User, Tag, Clock } from 'lucide-react';
+import { generatePostSchema } from '../utils/schemaGenerator'; // --- PHASE 16 IMPORT ---
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -140,65 +140,32 @@ const SinglePostPage = () => {
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `${post.title} - Treishvaam Finance`;
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
-    const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `https://treishfin.treishvaamgroup.com/logo.webp`;
+    const categoryName = post.category?.name || "General";
+
+    // --- PHASE 16: RESPONSIVE IMAGE LOGIC ---
+    let imageUrl = `https://treishfin.treishvaamgroup.com/logo.webp`;
+    let srcSet = null;
+
+    if (post.coverImageUrl) {
+        const base = `${API_URL}/api/uploads/${post.coverImageUrl}`;
+        // Standard WebP URL (Master 1920w)
+        imageUrl = `${base}.webp`;
+        // Generate SrcSet for different viewports
+        srcSet = `
+            ${base}-480.webp 480w,
+            ${base}-800.webp 800w,
+            ${base}-1200.webp 1200w,
+            ${base}.webp 1920w
+        `;
+    }
 
     let authorName = post.author || "Treishvaam Team";
     if (authorName === "callitask@gmail.com") {
         authorName = "Treishvaam";
     }
-    const categoryName = post.category?.name || "General";
 
-    // --- DYNAMIC SCHEMA SELECTION ---
-    const isNews = categoryName === 'News' || categoryName === 'Markets' || categoryName === 'Crypto';
-    const schemaType = isNews ? 'NewsArticle' : 'BlogPosting';
-
-    const breadcrumbSchema = {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [{
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://treishfin.treishvaamgroup.com/"
-        }, {
-            "@type": "ListItem",
-            "position": 2,
-            "name": categoryName,
-            "item": `https://treishfin.treishvaamgroup.com/category/${categorySlug}`
-        }, {
-            "@type": "ListItem",
-            "position": 3,
-            "name": post.title,
-            "item": pageUrl
-        }]
-    };
-
-    const articleSchema = {
-        "@context": "https://schema.org",
-        "@type": schemaType,
-        "mainEntityOfPage": { "@type": "WebPage", "@id": pageUrl },
-        "headline": post.title,
-        "image": [imageUrl],
-        "datePublished": post.createdAt,
-        "dateModified": post.updatedAt || post.createdAt,
-        "author": {
-            "@type": "Person",
-            "name": authorName,
-            "url": "https://treishfin.treishvaamgroup.com/about",
-            "sameAs": ["https://www.linkedin.com/in/amitsagarkandpal"]
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "Treishvaam Finance",
-            "logo": { "@type": "ImageObject", "url": "https://treishfin.treishvaamgroup.com/logo.webp" }
-        },
-        "description": seoDescription,
-        // --- VOICE SEARCH OPTIMIZATION ---
-        "speakable": {
-            "@type": "SpeakableSpecification",
-            "cssSelector": ["h1", "article p"]
-        }
-    };
+    // --- PHASE 16: Use Schema Generator ---
+    const schemas = generatePostSchema(post, authorName, pageUrl, imageUrl);
 
     return (
         <>
@@ -217,9 +184,11 @@ const SinglePostPage = () => {
                 <meta name="twitter:title" content={post.title} />
                 <meta name="twitter:description" content={seoDescription} />
                 <meta name="twitter:image" content={imageUrl} />
-                <script type="application/ld+json">
-                    {JSON.stringify([breadcrumbSchema, articleSchema])}
-                </script>
+                {schemas && (
+                    <script type="application/ld+json">
+                        {JSON.stringify(schemas)}
+                    </script>
+                )}
             </Helmet>
 
             <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 dark:bg-slate-900 transition-colors duration-300">
@@ -264,12 +233,18 @@ const SinglePostPage = () => {
 
                         </header>
 
+                        {/* PHASE 16: NATIVE IMG WITH SRCSET (LCP OPTIMIZATION) */}
                         {post.coverImageUrl && (
                             <div className="mb-10 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-slate-800">
-                                <ResponsiveAuthImage
-                                    baseName={post.coverImageUrl}
+                                <img
+                                    src={imageUrl}
+                                    srcSet={srcSet}
+                                    sizes="(max-width: 600px) 480px, (max-width: 900px) 800px, 1200px"
                                     alt={post.coverImageAltText || post.title}
                                     className="w-full h-auto object-cover"
+                                    width="1200"
+                                    height="675"
+                                    fetchPriority="high" // Crucial for LCP
                                 />
                             </div>
                         )}
