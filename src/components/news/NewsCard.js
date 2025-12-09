@@ -1,88 +1,47 @@
 import React, { useState } from 'react';
-import { Clock, Zap, ChevronRight } from 'lucide-react';
+import './NewsCard.css';
 
-// Helper to extract domain for favicon/source label
-const getDomain = (url) => {
-    try {
-        if (!url) return 'news';
-        const domain = new URL(url).hostname;
-        return domain.replace('www.', '');
-    } catch (e) {
-        return 'news';
-    }
-};
-
-// Helper for relative time
-const timeAgo = (dateString) => {
-    if (!dateString) return '';
-    const now = new Date();
-    const date = new Date(dateString);
-    const seconds = Math.floor((now - date) / 1000);
-
-    if (seconds < 60) return 'Now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h`;
-    return `${Math.floor(hours / 24)}d`;
-};
-
-const NewsCard = ({ article, variant = 'ticker' }) => {
-    // State to track image loading errors
+/**
+ * Enterprise News Card Component
+ * Supports 3 Design Systems:
+ * 1. 'impact' - Large Hero with Gradient Overlay (Top Story)
+ * 2. 'focus'  - Clean Card with whitespace (Feature Story)
+ * 3. 'compact'- High density list row (Market Ticker)
+ */
+const NewsCard = ({ article, variant = 'compact' }) => {
     const [imgError, setImgError] = useState(false);
 
-    if (!article) return null;
+    const handleImgError = () => setImgError(true);
 
-    const domain = getDomain(article.link);
-    const sourceName = article.source || domain;
-    const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
-    const timeDisplay = timeAgo(article.publishedAt);
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        // Enterprise format: "10:45 AM" or "2h ago"
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
 
-    // --- TIER 1: HERO (The Lead Story - Index 0) ---
-    if (variant === 'hero') {
+    // --- DESIGN 1: IMPACT (Hero) ---
+    if (variant === 'impact') {
         return (
-            <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block group relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-slate-900 mb-8 shadow-sm hover:shadow-xl transition-all duration-500"
-            >
-                {/* Background Image with Fallback Logic */}
-                {article.imageUrl && !imgError ? (
-                    <img
-                        src={article.imageUrl}
-                        alt={article.title}
-                        onError={() => setImgError(true)}
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"
-                    />
-                ) : (
-                    // Fallback: Professional Gradient + Source Logo
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-black flex items-center justify-center">
-                        <img src={faviconUrl} alt="" className="w-16 h-16 opacity-10 grayscale invert" />
-                    </div>
-                )}
-
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90"></div>
-
-                {/* Content */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="inline-flex items-center gap-1 rounded bg-red-600 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest text-white shadow-sm">
-                            <Zap size={10} className="fill-current" /> Lead
-                        </span>
-                    </div>
-
-                    <h3 className="text-xl font-black leading-tight text-white font-serif drop-shadow-md line-clamp-4 mb-3 group-hover:text-sky-200 transition-colors">
-                        {article.title}
-                    </h3>
-
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-300 uppercase tracking-wide border-t border-white/20 pt-3">
-                        <img src={faviconUrl} alt="" className="w-4 h-4 rounded-sm bg-white p-0.5" />
-                        <span>{sourceName}</span>
-                        <span className="text-gray-500 mx-1">•</span>
-                        <div className="flex items-center gap-1 text-gray-400">
-                            <Clock size={10} /> {timeDisplay}
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-impact-container">
+                <div className="nc-impact-image-wrapper">
+                    {!imgError && article.imageUrl ? (
+                        <img
+                            src={article.imageUrl}
+                            alt={article.title}
+                            onError={handleImgError}
+                            className="nc-impact-img"
+                        />
+                    ) : (
+                        <div className="nc-placeholder-gradient" />
+                    )}
+                    <div className="nc-impact-overlay">
+                        <span className="nc-tag-live">LIVE</span>
+                        <h3 className="nc-impact-title">{article.title}</h3>
+                        <div className="nc-meta-white">
+                            <span className="nc-source">{article.source}</span>
+                            <span className="nc-dot">•</span>
+                            <span>{formatDate(article.publishedAt)}</span>
                         </div>
                     </div>
                 </div>
@@ -90,102 +49,52 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
         );
     }
 
-    // --- TIER 2: FOCUS (Editorial Highlight - Index 1-2) ---
+    // --- DESIGN 2: FOCUS (Card) ---
     if (variant === 'focus') {
         return (
-            <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block group mb-8"
-            >
-                <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 mb-3 border border-gray-100">
-                    {article.imageUrl && !imgError ? (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-focus-container">
+                <div className="nc-focus-image">
+                    {!imgError && article.imageUrl ? (
                         <img
                             src={article.imageUrl}
-                            alt=""
-                            onError={() => setImgError(true)}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            alt={article.title}
+                            onError={handleImgError}
+                            className="nc-focus-img"
                         />
                     ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                            <img src={faviconUrl} alt="" className="w-8 h-8 opacity-20 grayscale" />
-                        </div>
+                        <div className="nc-placeholder-solid" />
                     )}
                 </div>
-
-                <div className="flex items-center gap-2 text-[10px] font-bold text-sky-700 uppercase tracking-wider mb-1.5">
-                    <span>{sourceName}</span>
-                </div>
-
-                <h3 className="text-base font-bold text-gray-900 leading-snug font-serif group-hover:text-sky-700 transition-colors line-clamp-3">
-                    {article.title}
-                </h3>
-            </a>
-        );
-    }
-
-    // --- TIER 3: STANDARD (Key Stories - Index 3-5) ---
-    if (variant === 'standard') {
-        return (
-            <a
-                href={article.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group flex gap-4 mb-6 items-start"
-            >
-                <div className="shrink-0 relative w-[70px] h-[70px] rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
-                    {article.imageUrl && !imgError ? (
-                        <img
-                            src={article.imageUrl}
-                            alt=""
-                            onError={() => setImgError(true)}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                            <img src={faviconUrl} alt="" className="w-5 h-5 opacity-40 grayscale" />
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2 font-serif group-hover:text-sky-700 transition-colors mb-1.5">
-                        {article.title}
-                    </h4>
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium uppercase tracking-wide">
-                        <span>{sourceName}</span>
-                        <span>•</span>
-                        <div className="flex items-center gap-0.5">
-                            <Clock size={8} /> {timeDisplay}
-                        </div>
+                <div className="nc-focus-content">
+                    <h4 className="nc-focus-title">{article.title}</h4>
+                    <div className="nc-meta-gray">
+                        <span className="nc-source-bold">{article.source}</span>
+                        <span className="nc-time">{formatDate(article.publishedAt)}</span>
                     </div>
                 </div>
             </a>
         );
     }
 
-    // --- TIER 4: TICKER (The Wire - Index 6+) ---
+    // --- DESIGN 3: COMPACT (List) ---
     return (
-        <a
-            href={article.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group block py-3 border-b border-dotted border-gray-200 last:border-0 hover:bg-slate-50 -mx-2 px-2 rounded transition-colors"
-        >
-            <div className="flex justify-between items-baseline mb-1">
-                <div className="flex items-center gap-1.5">
-                    <img src={faviconUrl} alt="" className="w-3 h-3 rounded-full opacity-60" onError={(e) => e.target.style.display = 'none'} />
-                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider">{sourceName}</span>
+        <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-compact-container">
+            <div className="nc-compact-left">
+                <h4 className="nc-compact-title">{article.title}</h4>
+                <div className="nc-meta-micro">
+                    <span className="nc-source-pill">{article.source}</span>
+                    <span className="nc-time-micro">{formatDate(article.publishedAt)}</span>
                 </div>
-                <span className="text-[9px] font-mono text-gray-400">{timeDisplay}</span>
             </div>
-
-            <div className="flex items-start justify-between gap-2">
-                <h5 className="text-xs font-medium text-gray-700 leading-snug group-hover:text-gray-900 line-clamp-2">
-                    {article.title}
-                </h5>
-                <ChevronRight size={12} className="text-gray-300 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 shrink-0" />
+            <div className="nc-compact-right">
+                {!imgError && article.imageUrl && (
+                    <img
+                        src={article.imageUrl}
+                        alt=""
+                        onError={handleImgError}
+                        className="nc-compact-thumb"
+                    />
+                )}
             </div>
         </a>
     );
