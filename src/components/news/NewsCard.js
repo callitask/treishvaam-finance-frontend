@@ -1,6 +1,5 @@
 import React from 'react';
 import { ExternalLink, Clock, Zap, ChevronRight } from 'lucide-react';
-import ResponsiveAuthImage from '../ResponsiveAuthImage'; // Utilizing your existing optimized image component
 
 // Helper to extract domain for favicon/source label
 const getDomain = (url) => {
@@ -80,6 +79,10 @@ const NewsCard = ({ article, variant = 'brief' }) => {
                     </h3>
 
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-300 uppercase tracking-wide">
+                        <div className="flex items-center gap-1 text-sky-400">
+                            Read <ExternalLink size={10} />
+                        </div>
+                        <span>•</span>
                         {/* Source Logo (Small) */}
                         <img src={faviconUrl} alt="" className="w-4 h-4 rounded-sm bg-white p-0.5" onError={(e) => e.target.style.display = 'none'} />
                         {sourceName}
