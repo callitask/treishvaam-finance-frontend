@@ -1,190 +1,44 @@
-/* --- GLOBAL VARIABLES --- */
 :root {
-    --nc-font-primary: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    --nc-color-dark: #111827;
-    --nc-color-gray: #6B7280;
-    --nc-color-light: #F3F4F6;
-    --nc-radius: 8px;
+    --nc-font: 'Inter', sans-serif;
+    --nc-border: #e5e7eb;
 }
 
-/* --- VARIANT 1: IMPACT --- */
-.nc-impact-container {
-    display: block;
-    position: relative;
-    border-radius: var(--nc-radius);
-    overflow: hidden;
-    margin-bottom: 16px;
-    text-decoration: none;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
+.nc-card { display: block; text-decoration: none; color: inherit; margin-bottom: 12px; }
+.nc-card:hover h3, .nc-card:hover h4 { color: #2563eb; transition: color 0.2s; }
 
-.nc-impact-image-wrapper {
-    position: relative;
-    padding-top: 56.25%; /* 16:9 Aspect Ratio */
-    background: #2d3748;
-}
+/* VARIANT 1: IMPACT */
+.nc-impact { position: relative; border-radius: 8px; overflow: hidden; }
+.nc-img-wrap-hero { height: 200px; position: relative; }
+.nc-img-wrap-hero img { width: 100%; height: 100%; object-fit: cover; }
+.nc-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); color: white; }
+.nc-impact h3 { font-size: 18px; font-weight: 700; margin: 8px 0; line-height: 1.3; }
+.nc-tag-red { background: #dc2626; padding: 2px 6px; font-size: 10px; font-weight: 700; border-radius: 4px; text-transform: uppercase; }
 
-.nc-impact-img {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    transition: transform 0.3s ease;
-}
+/* VARIANT 2: MARKET SNAP */
+.nc-marketsnap { border: 1px solid var(--nc-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+.nc-img-wrap-snap { height: 140px; }
+.nc-img-wrap-snap img { width: 100%; height: 100%; object-fit: cover; }
+.nc-content { padding: 12px; }
+.nc-tag-blue { color: #2563eb; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
 
-.nc-impact-container:hover .nc-impact-img {
-    transform: scale(1.03);
-}
+/* VARIANT 3: OPINION */
+.nc-opinion { background: #f8fafc; padding: 16px; border-left: 4px solid #0f172a; border-radius: 0 8px 8px 0; }
+.nc-quote-icon { font-size: 40px; color: #cbd5e1; line-height: 0; display: block; margin-bottom: 10px; }
+.nc-opinion-title { font-size: 16px; font-style: italic; color: #334155; margin-bottom: 12px; }
+.nc-opinion-footer { display: flex; align-items: center; gap: 10px; }
+.nc-author-avatar { width: 32px; height: 32px; background: #0f172a; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
 
-.nc-impact-overlay {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-    padding: 20px;
-    color: white;
-}
+/* VARIANT 4: COMPACT */
+.nc-compact { display: flex; gap: 10px; align-items: baseline; padding: 8px 0; border-bottom: 1px dotted var(--nc-border); }
+.nc-compact-time { color: #dc2626; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.nc-compact-title { font-size: 13px; font-weight: 500; color: #374151; }
 
-.nc-tag-live {
-    background: #DC2626;
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    display: inline-block;
-}
+/* VARIANT 5: STANDARD */
+.nc-standard { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--nc-border); }
+.nc-std-left h4 { font-size: 15px; font-weight: 600; line-height: 1.4; margin: 0 0 6px 0; }
+.nc-std-right img { width: 80px; height: 80px; border-radius: 6px; object-fit: cover; }
+.nc-meta { font-size: 11px; color: #6b7280; display: flex; gap: 6px; }
 
-.nc-impact-title {
-    font-family: var(--nc-font-primary);
-    font-size: 18px;
-    font-weight: 700;
-    line-height: 1.3;
-    margin: 8px 0;
-    color: #ffffff;
-}
-
-.nc-meta-white {
-    font-size: 12px;
-    opacity: 0.9;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-/* --- VARIANT 2: FOCUS --- */
-.nc-focus-container {
-    display: flex;
-    flex-direction: column;
-    text-decoration: none;
-    background: white;
-    border: 1px solid #E5E7EB;
-    border-radius: var(--nc-radius);
-    overflow: hidden;
-    margin-bottom: 12px;
-    transition: box-shadow 0.2s;
-}
-
-.nc-focus-container:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-}
-
-.nc-focus-image {
-    height: 140px;
-    background: #f3f4f6;
-    overflow: hidden;
-}
-
-.nc-focus-img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-}
-
-.nc-focus-content {
-    padding: 12px;
-}
-
-.nc-focus-title {
-    font-family: var(--nc-font-primary);
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--nc-color-dark);
-    margin: 0 0 8px 0;
-    line-height: 1.4;
-}
-
-.nc-meta-gray {
-    font-size: 11px;
-    color: var(--nc-color-gray);
-    display: flex;
-    justify-content: space-between;
-}
-
-/* --- VARIANT 3: COMPACT --- */
-.nc-compact-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    text-decoration: none;
-    padding: 12px 0;
-    border-bottom: 1px solid #F3F4F6;
-    gap: 12px;
-}
-
-.nc-compact-container:last-child {
-    border-bottom: none;
-}
-
-.nc-compact-left {
-    flex: 1;
-}
-
-.nc-compact-title {
-    font-family: var(--nc-font-primary);
-    font-size: 14px;
-    font-weight: 500;
-    color: #374151;
-    margin: 0 0 6px 0;
-    line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.nc-compact-right {
-    flex-shrink: 0;
-}
-
-.nc-compact-thumb {
-    width: 64px;
-    height: 64px;
-    border-radius: 6px;
-    object-fit: cover;
-}
-
-.nc-source-pill {
-    background: #EFF6FF;
-    color: #2563EB;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    margin-right: 8px;
-}
-
-.nc-time-micro {
-    font-size: 10px;
-    color: #9CA3AF;
-}
-
-/* --- PLACEHOLDERS --- */
-.nc-placeholder-gradient {
-    width: 100%; height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-.nc-placeholder-solid {
-    width: 100%; height: 100%;
-    background: #E5E7EB;
-}
+/* PLACEHOLDERS */
+.nc-gradient-placeholder { width: 100%; height: 100%; background: linear-gradient(135deg, #1e3a8a, #3b82f6); }
+.nc-solid-placeholder { width: 100%; height: 100%; background: #e2e8f0; }

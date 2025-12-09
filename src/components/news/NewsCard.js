@@ -1,47 +1,33 @@
 import React, { useState } from 'react';
 import './NewsCard.css';
 
-/**
- * Enterprise News Card Component
- * Supports 3 Design Systems:
- * 1. 'impact' - Large Hero with Gradient Overlay (Top Story)
- * 2. 'focus'  - Clean Card with whitespace (Feature Story)
- * 3. 'compact'- High density list row (Market Ticker)
- */
-const NewsCard = ({ article, variant = 'compact' }) => {
+const NewsCard = ({ article, variant = 'standard' }) => {
     const [imgError, setImgError] = useState(false);
-
     const handleImgError = () => setImgError(true);
 
-    const formatDate = (dateString) => {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        // Enterprise format: "10:45 AM" or "2h ago"
-        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const formatDate = (date) => {
+        const d = new Date(date);
+        const now = new Date();
+        const diffInHours = (now - d) / (1000 * 60 * 60);
+
+        if (diffInHours < 1) return 'Just Now';
+        if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     };
 
-    // --- DESIGN 1: IMPACT (Hero) ---
+    // --- 1. IMPACT (The Hero) ---
     if (variant === 'impact') {
         return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-impact-container">
-                <div className="nc-impact-image-wrapper">
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-impact">
+                <div className="nc-img-wrap-hero">
                     {!imgError && article.imageUrl ? (
-                        <img
-                            src={article.imageUrl}
-                            alt={article.title}
-                            onError={handleImgError}
-                            className="nc-impact-img"
-                        />
-                    ) : (
-                        <div className="nc-placeholder-gradient" />
-                    )}
-                    <div className="nc-impact-overlay">
-                        <span className="nc-tag-live">LIVE</span>
-                        <h3 className="nc-impact-title">{article.title}</h3>
-                        <div className="nc-meta-white">
-                            <span className="nc-source">{article.source}</span>
-                            <span className="nc-dot">•</span>
-                            <span>{formatDate(article.publishedAt)}</span>
+                        <img src={article.imageUrl} alt={article.title} onError={handleImgError} />
+                    ) : <div className="nc-gradient-placeholder" />}
+                    <div className="nc-overlay">
+                        <span className="nc-tag-red">Top Story</span>
+                        <h3>{article.title}</h3>
+                        <div className="nc-meta-light">
+                            <span>{article.source}</span> • <span>{formatDate(article.publishedAt)}</span>
                         </div>
                     </div>
                 </div>
@@ -49,26 +35,20 @@ const NewsCard = ({ article, variant = 'compact' }) => {
         );
     }
 
-    // --- DESIGN 2: FOCUS (Card) ---
-    if (variant === 'focus') {
+    // --- 2. MARKET SNAP (Image + Ticker Context) ---
+    if (variant === 'marketsnap') {
         return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-focus-container">
-                <div className="nc-focus-image">
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-marketsnap">
+                <div className="nc-img-wrap-snap">
                     {!imgError && article.imageUrl ? (
-                        <img
-                            src={article.imageUrl}
-                            alt={article.title}
-                            onError={handleImgError}
-                            className="nc-focus-img"
-                        />
-                    ) : (
-                        <div className="nc-placeholder-solid" />
-                    )}
+                        <img src={article.imageUrl} alt={article.title} onError={handleImgError} />
+                    ) : <div className="nc-solid-placeholder" />}
                 </div>
-                <div className="nc-focus-content">
-                    <h4 className="nc-focus-title">{article.title}</h4>
-                    <div className="nc-meta-gray">
-                        <span className="nc-source-bold">{article.source}</span>
+                <div className="nc-content">
+                    <span className="nc-tag-blue">Market Insight</span>
+                    <h4>{article.title}</h4>
+                    <div className="nc-meta">
+                        <span className="nc-source">{article.source}</span>
                         <span className="nc-time">{formatDate(article.publishedAt)}</span>
                     </div>
                 </div>
@@ -76,24 +56,48 @@ const NewsCard = ({ article, variant = 'compact' }) => {
         );
     }
 
-    // --- DESIGN 3: COMPACT (List) ---
+    // --- 3. OPINION (No Image, Quote Style) ---
+    if (variant === 'opinion') {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-opinion">
+                <div className="nc-opinion-body">
+                    <span className="nc-quote-icon">“</span>
+                    <h4 className="nc-opinion-title">{article.title}</h4>
+                </div>
+                <div className="nc-opinion-footer">
+                    <div className="nc-author-avatar">{article.source.charAt(0)}</div>
+                    <div className="nc-meta-col">
+                        <span className="nc-source-bold">{article.source}</span>
+                        <span className="nc-time">Opinion</span>
+                    </div>
+                </div>
+            </a>
+        );
+    }
+
+    // --- 4. COMPACT (The Ticker) ---
+    if (variant === 'compact') {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-compact">
+                <div className="nc-compact-time">{formatDate(article.publishedAt)}</div>
+                <div className="nc-compact-title">{article.title}</div>
+            </a>
+        );
+    }
+
+    // --- 5. STANDARD (Default Row - Moneycontrol Style) ---
     return (
-        <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-compact-container">
-            <div className="nc-compact-left">
-                <h4 className="nc-compact-title">{article.title}</h4>
-                <div className="nc-meta-micro">
-                    <span className="nc-source-pill">{article.source}</span>
-                    <span className="nc-time-micro">{formatDate(article.publishedAt)}</span>
+        <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-standard">
+            <div className="nc-std-left">
+                <h4>{article.title}</h4>
+                <div className="nc-meta">
+                    <span className="nc-source">{article.source}</span>
+                    <span className="nc-time">{formatDate(article.publishedAt)}</span>
                 </div>
             </div>
-            <div className="nc-compact-right">
+            <div className="nc-std-right">
                 {!imgError && article.imageUrl && (
-                    <img
-                        src={article.imageUrl}
-                        alt=""
-                        onError={handleImgError}
-                        className="nc-compact-thumb"
-                    />
+                    <img src={article.imageUrl} alt="" onError={handleImgError} />
                 )}
             </div>
         </a>
