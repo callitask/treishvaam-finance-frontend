@@ -9,7 +9,7 @@ import throttle from 'lodash/throttle';
 import TableOfContents from '../components/TableOfContents';
 import { AudioPlayer } from '../components/AudioPlayer';
 import { ChevronRight, Calendar, User, Tag, Clock } from 'lucide-react';
-import { generatePostSchema } from '../utils/schemaGenerator'; // --- PHASE 16 IMPORT ---
+import { generatePostSchema } from '../utils/schemaGenerator';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -79,8 +79,17 @@ const SinglePostPage = () => {
 
     useEffect(() => {
         if (!post?.content) return;
+
+        // --- PHASE 16 UPDATE: Allow YouTube Iframes ---
+        // We configure DOMPurify to allow iframe tags and specific attributes needed for YouTube
+        const cleanContent = DOMPurify.sanitize(post.content, {
+            USE_PROFILES: { html: true },
+            ADD_TAGS: ['iframe'],
+            ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target']
+        });
+
         const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = DOMPurify.sanitize(post.content, { USE_PROFILES: { html: true }, ADD_ATTR: ['id'] });
+        tempDiv.innerHTML = cleanContent;
 
         const headingElements = tempDiv.querySelectorAll('h2, h3, h4');
         const extractedHeadings = Array.from(headingElements).map((el, index) => {
@@ -90,6 +99,7 @@ const SinglePostPage = () => {
         });
 
         setHeadings(extractedHeadings);
+        // Use the cleaned content (with iframes) for rendering
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
 
@@ -142,15 +152,12 @@ const SinglePostPage = () => {
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
     const categoryName = post.category?.name || "General";
 
-    // --- PHASE 16: RESPONSIVE IMAGE LOGIC ---
     let imageUrl = `https://treishfin.treishvaamgroup.com/logo.webp`;
     let srcSet = null;
 
     if (post.coverImageUrl) {
         const base = `${API_URL}/api/uploads/${post.coverImageUrl}`;
-        // Standard WebP URL (Master 1920w)
         imageUrl = `${base}.webp`;
-        // Generate SrcSet for different viewports
         srcSet = `
             ${base}-480.webp 480w,
             ${base}-800.webp 800w,
@@ -164,7 +171,6 @@ const SinglePostPage = () => {
         authorName = "Treishvaam";
     }
 
-    // --- PHASE 16: Use Schema Generator ---
     const schemas = generatePostSchema(post, authorName, pageUrl, imageUrl);
 
     return (
@@ -228,12 +234,10 @@ const SinglePostPage = () => {
                                 </div>
                             </div>
 
-                            {/* AUDIO PLAYER INJECTION */}
                             <AudioPlayer title={post.title} content={post.content} />
 
                         </header>
 
-                        {/* PHASE 16: NATIVE IMG WITH SRCSET (LCP OPTIMIZATION) */}
                         {post.coverImageUrl && (
                             <div className="mb-10 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-slate-800">
                                 <img
@@ -244,7 +248,7 @@ const SinglePostPage = () => {
                                     className="w-full h-auto object-cover"
                                     width="1200"
                                     height="675"
-                                    fetchPriority="high" // Crucial for LCP
+                                    fetchPriority="high"
                                 />
                             </div>
                         )}
@@ -257,7 +261,9 @@ const SinglePostPage = () => {
                                     prose-a:text-sky-600 dark:prose-a:text-sky-400 
                                     prose-strong:text-gray-900 dark:prose-strong:text-white
                                     prose-li:text-gray-700 dark:prose-li:text-gray-300
-                                    prose-img:rounded-xl"
+                                    prose-img:rounded-xl
+                                    /* Video Aspect Ratio Fix */
+                                    [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-xl"
                                 dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)}
                             />
                             <div className="mt-16 pt-8 border-t border-gray-200 dark:border-slate-800">
