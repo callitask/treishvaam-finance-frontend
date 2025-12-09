@@ -75,7 +75,7 @@ const SinglePostPage = () => {
         };
         fetchPost();
         window.scrollTo(0, 0);
-    }, [urlArticleId, post]); // 'post' dependency is safe due to the if(post) check
+    }, [urlArticleId, post]);
 
     useEffect(() => {
         if (!post?.content) return;
@@ -142,13 +142,15 @@ const SinglePostPage = () => {
     const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
     const imageUrl = post.coverImageUrl ? `${API_URL}/api/uploads/${post.coverImageUrl}.webp` : `https://treishfin.treishvaamgroup.com/logo.webp`;
 
-    // --- FIX: Author Name Sanitization ---
-    // This hides the raw email from the frontend schema
     let authorName = post.author || "Treishvaam Team";
     if (authorName === "callitask@gmail.com") {
         authorName = "Treishvaam";
     }
     const categoryName = post.category?.name || "General";
+
+    // --- DYNAMIC SCHEMA SELECTION ---
+    const isNews = categoryName === 'News' || categoryName === 'Markets' || categoryName === 'Crypto';
+    const schemaType = isNews ? 'NewsArticle' : 'BlogPosting';
 
     const breadcrumbSchema = {
         "@context": "https://schema.org",
@@ -173,7 +175,7 @@ const SinglePostPage = () => {
 
     const articleSchema = {
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": schemaType,
         "mainEntityOfPage": { "@type": "WebPage", "@id": pageUrl },
         "headline": post.title,
         "image": [imageUrl],
@@ -183,7 +185,6 @@ const SinglePostPage = () => {
             "@type": "Person",
             "name": authorName,
             "url": "https://treishfin.treishvaamgroup.com/about",
-            // Added LinkedIn to match Worker schema
             "sameAs": ["https://www.linkedin.com/in/amitsagarkandpal"]
         },
         "publisher": {
@@ -191,7 +192,12 @@ const SinglePostPage = () => {
             "name": "Treishvaam Finance",
             "logo": { "@type": "ImageObject", "url": "https://treishfin.treishvaamgroup.com/logo.webp" }
         },
-        "description": seoDescription
+        "description": seoDescription,
+        // --- VOICE SEARCH OPTIMIZATION ---
+        "speakable": {
+            "@type": "SpeakableSpecification",
+            "cssSelector": ["h1", "article p"]
+        }
     };
 
     return (
