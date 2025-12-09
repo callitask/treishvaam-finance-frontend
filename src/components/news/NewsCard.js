@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Clock, Zap, ChevronRight } from 'lucide-react';
 
 // Helper to extract domain for favicon/source label
@@ -28,6 +28,9 @@ const timeAgo = (dateString) => {
 };
 
 const NewsCard = ({ article, variant = 'ticker' }) => {
+    // State to track image loading errors
+    const [imgError, setImgError] = useState(false);
+
     if (!article) return null;
 
     const domain = getDomain(article.link);
@@ -44,14 +47,16 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                 rel="noopener noreferrer"
                 className="block group relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-slate-900 mb-8 shadow-sm hover:shadow-xl transition-all duration-500"
             >
-                {/* Background Image */}
-                {article.imageUrl ? (
+                {/* Background Image with Fallback Logic */}
+                {article.imageUrl && !imgError ? (
                     <img
                         src={article.imageUrl}
                         alt={article.title}
+                        onError={() => setImgError(true)}
                         className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-90"
                     />
                 ) : (
+                    // Fallback: Professional Gradient + Source Logo
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-black flex items-center justify-center">
                         <img src={faviconUrl} alt="" className="w-16 h-16 opacity-10 grayscale invert" />
                     </div>
@@ -76,7 +81,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                         <img src={faviconUrl} alt="" className="w-4 h-4 rounded-sm bg-white p-0.5" />
                         <span>{sourceName}</span>
                         <span className="text-gray-500 mx-1">•</span>
-                        {/* Added Clock Usage */}
                         <div className="flex items-center gap-1 text-gray-400">
                             <Clock size={10} /> {timeDisplay}
                         </div>
@@ -95,11 +99,12 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                 rel="noopener noreferrer"
                 className="block group mb-8"
             >
-                <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 mb-3">
-                    {article.imageUrl ? (
+                <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gray-100 mb-3 border border-gray-100">
+                    {article.imageUrl && !imgError ? (
                         <img
                             src={article.imageUrl}
                             alt=""
+                            onError={() => setImgError(true)}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                     ) : (
@@ -129,11 +134,12 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                 rel="noopener noreferrer"
                 className="group flex gap-4 mb-6 items-start"
             >
-                <div className="shrink-0 relative w-[70px] h-[70px] rounded-lg overflow-hidden bg-gray-100">
-                    {article.imageUrl ? (
+                <div className="shrink-0 relative w-[70px] h-[70px] rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
+                    {article.imageUrl && !imgError ? (
                         <img
                             src={article.imageUrl}
                             alt=""
+                            onError={() => setImgError(true)}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                         />
                     ) : (
@@ -179,7 +185,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                 <h5 className="text-xs font-medium text-gray-700 leading-snug group-hover:text-gray-900 line-clamp-2">
                     {article.title}
                 </h5>
-                {/* Added ChevronRight Usage */}
                 <ChevronRight size={12} className="text-gray-300 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 shrink-0" />
             </div>
         </a>
