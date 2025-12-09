@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Clock, Zap, ChevronRight, TrendingUp } from 'lucide-react';
+import { Clock, Zap, ChevronRight } from 'lucide-react';
 
 // Helper to extract domain for favicon/source label
 const getDomain = (url) => {
@@ -36,7 +36,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
     const timeDisplay = timeAgo(article.publishedAt);
 
     // --- TIER 1: HERO (The Lead Story - Index 0) ---
-    // Immersive, full-width, dark overlay.
     if (variant === 'hero') {
         return (
             <a
@@ -77,7 +76,10 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                         <img src={faviconUrl} alt="" className="w-4 h-4 rounded-sm bg-white p-0.5" />
                         <span>{sourceName}</span>
                         <span className="text-gray-500 mx-1">•</span>
-                        <span className="text-gray-400">{timeDisplay}</span>
+                        {/* Added Clock Usage */}
+                        <div className="flex items-center gap-1 text-gray-400">
+                            <Clock size={10} /> {timeDisplay}
+                        </div>
                     </div>
                 </div>
             </a>
@@ -85,7 +87,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
     }
 
     // --- TIER 2: FOCUS (Editorial Highlight - Index 1-2) ---
-    // Large Card, Image Top, Headline Bottom.
     if (variant === 'focus') {
         return (
             <a
@@ -120,7 +121,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
     }
 
     // --- TIER 3: STANDARD (Key Stories - Index 3-5) ---
-    // Row Layout: Image Left, Text Right.
     if (variant === 'standard') {
         return (
             <a
@@ -150,7 +150,9 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-medium uppercase tracking-wide">
                         <span>{sourceName}</span>
                         <span>•</span>
-                        <span>{timeDisplay}</span>
+                        <div className="flex items-center gap-0.5">
+                            <Clock size={8} /> {timeDisplay}
+                        </div>
                     </div>
                 </div>
             </a>
@@ -158,7 +160,6 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
     }
 
     // --- TIER 4: TICKER (The Wire - Index 6+) ---
-    // Minimal, Text Only.
     return (
         <a
             href={article.link}
@@ -174,9 +175,13 @@ const NewsCard = ({ article, variant = 'ticker' }) => {
                 <span className="text-[9px] font-mono text-gray-400">{timeDisplay}</span>
             </div>
 
-            <h5 className="text-xs font-medium text-gray-700 leading-snug group-hover:text-gray-900 line-clamp-2">
-                {article.title}
-            </h5>
+            <div className="flex items-start justify-between gap-2">
+                <h5 className="text-xs font-medium text-gray-700 leading-snug group-hover:text-gray-900 line-clamp-2">
+                    {article.title}
+                </h5>
+                {/* Added ChevronRight Usage */}
+                <ChevronRight size={12} className="text-gray-300 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity -ml-1 shrink-0" />
+            </div>
         </a>
     );
 };
