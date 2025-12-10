@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import './NewsCard.css';
 
 /**
- * Enterprise News Card (Phase 3: Rectangular Edition)
- * strict-sharp design system with high-readability layouts.
+ * Enterprise News Card (Phase 3.1: Optimized for Columns)
+ * - Strict Rectangular Design
+ * - Landscape Hero Images
+ * - Optimized Font Sizes for Narrow Widths
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
@@ -29,7 +31,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                             <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}></div>
                         )}
                     </div>
-                    {/* Text moves OUTSIDE the image for Phase 3 readability */}
+                    {/* Content Block */}
                     <div className="nc-impact-content">
                         <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
                         <h3 className="nc-impact-headline">{article.title}</h3>

@@ -23,7 +23,6 @@ const NewsIntelligenceWidget = () => {
     }, []);
 
     // --- THE SMART LAYOUT ENGINE ---
-    // Analyzes content to pick the perfect design pattern
     const determineVariant = (article, index, totalItems) => {
         // Rule 1: The Hero (Always the first item)
         if (index === 0) return 'impact';
@@ -41,7 +40,6 @@ const NewsIntelligenceWidget = () => {
         }
 
         // Rule 4: Market Snap (Short title + Good Image)
-        // Only trigger this occasionally to avoid visual clutter
         if (hasImage && title.length < 75 && index % 3 === 0) {
             return 'market-snap';
         }
@@ -53,14 +51,19 @@ const NewsIntelligenceWidget = () => {
     // --- SKELETON LOADER ---
     const renderSkeleton = () => (
         <div style={{ opacity: 0.6 }}>
-            <div className="skeleton" style={{ height: '200px', marginBottom: '20px' }}></div>
+            {/* Hero Skeleton */}
+            <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9', marginBottom: '12px' }}></div>
+            <div className="skeleton" style={{ height: '20px', width: '90%', marginBottom: '8px' }}></div>
+            <div className="skeleton" style={{ height: '20px', width: '60%', marginBottom: '24px' }}></div>
+
+            {/* List Skeleton */}
             {[1, 2, 3].map(i => (
-                <div key={i} style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                <div key={i} style={{ display: 'flex', gap: '14px', marginBottom: '14px' }}>
                     <div style={{ flex: 1 }}>
                         <div className="skeleton" style={{ height: '14px', width: '90%', marginBottom: '8px' }}></div>
                         <div className="skeleton" style={{ height: '14px', width: '60%' }}></div>
                     </div>
-                    <div className="skeleton" style={{ width: '90px', height: '60px' }}></div>
+                    <div className="skeleton" style={{ width: '84px', height: '84px' }}></div>
                 </div>
             ))}
         </div>
@@ -78,9 +81,7 @@ const NewsIntelligenceWidget = () => {
 
     if (!news || news.length === 0) return null;
 
-    // --- RENDER ---
     return (
-        // BORDERLESS CONTAINER (Clean, Flush design)
         <div className="w-full bg-white p-4">
             <h2 className="text-xl font-bold mb-6 flex items-center font-serif text-gray-900">
                 <span className="w-1 h-5 bg-red-600 mr-3"></span>
@@ -90,8 +91,6 @@ const NewsIntelligenceWidget = () => {
             <div className="flex flex-col">
                 {news.slice(0, 10).map((article, index) => {
                     const variant = determineVariant(article, index, 10);
-
-                    // Insert a "Trending" header before the ranked list starts
                     const showTrendingHeader = index === 5;
 
                     return (
@@ -104,7 +103,7 @@ const NewsIntelligenceWidget = () => {
                             <NewsCard
                                 article={article}
                                 variant={variant}
-                                rank={index - 4} // Reset rank count for the list
+                                rank={index - 4}
                             />
                         </React.Fragment>
                     );

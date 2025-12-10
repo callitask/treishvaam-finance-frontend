@@ -1,18 +1,18 @@
 /* =========================================
-   ENTERPRISE NEWS SYSTEM (Phase 3: Rectangular)
-   Pattern: Strict Geometric & High Readability
+   ENTERPRISE NEWS SYSTEM (Phase 3.1: Narrow Column Optimized)
+   Pattern: Strict Geometric, High Density, Clean Typography
    ========================================= */
 
 :root {
     --nc-font-serif: 'Georgia', 'Times New Roman', serif;
     --nc-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --nc-color-primary: #111827;
-    --nc-color-secondary: #6b7280;
-    --nc-color-accent: #dc2626; /* Enterprise Red */
-    --nc-color-blue: #2563eb;
+    --nc-color-primary: #111827;   /* Charcoal Black */
+    --nc-color-secondary: #6b7280; /* Cool Grey */
+    --nc-color-accent: #dc2626;    /* Enterprise Red */
+    --nc-color-blue: #2563eb;      /* Interactive Blue */
     --nc-bg-subtle: #f9fafb;
     --nc-divider: #e5e7eb;
-    --nc-radius: 0px; /* STRICT SHARP CORNERS */
+    --nc-radius: 0px;              /* STRICT SHARP CORNERS */
 }
 
 /* --- GLOBAL RESET & UTILS --- */
@@ -31,18 +31,20 @@
 
 /* =========================================
    VARIANT 1: IMPACT (The Hero)
-   Structure: Vertical Stack (Image Top -> Text Bottom)
+   Optimized for Narrow Columns
    ========================================= */
 .nc-impact-card {
     display: flex;
     flex-direction: column;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     background: #fff;
+    width: 100%;
 }
 
 .nc-impact-image-container {
     width: 100%;
-    height: 260px; /* Large, Cinematic */
+    /* STRICT LANDSCAPE RATIO */
+    aspect-ratio: 16 / 9; 
     overflow: hidden;
     position: relative;
     background-color: #1f2937;
@@ -61,9 +63,8 @@
     transform: scale(1.02);
 }
 
-/* Text sits BELOW the image now for perfect readability */
 .nc-impact-content {
-    padding-top: 16px;
+    padding-top: 12px; /* Tighter padding */
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -71,21 +72,22 @@
 
 .nc-impact-kicker {
     font-family: var(--nc-font-sans);
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
     color: var(--nc-color-accent);
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     letter-spacing: 0.5px;
 }
 
+/* OPTIMIZED HEADLINE: Not too big, clean Serif */
 .nc-impact-headline {
     font-family: var(--nc-font-serif);
-    font-size: 24px; /* Large Authority Font */
-    line-height: 1.3;
+    font-size: 18px; /* Reduced from 24px for column fit */
+    line-height: 1.35;
     font-weight: 700;
     color: #000;
-    margin: 0 0 10px 0;
+    margin: 0 0 8px 0;
 }
 
 .nc-impact-card:hover .nc-impact-headline {
@@ -94,22 +96,21 @@
 
 .nc-impact-meta {
     font-family: var(--nc-font-sans);
-    font-size: 12px;
+    font-size: 11px;
     color: var(--nc-color-secondary);
     font-weight: 500;
 }
 
 /* =========================================
    VARIANT 2: STANDARD (Media Object)
-   Structure: Text Left | Image Right
-   Logic: Text height capped to match Image height
+   Balanced for high density
    ========================================= */
 .nc-standard-card {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 16px 0;
-    gap: 16px;
+    padding: 14px 0; /* Slightly tighter vertical padding */
+    gap: 14px;
 }
 
 .nc-std-content {
@@ -117,29 +118,28 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    /* Ensure content distributes nicely */
-    justify-content: flex-start; 
 }
 
 .nc-std-kicker {
     font-family: var(--nc-font-sans);
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     color: var(--nc-color-accent);
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     display: block;
 }
 
+/* OPTIMIZED HEADLINE: Small but readable Sans */
 .nc-std-headline {
     font-family: var(--nc-font-sans);
-    font-size: 15px;
-    line-height: 1.4; /* 15px * 1.4 = 21px per line */
-    font-weight: 600;
+    font-size: 14px; /* Standard text size */
+    line-height: 1.35; 
+    font-weight: 600; /* Semi-bold for clean look */
     color: var(--nc-color-primary);
-    margin: 0 0 6px 0;
+    margin: 0 0 4px 0;
     
-    /* LINE CLAMPING: Max 3 lines (~63px) */
+    /* Max 3 lines to match image height perfectly */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -152,18 +152,19 @@
 }
 
 .nc-std-meta {
-    font-size: 11px;
+    font-size: 10px;
     color: var(--nc-color-secondary);
     white-space: nowrap;
+    margin-top: auto; /* Push to bottom if space permits */
 }
 
 .nc-std-thumbnail {
-    width: 90px;
-    height: 90px; /* Perfect Square for Sharpness */
+    width: 84px;  /* Slightly smaller for column balance */
+    height: 84px; /* Square */
     overflow: hidden;
     flex-shrink: 0;
     background-color: #f3f4f6;
-    border-radius: var(--nc-radius); /* Sharp 0px */
+    border-radius: var(--nc-radius);
 }
 
 .nc-std-thumbnail img {
@@ -179,18 +180,17 @@
 
 /* =========================================
    VARIANT 3: MARKET SNAP (Visual Focus)
-   Structure: Image Top -> Text Bottom
    ========================================= */
 .nc-snap-card {
-    padding: 16px 0;
+    padding: 14px 0;
     display: block;
 }
 
 .nc-snap-image {
     width: 100%;
-    height: 160px;
+    aspect-ratio: 16 / 9; /* Enforce Landscape */
     overflow: hidden;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
     background-color: #f3f4f6;
     border-radius: var(--nc-radius);
 }
@@ -215,39 +215,38 @@
 
 /* =========================================
    VARIANT 4: OPINION (The Quote)
-   Structure: Boxed Text
    ========================================= */
 .nc-opinion-card {
-    padding: 20px;
+    padding: 16px;
     background-color: var(--nc-bg-subtle);
-    border-left: 4px solid var(--nc-color-primary);
-    margin: 16px 0;
+    border-left: 3px solid var(--nc-color-primary);
+    margin: 12px 0;
     display: block;
     border-radius: var(--nc-radius);
 }
 
 .nc-opinion-icon {
-    font-size: 32px;
+    font-size: 28px;
     color: #9ca3af;
     line-height: 0;
     display: block;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     font-family: serif;
 }
 
 .nc-opinion-headline {
     font-family: var(--nc-font-serif);
-    font-size: 18px;
+    font-size: 16px; /* Reduced from 18px */
     font-style: italic;
     font-weight: 500;
     color: #374151;
-    line-height: 1.5;
-    margin: 0 0 12px 0;
+    line-height: 1.4;
+    margin: 0 0 8px 0;
 }
 
 .nc-opinion-author {
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 10px;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--nc-color-primary);
@@ -255,29 +254,28 @@
 
 /* =========================================
    VARIANT 5: RANKED (Trending)
-   Structure: Number | Text
    ========================================= */
 .nc-ranked-card {
     display: flex;
-    gap: 16px;
-    padding: 16px 0;
+    gap: 12px;
+    padding: 12px 0;
     align-items: flex-start;
 }
 
 .nc-rank-number {
     font-family: var(--nc-font-serif);
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 700;
-    color: #e5e7eb; /* Subtle Grey Number */
+    color: #e5e7eb;
     line-height: 0.8;
-    min-width: 40px;
+    min-width: 32px;
     text-align: center;
 }
 
 .nc-ranked-content h4 {
     font-family: var(--nc-font-sans);
-    font-size: 15px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     margin: 0 0 4px 0;
     line-height: 1.4;
     color: var(--nc-color-primary);
