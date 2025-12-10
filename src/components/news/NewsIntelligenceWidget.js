@@ -23,40 +23,39 @@ const NewsIntelligenceWidget = () => {
     }, []);
 
     // --- THE SMART LAYOUT ENGINE ---
-    // Deterministically assigns your 4 designs based on position
     const determineVariant = (article, index, totalItems) => {
-        // [IMAGE 3 DESIGN] Impact/Hero: Always the first story
+        // Rule 1: The Hero (Always the first item)
         if (index === 0) return 'impact';
 
-        // [DESIGN 4] Ranked List: The bottom half (Items 6-10)
+        // Rule 2: The Trending List (The last 5 items)
         if (index >= 5) return 'ranked';
 
-        // [IMAGE 2 DESIGN] Market Snap: Always Item #4 (Index 3)
-        // This guarantees the "Vertical" visual break you requested
+        // Rule 3: Market Snap (Always Item #4 to force rhythm)
         if (index === 3 && article.imageUrl) {
             return 'market-snap';
         }
 
-        // [OPINION DESIGN] Contextual: Triggers on specific keywords
         const title = article.title || "";
+
+        // Rule 4: Opinion/Analysis (Keywords in title)
         const opinionKeywords = ["Why", "Opinion", "Outlook", "Forecast", "Analysis", "Review"];
         if (opinionKeywords.some(keyword => title.includes(keyword))) {
             return 'opinion';
         }
 
-        // [IMAGE 1 DESIGN] Standard: The default for everything else (Items 2, 3, 5)
+        // Rule 5: Standard (The default fallback)
         return 'standard';
     };
 
     // --- SKELETON LOADER ---
     const renderSkeleton = () => (
         <div style={{ opacity: 0.6 }}>
-            {/* Hero Skeleton (16:9) */}
+            {/* Hero Skeleton */}
             <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9', marginBottom: '12px' }}></div>
             <div className="skeleton" style={{ height: '20px', width: '90%', marginBottom: '8px' }}></div>
             <div className="skeleton" style={{ height: '20px', width: '60%', marginBottom: '24px' }}></div>
 
-            {/* Standard List Skeletons */}
+            {/* List Skeleton */}
             {[1, 2, 3].map(i => (
                 <div key={i} style={{ display: 'flex', gap: '14px', marginBottom: '14px' }}>
                     <div style={{ flex: 1 }}>
@@ -72,7 +71,7 @@ const NewsIntelligenceWidget = () => {
     if (loading) return (
         <div className="w-full bg-white p-4">
             <h2 className="text-xl font-bold mb-6 flex items-center font-serif text-gray-900">
-                <span className="w-1 h-5 bg-red-600 mr-3"></span>
+                <span className="w-1 h-5 bg-blue-800 mr-3"></span>
                 Market Intelligence
             </h2>
             {renderSkeleton()}
@@ -84,22 +83,21 @@ const NewsIntelligenceWidget = () => {
     return (
         <div className="w-full bg-white p-4">
             <h2 className="text-xl font-bold mb-6 flex items-center font-serif text-gray-900">
-                <span className="w-1 h-5 bg-red-600 mr-3"></span>
+                <span className="w-1 h-5 bg-blue-800 mr-3"></span>
                 Market Intelligence
             </h2>
 
             <div className="flex flex-col">
                 {news.slice(0, 10).map((article, index) => {
                     const variant = determineVariant(article, index, 10);
-
-                    // Add "Trending" divider before the Ranked List starts
                     const showTrendingHeader = index === 5;
 
                     return (
                         <React.Fragment key={article.id || index}>
                             {showTrendingHeader && (
                                 <div className="mt-6 mb-3 pb-2 border-b border-black">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-red-600">Trending Now</span>
+                                    {/* COLOR UPDATE: Changed from text-red-600 to text-gray-900 (Black) */}
+                                    <span className="text-xs font-bold uppercase tracking-wider text-gray-900">Trending Now</span>
                                 </div>
                             )}
                             <NewsCard
