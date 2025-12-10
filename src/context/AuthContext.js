@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-// MODIFIED: Changed import from '../services/api' to '../apiConfig'
-import api from '../apiConfig'; // Use the consolidated API instance
-import { jwtDecode } from 'jwt-decode';
+import Keycloak from 'keycloak-js';
+import { setAuthToken } from '../apiConfig'; // Import setter
 
 const AuthContext = createContext();
 
@@ -10,61 +9,76 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [auth, setAuth] = useState({ token: null, user: null, isAuthenticated: false });
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [keycloak, setKeycloak] = useState(null);
 
   useEffect(() => {
-    // Always force a fresh login on server restart or first load
-    const token = localStorage.getItem('token');
-    if (!token) {
-      setAuth({ token: null, user: null, isAuthenticated: false });
-      setLoading(false);
-      return;
-    }
-    try {
-      const decoded = jwtDecode(token);
-      // Check for token expiry and required fields
-      if (decoded.exp && decoded.exp * 1000 > Date.now() && decoded.sub) {
-        setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
+    const initKeycloak = new Keycloak({
+      url: 'https://backend.treishvaamgroup.com/auth',
+      realm: 'treishvaam',
+      clientId: 'finance-app',
+    });
+
+    initKeycloak.init({
+      onLoad: 'check-sso',
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+      pkceMethod: 'S256',
+    }).then((authenticated) => {
+      setKeycloak(initKeycloak);
+      if (authenticated) {
+        setToken(initKeycloak.token);
+        setAuthToken(initKeycloak.token); // <--- Update Axios
+        setIsAuthenticated(true);
+
+        const { name, email, realm_access } = initKeycloak.tokenParsed;
+        const roles = realm_access ? realm_access.roles : [];
+
+        setUser({
+          name,
+          email,
+          roles,
+          isAdmin: roles.includes('admin') || roles.includes('publisher')
+        });
       } else {
-        localStorage.removeItem('token');
-        setAuth({ token: null, user: null, isAuthenticated: false });
+        setIsAuthenticated(false);
+        setAuthToken(null);
       }
-    } catch (error) {
-      localStorage.removeItem('token');
-      setAuth({ token: null, user: null, isAuthenticated: false });
-    }
-    setLoading(false);
+      setLoading(false);
+    }).catch(err => {
+      console.error("Keycloak init failed", err);
+      setLoading(false);
+    });
   }, []);
 
-  const login = async (email, password) => {
-    try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token } = response.data;
-      const decoded = jwtDecode(token);
-
-      localStorage.setItem('token', token);
-      setAuth({ token, user: { email: decoded.sub }, isAuthenticated: true });
-      return { success: true };
-    } catch (error) {
-      let message = 'Login failed. Please try again.';
-      if (error.response && error.response.data && error.response.data.message) {
-        message = error.response.data.message;
-      } else if (error.message) {
-        message = error.message;
-      }
-      setAuth({ token: null, user: null, isAuthenticated: false });
-      return { success: false, message };
-    }
+  const login = () => {
+    if (keycloak) keycloak.login();
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setAuth({ token: null, user: null, isAuthenticated: false });
+    if (keycloak) keycloak.logout();
   };
 
+  useEffect(() => {
+    if (!keycloak || !isAuthenticated) return;
+    const intervalId = setInterval(() => {
+      keycloak.updateToken(70).then((refreshed) => {
+        if (refreshed) {
+          setToken(keycloak.token);
+          setAuthToken(keycloak.token); // <--- Update Axios
+        }
+      }).catch(() => {
+        console.error('Failed to refresh token');
+        logout();
+      });
+    }, 60000);
+    return () => clearInterval(intervalId);
+  }, [keycloak, isAuthenticated]);
+
   return (
-    <AuthContext.Provider value={{ auth, login, logout, loading }}>
+    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
       {!loading && children}
     </AuthContext.Provider>
   );

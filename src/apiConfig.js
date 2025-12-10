@@ -11,12 +11,18 @@ const api = axios.create({
   baseURL: `${API_URL}/api/v1`,
 });
 
-// Attach JWT from localStorage when present
+// Holds the current token, set by AuthContext
+let currentToken = null;
+
+export const setAuthToken = (token) => {
+  currentToken = token;
+};
+
+// Attach JWT from Keycloak
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers['Authorization'] = 'Bearer ' + token;
+    if (currentToken) {
+      config.headers['Authorization'] = 'Bearer ' + currentToken;
     }
     return config;
   },
@@ -49,15 +55,15 @@ export const getCategories = () => api.get('/categories');
 export const addCategory = (data) => api.post('/categories', data);
 
 /* -------------------- Auth -------------------- */
-export const login = (credentials) => api.post('/auth/login', credentials);
+// Deprecated: Login is handled by Keycloak redirect
+export const login = () => Promise.reject("Use Keycloak Login");
 
 /* -------------------- Search -------------------- */
 export const searchPosts = (query) => api.get(`/search?q=${encodeURIComponent(query)}`);
 
 /* -------------------- News (FIXED ENDPOINTS) -------------------- */
-// Updated to match the working Desktop Widget
 export const getNewsHighlights = () => api.get('/market/news/highlights');
-export const getArchivedNews = () => api.get('/market/news/archive'); // Assuming archive follows same pattern
+export const getArchivedNews = () => api.get('/market/news/archive');
 export const refreshNewsData = () => api.post('/news/admin/refresh');
 
 /* -------------------- Market / Movers -------------------- */
