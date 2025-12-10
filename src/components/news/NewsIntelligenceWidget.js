@@ -6,9 +6,9 @@ import './NewsCard.css';
 const API_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com/api/v1';
 
 /**
- * Enterprise News Widget (Logic Upgrade)
- * Connects to the Backend Intelligence Engine while preserving original visuals.
- * * @param {string} layoutMode - 'sidebar' (Default) or 'newsroom' (For middle column usage)
+ * Enterprise News Widget (Smart Layout Edition)
+ * - Intelligent Variant Allocation for "Load More"
+ * - Maintains "Trending" list only for top 5-9 items
  */
 const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
     const [news, setNews] = useState([]);
@@ -17,10 +17,8 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(true);
 
-    // --- 1. SMART FETCH ENGINE ---
     const fetchNews = useCallback((pageNum, reset = false) => {
-        // Fetch more items in 'newsroom' mode to fill the grid
-        const pageSize = layoutMode === 'newsroom' ? 14 : 10;
+        const pageSize = 10; // Fetch 10 at a time
         const isLoadMore = pageNum > 0;
 
         if (isLoadMore) setLoadingMore(true);
@@ -30,13 +28,17 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
             .then(res => {
                 const newArticles = Array.isArray(res.data) ? res.data : [];
 
-                // Intelligence Check: If backend returns less than requested, we reached the end
                 if (newArticles.length < pageSize) setHasMore(false);
 
                 if (reset) {
                     setNews(newArticles);
                 } else {
-                    setNews(prev => [...prev, ...newArticles]);
+                    // Filter duplicates based on ID or Title before appending
+                    setNews(prev => {
+                        const existingIds = new Set(prev.map(n => n.id || n.title));
+                        const uniqueNew = newArticles.filter(n => !existingIds.has(n.id || n.title));
+                        return [...prev, ...uniqueNew];
+                    });
                 }
                 setPage(pageNum);
             })
@@ -48,56 +50,46 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                 setLoading(false);
                 setLoadingMore(false);
             });
-    }, [layoutMode]);
+    }, []);
 
-    // Initial Load
     useEffect(() => {
         fetchNews(0, true);
     }, [fetchNews]);
 
-    // --- 2. THE VARIANT ENGINE (Preserved) ---
-    // This logic ensures your specific design variations appear in the perfect rhythm
+    // --- SMART LAYOUT ENGINE ---
     const determineVariant = (article, index) => {
-        // Rule 1: The Hero (Always the first item)
-        if (index === 0) return 'impact';
+        // --- 1. INITIAL VIEW (Items 0-9) ---
+        if (index === 0) return 'impact'; // The Main Hero
+        if (index === 3 && article.imageUrl) return 'market-snap'; // Visual Break
 
-        // Rule 2: The Trending List (Items after #5)
-        if (index >= 5) return 'ranked';
+        // The "Trending" List (Strictly items 5 to 9)
+        // This keeps the sidebar tidy initially
+        if (index >= 5 && index < 10) return 'ranked';
 
-        // Rule 3: Market Snap (Item #4, if image exists)
-        if (index === 3 && article.imageUrl) {
-            return 'market-snap';
+        // --- 2. EXTENDED FEED (Items 10+) ---
+        // When user clicks "Load More", we switch to a FEED style (Cards)
+        // instead of a LIST style, effectively "extending" the column visually.
+        if (index >= 10) {
+            // Every 5th item in the extended feed gets a Hero treatment
+            if (index % 5 === 0 && article.imageUrl) return 'impact';
+
+            // Check for Opinion pieces
+            const title = article.title || "";
+            const opinionKeywords = ["Why", "Opinion", "Outlook", "Forecast", "Analysis"];
+            if (opinionKeywords.some(keyword => title.includes(keyword))) return 'opinion';
+
+            // Default to Standard Card (Image + Text) for the rest
+            // This consumes more vertical space, filling the "middle section" void.
+            return 'standard';
         }
 
+        // Standard checks for initial items 1-4
         const title = article.title || "";
+        const opinionKeywords = ["Why", "Opinion", "Outlook", "Forecast", "Analysis"];
+        if (opinionKeywords.some(keyword => title.includes(keyword))) return 'opinion';
 
-        // Rule 4: Opinion/Analysis (Keywords in title)
-        const opinionKeywords = ["Why", "Opinion", "Outlook", "Forecast", "Analysis", "Review"];
-        if (opinionKeywords.some(keyword => title.includes(keyword))) {
-            return 'opinion';
-        }
-
-        // Rule 5: Standard (The default fallback)
         return 'standard';
     };
-
-    // --- SKELETON LOADER ---
-    const renderSkeleton = () => (
-        <div style={{ opacity: 0.6 }}>
-            <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9', marginBottom: '12px', background: '#e5e7eb' }}></div>
-            <div className="skeleton" style={{ height: '20px', width: '90%', marginBottom: '8px', background: '#e5e7eb' }}></div>
-            <div className="skeleton" style={{ height: '20px', width: '60%', marginBottom: '24px', background: '#e5e7eb' }}></div>
-            {[1, 2, 3].map(i => (
-                <div key={i} style={{ display: 'flex', gap: '14px', marginBottom: '14px' }}>
-                    <div style={{ flex: 1 }}>
-                        <div className="skeleton" style={{ height: '14px', width: '90%', marginBottom: '8px', background: '#e5e7eb' }}></div>
-                        <div className="skeleton" style={{ height: '14px', width: '60%', background: '#e5e7eb' }}></div>
-                    </div>
-                    <div className="skeleton" style={{ width: '84px', height: '84px', background: '#e5e7eb' }}></div>
-                </div>
-            ))}
-        </div>
-    );
 
     if (loading && page === 0) return (
         <div className="w-full bg-white p-4">
@@ -105,7 +97,10 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                 <span className="w-1 h-5 bg-blue-800 mr-3"></span>
                 Market Intelligence
             </h2>
-            {renderSkeleton()}
+            <div className="animate-pulse space-y-4">
+                <div className="h-48 bg-gray-200 w-full"></div>
+                <div className="h-4 bg-gray-200 w-3/4"></div>
+            </div>
         </div>
     );
 
@@ -118,7 +113,6 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                     <span className="w-1 h-5 bg-blue-800 mr-3"></span>
                     {layoutMode === 'newsroom' ? 'Global Market Intelligence' : 'Market Intelligence'}
                 </h2>
-                {/* Refresh Button */}
                 <button
                     onClick={() => fetchNews(0, true)}
                     className="text-gray-400 hover:text-blue-800 transition-colors text-sm"
@@ -128,40 +122,51 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                 </button>
             </div>
 
-            {/* --- 3. ADAPTIVE CONTAINER --- */}
-            {/* Sidebar Mode = Column. Newsroom Mode = 2-Column Grid. */}
-            <div className={
-                layoutMode === 'newsroom'
-                    ? "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0"
-                    : "flex flex-col"
-            }>
+            {/* Container */}
+            <div className={layoutMode === 'newsroom' ? "grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0" : "flex flex-col"}>
+
                 {news.map((article, index) => {
                     const variant = determineVariant(article, index);
+
+                    // Show "Trending Now" header ONLY before the ranked list starts (Index 5)
                     const showTrendingHeader = index === 5;
 
-                    // Smart Spanning: In grid mode, the Hero (index 0) takes full width
-                    const gridClass = (layoutMode === 'newsroom' && index === 0)
+                    // Show "More Updates" header when the extended feed starts (Index 10)
+                    const showExtendedHeader = index === 10;
+
+                    const gridClass = (layoutMode === 'newsroom' && (index === 0 || variant === 'impact'))
                         ? "col-span-1 md:col-span-2"
                         : "col-span-1";
 
                     return (
                         <div key={article.id || index} className={gridClass}>
+                            {/* Trending Header */}
                             {showTrendingHeader && (
                                 <div className="mt-6 mb-3 pb-2 border-b border-black w-full">
                                     <span className="text-xs font-bold uppercase tracking-wider text-gray-900">Trending Now</span>
                                 </div>
                             )}
+
+                            {/* Extended Feed Header (Visual Break for Load More) */}
+                            {showExtendedHeader && (
+                                <div className="mt-8 mb-4 flex items-center">
+                                    <div className="h-px bg-gray-300 flex-1"></div>
+                                    <span className="px-3 text-xs font-bold uppercase tracking-wider text-gray-500">Earlier Updates</span>
+                                    <div className="h-px bg-gray-300 flex-1"></div>
+                                </div>
+                            )}
+
                             <NewsCard
                                 article={article}
                                 variant={variant}
-                                rank={index - 4}
+                                rank={index - 4} // Rank only relevant for 5-9
                             />
                         </div>
                     );
                 })}
             </div>
 
-            {/* --- 4. LOAD MORE --- */}
+            {/* Load More Button */}
             {hasMore && (
                 <div className="mt-6 text-center pt-4 border-t border-gray-100">
                     <button
@@ -169,7 +174,7 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                         disabled={loadingMore}
                         className="text-sm font-bold text-blue-800 hover:underline uppercase tracking-wide disabled:opacity-50"
                     >
-                        {loadingMore ? 'Loading Intelligence...' : 'Load More News'}
+                        {loadingMore ? 'Fetching...' : 'Load More News'}
                     </button>
                 </div>
             )}
