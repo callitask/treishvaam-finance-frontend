@@ -23,40 +23,40 @@ const NewsIntelligenceWidget = () => {
     }, []);
 
     // --- THE SMART LAYOUT ENGINE ---
+    // Deterministically assigns your 4 designs based on position
     const determineVariant = (article, index, totalItems) => {
-        // Rule 1: The Hero (Always the first item)
+        // [IMAGE 3 DESIGN] Impact/Hero: Always the first story
         if (index === 0) return 'impact';
 
-        // Rule 2: The Trending List (The last 5 items)
+        // [DESIGN 4] Ranked List: The bottom half (Items 6-10)
         if (index >= 5) return 'ranked';
 
-        const title = article.title || "";
-        const hasImage = !!article.imageUrl;
+        // [IMAGE 2 DESIGN] Market Snap: Always Item #4 (Index 3)
+        // This guarantees the "Vertical" visual break you requested
+        if (index === 3 && article.imageUrl) {
+            return 'market-snap';
+        }
 
-        // Rule 3: Opinion/Analysis (Keywords in title)
+        // [OPINION DESIGN] Contextual: Triggers on specific keywords
+        const title = article.title || "";
         const opinionKeywords = ["Why", "Opinion", "Outlook", "Forecast", "Analysis", "Review"];
         if (opinionKeywords.some(keyword => title.includes(keyword))) {
             return 'opinion';
         }
 
-        // Rule 4: Market Snap (Short title + Good Image)
-        if (hasImage && title.length < 75 && index % 3 === 0) {
-            return 'market-snap';
-        }
-
-        // Rule 5: Standard (The default fallback)
+        // [IMAGE 1 DESIGN] Standard: The default for everything else (Items 2, 3, 5)
         return 'standard';
     };
 
     // --- SKELETON LOADER ---
     const renderSkeleton = () => (
         <div style={{ opacity: 0.6 }}>
-            {/* Hero Skeleton */}
+            {/* Hero Skeleton (16:9) */}
             <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9', marginBottom: '12px' }}></div>
             <div className="skeleton" style={{ height: '20px', width: '90%', marginBottom: '8px' }}></div>
             <div className="skeleton" style={{ height: '20px', width: '60%', marginBottom: '24px' }}></div>
 
-            {/* List Skeleton */}
+            {/* Standard List Skeletons */}
             {[1, 2, 3].map(i => (
                 <div key={i} style={{ display: 'flex', gap: '14px', marginBottom: '14px' }}>
                     <div style={{ flex: 1 }}>
@@ -91,12 +91,14 @@ const NewsIntelligenceWidget = () => {
             <div className="flex flex-col">
                 {news.slice(0, 10).map((article, index) => {
                     const variant = determineVariant(article, index, 10);
+
+                    // Add "Trending" divider before the Ranked List starts
                     const showTrendingHeader = index === 5;
 
                     return (
                         <React.Fragment key={article.id || index}>
                             {showTrendingHeader && (
-                                <div className="mt-6 mb-2 pb-2 border-b border-black">
+                                <div className="mt-6 mb-3 pb-2 border-b border-black">
                                     <span className="text-xs font-bold uppercase tracking-wider text-red-600">Trending Now</span>
                                 </div>
                             )}
