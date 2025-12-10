@@ -2,51 +2,44 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import NewsCard from './NewsCard';
 
+// FIXED: Point directly to the Production Backend
+const API_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com/api/v1';
+
 const NewsIntelligenceWidget = () => {
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
     useEffect(() => {
-        axios.get('/api/market/news/highlights')
+        // FIXED: Use absolute URL to avoid hitting the Frontend server
+        axios.get(`${API_URL}/market/news/highlights`)
             .then(res => {
-                // Defensive check: Ensure we actually got an array
                 if (Array.isArray(res.data)) {
                     setNews(res.data);
                 } else {
                     console.warn("News API returned unexpected format:", res.data);
-                    setNews([]); 
+                    setNews([]);
                 }
             })
             .catch(e => {
                 console.error("News fetch failed:", e);
                 setError(true);
-                setNews([]); // Fallback to empty array on error
+                setNews([]);
             })
             .finally(() => setLoading(false));
     }, []);
 
     const renderSmartStream = useMemo(() => {
-        // CRITICAL FIX: Prevent crash if news is null/undefined
         if (!news || !Array.isArray(news) || news.length === 0) return null;
 
         return news.map((article, index) => {
-            let variant = 'standard'; // Fallback
+            let variant = 'standard';
 
             // PATTERN LOGIC:
-            // 1. Headline is ALWAYS Impact
             if (index === 0) variant = 'impact';
-
-            // 2. Index 1 & 2 are either MarketSnap or Standard
             else if (index === 1) variant = 'marketsnap';
-
-            // 3. Every 4th item (index 3, 7, 11) is an Opinion block to break the eye
             else if (index % 4 === 3) variant = 'opinion';
-
-            // 4. If title is very short (< 50 chars), use Compact ticker style
             else if (article && article.title && article.title.length < 50) variant = 'compact';
-
-            // 5. Random Injection for variety (15% chance of MarketSnap on normal rows)
             else if (Math.random() > 0.85) variant = 'marketsnap';
 
             return <NewsCard key={article.id || index} article={article} variant={variant} />;
@@ -59,7 +52,7 @@ const NewsIntelligenceWidget = () => {
         </div>
     );
 
-    if (error) return null; // Hide widget silently on error
+    if (error) return null;
 
     return (
         <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4">
