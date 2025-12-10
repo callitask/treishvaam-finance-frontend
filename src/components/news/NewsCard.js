@@ -10,8 +10,12 @@ import './NewsCard.css';
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
 
+    // CRITICAL SAFETY CHECK: Prevent crash if data is missing
+    if (!article) return null;
+
     // Formatter: "2 MIN READ • 2 HOURS AGO"
     const getMeta = () => {
+        if (!article.publishedAt) return "";
         const d = new Date(article.publishedAt);
         const now = new Date();
         const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));

@@ -2,13 +2,13 @@
 import axios from 'axios';
 
 /**
- * Backend base URL (no trailing slash)
+ * Backend base URL
  * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT (VERSION 1)
  */
 export const API_URL = 'https://backend.treishvaamgroup.com';
 
 const api = axios.create({
-  baseURL: `${API_URL}/api/v1`, // CHANGED TO V1
+  baseURL: `${API_URL}/api/v1`,
 });
 
 // Attach JWT from localStorage when present
@@ -54,9 +54,10 @@ export const login = (credentials) => api.post('/auth/login', credentials);
 /* -------------------- Search -------------------- */
 export const searchPosts = (query) => api.get(`/search?q=${encodeURIComponent(query)}`);
 
-/* -------------------- News -------------------- */
-export const getNewsHighlights = () => api.get('/news/highlights');
-export const getArchivedNews = () => api.get('/news/archive');
+/* -------------------- News (FIXED ENDPOINTS) -------------------- */
+// Updated to match the working Desktop Widget
+export const getNewsHighlights = () => api.get('/market/news/highlights');
+export const getArchivedNews = () => api.get('/market/news/archive'); // Assuming archive follows same pattern
 export const refreshNewsData = () => api.post('/news/admin/refresh');
 
 /* -------------------- Market / Movers -------------------- */
@@ -68,24 +69,19 @@ export const refreshIndices = () => api.post('/market/admin/refresh-indices');
 export const flushMovers = (password) => api.post('/market/admin/flush-movers', { password });
 export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
 
-/* -------------------- NEW: Market Widget -------------------- */
+/* -------------------- Market Widgets -------------------- */
 export const getWidgetData = (ticker) => api.get(`/market/widget?ticker=${encodeURIComponent(ticker)}`);
-
-/* -------------------- NEW: Global Ticker -------------------- */
 export const getQuotesBatch = (tickers) => api.post('/market/quotes/batch', tickers);
 
 /* -------------------- API Status Panel -------------------- */
 export const getApiStatusHistory = () => api.get('/status/history');
 export const flushPermanentData = (password) => api.post('/market/admin/flush-permanent-data', { password });
 
-/* -------------------- Analytics (Historical Data) -------------------- */
-
+/* -------------------- Analytics -------------------- */
 export const getHistoricalAudienceData = (params) => {
   const cleanParams = {};
   for (const key in params) {
-    if (params[key]) {
-      cleanParams[key] = params[key];
-    }
+    if (params[key]) cleanParams[key] = params[key];
   }
   return api.get(`/analytics`, { params: cleanParams });
 };
@@ -93,9 +89,7 @@ export const getHistoricalAudienceData = (params) => {
 export const getFilterOptions = (params) => {
   const cleanParams = {};
   for (const key in params) {
-    if (params[key]) {
-      cleanParams[key] = params[key];
-    }
+    if (params[key]) cleanParams[key] = params[key];
   }
   return api.get(`/analytics/filters`, { params: cleanParams });
 };

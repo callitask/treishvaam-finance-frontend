@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getNewsHighlights, getArchivedNews } from '../../apiConfig';
+// Import the new Enterprise Card
 import NewsCard from '../news/NewsCard';
-// Ensure CSS is active globally, but explicit import helps some bundlers
+// Ensure CSS is loaded
 import '../news/NewsCard.css';
 
 const NewsTabMobile = () => {
@@ -14,14 +15,22 @@ const NewsTabMobile = () => {
         const fetchAllNews = async () => {
             setLoading(true);
             try {
-                const [highRes, archRes] = await Promise.all([
-                    getNewsHighlights(),
-                    getArchivedNews()
-                ]);
-                setHighlights(highRes.data || []);
-                setArchive(archRes.data || []);
+                // Fetch independently to prevent one failure from blocking the other
+                const highRes = await getNewsHighlights().catch(err => {
+                    console.warn("Highlights fetch failed:", err);
+                    return { data: [] };
+                });
+
+                const archRes = await getArchivedNews().catch(err => {
+                    console.warn("Archive fetch failed:", err);
+                    return { data: [] };
+                });
+
+                if (Array.isArray(highRes.data)) setHighlights(highRes.data);
+                if (Array.isArray(archRes.data)) setArchive(archRes.data);
+
             } catch (err) {
-                console.error("News fetch failed", err);
+                console.error("Critical news fetch error:", err);
             } finally {
                 setLoading(false);
             }
@@ -30,17 +39,18 @@ const NewsTabMobile = () => {
     }, []);
 
     // --- SMART LOGIC (Mobile Version) ---
+    // Matches the Desktop "Rhythm" exactly
     const determineVariant = (article, index, type) => {
-        if (type === 'archive') return 'standard'; // Archive is always simple list
+        if (type === 'archive') return 'standard';
 
-        // Rule 1: Mobile Hero
+        // Rule 1: Mobile Hero (First Item)
         if (index === 0) return 'impact';
 
-        // Rule 2: Visual Break (Item #4)
+        // Rule 2: Visual Break (Item #4) - Forces Image 2 style
         if (index === 3 && article.imageUrl) return 'market-snap';
 
-        // Rule 3: Ranked List at bottom
-        if (index >= 6) return 'ranked';
+        // Rule 3: Ranked List at bottom (Items 6+)
+        if (index >= 5) return 'ranked';
 
         // Rule 4: Opinion
         const title = article.title || "";
@@ -50,7 +60,7 @@ const NewsTabMobile = () => {
     };
 
     const renderSkeleton = () => (
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 opacity-60">
             <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9' }}></div>
             <div className="skeleton" style={{ height: '20px', width: '90%' }}></div>
             <div className="skeleton" style={{ height: '80px', marginTop: '20px' }}></div>
@@ -67,7 +77,7 @@ const NewsTabMobile = () => {
                         onClick={() => setActiveSection('highlights')}
                         className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-none border-b-2 transition-all ${activeSection === 'highlights'
                             ? 'border-sky-700 text-sky-700'
-                            : 'border-transparent text-gray-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600'
                             }`}
                     >
                         Top Stories
@@ -76,7 +86,7 @@ const NewsTabMobile = () => {
                         onClick={() => setActiveSection('archive')}
                         className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-none border-b-2 transition-all ${activeSection === 'archive'
                             ? 'border-sky-700 text-sky-700'
-                            : 'border-transparent text-gray-400'
+                            : 'border-transparent text-gray-400 hover:text-gray-600'
                             }`}
                     >
                         The Wire
@@ -88,28 +98,42 @@ const NewsTabMobile = () => {
             <div>
                 {loading ? renderSkeleton() : (
                     <div className="flex flex-col">
+                        {/* HIGHLIGHTS SECTION */}
                         {activeSection === 'highlights' && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                                 {highlights.length > 0 ? (
                                     <div className="px-4 pt-4">
                                         {highlights.map((article, index) => {
                                             const variant = determineVariant(article, index, 'highlights');
+                                            // Reset rank for the bottom list
+                                            const rank = index >= 5 ? (index - 4) : null;
+
                                             return (
-                                                <NewsCard
-                                                    key={article.id || index}
-                                                    article={article}
-                                                    variant={variant}
-                                                    rank={index - 5} // Adjust rank offset
-                                                />
+                                                <React.Fragment key={article.id || index}>
+                                                    {/* Trending Header before the list starts */}
+                                                    {index === 5 && (
+                                                        <div className="mt-6 mb-3 pb-2 border-b border-black">
+                                                            <span className="text-xs font-bold uppercase tracking-wider text-gray-900">Trending Now</span>
+                                                        </div>
+                                                    )}
+                                                    <NewsCard
+                                                        article={article}
+                                                        variant={variant}
+                                                        rank={rank}
+                                                    />
+                                                </React.Fragment>
                                             );
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No highlights available</div>
+                                    <div className="p-12 text-center text-gray-400 text-xs uppercase tracking-widest">
+                                        No highlights available
+                                    </div>
                                 )}
                             </div>
                         )}
 
+                        {/* ARCHIVE SECTION */}
                         {activeSection === 'archive' && (
                             <div className="animate-in fade-in slide-in-from-left-4 duration-300">
                                 {archive.length > 0 ? (
@@ -123,7 +147,9 @@ const NewsTabMobile = () => {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No archived news</div>
+                                    <div className="p-12 text-center text-gray-400 text-xs uppercase tracking-widest">
+                                        No archived news
+                                    </div>
                                 )}
                             </div>
                         )}
