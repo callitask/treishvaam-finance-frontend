@@ -5,15 +5,31 @@ import NewsCard from './NewsCard';
 const NewsIntelligenceWidget = () => {
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
 
     useEffect(() => {
         axios.get('/api/market/news/highlights')
-            .then(res => setNews(res.data))
-            .catch(e => console.error(e))
+            .then(res => {
+                // Defensive check: Ensure we actually got an array
+                if (Array.isArray(res.data)) {
+                    setNews(res.data);
+                } else {
+                    console.warn("News API returned unexpected format:", res.data);
+                    setNews([]); 
+                }
+            })
+            .catch(e => {
+                console.error("News fetch failed:", e);
+                setError(true);
+                setNews([]); // Fallback to empty array on error
+            })
             .finally(() => setLoading(false));
     }, []);
 
     const renderSmartStream = useMemo(() => {
+        // CRITICAL FIX: Prevent crash if news is null/undefined
+        if (!news || !Array.isArray(news) || news.length === 0) return null;
+
         return news.map((article, index) => {
             let variant = 'standard'; // Fallback
 
@@ -28,7 +44,7 @@ const NewsIntelligenceWidget = () => {
             else if (index % 4 === 3) variant = 'opinion';
 
             // 4. If title is very short (< 50 chars), use Compact ticker style
-            else if (article.title.length < 50) variant = 'compact';
+            else if (article && article.title && article.title.length < 50) variant = 'compact';
 
             // 5. Random Injection for variety (15% chance of MarketSnap on normal rows)
             else if (Math.random() > 0.85) variant = 'marketsnap';
@@ -37,7 +53,13 @@ const NewsIntelligenceWidget = () => {
         });
     }, [news]);
 
-    if (loading) return <div>Loading Intelligence...</div>;
+    if (loading) return (
+        <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 min-h-[200px] flex items-center justify-center">
+            <span className="text-gray-400 text-sm">Loading Intelligence...</span>
+        </div>
+    );
+
+    if (error) return null; // Hide widget silently on error
 
     return (
         <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4">
@@ -46,7 +68,7 @@ const NewsIntelligenceWidget = () => {
                 Market Intelligence
             </h2>
             <div className="flex flex-col gap-1">
-                {renderSmartStream}
+                {renderSmartStream || <div className="text-gray-400 text-sm p-4 text-center">No news available</div>}
             </div>
         </div>
     );
