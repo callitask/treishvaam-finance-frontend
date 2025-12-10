@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import './NewsCard.css';
 
 /**
- * Enterprise News Card Component
- * Renders 1 of 5 industry-standard patterns based on the 'variant' prop.
- * Handles image errors gracefully.
+ * Enterprise News Card (Phase 3: Rectangular Edition)
+ * strict-sharp design system with high-readability layouts.
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
@@ -18,7 +17,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         return `2 MIN READ • ${timeStr}`;
     };
 
-    // --- VARIANT 1: IMPACT (The Hero) ---
+    // --- VARIANT 1: IMPACT (The Hero - Text Below Image) ---
     if (variant === 'impact') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -27,21 +26,22 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         {!imgError && article.imageUrl ? (
                             <img src={article.imageUrl} alt={article.title} onError={() => setImgError(true)} />
                         ) : (
-                            // Fallback gradient if image fails
-                            <div style={{ width: '100%', height: '100%', background: 'linear-gradient(135deg, #1e3a8a, #172554)' }}></div>
+                            <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}></div>
                         )}
-                        <div className="nc-impact-overlay">
-                            <span className="nc-impact-kicker">Top Story</span>
-                            <h3 className="nc-impact-headline">{article.title}</h3>
-                            <div className="nc-impact-meta">{article.source || 'Market News'} • {getMeta()}</div>
-                        </div>
+                    </div>
+                    {/* Text moves OUTSIDE the image for Phase 3 readability */}
+                    <div className="nc-impact-content">
+                        <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
+                        <h3 className="nc-impact-headline">{article.title}</h3>
+                        <div className="nc-impact-meta">{getMeta()}</div>
                     </div>
                 </article>
+                <div className="hairline-divider"></div>
             </a>
         );
     }
 
-    // --- VARIANT 3: MARKET SNAP (Visual) ---
+    // --- VARIANT 3: MARKET SNAP (Visual Stack) ---
     if (variant === 'market-snap' && !imgError && article.imageUrl) {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -57,7 +57,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 4: OPINION (Quote) ---
+    // --- VARIANT 4: OPINION (Quote Box) ---
     if (variant === 'opinion') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -86,7 +86,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 2: STANDARD (Default Media Object) ---
+    // --- VARIANT 2: STANDARD (Default Rectangular Media Object) ---
     return (
         <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
             <article className="nc-standard-card">
