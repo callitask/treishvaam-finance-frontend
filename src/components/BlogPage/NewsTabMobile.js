@@ -1,62 +1,8 @@
-// src/components/BlogPage/NewsTabMobile.js
 import React, { useState, useEffect } from 'react';
 import { getNewsHighlights, getArchivedNews } from '../../apiConfig';
-import { FaClock, FaExternalLinkAlt, FaGlobeAmericas, FaBolt } from 'react-icons/fa';
-
-// Helper for formatting relative time
-const timeAgo = (dateString) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const seconds = Math.floor((now - date) / 1000);
-
-    if (seconds < 60) return 'Just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
-
-// Skeleton Loader
-const NewsSkeleton = () => (
-    <div className="p-4 border-b border-gray-100 dark:border-slate-800 animate-pulse">
-        <div className="h-3 bg-gray-200 dark:bg-slate-700 w-24 rounded mb-2"></div>
-        <div className="h-5 bg-gray-200 dark:bg-slate-700 w-full rounded mb-2"></div>
-        <div className="h-5 bg-gray-200 dark:bg-slate-700 w-3/4 rounded"></div>
-    </div>
-);
-
-const NewsItem = ({ item, isHighlight }) => (
-    <a
-        href={item.link}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`block p-4 border-b border-gray-100 dark:border-slate-800 active:bg-gray-50 dark:active:bg-slate-800 transition-colors ${isHighlight ? 'bg-sky-50/50 dark:bg-slate-800/30' : ''}`}
-    >
-        <div className="flex items-start justify-between mb-1.5">
-            <div className="flex items-center gap-2">
-                {isHighlight && <FaBolt className="text-amber-500 text-xs" />}
-                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-400">
-                    {item.source ? item.source.replace(/_/g, ' ') : 'Market Wire'}
-                </span>
-            </div>
-            <div className="flex items-center text-[10px] text-gray-400 dark:text-gray-500">
-                <FaClock className="mr-1" size={10} />
-                {timeAgo(item.publishedAt)}
-            </div>
-        </div>
-
-        <h3 className={`font-serif leading-snug text-gray-900 dark:text-gray-100 ${isHighlight ? 'text-base font-bold' : 'text-sm font-semibold'}`}>
-            {item.title}
-        </h3>
-
-        <div className="mt-2 flex items-center justify-end">
-            <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 flex items-center gap-1 group">
-                Read Source <FaExternalLinkAlt size={8} />
-            </span>
-        </div>
-    </a>
-);
+import NewsCard from '../news/NewsCard';
+// Ensure CSS is active globally, but explicit import helps some bundlers
+import '../news/NewsCard.css';
 
 const NewsTabMobile = () => {
     const [activeSection, setActiveSection] = useState('highlights');
@@ -83,20 +29,55 @@ const NewsTabMobile = () => {
         fetchAllNews();
     }, []);
 
+    // --- SMART LOGIC (Mobile Version) ---
+    const determineVariant = (article, index, type) => {
+        if (type === 'archive') return 'standard'; // Archive is always simple list
+
+        // Rule 1: Mobile Hero
+        if (index === 0) return 'impact';
+
+        // Rule 2: Visual Break (Item #4)
+        if (index === 3 && article.imageUrl) return 'market-snap';
+
+        // Rule 3: Ranked List at bottom
+        if (index >= 6) return 'ranked';
+
+        // Rule 4: Opinion
+        const title = article.title || "";
+        if (["Why", "Opinion", "Outlook"].some(k => title.includes(k))) return 'opinion';
+
+        return 'standard';
+    };
+
+    const renderSkeleton = () => (
+        <div className="p-4 space-y-4">
+            <div className="skeleton" style={{ width: '100%', aspectRatio: '16/9' }}></div>
+            <div className="skeleton" style={{ height: '20px', width: '90%' }}></div>
+            <div className="skeleton" style={{ height: '80px', marginTop: '20px' }}></div>
+            <div className="skeleton" style={{ height: '80px' }}></div>
+        </div>
+    );
+
     return (
-        <div className="bg-white dark:bg-slate-900 min-h-screen pb-20 transition-colors duration-300">
+        <div className="bg-white min-h-screen pb-24">
             {/* Header / Filter Switcher */}
-            <div className="sticky top-14 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-gray-200 dark:border-slate-800">
-                <div className="flex px-2 py-2">
+            <div className="sticky top-14 z-20 bg-white/95 backdrop-blur border-b border-gray-200">
+                <div className="flex px-4 py-3 gap-3">
                     <button
                         onClick={() => setActiveSection('highlights')}
-                        className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${activeSection === 'highlights' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}
+                        className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-none border-b-2 transition-all ${activeSection === 'highlights'
+                            ? 'border-sky-700 text-sky-700'
+                            : 'border-transparent text-gray-400'
+                            }`}
                     >
                         Top Stories
                     </button>
                     <button
                         onClick={() => setActiveSection('archive')}
-                        className={`flex-1 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition-all ${activeSection === 'archive' ? 'bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300' : 'text-gray-500 dark:text-gray-400'}`}
+                        className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-none border-b-2 transition-all ${activeSection === 'archive'
+                            ? 'border-sky-700 text-sky-700'
+                            : 'border-transparent text-gray-400'
+                            }`}
                     >
                         The Wire
                     </button>
@@ -105,32 +86,48 @@ const NewsTabMobile = () => {
 
             {/* Content Feed */}
             <div>
-                {loading ? (
-                    [...Array(6)].map((_, i) => <NewsSkeleton key={i} />)
-                ) : (
-                    <>
+                {loading ? renderSkeleton() : (
+                    <div className="flex flex-col">
                         {activeSection === 'highlights' && (
                             <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
-                                    <FaBolt className="text-amber-500" />
-                                    <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Breaking & Trending</h2>
-                                </div>
-                                {highlights.map(item => <NewsItem key={item.id} item={item} isHighlight={true} />)}
-                                {highlights.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No highlights available.</div>}
+                                {highlights.length > 0 ? (
+                                    <div className="px-4 pt-4">
+                                        {highlights.map((article, index) => {
+                                            const variant = determineVariant(article, index, 'highlights');
+                                            return (
+                                                <NewsCard
+                                                    key={article.id || index}
+                                                    article={article}
+                                                    variant={variant}
+                                                    rank={index - 5} // Adjust rank offset
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No highlights available</div>
+                                )}
                             </div>
                         )}
 
                         {activeSection === 'archive' && (
                             <div className="animate-in fade-in slide-in-from-left-4 duration-300">
-                                <div className="px-4 py-3 bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 flex items-center gap-2">
-                                    <FaGlobeAmericas className="text-blue-500" />
-                                    <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Global Feed</h2>
-                                </div>
-                                {archive.map(item => <NewsItem key={item.id} item={item} />)}
-                                {archive.length === 0 && <div className="p-8 text-center text-gray-400 text-sm">No archived news available.</div>}
+                                {archive.length > 0 ? (
+                                    <div className="px-4 pt-4">
+                                        {archive.map((article, index) => (
+                                            <NewsCard
+                                                key={article.id || index}
+                                                article={article}
+                                                variant="standard"
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center text-gray-400 text-xs uppercase tracking-widest">No archived news</div>
+                                )}
                             </div>
                         )}
-                    </>
+                    </div>
                 )}
             </div>
         </div>

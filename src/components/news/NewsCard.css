@@ -1,23 +1,23 @@
 /* =========================================
-   ENTERPRISE NEWS SYSTEM (Phase 4: Mobile & Color Tuned)
-   Pattern: Strict Geometric, High Density, Blue/Black Theme
+   ENTERPRISE NEWS SYSTEM (Phase 5: Brand Unified)
+   Pattern: Strict Geometric, Sky Blue Theme
    ========================================= */
 
 :root {
     --nc-font-serif: 'Georgia', 'Times New Roman', serif;
     --nc-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     
-    /* --- COLOR SYSTEM UPDATE --- */
-    --nc-color-primary: #111827;   /* Charcoal Black (Headlines) */
-    --nc-color-secondary: #6b7280; /* Cool Grey (Meta) */
+    /* --- COLOR SYSTEM: BRAND ALIGNED --- */
+    --nc-color-primary: #111827;   /* Charcoal Black */
+    --nc-color-secondary: #6b7280; /* Cool Grey */
     
-    /* DEFAULT ACCENT IS NOW BLUE (Not Red) */
-    --nc-color-accent: #1e40af;    /* Enterprise Blue (Categories) */
+    /* UPDATED: Matches 'Latest Analysis' Highlight Tag (Sky-700) */
+    --nc-color-accent: #0369a1;    
     
-    /* RESERVED FOR "LIVE" EVENTS ONLY */
-    --nc-color-live: #dc2626;      /* Urgent Red */
+    /* RESERVED FOR "LIVE" ONLY */
+    --nc-color-live: #dc2626;      
     
-    --nc-color-blue: #2563eb;      /* Interactive Hover */
+    --nc-color-blue: #0284c7;      /* Hover state (Sky-600) */
     --nc-bg-subtle: #f9fafb;
     --nc-divider: #e5e7eb;
     --nc-radius: 0px;              /* STRICT SHARP CORNERS */
@@ -81,12 +81,12 @@
     font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
-    color: var(--nc-color-accent); /* Now Blue/Black */
+    color: var(--nc-color-accent);
     margin-bottom: 6px;
     letter-spacing: 0.5px;
 }
 
-/* Special class for LIVE tag (Red) */
+/* LIVE TAG EXCEPTION */
 .nc-kicker-live {
     color: var(--nc-color-live) !important;
     position: relative;
@@ -106,7 +106,7 @@
 
 .nc-impact-headline {
     font-family: var(--nc-font-serif);
-    font-size: 20px; /* Balanced for Desktop Column */
+    font-size: 20px;
     line-height: 1.35;
     font-weight: 700;
     color: #000;
@@ -146,7 +146,7 @@
     font-family: var(--nc-font-sans);
     font-size: 9px;
     font-weight: 700;
-    color: var(--nc-color-accent); /* Now Blue/Black */
+    color: var(--nc-color-accent);
     text-transform: uppercase;
     margin-bottom: 4px;
     display: block;
@@ -160,7 +160,6 @@
     color: var(--nc-color-primary);
     margin: 0 0 4px 0;
     
-    /* Max 3 lines */
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
@@ -180,8 +179,8 @@
 }
 
 .nc-std-thumbnail {
-    width: 88px;  /* Desktop Size */
-    height: 88px; 
+    width: 88px;
+    height: 88px;
     overflow: hidden;
     flex-shrink: 0;
     background-color: #f3f4f6;
@@ -195,12 +194,8 @@
     transition: transform 0.2s ease;
 }
 
-.nc-standard-card:hover .nc-std-thumbnail img {
-    transform: scale(1.05);
-}
-
 /* =========================================
-   VARIANT 3: MARKET SNAP (Visual Focus)
+   VARIANT 3: MARKET SNAP (Visual)
    ========================================= */
 .nc-snap-card {
     padding: 16px 0;
@@ -230,12 +225,8 @@
     color: var(--nc-color-primary);
 }
 
-.nc-snap-card:hover .nc-snap-headline {
-    color: var(--nc-color-blue);
-}
-
 /* =========================================
-   VARIANT 4: OPINION (The Quote)
+   VARIANT 4: OPINION (Quote)
    ========================================= */
 .nc-opinion-card {
     padding: 16px;
@@ -302,56 +293,27 @@
     color: var(--nc-color-primary);
 }
 
-.nc-ranked-card:hover h4 {
-    color: var(--nc-color-blue);
-}
-
 /* =========================================
-   MOBILE OPTIMIZATION (Strict Industry Standards)
-   Device: Mobile (< 640px)
+   MOBILE OPTIMIZATION (< 640px)
    ========================================= */
 @media (max-width: 640px) {
-    /* 1. Impact Card: Compact Hero */
-    .nc-impact-card {
-        margin-bottom: 16px;
-    }
+    .nc-impact-card { margin-bottom: 16px; }
+    .nc-impact-headline { font-size: 18px; line-height: 1.3; }
     
-    .nc-impact-headline {
-        font-size: 18px; /* Reduce from 20px for mobile balance */
-        line-height: 1.3;
-    }
-
-    /* 2. Standard Card: Prevent Squash */
-    .nc-standard-card {
-        padding: 14px 0;
-        gap: 12px;
-    }
-
-    .nc-std-thumbnail {
-        width: 80px; /* Slightly smaller for mobile */
-        height: 80px; 
-    }
-
-    .nc-std-headline {
-        font-size: 14px;
-        line-height: 1.35;
-        /* Ensure 3 lines visible */
-        margin-bottom: 2px;
-    }
-
-    /* 3. Ranked List: Compact Numbers */
-    .nc-rank-number {
-        font-size: 28px;
-        min-width: 28px;
-    }
+    .nc-standard-card { padding: 14px 0; gap: 12px; }
+    .nc-std-thumbnail { width: 80px; height: 80px; }
+    .nc-std-headline { font-size: 14px; line-height: 1.35; margin-bottom: 2px; }
     
-    /* 4. Touch Targets */
-    .nc-link-wrapper {
-        /* Increase tap area silently if needed, but keeping density high */
+    .nc-rank-number { font-size: 28px; min-width: 28px; }
+    
+    /* Ensure no side borders on mobile */
+    .nc-card-mobile-wrapper {
+        padding: 0 16px;
+        background: #fff;
     }
 }
 
-/* --- SKELETON ANIMATION --- */
+/* --- SKELETON --- */
 @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {
     background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
