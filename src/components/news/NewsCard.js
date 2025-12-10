@@ -1,106 +1,71 @@
 import React, { useState } from 'react';
 import './NewsCard.css';
 
-const NewsCard = ({ article, variant = 'standard' }) => {
+/**
+ * Enterprise News Card Component
+ * Supports two distinct industry patterns:
+ * 1. 'media-object': High detail, serif headline, thumbnail (Items 1-5)
+ * 2. 'ranked-list': High density, sans-serif, rank number (Items 6-10)
+ */
+const NewsCard = ({ article, variant = 'media-object', rank }) => {
     const [imgError, setImgError] = useState(false);
-    const handleImgError = () => setImgError(true);
 
-    const formatDate = (date) => {
-        const d = new Date(date);
-        const now = new Date();
-        const diffInHours = (now - d) / (1000 * 60 * 60);
-
-        if (diffInHours < 1) return 'Just Now';
-        if (diffInHours < 24) return `${Math.floor(diffInHours)}h ago`;
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Format: "2 MIN READ • 01:47 PM IST"
+    const formatMeta = (dateString) => {
+        if (!dateString) return 'LATEST';
+        const d = new Date(dateString);
+        // Simple heuristic: assume 2 min read for now, or calculate based on content length if available
+        const time = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        return `2 MIN READ • ${time}`;
     };
 
-    // --- 1. IMPACT (The Hero) ---
-    if (variant === 'impact') {
+    // --- PATTERN 1: RANKED TYPOGRAPHIC LIST ---
+    if (variant === 'ranked-list') {
         return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-impact">
-                <div className="nc-img-wrap-hero">
-                    {!imgError && article.imageUrl ? (
-                        <img src={article.imageUrl} alt={article.title} onError={handleImgError} />
-                    ) : <div className="nc-gradient-placeholder" />}
-                    <div className="nc-overlay">
-                        <span className="nc-tag-red">Top Story</span>
-                        <h3>{article.title}</h3>
-                        <div className="nc-meta-light">
-                            <span>{article.source}</span> • <span>{formatDate(article.publishedAt)}</span>
+            <>
+                <a href={article.link} target="_blank" rel="noopener noreferrer" className="trending-item">
+                    <div className="rank-number">
+                        {rank ? String(rank).padStart(2, '0') : '#'}
+                    </div>
+                    <div className="trending-content">
+                        <span className="news-kicker">{article.source || 'MARKETS'}</span>
+                        <h3 className="trending-headline">{article.title}</h3>
+                        <div className="news-meta">
+                            {formatMeta(article.publishedAt)}
                         </div>
                     </div>
-                </div>
-            </a>
+                </a>
+                <div className="hairline-divider"></div>
+            </>
         );
     }
 
-    // --- 2. MARKET SNAP (Image + Ticker Context) ---
-    if (variant === 'marketsnap') {
-        return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-marketsnap">
-                <div className="nc-img-wrap-snap">
-                    {!imgError && article.imageUrl ? (
-                        <img src={article.imageUrl} alt={article.title} onError={handleImgError} />
-                    ) : <div className="nc-solid-placeholder" />}
-                </div>
-                <div className="nc-content">
-                    <span className="nc-tag-blue">Market Insight</span>
-                    <h4>{article.title}</h4>
-                    <div className="nc-meta">
-                        <span className="nc-source">{article.source}</span>
-                        <span className="nc-time">{formatDate(article.publishedAt)}</span>
-                    </div>
-                </div>
-            </a>
-        );
-    }
-
-    // --- 3. OPINION (No Image, Quote Style) ---
-    if (variant === 'opinion') {
-        return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-opinion">
-                <div className="nc-opinion-body">
-                    <span className="nc-quote-icon">“</span>
-                    <h4 className="nc-opinion-title">{article.title}</h4>
-                </div>
-                <div className="nc-opinion-footer">
-                    <div className="nc-author-avatar">{article.source.charAt(0)}</div>
-                    <div className="nc-meta-col">
-                        <span className="nc-source-bold">{article.source}</span>
-                        <span className="nc-time">Opinion</span>
-                    </div>
-                </div>
-            </a>
-        );
-    }
-
-    // --- 4. COMPACT (The Ticker) ---
-    if (variant === 'compact') {
-        return (
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-compact">
-                <div className="nc-compact-time">{formatDate(article.publishedAt)}</div>
-                <div className="nc-compact-title">{article.title}</div>
-            </a>
-        );
-    }
-
-    // --- 5. STANDARD (Default Row - Moneycontrol Style) ---
+    // --- PATTERN 2: NEWS MEDIA OBJECT (Default) ---
     return (
-        <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-card nc-standard">
-            <div className="nc-std-left">
-                <h4>{article.title}</h4>
-                <div className="nc-meta">
-                    <span className="nc-source">{article.source}</span>
-                    <span className="nc-time">{formatDate(article.publishedAt)}</span>
+        <>
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="news-item">
+                <div className="news-content">
+                    <span className="news-kicker">{article.source || 'NEWS'}</span>
+                    <h3 className="news-headline">{article.title}</h3>
+                    <div className="news-meta">
+                        <span className="timestamp">{formatMeta(article.publishedAt)}</span>
+                    </div>
                 </div>
-            </div>
-            <div className="nc-std-right">
+
+                {/* Thumbnail Logic: Only render if URL exists and didn't error */}
                 {!imgError && article.imageUrl && (
-                    <img src={article.imageUrl} alt="" onError={handleImgError} />
+                    <div className="news-thumbnail-wrapper">
+                        <img
+                            src={article.imageUrl}
+                            alt=""
+                            onError={() => setImgError(true)}
+                            loading="lazy"
+                        />
+                    </div>
                 )}
-            </div>
-        </a>
+            </a>
+            <div className="hairline-divider"></div>
+        </>
     );
 };
 
