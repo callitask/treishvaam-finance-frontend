@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import Keycloak from 'keycloak-js';
-import { setAuthToken } from '../apiConfig'; // Import setter
+import { setAuthToken } from '../apiConfig';
 
 const AuthContext = createContext();
 
@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
       setKeycloak(initKeycloak);
       if (authenticated) {
         setToken(initKeycloak.token);
-        setAuthToken(initKeycloak.token); // <--- Update Axios
+        setAuthToken(initKeycloak.token);
         setIsAuthenticated(true);
 
         const { name, email, realm_access } = initKeycloak.tokenParsed;
@@ -53,29 +53,34 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  const login = () => {
+  // Wrap in useCallback to ensure stability across renders
+  const login = useCallback(() => {
     if (keycloak) keycloak.login();
-  };
+  }, [keycloak]);
 
-  const logout = () => {
+  // Wrap in useCallback to satisfy useEffect dependency requirements
+  const logout = useCallback(() => {
     if (keycloak) keycloak.logout();
-  };
+  }, [keycloak]);
 
+  // Automatic Token Refresh
   useEffect(() => {
     if (!keycloak || !isAuthenticated) return;
+
     const intervalId = setInterval(() => {
       keycloak.updateToken(70).then((refreshed) => {
         if (refreshed) {
           setToken(keycloak.token);
-          setAuthToken(keycloak.token); // <--- Update Axios
+          setAuthToken(keycloak.token);
         }
       }).catch(() => {
         console.error('Failed to refresh token');
         logout();
       });
-    }, 60000);
+    }, 60000); // Check every minute
+
     return () => clearInterval(intervalId);
-  }, [keycloak, isAuthenticated]);
+  }, [keycloak, isAuthenticated, logout]); // Added logout to dependency array
 
   return (
     <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
