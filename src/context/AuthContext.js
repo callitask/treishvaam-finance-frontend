@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken } from '../apiConfig';
-import { Loader2 } from 'lucide-react'; // Import Loader icon
+import { Loader2 } from 'lucide-react';
 
 const AuthContext = createContext();
 
@@ -16,13 +16,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
 
-  // FIX: Ref to track if initialization has already happened (prevents React 18 double-call)
+  // Guard to prevent double-initialization in React Strict Mode
   const isRun = useRef(false);
 
   useEffect(() => {
-    // FIX: Strict idempotency check to prevent race conditions with OIDC code exchange
     if (isRun.current) return;
     isRun.current = true;
+
+    console.log("[Auth] Init Started");
 
     const initKeycloak = new Keycloak({
       url: 'https://backend.treishvaamgroup.com/auth',
@@ -30,59 +31,85 @@ export const AuthProvider = ({ children }) => {
       clientId: 'finance-app',
     });
 
-    initKeycloak.init({
+    // TIMEOUT STRATEGY: If Keycloak doesn't respond in 5s, we force the app to load.
+    // This prevents the "White Screen of Death" if the backend is down or network is slow.
+    const CONNECTION_TIMEOUT = 5000;
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
+    );
+
+    const initPromise = initKeycloak.init({
       onLoad: 'check-sso',
-      // FIX: Removed silentCheckSsoRedirectUri to prevent "App-in-Iframe" recursion loop
-      // if the static html file is missing.
       pkceMethod: 'S256',
-      checkLoginIframe: false // Disable iframe check to prevent third-party cookie issues
-    }).then((authenticated) => {
-      setKeycloak(initKeycloak);
-      if (authenticated) {
-        setToken(initKeycloak.token);
-        setAuthToken(initKeycloak.token);
-        setIsAuthenticated(true);
+      checkLoginIframe: false // Critical for preventing 3rd party cookie blocks
+    });
 
-        const { name, email, realm_access } = initKeycloak.tokenParsed;
-        const roles = realm_access ? realm_access.roles : [];
+    Promise.race([initPromise, timeoutPromise])
+      .then((authenticated) => {
+        console.log("[Auth] Init Success. Authenticated:", authenticated);
+        setKeycloak(initKeycloak);
 
-        setUser({
-          name,
-          email,
-          roles,
-          isAdmin: roles.includes('admin') || roles.includes('publisher')
-        });
-      } else {
+        if (authenticated) {
+          setToken(initKeycloak.token);
+          setAuthToken(initKeycloak.token);
+          setIsAuthenticated(true);
+
+          const { name, email, realm_access } = initKeycloak.tokenParsed;
+          const roles = realm_access ? realm_access.roles : [];
+
+          setUser({
+            name,
+            email,
+            roles,
+            isAdmin: roles.includes('admin') || roles.includes('publisher')
+          });
+        } else {
+          // Not logged in, but initialization worked
+          setIsAuthenticated(false);
+          setAuthToken(null);
+        }
+      })
+      .catch((err) => {
+        console.error("[Auth] Init Failed or Timed Out:", err);
+        // Even if auth fails, we MUST set loading to false so the app can render (e.g. public pages)
         setIsAuthenticated(false);
         setAuthToken(null);
-      }
-      setLoading(false);
-    }).catch(err => {
-      console.error("Keycloak init failed", err);
-      setLoading(false);
-    });
+      })
+      .finally(() => {
+        setLoading(false);
+        console.log("[Auth] Loading State Cleared");
+      });
+
   }, []);
 
   const login = useCallback(() => {
-    if (keycloak) keycloak.login();
+    if (keycloak) {
+      console.log("[Auth] Triggering Login...");
+      keycloak.login();
+    }
   }, [keycloak]);
 
   const logout = useCallback(() => {
-    if (keycloak) keycloak.logout();
+    if (keycloak) {
+      console.log("[Auth] Triggering Logout...");
+      keycloak.logout();
+    }
   }, [keycloak]);
 
-  // Automatic Token Refresh
+  // Token Refresh Logic
   useEffect(() => {
     if (!keycloak || !isAuthenticated) return;
 
     const intervalId = setInterval(() => {
       keycloak.updateToken(70).then((refreshed) => {
         if (refreshed) {
+          console.log("[Auth] Token Refreshed");
           setToken(keycloak.token);
           setAuthToken(keycloak.token);
         }
       }).catch(() => {
-        console.error('Failed to refresh token');
+        console.error('[Auth] Failed to refresh token');
         logout();
       });
     }, 60000);
@@ -90,13 +117,13 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(intervalId);
   }, [keycloak, isAuthenticated, logout]);
 
-  // FIX: Render a loader instead of nothing (white screen)
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50">
         <div className="text-center">
           <Loader2 className="h-10 w-10 animate-spin text-sky-600 mx-auto mb-4" />
           <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Securing Session...</p>
+          <p className="text-xs text-gray-400 mt-2">Connecting to Identity Provider</p>
         </div>
       </div>
     );
