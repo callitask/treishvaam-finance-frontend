@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken } from '../apiConfig';
-import { Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react'; // Import Loader icon
 
 const AuthContext = createContext();
 
@@ -20,7 +20,7 @@ export const AuthProvider = ({ children }) => {
   const isRun = useRef(false);
 
   useEffect(() => {
-    // FIX: Strict idempotency check
+    // FIX: Strict idempotency check to prevent race conditions with OIDC code exchange
     if (isRun.current) return;
     isRun.current = true;
 
@@ -32,6 +32,8 @@ export const AuthProvider = ({ children }) => {
 
     initKeycloak.init({
       onLoad: 'check-sso',
+      // FIX: Removed silentCheckSsoRedirectUri to prevent "App-in-Iframe" recursion loop
+      // if the static html file is missing.
       pkceMethod: 'S256',
       checkLoginIframe: false // Disable iframe check to prevent third-party cookie issues
     }).then((authenticated) => {
@@ -88,6 +90,7 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(intervalId);
   }, [keycloak, isAuthenticated, logout]);
 
+  // FIX: Render a loader instead of nothing (white screen)
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-slate-50">

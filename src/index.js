@@ -5,7 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import initFaro from './faroConfig';
+import initFaro from './faroConfig'; // CHANGED: Default import
 
 // Initialize Real User Monitoring (RUM)
 initFaro();
