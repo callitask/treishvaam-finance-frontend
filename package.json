@@ -57,7 +57,7 @@
   },
   "browserslist": {
     "production": [
-      ">0.2%",
+      ">0.2%",Remove-Item package-lock.json
       "not dead",
       "not op_mini all"
     ],

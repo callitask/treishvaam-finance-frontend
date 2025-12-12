@@ -2,15 +2,23 @@ import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { Helmet } from 'react-helmet-async';
+import { useNavigate, useLocation } from 'react-router-dom'; // Import hooks
 
 const LoginPage = () => {
     const { login, auth } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    // Get the page they tried to visit, or default to dashboard
+    const from = location.state?.from?.pathname || "/dashboard";
 
     useEffect(() => {
         if (auth.isAuthenticated) {
-            window.location.href = '/dashboard';
+            // FIX: Use navigate() instead of window.location to prevent full reload
+            // This preserves the AuthContext state.
+            navigate(from, { replace: true });
         }
-    }, [auth.isAuthenticated]);
+    }, [auth.isAuthenticated, navigate, from]);
 
     return (
         <div className="min-h-screen hero-silver-gradient flex items-center justify-center p-4">

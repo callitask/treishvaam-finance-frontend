@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken } from '../apiConfig';
+import { Loader2 } from 'lucide-react'; // Import Loader icon
 
 const AuthContext = createContext();
 
@@ -24,7 +25,8 @@ export const AuthProvider = ({ children }) => {
 
     initKeycloak.init({
       onLoad: 'check-sso',
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html',
+      // FIX: Removed silentCheckSsoRedirectUri to prevent "App-in-Iframe" recursion loop
+      // if the static html file is missing.
       pkceMethod: 'S256',
     }).then((authenticated) => {
       setKeycloak(initKeycloak);
@@ -53,12 +55,10 @@ export const AuthProvider = ({ children }) => {
     });
   }, []);
 
-  // Wrap in useCallback to ensure stability across renders
   const login = useCallback(() => {
     if (keycloak) keycloak.login();
   }, [keycloak]);
 
-  // Wrap in useCallback to satisfy useEffect dependency requirements
   const logout = useCallback(() => {
     if (keycloak) keycloak.logout();
   }, [keycloak]);
@@ -77,14 +77,26 @@ export const AuthProvider = ({ children }) => {
         console.error('Failed to refresh token');
         logout();
       });
-    }, 60000); // Check every minute
+    }, 60000);
 
     return () => clearInterval(intervalId);
-  }, [keycloak, isAuthenticated, logout]); // Added logout to dependency array
+  }, [keycloak, isAuthenticated, logout]);
+
+  // FIX: Render a loader instead of nothing (white screen)
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin text-sky-600 mx-auto mb-4" />
+          <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Securing Session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
