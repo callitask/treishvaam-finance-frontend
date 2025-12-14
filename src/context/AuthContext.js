@@ -25,6 +25,15 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
+    // --- CIRCUIT BREAKER: FIX INFINITE LOGIN LOOP ---
+    // If Keycloak redirects back with #error=login_required, it means silent SSO failed.
+    // We must clear this from the URL to prevent Keycloak from seeing it and looping.
+    if (window.location.hash && window.location.hash.includes('error=login_required')) {
+      console.warn("[Auth] Detected login_required error loop. Clearing hash and forcing Public Mode.");
+      // Removes the error hash from the URL without reloading the page
+      window.history.replaceState(null, null, window.location.pathname);
+    }
+
     const initKeycloak = new Keycloak({
       url: 'https://backend.treishvaamgroup.com/auth',
       realm: 'treishvaam',
@@ -42,7 +51,8 @@ export const AuthProvider = ({ children }) => {
     const initPromise = initKeycloak.init({
       onLoad: 'check-sso',
       pkceMethod: 'S256',
-      checkLoginIframe: false // Critical for preventing 3rd party cookie blocks
+      checkLoginIframe: false, // Critical for preventing 3rd party cookie blocks
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html' // Best practice for silent renewal
     });
 
     Promise.race([initPromise, timeoutPromise])
@@ -65,14 +75,14 @@ export const AuthProvider = ({ children }) => {
             isAdmin: roles.includes('admin') || roles.includes('publisher')
           });
         } else {
-          // Not logged in, but initialization worked
+          // Not logged in, but initialization worked -> Public Mode
           setIsAuthenticated(false);
           setAuthToken(null);
         }
       })
       .catch((err) => {
         console.error("[Auth] Init Failed or Timed Out:", err);
-        // Even if auth fails, we MUST set loading to false so the app can render (e.g. public pages)
+        // CRITICAL FIX: If auth fails, do NOT reload. Just load the app in Public Mode.
         setIsAuthenticated(false);
         setAuthToken(null);
       })
