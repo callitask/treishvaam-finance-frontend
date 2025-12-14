@@ -24,38 +24,50 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
-    // --- CIRCUIT BREAKER: FIX INFINITE LOGIN LOOP ---
-    // If Keycloak redirects back with #error=login_required, it means silent SSO failed.
-    // We must clear this hash immediately to prevent re-triggering the check.
-    if (window.location.hash && window.location.hash.includes('error=login_required')) {
-      console.warn("[Auth] Detected login_required error loop. Clearing hash and forcing Public Mode.");
-      // Remove the error from the URL so the router doesn't get confused
-      window.history.replaceState(null, null, window.location.pathname);
-    }
-
     const initKeycloak = new Keycloak({
       url: 'https://backend.treishvaamgroup.com/auth',
       realm: 'treishvaam',
       clientId: 'finance-app',
     });
 
-    // 1. Set instance IMMEDIATELY so login() works even if init is slow/fails
+    // Set instance IMMEDIATELY so login() works even if init is slow/fails
     setKeycloak(initKeycloak);
 
-    const CONNECTION_TIMEOUT = 10000; // Increased to 10s for slower networks
+    // --- CRITICAL LOOP FIX START ---
+
+    // Default options
+    let initOptions = {
+      pkceMethod: 'S256',
+      // Disable iframe to prevent 3rd-party cookie blocking issues
+      checkLoginIframe: false,
+      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html'
+    };
+
+    // Check if we are returning from a failed Check-SSO attempt
+    if (window.location.hash && window.location.hash.includes('error=login_required')) {
+      console.warn("[Auth] Login Loop Detected (error=login_required).");
+      console.warn("[Auth] Disabling 'check-sso' for this session to prevent redirect loop.");
+
+      // 1. CLEAN THE URL: Remove the error hash so the user sees a clean URL
+      window.history.replaceState(null, null, window.location.pathname);
+
+      // 2. DISABLE CHECK-SSO: Do NOT set onLoad. 
+      // This allows the app to init in "Public/Unauthenticated" mode immediately without redirecting.
+      delete initOptions.onLoad;
+
+    } else {
+      // Normal Load: Try to check if user is logged in
+      initOptions.onLoad = 'check-sso';
+    }
+
+    // --- CRITICAL LOOP FIX END ---
+
+    const CONNECTION_TIMEOUT = 10000;
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
     );
 
-    const initPromise = initKeycloak.init({
-      onLoad: 'check-sso',
-      pkceMethod: 'S256',
-      // --- CRITICAL FIX: DISABLE IFRAME CHECK ---
-      // Modern browsers (Chrome Incognito, Safari) block 3rd-party cookies in iframes.
-      // This causes the "login_required" loop. We disable the iframe and rely on token refresh.
-      checkLoginIframe: false,
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html'
-    });
+    const initPromise = initKeycloak.init(initOptions);
 
     Promise.race([initPromise, timeoutPromise])
       .then((authenticated) => {
@@ -82,7 +94,6 @@ export const AuthProvider = ({ children }) => {
       })
       .catch((err) => {
         console.error("[Auth] Init Failed or Timed Out:", err);
-        // Fallback to unauthenticated state on error
         setIsAuthenticated(false);
         setAuthToken(null);
       })
@@ -130,7 +141,6 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(intervalId);
   }, [keycloak, isAuthenticated, logout]);
 
-  // NON-BLOCKING RETURN: Always render children, expose loading state
   return (
     <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
       {children}
