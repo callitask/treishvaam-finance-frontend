@@ -1,22 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getNewsHighlights } from '../../apiConfig';
-import { ExternalLink } from 'lucide-react';
-
-// Helper to format time ago
-const timeAgo = (date) => {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-    let interval = seconds / 31536000;
-    if (interval > 1) return Math.floor(interval) + " years ago";
-    interval = seconds / 2592000;
-    if (interval > 1) return Math.floor(interval) + " months ago";
-    interval = seconds / 86400;
-    if (interval > 1) return Math.floor(interval) + " days ago";
-    interval = seconds / 3600;
-    if (interval > 1) return Math.floor(interval) + " hours ago";
-    interval = seconds / 60;
-    if (interval > 1) return Math.floor(interval) + " minutes ago";
-    return Math.floor(seconds) + " seconds ago";
-};
+import { Loader2, ExternalLink } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
 const MarketNewsFeed = () => {
     const [news, setNews] = useState([]);
@@ -24,12 +9,13 @@ const MarketNewsFeed = () => {
 
     useEffect(() => {
         const fetchNews = async () => {
-            setLoading(true);
             try {
                 const response = await getNewsHighlights();
-                setNews(response.data);
-            } catch (e) {
-                console.error("Failed to fetch news highlights:", e);
+                // Phase 18: Handle Page object
+                const articles = response.data.content || response.data || [];
+                setNews(articles.slice(0, 10)); // Sidebar list
+            } catch (error) {
+                console.error("Failed to load market news", error);
             } finally {
                 setLoading(false);
             }
@@ -38,48 +24,44 @@ const MarketNewsFeed = () => {
     }, []);
 
     if (loading) {
-        return <div className="p-4 rounded-lg bg-gray-50 animate-pulse h-64"></div>;
-    }
-
-    if (news.length === 0) {
-        return (
-            <div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">Market news</h2>
-                <p className="text-gray-500 text-sm">No news highlights available at this time.</p>
-            </div>
-        );
+        return <div className="flex justify-center p-4"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>;
     }
 
     return (
-        <div className="bg-white">
-            <h2 className="text-xl font-semibold text-gray-900 mb-3">Market news</h2>
-            <div className="space-y-4">
-                {news.map((article) => (
+        <div className="space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 pb-2">
+                Latest Wire
+            </h3>
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {news.map((item) => (
                     <a
-                        key={article.articleId}
-                        href={article.url}
+                        key={item.id}
+                        href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                        aria-label={`Read full story: ${article.title}`} // FIXED: Added specific label
+                        className="group block"
                     >
-                        <div className="flex">
-                            {article.imageUrl && (
+                        <div className="flex gap-3">
+                            {/* Tiny Thumbnail */}
+                            <div className="flex-shrink-0 w-16 h-16 bg-slate-100 rounded-md overflow-hidden">
                                 <img
-                                    src={article.imageUrl}
-                                    alt={article.title}
-                                    className="w-24 h-24 object-cover rounded-md mr-4"
+                                    src={item.imageUrl || '/logo.webp'}
+                                    alt=""
+                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    onError={(e) => e.target.src = '/logo.webp'}
                                 />
-                            )}
-                            <div className="flex-1">
-                                <div className="text-xs font-semibold text-gray-500 uppercase">
-                                    {article.source} · {timeAgo(article.publishedAt)}
-                                </div>
-                                <h3 className="text-md font-semibold text-gray-800 my-1 line-clamp-2">
-                                    {article.title}
-                                </h3>
-                                <div className="text-sm text-blue-600 inline-flex items-center">
-                                    Read More <ExternalLink size={14} className="ml-1" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200 leading-tight group-hover:text-sky-600 transition-colors line-clamp-2">
+                                    {item.title}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                    <span className="text-[10px] font-bold text-sky-600 bg-sky-50 dark:bg-sky-900/30 px-1.5 py-0.5 rounded">
+                                        {item.source ? item.source.toUpperCase().replace(/_/g, ' ') : 'NEWS'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400">
+                                        {item.publishedAt ? formatDistanceToNow(new Date(item.publishedAt)) : 'Recent'} ago
+                                    </span>
                                 </div>
                             </div>
                         </div>

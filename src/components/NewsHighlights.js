@@ -1,65 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getNewsHighlights } from '../apiConfig';
-
-// Helper function to format the date and time
-const formatNewsTimestamp = (dateString) => {
-    if (!dateString) return 'Date not available';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) {
-            return 'Invalid Date';
-        }
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    } catch (error) {
-        return 'Invalid Date';
-    }
-};
-
-export const NewsListItem = ({ title, link, source, publishedAt }) => {
-    return (
-        <div className="py-2 border-b border-gray-200 last:border-b-0">
-            <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-800 hover:text-sky-600 transition-colors duration-200 leading-snug font-medium"
-            >
-                {title}
-            </a>
-            <div className="text-xs text-gray-500 mt-1">
-                <span className="font-semibold capitalize">{source ? source.replace(/_/g, ' ') : 'News'}</span>
-                <span className="mx-1.5">|</span>
-                <span>{formatNewsTimestamp(publishedAt)}</span>
-            </div>
-        </div>
-    );
-};
+import NewsCard from './news/NewsCard';
+import { Loader2 } from 'lucide-react';
 
 const NewsHighlights = () => {
-    const [highlights, setHighlights] = useState([]);
+    const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchNews = async () => {
             try {
-                setLoading(true);
                 const response = await getNewsHighlights();
-                if (response && Array.isArray(response.data)) {
-                    setHighlights(response.data);
-                } else {
-                    setHighlights([]);
-                }
-                setError(null);
-            } catch (err) {
-                setError('Failed to load news highlights.');
-                console.error('Error fetching news highlights:', err);
+                // Phase 18: Backend now returns a Page object, access .content
+                const articles = response.data.content || response.data || [];
+                setNews(articles.slice(0, 6)); // Show top 6
+            } catch (error) {
+                console.error("Failed to load news highlights", error);
             } finally {
                 setLoading(false);
             }
@@ -68,27 +24,33 @@ const NewsHighlights = () => {
         fetchNews();
     }, []);
 
-    if (loading || error || highlights.length === 0) {
-        return null;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-48">
+                <Loader2 className="h-8 w-8 animate-spin text-sky-600" />
+            </div>
+        );
     }
 
+    if (news.length === 0) return null;
+
     return (
-        <div className="mb-6">
-            <h3 className="text-base font-bold text-gray-800 pb-2 mb-2 border-b-2 border-gray-300">
-                Recent Highlights
-            </h3>
-            <div>
-                {highlights.map((item) => (
-                    <NewsListItem
-                        key={item.id}
-                        title={item.title}
-                        link={item.link}
-                        source={item.source}
-                        publishedAt={item.publishedAt}
-                    />
-                ))}
+        <section className="py-8 bg-slate-50 dark:bg-slate-900/50">
+            <div className="container mx-auto px-4">
+                <div className="flex justify-between items-end mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Global Market Intelligence</h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Curated insights from Tier-1 financial sources.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {news.map((article) => (
+                        <NewsCard key={article.id || article.link} article={article} />
+                    ))}
+                </div>
             </div>
-        </div>
+        </section>
     );
 };
 
