@@ -1,8 +1,0 @@
-%% Architecture container diagram
-%% Render with mermaid CLI or VS Code Mermaid preview
-graph TB
-  Browser[Browser (User)] -->|HTTP/S| Frontend[Frontend SPA]
-  Frontend -->|REST / GraphQL| Backend[Backend API]
-  Backend -->|auth| AuthProvider[Auth Provider / OAuth]
-  Backend -->|reads/writes| Database[(Database)]
-  Frontend -->|calls| ThirdParty[Third-party APIs e.g. AlphaVantage]
