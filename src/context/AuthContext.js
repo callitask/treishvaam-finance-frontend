@@ -30,37 +30,49 @@ export const AuthProvider = ({ children }) => {
       clientId: 'finance-app',
     });
 
-    // Set instance IMMEDIATELY so login() works even if init is slow/fails
     setKeycloak(initKeycloak);
 
-    // --- CRITICAL LOOP FIX START ---
+    // --- INFINITE LOOP PROTECTION STRATEGY ---
 
-    // Default options
+    // 1. Check current URL for Keycloak error redirect
+    const hash = window.location.hash;
+    const isLoginRequiredError = hash && hash.includes('error=login_required');
+
+    // 2. Check if we have previously failed silently in this session
+    const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
+
+    // Default Init Options
     let initOptions = {
       pkceMethod: 'S256',
-      // Disable iframe to prevent 3rd-party cookie blocking issues
-      checkLoginIframe: false,
-      silentCheckSsoRedirectUri: window.location.origin + '/silent-check-sso.html'
+      // Disable iframe session checking to prevent modern browser 3rd-party cookie blocking
+      checkLoginIframe: false
     };
 
-    // Check if we are returning from a failed Check-SSO attempt
-    if (window.location.hash && window.location.hash.includes('error=login_required')) {
-      console.warn("[Auth] Login Loop Detected (error=login_required).");
-      console.warn("[Auth] Disabling 'check-sso' for this session to prevent redirect loop.");
+    // 3. Determine Load Strategy
+    if (isLoginRequiredError) {
+      console.warn("[Auth] Silent SSO Failed (Redirected with error). Disabling future checks for this session.");
 
-      // 1. CLEAN THE URL: Remove the error hash so the user sees a clean URL
-      window.history.replaceState(null, null, window.location.pathname);
+      // Mark session as failed so we don't try again on reload
+      sessionStorage.setItem('kc_silent_sso_failed', 'true');
 
-      // 2. DISABLE CHECK-SSO: Do NOT set onLoad. 
-      // This allows the app to init in "Public/Unauthenticated" mode immediately without redirecting.
-      delete initOptions.onLoad;
+      // Clean the URL hash so the user doesn't see the ugly error
+      const cleanUrl = window.location.pathname + window.location.search;
+      window.history.replaceState(null, null, cleanUrl);
+
+      // CRITICAL: Do NOT set onLoad. The App will load in "Public/Unauthenticated" mode.
+
+    } else if (hasPriorFailure) {
+      console.log("[Auth] Skipping Silent SSO (Previous failure detected in session).");
+      // Do NOT set onLoad. The App loads in "Public/Unauthenticated" mode immediately.
 
     } else {
-      // Normal Load: Try to check if user is logged in
+      console.log("[Auth] Attempting Silent SSO...");
+      // Only try check-sso if we haven't failed before
       initOptions.onLoad = 'check-sso';
+      initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
     }
 
-    // --- CRITICAL LOOP FIX END ---
+    // --- INITIALIZATION ---
 
     const CONNECTION_TIMEOUT = 10000;
     const timeoutPromise = new Promise((_, reject) =>
@@ -74,6 +86,9 @@ export const AuthProvider = ({ children }) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
 
         if (authenticated) {
+          // Success! Clear any failure flags.
+          sessionStorage.removeItem('kc_silent_sso_failed');
+
           setToken(initKeycloak.token);
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
@@ -88,12 +103,14 @@ export const AuthProvider = ({ children }) => {
             isAdmin: roles.includes('admin') || roles.includes('publisher')
           });
         } else {
+          // Not authenticated (Public User)
           setIsAuthenticated(false);
           setAuthToken(null);
         }
       })
       .catch((err) => {
         console.error("[Auth] Init Failed or Timed Out:", err);
+        // If init fails technically, fallback to unauthenticated state
         setIsAuthenticated(false);
         setAuthToken(null);
       })
@@ -106,7 +123,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(() => {
     if (keycloak) {
-      console.log("[Auth] Triggering Login...");
+      console.log("[Auth] Triggering Manual Login...");
+      // Clear the failure flag so the redirect back attempts a proper check
+      sessionStorage.removeItem('kc_silent_sso_failed');
       keycloak.login().catch(err => console.error("Login failed:", err));
     } else {
       console.error("[Auth] Keycloak instance not ready. Reloading...");
@@ -117,6 +136,7 @@ export const AuthProvider = ({ children }) => {
   const logout = useCallback(() => {
     if (keycloak) {
       console.log("[Auth] Triggering Logout...");
+      sessionStorage.removeItem('kc_silent_sso_failed'); // Clear flag
       keycloak.logout();
     }
   }, [keycloak]);
@@ -136,7 +156,7 @@ export const AuthProvider = ({ children }) => {
         console.error('[Auth] Failed to refresh token');
         logout();
       });
-    }, 60000);
+    }, 60000); // Check every minute
 
     return () => clearInterval(intervalId);
   }, [keycloak, isAuthenticated, logout]);
