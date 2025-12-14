@@ -10,7 +10,9 @@ const LoginPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const from = location.state?.from?.pathname || "/dashboard";
+    // Prevent circular redirect to /login
+    let from = location.state?.from?.pathname || "/dashboard";
+    if (from === "/login") from = "/dashboard";
 
     useEffect(() => {
         if (auth.isAuthenticated) {
@@ -26,7 +28,7 @@ const LoginPage = () => {
             </Helmet>
 
             <div className="container mx-auto flex items-center justify-center flex-col text-center">
-                <LazyLoadImage alt="Logo" effect="blur" src="/logo.png" className="h-24 w-24 mb-6" />
+                <LazyLoadImage alt="Logo" effect="blur" src="/logo.webp" className="h-24 w-auto mb-6" />
                 <h1 className="text-4xl font-bold header-logo-text mb-4">Treishvaam Finance</h1>
                 <p className="text-gray-600 mb-8 max-w-md">Secure Enterprise Login via Keycloak.</p>
 
