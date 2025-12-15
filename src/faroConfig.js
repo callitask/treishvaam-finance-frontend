@@ -9,8 +9,8 @@ const initFaro = () => {
     if (process.env.NODE_ENV === 'production' || window.location.hostname.includes('treishvaamgroup.com')) {
         try {
             initializeFaro({
-                // TARGET: Points to our Spring Boot Proxy (avoids CORS/Mixed Content)
-                url: 'https://backend.treishvaamgroup.com/faro-collector/collect',
+                // TARGET: Safe Camouflaged Endpoint to bypass Ad-Blockers
+                url: 'https://backend.treishvaamgroup.com/api/v1/monitoring/ingest',
                 app: {
                     name: 'treishvaam-frontend',
                     version: '1.0.0',
@@ -23,7 +23,7 @@ const initFaro = () => {
                     new TracingInstrumentation(),
                 ],
             });
-            console.log('[Faro] Real User Monitoring initialized via Proxy');
+            console.log('[Faro] Real User Monitoring initialized via Secure Proxy');
         } catch (e) {
             console.warn('[Faro] Failed to initialize:', e);
         }
