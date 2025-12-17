@@ -5,10 +5,14 @@ import axios from 'axios';
  * Backend base URL
  * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT (VERSION 1)
  */
-export const API_URL = 'https://backend.treishvaamgroup.com';
+// CRITICAL FIX: Export BASE_URL so NewsCard.js can import it for image resolution
+export const BASE_URL = 'https://backend.treishvaamgroup.com';
+
+// Keep API_URL for backward compatibility with other components
+export const API_URL = BASE_URL;
 
 const api = axios.create({
-  baseURL: `${API_URL}/api/v1`,
+  baseURL: `${BASE_URL}/api/v1`,
 });
 
 // Holds the current token, set by AuthContext
