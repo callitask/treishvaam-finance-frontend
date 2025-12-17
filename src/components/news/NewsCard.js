@@ -1,5 +1,5 @@
 import React from 'react';
-import { BASE_URL } from '../../apiConfig'; // Now this named import will work!
+import { BASE_URL } from '../../apiConfig'; // Import your backend URL
 
 const NewsCard = ({ article }) => {
     // Helper to resolve the correct image URL
