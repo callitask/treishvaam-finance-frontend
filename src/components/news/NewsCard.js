@@ -16,11 +16,24 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     // Formatter: "2 MIN READ • 2 HOURS AGO"
     const getMeta = () => {
         if (!article.publishedAt) return "";
-        const d = new Date(article.publishedAt);
-        const now = new Date();
-        const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));
-        const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
-        return `2 MIN READ • ${timeStr}`;
+
+        try {
+            const d = new Date(article.publishedAt);
+            // Safety: Check if date is valid before processing
+            if (isNaN(d.getTime())) return "";
+
+            const now = new Date();
+            const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));
+
+            // Safety: If future date or calc error, default to Just Now
+            if (isNaN(diffHrs)) return "2 MIN READ";
+
+            const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
+            return `2 MIN READ • ${timeStr}`;
+        } catch (e) {
+            console.warn("Date parse error", e);
+            return "2 MIN READ";
+        }
     };
 
     // --- VARIANT 1: IMPACT (The Hero - Text Below Image) ---
