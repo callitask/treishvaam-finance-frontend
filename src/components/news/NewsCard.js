@@ -1,67 +1,114 @@
-import React from 'react';
-import { BASE_URL } from '../../apiConfig'; // Import your backend URL
+import React, { useState } from 'react';
+import './NewsCard.css';
 
-const NewsCard = ({ article }) => {
-    // Helper to resolve the correct image URL
-    const getImageUrl = (url) => {
-        if (!url) return '/placeholder-news.jpg';
+/**
+ * Enterprise News Card (Phase 3.1: Optimized for Columns)
+ * - Strict Rectangular Design
+ * - Landscape Hero Images
+ * - Optimized Font Sizes for Narrow Widths
+ */
+const NewsCard = ({ article, variant = 'standard', rank }) => {
+    const [imgError, setImgError] = useState(false);
 
-        // If it's a relative path (e.g. /api/uploads/...), prepend backend URL
-        if (url.startsWith('/')) {
-            return `${BASE_URL}${url}`;
-        }
+    // CRITICAL SAFETY CHECK: Prevent crash if data is missing
+    if (!article) return null;
 
-        // If it's absolute (e.g. https://...), return as is
-        return url;
+    // Formatter: "2 MIN READ • 2 HOURS AGO"
+    const getMeta = () => {
+        if (!article.publishedAt) return "";
+        const d = new Date(article.publishedAt);
+        const now = new Date();
+        const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));
+        const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
+        return `2 MIN READ • ${timeStr}`;
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden border border-gray-100 dark:border-gray-700 flex flex-col h-full">
-
-            {/* Image Section */}
-            <a href={article.link} target="_blank" rel="noopener noreferrer" className="block relative h-48 overflow-hidden group">
-                <img
-                    src={getImageUrl(article.imageUrl)}
-                    alt={article.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    onError={(e) => { e.target.src = '/placeholder-news.jpg'; }}
-                />
-                <div className="absolute top-0 right-0 bg-blue-600 text-white text-xs font-bold px-2 py-1 m-2 rounded shadow-sm">
-                    {article.source || 'News'}
-                </div>
+    // --- VARIANT 1: IMPACT (The Hero - Text Below Image) ---
+    if (variant === 'impact') {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
+                <article className="nc-impact-card">
+                    <div className="nc-impact-image-container">
+                        {!imgError && article.imageUrl ? (
+                            <img src={article.imageUrl} alt={article.title} onError={() => setImgError(true)} />
+                        ) : (
+                            <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}></div>
+                        )}
+                    </div>
+                    {/* Content Block */}
+                    <div className="nc-impact-content">
+                        <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
+                        <h3 className="nc-impact-headline">{article.title}</h3>
+                        <div className="nc-impact-meta">{getMeta()}</div>
+                    </div>
+                </article>
+                <div className="hairline-divider"></div>
             </a>
+        );
+    }
 
-            {/* Content Section */}
-            <div className="p-4 flex flex-col flex-grow">
-                <div className="flex items-center text-gray-500 dark:text-gray-400 text-xs mb-2 space-x-2">
-                    <span>{new Date(article.publishedAt).toLocaleDateString()}</span>
-                    <span>•</span>
-                    <span>{new Date(article.publishedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+    // --- VARIANT 3: MARKET SNAP (Visual Stack) ---
+    if (variant === 'market-snap' && !imgError && article.imageUrl) {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
+                <article className="nc-snap-card">
+                    <div className="nc-snap-image">
+                        <img src={article.imageUrl} alt="" onError={() => setImgError(true)} />
+                    </div>
+                    <h4 className="nc-snap-headline">{article.title}</h4>
+                    <div className="nc-std-meta mt-2">{getMeta()}</div>
+                </article>
+                <div className="hairline-divider"></div>
+            </a>
+        );
+    }
+
+    // --- VARIANT 4: OPINION (Quote Box) ---
+    if (variant === 'opinion') {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
+                <article className="nc-opinion-card">
+                    <span className="nc-opinion-icon">“</span>
+                    <h4 className="nc-opinion-headline">{article.title}</h4>
+                    <div className="nc-opinion-author">{article.source || 'Analyst View'}</div>
+                </article>
+            </a>
+        );
+    }
+
+    // --- VARIANT 5: RANKED (Trending List) ---
+    if (variant === 'ranked') {
+        return (
+            <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
+                <article className="nc-ranked-card">
+                    <div className="nc-rank-number">{rank ? String(rank).padStart(2, '0') : '#'}</div>
+                    <div className="nc-ranked-content">
+                        <h4>{article.title}</h4>
+                        <div className="nc-std-meta" style={{ marginTop: '4px' }}>{getMeta()}</div>
+                    </div>
+                </article>
+                <div className="hairline-divider"></div>
+            </a>
+        );
+    }
+
+    // --- VARIANT 2: STANDARD (Default Rectangular Media Object) ---
+    return (
+        <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
+            <article className="nc-standard-card">
+                <div className="nc-std-content">
+                    <span className="nc-std-kicker">{article.source || 'Markets'}</span>
+                    <h4 className="nc-std-headline">{article.title}</h4>
+                    <div className="nc-std-meta">{getMeta()}</div>
                 </div>
-
-                <a href={article.link} target="_blank" rel="noopener noreferrer" className="block mb-2">
-                    <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 leading-tight hover:text-blue-600 dark:hover:text-blue-400 transition-colors line-clamp-2">
-                        {article.title}
-                    </h3>
-                </a>
-
-                <p className="text-gray-600 dark:text-gray-300 text-sm mb-4 line-clamp-3 flex-grow">
-                    {article.description}
-                </p>
-
-                <a
-                    href={article.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline mt-auto"
-                >
-                    Read full story
-                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                </a>
-            </div>
-        </div>
+                {!imgError && article.imageUrl && (
+                    <div className="nc-std-thumbnail">
+                        <img src={article.imageUrl} alt="" onError={() => setImgError(true)} loading="lazy" />
+                    </div>
+                )}
+            </article>
+            <div className="hairline-divider"></div>
+        </a>
     );
 };
 
