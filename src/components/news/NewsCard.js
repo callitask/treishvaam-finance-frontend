@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './NewsCard.css';
+import { BASE_URL } from '../../apiConfig'; // Import backend URL for relative paths
 
 /**
  * Enterprise News Card (Phase 3.1: Optimized for Columns)
@@ -13,14 +14,28 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     // CRITICAL SAFETY CHECK: Prevent crash if data is missing
     if (!article) return null;
 
+    // --- FIX 1: Smart Image Resolver ---
+    // Prepend Backend URL to relative paths (e.g. /api/uploads/...)
+    const getImageUrl = (url) => {
+        if (!url) return '/placeholder-news.jpg';
+        if (url.startsWith('http')) return url;    // Absolute URL (Remote)
+        if (url.startsWith('/')) return `${BASE_URL}${url}`; // Relative Path (Local)
+        return url;
+    };
+
+    // --- FIX 2: Robust Date Parsing ---
     // Formatter: "2 MIN READ • 2 HOURS AGO"
     const getMeta = () => {
         if (!article.publishedAt) return "";
 
         try {
-            const d = new Date(article.publishedAt);
+            // Fix SQL Timestamp "YYYY-MM-DD HH:MM:SS" -> ISO "YYYY-MM-DDTHH:MM:SS"
+            // This fixes the NaN issue on strict browsers
+            const dateString = article.publishedAt.toString().replace(" ", "T");
+            const d = new Date(dateString);
+
             // Safety: Check if date is valid before processing
-            if (isNaN(d.getTime())) return "";
+            if (isNaN(d.getTime())) return "2 MIN READ";
 
             const now = new Date();
             const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));
@@ -43,7 +58,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 <article className="nc-impact-card">
                     <div className="nc-impact-image-container">
                         {!imgError && article.imageUrl ? (
-                            <img src={article.imageUrl} alt={article.title} onError={() => setImgError(true)} />
+                            <img src={getImageUrl(article.imageUrl)} alt={article.title} onError={() => setImgError(true)} />
                         ) : (
                             <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}></div>
                         )}
@@ -66,7 +81,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
                 <article className="nc-snap-card">
                     <div className="nc-snap-image">
-                        <img src={article.imageUrl} alt="" onError={() => setImgError(true)} />
+                        <img src={getImageUrl(article.imageUrl)} alt="" onError={() => setImgError(true)} />
                     </div>
                     <h4 className="nc-snap-headline">{article.title}</h4>
                     <div className="nc-std-meta mt-2">{getMeta()}</div>
@@ -116,7 +131,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 </div>
                 {!imgError && article.imageUrl && (
                     <div className="nc-std-thumbnail">
-                        <img src={article.imageUrl} alt="" onError={() => setImgError(true)} loading="lazy" />
+                        <img src={getImageUrl(article.imageUrl)} alt="" onError={() => setImgError(true)} loading="lazy" />
                     </div>
                 )}
             </article>
