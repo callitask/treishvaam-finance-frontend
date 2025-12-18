@@ -153,7 +153,7 @@ const BlogPage = () => {
 
                 {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
-                    {/* CHANGED: Logic moved to Wrapper. sticky top-[92px] (36px Top + 56px Menu). z-30. */}
+                    {/* Category Strip Sticky Wrapper: Top 92px, z-30 */}
                     <div className="sticky top-[92px] z-30 bg-white">
                         <CategoryStrip
                             categories={categories}
@@ -163,15 +163,21 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    <div className="border-b border-gray-200 bg-gray-50/50">
+                    {/* CHANGED: Market Ticker Sticky Wrapper. 
+                        Top = 92px (Category) + 48px (Category Height) = 140px. 
+                        z-20 (below category strip). 
+                        bg-gray-50 (solid background). */}
+                    <div className="sticky top-[140px] z-20 border-b border-gray-200 bg-gray-50">
                         <GlobalMarketTicker />
                     </div>
+
                     <div className="container mx-auto px-4 lg:px-6 pt-10 pb-20">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
                             {/* LEFT COLUMN: The Briefing */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
-                                <div className="sticky top-40 space-y-8">
+                                {/* Adjusted top to account for new sticky headers (approx 200px) */}
+                                <div className="sticky top-[200px] space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
                                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
                                     </div>
@@ -206,7 +212,8 @@ const BlogPage = () => {
 
                             {/* RIGHT COLUMN: Market Data */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
-                                <div className="sticky top-40 space-y-10">
+                                {/* Adjusted top to account for new sticky headers (approx 200px) */}
+                                <div className="sticky top-[200px] space-y-10">
                                     <MarketSidebar />
                                 </div>
                             </aside>
