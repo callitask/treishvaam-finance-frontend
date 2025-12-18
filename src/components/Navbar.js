@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext'; // <--- IMPORT
-import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch, FaFacebookF, FaLinkedinIn, FaInstagram, FaCircle, FaMoon, FaSun } from 'react-icons/fa'; // <--- Added FaMoon, FaSun
+import { useTheme } from '../context/ThemeContext';
+import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch, FaFacebookF, FaLinkedinIn, FaInstagram, FaCircle, FaMoon, FaSun } from 'react-icons/fa';
 import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
@@ -13,7 +13,7 @@ const Navbar = () => {
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-gray-400' });
 
     const { auth, logout } = useAuth();
-    const { theme, toggleTheme } = useTheme(); // <--- USE HOOK
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const today = new Date().toLocaleDateString('en-US', {
@@ -132,86 +132,81 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP HEADER */}
-            <div className="hidden md:block bg-white dark:bg-slate-900 font-sans transition-colors duration-300">
-                {/* Top Bar - CHANGED: Added sticky, top-0, z-[50] */}
-                <div className="sticky top-0 z-[50] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-slate-700">
-                    <div className="container mx-auto px-6 h-9 flex justify-between items-center">
-                        <div className="flex items-center space-x-4 font-medium tracking-wide">
-                            <span>{today}</span>
-                            <span className="w-px h-3 bg-gray-300 dark:bg-gray-600"></span>
-                            <div className="flex items-center gap-2">
-                                <FaCircle className={`w-2 h-2 ${marketStatus.color}`} />
-                                <span>{marketStatus.isOpen ? 'Market Open' : 'Market Closed'}</span>
-                            </div>
+            {/* DESKTOP HEADER (UNWRAPPED FOR STICKY SUPPORT) */}
+
+            {/* 1. Spacer for Fixed Top Bar (prevents content overlap) */}
+            <div className="h-9 hidden md:block w-full"></div>
+
+            {/* 2. Top Bar (Fixed) */}
+            <div className="hidden md:flex fixed top-0 w-full z-[50] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-slate-700 items-center">
+                <div className="container mx-auto px-6 h-9 flex justify-between items-center">
+                    <div className="flex items-center space-x-4 font-medium tracking-wide">
+                        <span>{today}</span>
+                        <span className="w-px h-3 bg-gray-300 dark:bg-gray-600"></span>
+                        <div className="flex items-center gap-2">
+                            <FaCircle className={`w-2 h-2 ${marketStatus.color}`} />
+                            <span>{marketStatus.isOpen ? 'Market Open' : 'Market Closed'}</span>
                         </div>
-                        <div className="flex items-center space-x-6">
-                            <div className="flex space-x-4 border-r border-gray-300 dark:border-gray-600 pr-6">
-                                <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="LinkedIn" className="hover:text-[#0077b5] transition-colors"><FaLinkedinIn /></a>
-                                <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Facebook" className="hover:text-[#1877F3] transition-colors"><FaFacebookF /></a>
-                                <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Instagram" className="hover:text-[#E1306C] transition-colors"><FaInstagram /></a>
+                    </div>
+                    <div className="flex items-center space-x-6">
+                        <div className="flex space-x-4 border-r border-gray-300 dark:border-gray-600 pr-6">
+                            <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="LinkedIn" className="hover:text-[#0077b5] transition-colors"><FaLinkedinIn /></a>
+                            <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Facebook" className="hover:text-[#1877F3] transition-colors"><FaFacebookF /></a>
+                            <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Instagram" className="hover:text-[#E1306C] transition-colors"><FaInstagram /></a>
+                        </div>
+                        <button onClick={toggleTheme} className="flex items-center gap-1.5 text-gray-500 hover:text-sky-700 dark:text-gray-400 dark:hover:text-sky-400 transition-colors" title="Toggle Theme">
+                            {theme === 'dark' ? <FaSun className="text-amber-400" /> : <FaMoon />}
+                        </button>
+                        {auth.isAuthenticated ? (
+                            <div className="flex items-center space-x-3">
+                                <Link to="/dashboard" className="font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700">Dashboard</Link>
+                                <button onClick={handleLogout} className="text-gray-400 hover:text-red-600" title="Logout"><FaSignOutAlt /></button>
                             </div>
-
-                            {/* Theme Toggle Button Desktop */}
-                            <button
-                                onClick={toggleTheme}
-                                className="flex items-center gap-1.5 text-gray-500 hover:text-sky-700 dark:text-gray-400 dark:hover:text-sky-400 transition-colors"
-                                title="Toggle Theme"
-                            >
-                                {theme === 'dark' ? <FaSun className="text-amber-400" /> : <FaMoon />}
-                            </button>
-
-                            {auth.isAuthenticated ? (
-                                <div className="flex items-center space-x-3">
-                                    <Link to="/dashboard" className="font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700">Dashboard</Link>
-                                    <button onClick={handleLogout} className="text-gray-400 hover:text-red-600" title="Logout"><FaSignOutAlt /></button>
-                                </div>
-                            ) : (
-                                <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
-                                    <button className="flex items-center font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
-                                        <FaUserCircle className="mr-1.5 text-sm text-gray-400" /> Sign In
-                                    </button>
-                                    {isLoginDropdownOpen && (
-                                        <div className="absolute right-0 top-full pt-2 z-50">
-                                            <div className="bg-white dark:bg-slate-800 rounded shadow-xl border border-gray-100 dark:border-slate-700 py-1 w-32">
-                                                <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Admin Login</Link>
-                                            </div>
+                        ) : (
+                            <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
+                                <button className="flex items-center font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
+                                    <FaUserCircle className="mr-1.5 text-sm text-gray-400" /> Sign In
+                                </button>
+                                {isLoginDropdownOpen && (
+                                    <div className="absolute right-0 top-full pt-2 z-50">
+                                        <div className="bg-white dark:bg-slate-800 rounded shadow-xl border border-gray-100 dark:border-slate-700 py-1 w-32">
+                                            <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Admin Login</Link>
                                         </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Branding Area */}
-                <div className="bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
-                    <div className="container mx-auto flex flex-col items-center justify-center">
-                        <Link to="/" className="text-center group">
-                            <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
-                                TREISHVAAM FINANCE
-                            </h1>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-bold tracking-[0.3em] uppercase mt-2 text-sky-800 dark:text-sky-400">
-                                Market Intelligence & Analysis
-                            </p>
-                        </Link>
-                    </div>
-                </div>
-
-                {/* Main Nav - CHANGED: top-9, z-[40] */}
-                <div className="sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
-                    <div className="container mx-auto px-6 relative">
-                        <div className="flex justify-center items-center h-14">
-                            <nav className="flex space-x-1">
-                                <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
-                                <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>
-                                <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
-                                <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
-                                <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
-                            </nav>
-                            <div className="absolute right-6 top-1/2 transform -translate-y-1/2 w-64">
-                                <SearchAutocomplete />
+                                    </div>
+                                )}
                             </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Branding (Scrolls Normally) */}
+            <div className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
+                <div className="container mx-auto flex flex-col items-center justify-center">
+                    <Link to="/" className="text-center group">
+                        <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
+                            TREISHVAAM FINANCE
+                        </h1>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-bold tracking-[0.3em] uppercase mt-2 text-sky-800 dark:text-sky-400">
+                            Market Intelligence & Analysis
+                        </p>
+                    </Link>
+                </div>
+            </div>
+
+            {/* 4. Main Nav (Sticks below Top Bar) */}
+            <div className="hidden md:block sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
+                <div className="container mx-auto px-6 relative">
+                    <div className="flex justify-center items-center h-14">
+                        <nav className="flex space-x-1">
+                            <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
+                            <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>
+                            <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
+                            <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
+                            <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
+                        </nav>
+                        <div className="absolute right-6 top-1/2 transform -translate-y-1/2 w-64">
+                            <SearchAutocomplete />
                         </div>
                     </div>
                 </div>
