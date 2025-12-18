@@ -71,7 +71,7 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
 
-    // NEW: Intersection Observer for Sticky Logo (Fixed for Build)
+    // Intersection Observer for Sticky Logo (Fixed for Build)
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -231,19 +231,16 @@ const Navbar = () => {
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
 
-                        {/* NEW: Sticky Left Branding */}
+                        {/* NEW: Sticky Left Branding (Horizontal & Same Size) */}
                         <Link
                             to="/"
-                            className={`absolute left-6 top-1/2 transform -translate-y-1/2 flex flex-col justify-center transition-all duration-300 ${showStickyLogo
+                            className={`absolute left-6 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${showStickyLogo
                                 ? 'opacity-100 pointer-events-auto translate-y-[-50%]'
                                 : 'opacity-0 pointer-events-none translate-y-[-40%]'
                                 }`}
                         >
-                            <span className="font-black text-gray-900 dark:text-white font-serif tracking-tight text-lg leading-none">
-                                TREISHVAAM
-                            </span>
-                            <span className="text-[0.6rem] text-sky-800 dark:text-sky-400 font-bold tracking-[0.2em] uppercase">
-                                FINANCE
+                            <span className="font-black text-gray-900 dark:text-white font-serif tracking-tight text-xl uppercase">
+                                TREISHVAAM FINANCE
                             </span>
                         </Link>
 
