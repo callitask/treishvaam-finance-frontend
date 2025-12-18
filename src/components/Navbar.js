@@ -134,8 +134,8 @@ const Navbar = () => {
 
             {/* DESKTOP HEADER */}
             <div className="hidden md:block bg-white dark:bg-slate-900 font-sans transition-colors duration-300">
-                {/* Top Bar */}
-                <div className="bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-slate-700">
+                {/* Top Bar - CHANGED: Added sticky, top-0, z-[50] */}
+                <div className="sticky top-0 z-[50] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-slate-700">
                     <div className="container mx-auto px-6 h-9 flex justify-between items-center">
                         <div className="flex items-center space-x-4 font-medium tracking-wide">
                             <span>{today}</span>
@@ -198,8 +198,8 @@ const Navbar = () => {
                     </div>
                 </div>
 
-                {/* Main Nav */}
-                <div className="sticky top-0 z-50 bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
+                {/* Main Nav - CHANGED: top-9, z-[40] */}
+                <div className="sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
                     <div className="container mx-auto px-6 relative">
                         <div className="flex justify-center items-center h-14">
                             <nav className="flex space-x-1">
