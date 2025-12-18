@@ -153,7 +153,9 @@ const BlogPage = () => {
 
                 {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
-                    <div className="sticky top-[110px] z-40">
+                    {/* CHANGED: Removed "sticky top-[110px]" wrapper.
+                        Now relying on CategoryStrip's internal sticky logic (set to 88px). */}
+                    <div className="z-30 relative">
                         <CategoryStrip
                             categories={categories}
                             selectedCategory={selectedCategory}
@@ -161,6 +163,7 @@ const BlogPage = () => {
                             loading={loadingCategories}
                         />
                     </div>
+
                     <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
