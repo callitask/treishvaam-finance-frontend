@@ -163,11 +163,8 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* CHANGED: Market Ticker Sticky Wrapper. 
-                        Top = 92px (Category) + 48px (Category Height) = 140px. 
-                        z-20 (below category strip). 
-                        bg-gray-50 (solid background). */}
-                    <div className="sticky top-[140px] z-20 border-b border-gray-200 bg-gray-50">
+                    {/* CHANGED: Reverted to normal scrolling (Removed sticky/top/z-index) */}
+                    <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
 
@@ -176,8 +173,8 @@ const BlogPage = () => {
 
                             {/* LEFT COLUMN: The Briefing */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
-                                {/* Adjusted top to account for new sticky headers (approx 200px) */}
-                                <div className="sticky top-[200px] space-y-8">
+                                {/* CHANGED: Adjusted sticky top to 150px (headers end at ~140px) */}
+                                <div className="sticky top-[150px] space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
                                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
                                     </div>
@@ -212,8 +209,8 @@ const BlogPage = () => {
 
                             {/* RIGHT COLUMN: Market Data */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
-                                {/* Adjusted top to account for new sticky headers (approx 200px) */}
-                                <div className="sticky top-[200px] space-y-10">
+                                {/* CHANGED: Adjusted sticky top to 150px */}
+                                <div className="sticky top-[150px] space-y-10">
                                     <MarketSidebar />
                                 </div>
                             </aside>
