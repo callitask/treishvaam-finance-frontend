@@ -77,9 +77,11 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
     }, [activeTab]);
 
     // Conditional Styling for Mobile vs Desktop
+    // CHANGED: Removed "sticky top-0 z-40" from the desktop string.
+    // It is now purely static and will scroll away naturally.
     const containerClasses = mobileMode
         ? "w-full bg-white border-b border-gray-200"
-        : "bg-white border-b border-gray-200 sticky top-0 z-40";
+        : "bg-white border-b border-gray-200";
 
     const innerClasses = mobileMode
         ? "w-full"

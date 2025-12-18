@@ -153,7 +153,8 @@ const BlogPage = () => {
 
                 {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
-                    {/* Category Strip Sticky Wrapper: Top 92px, z-30 */}
+                    {/* CHANGED: Set to top-[92px] to dock exactly under Navbar. 
+                        Set z-30 (lower than Navbar's z-40) to stack correctly. */}
                     <div className="sticky top-[92px] z-30 bg-white">
                         <CategoryStrip
                             categories={categories}
@@ -163,7 +164,7 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* CHANGED: Reverted to normal scrolling (Removed sticky/top/z-index) */}
+                    {/* Market Ticker: Scrolls naturally. */}
                     <div className="border-b border-gray-200 bg-gray-50/50">
                         <GlobalMarketTicker />
                     </div>
@@ -173,7 +174,7 @@ const BlogPage = () => {
 
                             {/* LEFT COLUMN: The Briefing */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
-                                {/* CHANGED: Adjusted sticky top to 150px (headers end at ~140px) */}
+                                {/* CHANGED: Sticky top adjusted to 150px to account for header stack */}
                                 <div className="sticky top-[150px] space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
                                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
@@ -209,7 +210,7 @@ const BlogPage = () => {
 
                             {/* RIGHT COLUMN: Market Data */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
-                                {/* CHANGED: Adjusted sticky top to 150px */}
+                                {/* CHANGED: Sticky top adjusted to 150px */}
                                 <div className="sticky top-[150px] space-y-10">
                                     <MarketSidebar />
                                 </div>
