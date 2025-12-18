@@ -144,7 +144,7 @@ const Navbar = () => {
                             <div className="p-4 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
                                 <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
-                                <Link to="/market/global" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
+                                <Link to="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
                                 <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">About Us</Link>
                                 <Link to="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Vision</Link>
                                 <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Contact</Link>
@@ -246,7 +246,8 @@ const Navbar = () => {
 
                         <nav className="flex space-x-1">
                             <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
-                            <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>
+                            {/* FIX: Route directly to Dow Jones (^DJI) instead of global */}
+                            <NavLink to="/market/%5EDJI" className={getNavLinkClass}>Markets</NavLink>
                             <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
                             <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
                             <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
