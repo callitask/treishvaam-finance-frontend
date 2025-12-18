@@ -15,7 +15,8 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
     }
 
     return (
-        <div className="w-full bg-white border-b border-gray-200 z-40 relative">
+        // CHANGED: Added sticky, top-[92px] (36px TopBar + 56px Menu), and z-[30]
+        <div className="w-full bg-white border-b border-gray-200 z-[30] sticky top-[92px]">
             <div className="container mx-auto px-4">
                 <div className="flex items-center h-12 overflow-x-auto no-scrollbar gap-1">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4 flex-shrink-0">
