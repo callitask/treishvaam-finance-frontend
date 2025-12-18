@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -11,6 +11,10 @@ const Navbar = () => {
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-gray-400' });
+
+    // NEW: State for sticky logo visibility
+    const [showStickyLogo, setShowStickyLogo] = useState(false);
+    const brandingRef = useRef(null);
 
     const { auth, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
@@ -47,7 +51,7 @@ const Navbar = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Scroll Logic
+    // Scroll Logic (Mobile Header Hide/Show)
     useEffect(() => {
         const controlNavbar = () => {
             if (typeof window !== 'undefined') {
@@ -66,6 +70,31 @@ const Navbar = () => {
         window.addEventListener('scroll', controlNavbar, { passive: true });
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
+
+    // NEW: Intersection Observer for Sticky Logo
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                // If main branding is NOT intersecting (scrolled away), show sticky logo
+                setShowStickyLogo(!entry.isIntersecting);
+            },
+            {
+                threshold: 0,
+                // Offset top by 36px (Top Bar Height) so it triggers exactly when sliding under
+                rootMargin: '-36px 0px 0px 0px'
+            }
+        );
+
+        if (brandingRef.current) {
+            observer.observe(brandingRef.current);
+        }
+
+        return () => {
+            if (brandingRef.current) {
+                observer.unobserve(brandingRef.current);
+            }
+        };
+    }, []);
 
     const getNavLinkClass = ({ isActive }) =>
         `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
@@ -132,9 +161,9 @@ const Navbar = () => {
                 )}
             </header>
 
-            {/* DESKTOP HEADER (UNWRAPPED FOR STICKY SUPPORT) */}
+            {/* DESKTOP HEADER */}
 
-            {/* 1. Spacer for Fixed Top Bar (prevents content overlap) */}
+            {/* 1. Spacer */}
             <div className="h-9 hidden md:block w-full"></div>
 
             {/* 2. Top Bar (Fixed) */}
@@ -180,8 +209,9 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* 3. Branding (Scrolls Normally) */}
-            <div className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
+            {/* 3. Branding (Scrolls, Observed) */}
+            {/* Added ref={brandingRef} here */}
+            <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
                     <Link to="/" className="text-center group">
                         <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
@@ -194,10 +224,27 @@ const Navbar = () => {
                 </div>
             </div>
 
-            {/* 4. Main Nav (Sticks below Top Bar) */}
+            {/* 4. Main Nav (Sticky, with Mini Logo) */}
             <div className="hidden md:block sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
+
+                        {/* NEW: Sticky Left Branding */}
+                        <Link
+                            to="/"
+                            className={`absolute left-6 top-1/2 transform -translate-y-1/2 flex flex-col justify-center transition-all duration-300 ${showStickyLogo
+                                ? 'opacity-100 pointer-events-auto translate-y-[-50%]'
+                                : 'opacity-0 pointer-events-none translate-y-[-40%]'
+                                }`}
+                        >
+                            <span className="font-black text-gray-900 dark:text-white font-serif tracking-tight text-lg leading-none">
+                                TREISHVAAM
+                            </span>
+                            <span className="text-[0.6rem] text-sky-800 dark:text-sky-400 font-bold tracking-[0.2em] uppercase">
+                                FINANCE
+                            </span>
+                        </Link>
+
                         <nav className="flex space-x-1">
                             <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
                             <NavLink to="/market/global" className={getNavLinkClass}>Markets</NavLink>
@@ -205,6 +252,7 @@ const Navbar = () => {
                             <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
                             <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
                         </nav>
+
                         <div className="absolute right-6 top-1/2 transform -translate-y-1/2 w-64">
                             <SearchAutocomplete />
                         </div>
