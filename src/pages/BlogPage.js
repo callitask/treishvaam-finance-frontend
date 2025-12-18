@@ -153,9 +153,8 @@ const BlogPage = () => {
 
                 {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
-                    {/* CHANGED: Removed "sticky top-[110px]" wrapper.
-                        Now relying on CategoryStrip's internal sticky logic (set to 88px). */}
-                    <div className="z-30 relative">
+                    {/* CHANGED: Logic moved to Wrapper. sticky top-[92px] (36px Top + 56px Menu). z-30. */}
+                    <div className="sticky top-[92px] z-30 bg-white">
                         <CategoryStrip
                             categories={categories}
                             selectedCategory={selectedCategory}

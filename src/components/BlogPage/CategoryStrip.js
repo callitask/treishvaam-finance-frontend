@@ -15,8 +15,9 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
     }
 
     return (
-        // CHANGED: Reduced from top-[92px] to top-[88px] to close the gap by tucking 4px under the menu
-        <div className="w-full bg-white border-b border-gray-200 z-[30] sticky top-[88px]">
+        // CHANGED: Removed sticky, top, and z-index. Now just a normal block.
+        // The sticking is handled by the parent wrapper in BlogPage.js
+        <div className="w-full bg-white border-b border-gray-200">
             <div className="container mx-auto px-4">
                 <div className="flex items-center h-12 overflow-x-auto no-scrollbar gap-1">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4 flex-shrink-0">
