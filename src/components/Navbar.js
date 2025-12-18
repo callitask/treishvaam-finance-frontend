@@ -71,7 +71,7 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
 
-    // NEW: Intersection Observer for Sticky Logo
+    // NEW: Intersection Observer for Sticky Logo (Fixed for Build)
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -85,13 +85,16 @@ const Navbar = () => {
             }
         );
 
-        if (brandingRef.current) {
-            observer.observe(brandingRef.current);
+        // Capture the current ref value to a variable to use in cleanup
+        const currentBranding = brandingRef.current;
+
+        if (currentBranding) {
+            observer.observe(currentBranding);
         }
 
         return () => {
-            if (brandingRef.current) {
-                observer.unobserve(brandingRef.current);
+            if (currentBranding) {
+                observer.unobserve(currentBranding);
             }
         };
     }, []);
@@ -210,7 +213,6 @@ const Navbar = () => {
             </div>
 
             {/* 3. Branding (Scrolls, Observed) */}
-            {/* Added ref={brandingRef} here */}
             <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
                     <Link to="/" className="text-center group">
