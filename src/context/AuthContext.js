@@ -22,6 +22,18 @@ export const AuthProvider = ({ children }) => {
     if (isRun.current) return;
     isRun.current = true;
 
+    // --- ENTERPRISE FIX: DETECT BOTS & SKIP AUTH ---
+    // If a search engine bot is crawling, we strictly skip Keycloak init.
+    // This prevents "Redirection Error" in Google Search Console.
+    const userAgent = navigator.userAgent || "";
+    const isBot = /bot|googlebot|crawler|spider|robot|crawling|bingbot|slurp|duckduckbot|baiduspider|yandexbot/i.test(userAgent);
+
+    if (isBot) {
+      console.log("[Auth] Bot detected. Skipping Keycloak initialization for SEO.");
+      setLoading(false);
+      return; // STOP HERE. Do not init Keycloak.
+    }
+
     console.log("[Auth] Init Started");
 
     const initKeycloak = new Keycloak({
