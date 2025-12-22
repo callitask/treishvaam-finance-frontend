@@ -18,7 +18,7 @@ const resolveTrafficSource = () => {
     if (!referrer) {
         source = 'Direct';
     } else if (referrer.includes(window.location.hostname)) {
-        source = 'Internal'; // Should generally be covered by storedSource, but fallback
+        source = 'Internal';
     } else if (referrer.match(/google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./i)) {
         source = 'Organic Search';
     } else if (referrer.match(/facebook\.|instagram\.|linkedin\.|twitter\.|t\.co|pinterest\.|reddit\./i)) {
@@ -43,34 +43,33 @@ const initFaro = () => {
             const persistentVisitorId = localStorage.getItem('visitor_id') || crypto.randomUUID();
             localStorage.setItem('visitor_id', persistentVisitorId);
 
+            // FIX: Use RELATIVE path so request hits the Cloudflare Worker on the main domain
+            // The Worker will inject headers and proxy this to the backend.
+            const ingestUrl = window.location.origin + '/api/v1/monitoring/ingest';
+
             faro = initializeFaro({
-                // TARGET: Safe Camouflaged Endpoint to bypass Ad-Blockers
-                url: 'https://backend.treishvaamgroup.com/api/v1/monitoring/ingest',
+                url: ingestUrl,
                 app: {
                     name: 'treishvaam-frontend',
                     version: '1.0.0',
                     environment: 'production'
                 },
-                // Inject Source & Visitor ID into every payload
                 extra: {
                     trafficSource: trafficSource,
                     visitorId: persistentVisitorId
                 },
                 instrumentations: [
-                    // Load mandatory instrumentations (Console, Errors, Web Vitals)
                     ...getWebInstrumentations(),
-                    // Load tracing instrumentation for API correlations
                     new TracingInstrumentation(),
                 ],
             });
 
-            // Explicitly set the session source attribute for immediate tracking
             faro.api.pushEvent('session_start', {
                 source: trafficSource,
                 visitorId: persistentVisitorId
             });
 
-            console.log(`[Faro] Real User Monitoring initialized via Secure Proxy. Source: ${trafficSource}`);
+            console.log(`[Faro] RUM initialized via Worker Proxy. Source: ${trafficSource}`);
         } catch (e) {
             console.warn('[Faro] Failed to initialize:', e);
         }
