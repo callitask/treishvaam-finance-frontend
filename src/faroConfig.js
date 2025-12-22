@@ -70,7 +70,7 @@ const initFaro = () => {
                 visitorId: persistentVisitorId
             });
 
-            console.log(`[Faro] Real User Monitoring initialized. Source: ${trafficSource}`);
+            console.log(`[Faro] Real User Monitoring initialized via Secure Proxy. Source: ${trafficSource}`);
         } catch (e) {
             console.warn('[Faro] Failed to initialize:', e);
         }

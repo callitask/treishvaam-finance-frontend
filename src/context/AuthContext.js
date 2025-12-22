@@ -145,7 +145,6 @@ export const AuthProvider = ({ children }) => {
         } else {
           setIsAuthenticated(false);
           setAuthToken(null);
-          // Optional: Reset Faro user if needed, but usually session persists
         }
       })
       .catch((err) => {
