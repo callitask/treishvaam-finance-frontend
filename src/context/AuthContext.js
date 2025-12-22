@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken } from '../apiConfig';
+import { faro } from '../faroConfig';
 
 const AuthContext = createContext();
 
@@ -124,6 +125,17 @@ export const AuthProvider = ({ children }) => {
           const { name, email, realm_access } = initKeycloak.tokenParsed;
           const roles = realm_access ? realm_access.roles : [];
 
+          // --- OBSERVABILITY HOOK ---
+          // Link the anonymous Faro session to this authenticated user
+          if (faro) {
+            faro.api.setUser({
+              id: email, // Use email as unique stable ID
+              username: name,
+              email: email
+            });
+            console.log("[Faro] User context linked:", email);
+          }
+
           setUser({
             name,
             email,
@@ -133,6 +145,7 @@ export const AuthProvider = ({ children }) => {
         } else {
           setIsAuthenticated(false);
           setAuthToken(null);
+          // Optional: Reset Faro user if needed, but usually session persists
         }
       })
       .catch((err) => {
@@ -159,6 +172,12 @@ export const AuthProvider = ({ children }) => {
     if (keycloak) {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
+
+      // Clear Faro User Context on Logout
+      if (faro) {
+        faro.api.resetUser();
+      }
+
       keycloak.logout();
     }
   }, [keycloak]);
