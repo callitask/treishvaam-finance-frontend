@@ -2,11 +2,13 @@
 import axios from 'axios';
 
 /**
- * Backend base URL
- * POINTS TO THE TUNNEL -> NGINX -> SPRING BOOT (VERSION 1)
+ * Backend Base URL Configuration
+ * ------------------------------
+ * Best Practice: Use Environment Variables.
+ * * Local Dev: Read from .env (http://localhost:8080)
+ * * Production: Read from Cloudflare Environment Variables (https://backend.treishvaamgroup.com)
  */
-// CRITICAL FIX: Export BASE_URL so NewsCard.js can import it for image resolution
-export const BASE_URL = 'https://backend.treishvaamgroup.com';
+export const BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com';
 
 // Keep API_URL for backward compatibility with other components
 export const API_URL = BASE_URL;

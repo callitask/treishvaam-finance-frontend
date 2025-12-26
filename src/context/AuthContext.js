@@ -47,8 +47,12 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
+    // --- CONFIGURATION ---
+    // Read from Cloudflare Environment Variable or Fallback
+    const authUrl = process.env.REACT_APP_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
+
     const initKeycloak = new Keycloak({
-      url: 'https://backend.treishvaamgroup.com/auth',
+      url: authUrl,
       realm: 'treishvaam',
       clientId: 'finance-app',
     });
