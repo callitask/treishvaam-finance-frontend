@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
+import api from '../../apiConfig'; // ENTERPRISE FIX: Use centralized API client
 import NewsCard from './NewsCard';
 import './NewsCard.css';
-
-const API_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com/api/v1';
 
 /**
  * Enterprise News Widget (Smart Layout Edition)
  * - Intelligent Variant Allocation for "Load More"
  * - Maintains "Trending" list only for top 5-9 items
+ * - Uses Centralized API Config to prevent URL/Auth errors
  */
 const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
     const [news, setNews] = useState([]);
@@ -24,7 +23,9 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
         if (isLoadMore) setLoadingMore(true);
         else setLoading(true);
 
-        axios.get(`${API_URL}/market/news/highlights?page=${pageNum}&size=${pageSize}`)
+        // ENTERPRISE FIX: Use 'api.get' instead of 'axios.get'
+        // This automatically prepends the correct Base URL and /api/v1 suffix
+        api.get(`/market/news/highlights?page=${pageNum}&size=${pageSize}`)
             .then(res => {
                 const newArticles = Array.isArray(res.data) ? res.data : [];
 
@@ -128,7 +129,7 @@ const NewsIntelligenceWidget = ({ layoutMode = 'sidebar' }) => {
                 {news.map((article, index) => {
                     const variant = determineVariant(article, index);
 
-                    // Show "Trending Now" header ONLY before the ranked list starts (Index 5)
+                    // Show "Trending" header ONLY before the ranked list starts (Index 5)
                     const showTrendingHeader = index === 5;
 
                     // Show "More Updates" header when the extended feed starts (Index 10)
