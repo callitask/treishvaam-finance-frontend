@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import ReactCrop, { centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
-import imageCompression from 'browser-image-compression';
 
-// This is a self-contained component for uploading, cropping, and compressing an image.
+// Enterprise Grade: Removed client-side compression to prevent "Double Compression" artifacts.
+// The backend (ImageService.java) now handles all optimization and WebP conversion using Virtual Threads.
+
 const ImageCropUploader = ({ label, aspect, onFileReady }) => {
     const [imgSrc, setImgSrc] = useState('');
     const [crop, setCrop] = useState();
@@ -29,16 +30,19 @@ const ImageCropUploader = ({ label, aspect, onFileReady }) => {
         setCrop(centerCrop(cropConfig, width, height));
     };
 
-    const handleCropAndCompress = async () => {
+    const handleCropAndSave = async () => {
         if (completedCrop && imgRef.current) {
-            const croppedImageBlob = await getCroppedImg(imgRef.current, completedCrop);
-            const options = { maxSizeMB: 0.5, maxWidthOrHeight: 1920, useWebWorker: true };
             try {
-                const compressedFile = await imageCompression(croppedImageBlob, options);
-                onFileReady(compressedFile); // Send the final file to the parent component
-                setFinalPreview(URL.createObjectURL(compressedFile)); // Show a preview of the final image
+                // Get high-quality blob (PNG) to avoid generation loss before backend processing
+                const blob = await getCroppedImg(imgRef.current, completedCrop);
+
+                // Convert Blob to File to match expected interface
+                const file = new File([blob], "cropped-image.png", { type: "image/png" });
+
+                onFileReady(file);
+                setFinalPreview(URL.createObjectURL(file));
             } catch (error) {
-                console.error('Error during compression:', error);
+                console.error('Error during cropping:', error);
             }
             closeModal();
         }
@@ -56,7 +60,7 @@ const ImageCropUploader = ({ label, aspect, onFileReady }) => {
         <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ fontWeight: '500' }}>{label}</label>
             <br />
-            <input type="file" accept="image/*" onChange={onSelectFile} ref={inputRef} style={{ marginTop: '0.5rem' }}/>
+            <input type="file" accept="image/*" onChange={onSelectFile} ref={inputRef} style={{ marginTop: '0.5rem' }} />
 
             {finalPreview && (
                 <div style={{ marginTop: '1rem' }}>
@@ -75,7 +79,7 @@ const ImageCropUploader = ({ label, aspect, onFileReady }) => {
                             </ReactCrop>
                         )}
                         <div style={{ marginTop: '1rem' }}>
-                            <button type="button" onClick={handleCropAndCompress}>Crop & Save</button>
+                            <button type="button" onClick={handleCropAndSave}>Crop & Save</button>
                             <button type="button" onClick={closeModal} style={{ marginLeft: '1rem' }}>Cancel</button>
                         </div>
                     </div>
@@ -93,15 +97,22 @@ function getCroppedImg(image, crop) {
     canvas.width = Math.floor(crop.width * scaleX);
     canvas.height = Math.floor(crop.height * scaleY);
     const ctx = canvas.getContext('2d');
+
+    // High-quality downsampling smoothing
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
     ctx.drawImage(image, crop.x * scaleX, crop.y * scaleY, crop.width * scaleX, crop.height * scaleY, 0, 0, crop.width * scaleX, crop.height * scaleY);
+
     return new Promise((resolve) => {
+        // Export as PNG for lossless quality before backend compression
         canvas.toBlob(blob => {
             if (!blob) {
                 console.error('Canvas is empty');
                 return;
             }
             resolve(blob);
-        }, 'image/jpeg', 0.95);
+        }, 'image/png');
     });
 }
 
