@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import imageCompression from 'browser-image-compression';
+// REMOVED: import imageCompression from 'browser-image-compression'; 
+// Enterprise Grade: We now rely on the Backend (Java 21/Virtual Threads) for compression.
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 
 // Import New Utils
@@ -15,7 +16,7 @@ import AddFromPostModal from '../components/BlogEditor/modals/AddFromPostModal';
 import MetaPanel from '../components/BlogEditor/MetaPanel';
 import SeoPanel from '../components/BlogEditor/SeoPanel';
 import CategoryPanel from '../components/BlogEditor/CategoryPanel';
-import PlacementPanel from '../components/BlogEditor/PlacementPanel'; // REPLACED LayoutPanel
+import PlacementPanel from '../components/BlogEditor/PlacementPanel';
 import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
 import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
@@ -166,12 +167,6 @@ const BlogEditorPage = () => {
         return () => clearTimeout(autoSaveTimer.current);
     }, [title, content, customSnippet, metaDescription, keywords, handleAutoSave]);
 
-    const compressImage = async (file) => {
-        if (!file) return null;
-        const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true, fileType: 'image/webp' };
-        try { return await imageCompression(file, options); } catch (e) { return file; }
-    };
-
     const onSelectFile = (e, type, aspect) => {
         if (e.target.files && e.target.files.length > 0) {
             const reader = new FileReader();
@@ -205,14 +200,15 @@ const BlogEditorPage = () => {
 
     const addCroppedImageToStory = async (canvas) => {
         const croppedBlob = await canvasToBlob(canvas);
-        const finalFile = await compressImage(croppedBlob);
+        // Enterprise Fix: No client-side compression. Send as PNG.
+        const finalFile = new File([croppedBlob], `thumbnail-${Date.now()}.png`, { type: 'image/png' });
         const previewUrl = URL.createObjectURL(finalFile);
         const newThumbnail = {
             id: `new-${Date.now()}`,
             preview: previewUrl,
             altText: '',
             source: 'new',
-            file: new File([finalFile], `thumbnail-${Date.now()}.webp`, { type: 'image/webp' }),
+            file: finalFile,
         };
         setStoryThumbnails(prev => [...prev, newThumbnail]);
     }
@@ -239,8 +235,10 @@ const BlogEditorPage = () => {
             }
         } else {
             const croppedBlob = await canvasToBlob(canvas);
-            const finalFile = await compressImage(croppedBlob);
+            // Enterprise Fix: No client-side compression. Send as PNG.
+            const finalFile = new File([croppedBlob], "image.png", { type: 'image/png' });
             const previewUrl = URL.createObjectURL(finalFile);
+
             if (modalState.type === 'single-thumbnail') {
                 setFinalThumbFile(finalFile);
                 setThumbPreview(previewUrl);
@@ -249,7 +247,7 @@ const BlogEditorPage = () => {
                 setCoverPreview(previewUrl);
             } else if (modalState.type === 'suneditor' && sunEditorUploadHandler) {
                 const formData = new FormData();
-                formData.append('file', finalFile, 'image.webp');
+                formData.append('file', finalFile, 'image.png');
                 uploadFile(formData).then(res => sunEditorUploadHandler(res.data)).catch(err => {
                     alert("Image upload failed in editor.");
                     sunEditorUploadHandler();
@@ -341,9 +339,9 @@ const BlogEditorPage = () => {
             });
         } else {
             if (finalThumbFile) {
-                const metadata = [{ source: 'new', fileName: 'thumbnail.webp', altText: thumbnailAltText, displayOrder: 0 }];
+                const metadata = [{ source: 'new', fileName: 'thumbnail.png', altText: thumbnailAltText, displayOrder: 0 }];
                 formData.append('thumbnailMetadata', JSON.stringify(metadata));
-                formData.append('newThumbnails', finalThumbFile, 'thumbnail.webp');
+                formData.append('newThumbnails', finalThumbFile, 'thumbnail.png');
             } else if (thumbPreview) {
                 const url = new URL(thumbPreview).pathname.replace('/api/uploads/', '').replace('-small.webp', '');
                 const metadata = [{ source: 'existing', url: url, altText: thumbnailAltText, displayOrder: 0 }];
