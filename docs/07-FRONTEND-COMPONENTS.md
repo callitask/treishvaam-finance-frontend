@@ -21,17 +21,24 @@ This modular structure supports scalability and separation of concerns.
   - Mobile menu with hamburger toggle
   - Social media links
   - Scroll-aware visibility (hides on scroll down)
-- **Footer.js**: (Not opened, but typically provides site-wide footer, copyright, and links)
+- **Footer.js**: Provides site-wide footer, copyright, and links.
 
 ## 3. Feature: Blog Editor
 
-- **EditorForm.js**:
+The Blog Editor is a complex state machine designed for enterprise content management.
+
+- **BlogEditorPage.js (Controller)**:
+  - **State Management**: Handles form state (`title`, `content`) and the critical **Optimistic Locking** handshake (`version`).
+  - **Conflict Resolution**: Intercepts `409 Conflict` errors from the API and triggers a modal forcing the user to refresh if another admin has modified the post concurrently.
+  - **Auto-Save**: Triggers background drafts every 2 seconds.
+
+- **EditorForm.js (View)**:
   - Uses `SunEditor` (rich text editor) loaded via `React.lazy` and `Suspense` for performance
   - Receives content, change handlers, and image upload hooks as props
   - Integrates with panels for meta, SEO, and layout (handled in parent BlogEditor components)
-  - Designed for extensibility with custom toolbars and formatting
-- **ImageCropUploader** and **StoryThumbnailManager**:
-  - (Not opened, but referenced in BlogEditor) Used for image upload, cropping, and thumbnail management within the editor workflow
+
+- **ImageCropUploader.js**:
+  - **Lossless Pipeline**: Unlike standard uploaders, this component intentionally **skips client-side compression**. It sends raw PNG blobs to the backend to ensure the server-side **Java 21 Virtual Threads** pipeline has the highest quality source for WebP generation.
 
 ## 4. Feature: Market Data Widgets
 
@@ -41,13 +48,12 @@ This modular structure supports scalability and separation of concerns.
   - Includes a reference line for previous close
   - Uses gradients for visual appeal
   - Handles empty data gracefully
+
 - **DynamicMarketSummary.js**:
   - Displays tabbed market summaries (US, Europe, India, Currencies, Crypto)
   - Fetches batch quotes for each tab and maps tickers to display names
   - Shows loading states and handles missing data
   - Integrates with navigation for ticker details
-- **GlobalMarketTicker.js**:
-  - (Not opened, but likely provides a scrolling or fixed ticker of global market prices)
 
 ## 5. Reusable UI Elements
 
