@@ -31,6 +31,7 @@ const BlogEditorPage = () => {
 
     // STATE
     const [postId, setPostId] = useState(null);
+    const [version, setVersion] = useState(null); // Optimistic Locking Version
     const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -88,6 +89,7 @@ const BlogEditorPage = () => {
                     const postRes = await getPost(id);
                     const post = postRes.data;
                     setPostId(post.id);
+                    setVersion(post.version); // Capture Version from DB
                     setTitle(post.title);
                     setContent(post.content);
 
@@ -146,20 +148,35 @@ const BlogEditorPage = () => {
         setSaveStatus('Saving...');
         try {
             const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
-            const draftData = { title, content: editorContent, customSnippet, metaDescription, keywords };
+            const draftData = {
+                title,
+                content: editorContent,
+                customSnippet,
+                metaDescription,
+                keywords,
+                version // Pass version for draft integrity
+            };
             if (postId) {
-                await updateDraft(postId, draftData);
+                const res = await updateDraft(postId, draftData);
+                // Update version after successful save to stay in sync
+                if (res.data && res.data.version) setVersion(res.data.version);
             } else {
                 const response = await createDraft(draftData);
                 setPostId(response.data.id);
+                if (response.data.version) setVersion(response.data.version);
                 navigate(`/dashboard/blog/edit/${response.data.userFriendlySlug}/${response.data.id}`, { replace: true });
             }
             setSaveStatus('Saved');
         } catch (err) {
             setSaveStatus('Error');
             console.error("Auto-save failed:", err);
+            // Handle Optimistic Locking in Drafts
+            if (err.response && err.response.status === 409) {
+                alert("Conflict Detected: This draft has been modified in another session. Please refresh to avoid overwriting changes.");
+                setError("Conflict detected. Please refresh the page.");
+            }
         }
-    }, [title, content, customSnippet, metaDescription, keywords, postId, navigate]);
+    }, [title, content, customSnippet, metaDescription, keywords, postId, navigate, version]);
 
     useEffect(() => {
         if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -304,6 +321,12 @@ const BlogEditorPage = () => {
         const formData = new FormData();
         formData.append('title', title);
         formData.append('content', editorRef.current.getContents(true));
+
+        // --- KEY INTEGRATION: Pass Version ---
+        if (version !== null && version !== undefined) {
+            formData.append('version', version);
+        }
+
         formData.append('category', selectedCategory.name);
         formData.append('featured', isFeatured);
         formData.append('customSnippet', customSnippet);
@@ -359,8 +382,20 @@ const BlogEditorPage = () => {
             }
             navigate('/dashboard/manage-posts');
         } catch (err) {
-            setError('Failed to save the post. Check console for details.');
             console.error(err);
+            // --- CONFLICT HANDLING (409) ---
+            if (err.response && err.response.status === 409) {
+                const confirmReload = window.confirm(
+                    "CONFLICT DETECTED!\n\nSomeone else has updated this post while you were editing.\nYour changes cannot be saved over theirs.\n\nClick OK to reload the page (you will lose your changes).\nClick Cancel to keep your text so you can copy it manually."
+                );
+                if (confirmReload) {
+                    window.location.reload();
+                } else {
+                    setError("CRITICAL: Version conflict. Please back up your text manually.");
+                }
+            } else {
+                setError('Failed to save the post. Check console for details.');
+            }
         }
     };
 
