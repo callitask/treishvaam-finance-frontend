@@ -4,7 +4,9 @@
 
 The application entry point is `src/index.js`. Here’s how the bootstrapping works:
 
-- **Edge Hydration Check**: Before mounting, the app checks for `window.__PRELOADED_STATE__`. If present (injected by Cloudflare), it initializes the Redux/Context state with this data immediately. This allows pages like `BlogPage` and `MarketDetailPage` to **render instantly without network latency**, skipping the initial API fetch.
+- **Conditional Hydration (SSG Support)**: The app implements a smart "Hydrate or Render" strategy:
+    - **SEO Mode (Hydrate)**: If `window.__PRELOADED_STATE__` is present, it means the server (Backend Materializer) has already rendered the HTML content into the DOM. The app uses `ReactDOM.hydrateRoot()` to attach event listeners *without* destroying the existing markup. This guarantees **Zero Flicker** and perfect SEO.
+    - **SPA Mode (Render)**: If the state is missing (direct entry), it uses `ReactDOM.createRoot().render()` to build the UI from scratch.
 - **Faro Observability**: The `initFaro` function (from `src/faroConfig.js`) is called before rendering. This initializes Real User Monitoring (RUM) using Grafana Faro, sending telemetry to the backend collector only in production or on the live domain.
 - **Providers**: The app is wrapped in several providers:
   - `AuthProvider` (from `AuthContext.js`): Handles authentication and user session.
