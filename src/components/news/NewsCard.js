@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import './NewsCard.css';
-import { BASE_URL } from '../../apiConfig'; // Import backend URL for relative paths
+import { BASE_URL } from '../../apiConfig';
 
 /**
  * Enterprise News Card (Phase 3.1: Optimized for Columns)
  * - Strict Rectangular Design
  * - Landscape Hero Images
  * - Optimized Font Sizes for Narrow Widths
+ * - FIXED: Image Resolution for Raw Filenames
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
@@ -14,33 +15,35 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     // CRITICAL SAFETY CHECK: Prevent crash if data is missing
     if (!article) return null;
 
-    // --- FIX 1: Smart Image Resolver ---
-    // Prepend Backend URL to relative paths (e.g. /api/uploads/...)
+    // --- FIX 1: Smart Image Resolver (CORRECTED) ---
     const getImageUrl = (url) => {
         if (!url) return '/placeholder-news.jpg';
-        if (url.startsWith('http')) return url;    // Absolute URL (Remote)
-        if (url.startsWith('/')) return `${BASE_URL}${url}`; // Relative Path (Local)
-        return url;
+
+        // 1. External URLs (http/https) -> Return as is
+        if (url.startsWith('http') || url.startsWith('https')) return url;
+
+        // 2. Relative Paths (starts with /) -> Append to Base URL
+        if (url.startsWith('/')) return `${BASE_URL}${url}`;
+
+        // 3. Raw Filenames (e.g., "b234-image.jpg") -> Append /api/uploads/
+        // This was missing and caused images to disappear
+        return `${BASE_URL}/api/uploads/${url}`;
     };
 
     // --- FIX 2: Robust Date Parsing ---
-    // Formatter: "2 MIN READ • 2 HOURS AGO"
     const getMeta = () => {
         if (!article.publishedAt) return "";
 
         try {
             // Fix SQL Timestamp "YYYY-MM-DD HH:MM:SS" -> ISO "YYYY-MM-DDTHH:MM:SS"
-            // This fixes the NaN issue on strict browsers
             const dateString = article.publishedAt.toString().replace(" ", "T");
             const d = new Date(dateString);
 
-            // Safety: Check if date is valid before processing
             if (isNaN(d.getTime())) return "2 MIN READ";
 
             const now = new Date();
             const diffHrs = Math.floor((now - d) / (1000 * 60 * 60));
 
-            // Safety: If future date or calc error, default to Just Now
             if (isNaN(diffHrs)) return "2 MIN READ";
 
             const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
