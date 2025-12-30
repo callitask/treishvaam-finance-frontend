@@ -60,7 +60,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         {!imgError && article.imageUrl ? (
                             <img src={getImageUrl(article.imageUrl)} alt={article.title} onError={() => setImgError(true)} />
                         ) : (
-                            <div style={{ width: '100%', height: '100%', background: '#e5e7eb' }}></div>
+                            <div className="w-full h-full bg-gray-200"></div>
                         )}
                     </div>
                     {/* Content Block */}
@@ -112,7 +112,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-rank-number">{rank ? String(rank).padStart(2, '0') : '#'}</div>
                     <div className="nc-ranked-content">
                         <h4>{article.title}</h4>
-                        <div className="nc-std-meta" style={{ marginTop: '4px' }}>{getMeta()}</div>
+                        <div className="nc-std-meta mt-1">{getMeta()}</div>
                     </div>
                 </article>
                 <div className="hairline-divider"></div>
