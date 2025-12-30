@@ -1,70 +1,78 @@
-# Getting Started with Create React App
+# Treishvaam Finance - Enterprise Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## Project Overview
 
-## Available Scripts
+This is the React-based frontend for the Treishvaam Finance Platform. It is designed to be served via **Cloudflare Pages** and utilizes a **Zero-Trust Security Architecture**.
 
-In the project directory, you can run:
+Unlike traditional SPAs, this application **does not** hold any API keys or secrets. It relies entirely on a "Backend-for-Frontend" (BFF) pattern, where the Spring Boot backend acts as a secure proxy for all external data providers (NewsAPI, AlphaVantage, etc.).
 
-### `npm start`
+## Security & Configuration (Zero Trust)
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+**Fort Knox Security Suite: ENABLED**
+This project strictly follows the **12-Factor App** configuration methodology. All production URLs are hidden from the codebase and injected strictly at runtime.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 1. Environment Variables
+The application requires two key variables to function. These tell the frontend where to find the secure API and Authentication server.
 
-### `npm test`
+| Variable Name | Description | Local Dev Value | Production Value |
+| :--- | :--- | :--- | :--- |
+| `REACT_APP_API_URL` | The URL of the Spring Boot Backend. | `http://localhost:8080` | `[REDACTED - INJECTED VIA CLOUDFLARE]` |
+| `REACT_APP_AUTH_URL` | The URL of the Keycloak Server. | `http://localhost:8080/auth` | `[REDACTED - INJECTED VIA CLOUDFLARE]` |
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### 2. Local Development Setup
+To run this project locally, you must create a `.env` file in the root directory (this file is git-ignored for security).
 
-### `npm run build`
+1.  **Copy the template**:
+    ```bash
+    cp .env.example .env
+    ```
+2.  **Edit `.env`**:
+    ```env
+    REACT_APP_API_URL=http://localhost:8080
+    REACT_APP_AUTH_URL=http://localhost:8080/auth
+    ```
+3.  **Start the App**:
+    ```bash
+    npm start
+    ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 3. Production Deployment (Cloudflare)
+We use **Cloudflare Pages** for hosting.
+1.  **Push** your code to the `main` branch.
+2.  **Go to Cloudflare Dashboard** -> Pages -> Settings -> Environment Variables.
+3.  **Add the Production Variables** (Mark them as "Encrypted" / "Secret"):
+    * `REACT_APP_API_URL`: `https://<HIDDEN_DOMAIN_OR_TUNNEL>`
+    * `REACT_APP_AUTH_URL`: `https://<HIDDEN_DOMAIN_OR_TUNNEL>/auth`
+4.  **Redeploy** to apply changes.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Architecture Highlights
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+* **Optimistic Locking (Data Integrity)**: The application implements a strict "Version Handshake" with the backend. When editing a post, the frontend captures the database `version`. If another admin modifies the post concurrently, the save operation triggers a **409 Conflict**, and the UI prompts the user to refresh, preventing "Lost Update" anomalies.
+* **Edge-Side Hydration (Zero Latency)**: When accessed via Cloudflare, the Cloudflare Worker pre-fetches API data and injects it into the HTML head as `window.__PRELOADED_STATE__`. The React app detects this on mount (via `useEffect`) and **skips the initial API call**, eliminating the "Double Fetch" problem and rendering Blog Posts and Market Data instantly.
+* **Enterprise SEO & Structured Data**: The application dynamically generates and injects **JSON-LD Structured Data** (`schemaGenerator.js`) into the `<head>` for every page. This ensures Google correctly indexes content as `NewsArticle`, `BlogPosting`, or `FinancialProduct` (with real-time price data).
+* **Static Asset Offloading (Nginx Bypass)**: While image *uploads* are securely streamed to the backend, image *reads* (`/api/uploads/...`) are intercepted by Nginx and served directly from MinIO/Storage. The frontend relies on this direct-read path for high-performance asset delivery, bypassing the Java application layer entirely.
+* **Financial Precision Handling**: The frontend is architected to handle high-precision decimal data passed from the backend (Phase 2 Upgrade), ensuring stock prices and crypto values are displayed without floating-point rounding errors.
+* **Secure API Client**: All HTTP requests are handled by `src/apiConfig.js`. This client automatically attaches the Keycloak JWT (Bearer Token) to every request and handles 401/403 errors globally.
+* **Silent Single Sign-On (SSO)**: The application uses a hidden iframe strategy (`silent-check-sso.html`) to renew tokens in the background. The Backend strictly whitelists this frontend domain via **Content Security Policy (CSP)** to allow this flow while blocking all other framing attempts.
+* **Real User Monitoring (RUM)**: Grafana Faro is initialized in `src/faroConfig.js` to track frontend performance, core web vitals, and JS errors in real-time.
 
-### `npm run eject`
+## Key Directories
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+* `src/apiConfig.js`: **Critical.** Central configuration for API endpoints and Axios interceptors.
+* `src/context/AuthContext.js`: Handles Keycloak login/logout and session state.
+* `src/pages/BlogEditorPage.js`: **Critical.** Handles the complex state for post editing, including the **Optimistic Locking** version handshake and conflict resolution UI.
+* `src/utils/schemaGenerator.js`: **SEO Core.** Generates Google-compliant JSON-LD schemas for Blog Posts and Market Data.
+* `public/silent-check-sso.html`: **Critical.** A static file loaded by Keycloak in an iframe to enable silent token renewal without page reloads.
+* `src/components/ImageCropUploader.js`: Handles image cropping and raw PNG upload logic.
+* `src/pages`: Lazy-loaded route components (Dashboard, Blog, Market).
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Commands
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+| Command | Description |
+| :--- | :--- |
+| `npm start` | Runs the app in development mode at `http://localhost:3000`. |
+| `npm run build` | Builds the app for production to the `build` folder. |
+| `npm test` | Launches the test runner. |
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## License
+Proprietary software. All rights reserved by Treishvaam Group.
