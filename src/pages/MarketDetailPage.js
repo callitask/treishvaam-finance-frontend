@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getWidgetData } from '../apiConfig';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async'; // IMPORTED
+import { Helmet } from 'react-helmet-async';
 
-// --- FIXED IMPORT PATHS ---
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
 import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
@@ -18,25 +17,40 @@ const MarketDetailPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // --- PHASE 3: EDGE HYDRATION & NAVIGATION HANDLER ---
     useEffect(() => {
-        const fetchData = async () => {
+        // Reset state for navigation
+        setError(null);
+
+        const decodedTicker = decodeURIComponent(ticker);
+        const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
+
+        // Hydration Check: Does preloaded data match the requested ticker?
+        if (globalState && globalState.quoteData && globalState.quoteData.ticker === decodedTicker) {
+            console.log("⚡ Market Data Hydrated from Edge");
+            setData(globalState);
+            setLoading(false);
+            window.__PRELOADED_STATE__ = null; // Clean up
+        } else {
+            // Fallback Fetch
+            console.log("🔄 Fetching Market Data...");
             setLoading(true);
-            setError(null);
-            setData(null);
-            try {
-                const response = await getWidgetData(decodeURIComponent(ticker));
-                if (!response.data || !response.data.quoteData) {
-                    throw new Error('No data returned for this asset.');
+            const fetchData = async () => {
+                try {
+                    const response = await getWidgetData(decodedTicker);
+                    if (!response.data || !response.data.quoteData) {
+                        throw new Error('No data returned for this asset.');
+                    }
+                    setData(response.data);
+                } catch (e) {
+                    console.error("Failed to fetch market detail data:", e);
+                    setError(e.message || 'Could not load data for this asset.');
+                } finally {
+                    setLoading(false);
                 }
-                setData(response.data);
-            } catch (e) {
-                console.error("Failed to fetch market detail data:", e);
-                setError(e.message || 'Could not load data for this asset.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+            };
+            fetchData();
+        }
     }, [ticker]);
 
     const { quoteData, historicalData, peers } = data || {};
@@ -50,6 +64,26 @@ const MarketDetailPage = () => {
     const pageDescription = quoteData
         ? `Detailed financial analysis and live market data for ${quoteData.name} (${quoteData.ticker}). View charts, price history, and key statistics on Treishvaam Finance.`
         : "Real-time market data and analysis on Treishvaam Finance.";
+
+    // --- ENTERPRISE SEO: Structured Data for Financial Product ---
+    const generateFinancialSchema = (quote) => {
+        if (!quote) return null;
+        return {
+            "@context": "https://schema.org",
+            "@type": "FinancialProduct",
+            "name": quote.name,
+            "tickerSymbol": quote.ticker,
+            "exchangeTicker": quote.exchange || "NYSE",
+            "description": pageDescription,
+            "url": `https://treishfin.treishvaamgroup.com/market/${ticker}`,
+            "image": quote.logoUrl || "https://treishfin.treishvaamgroup.com/logo.webp",
+            "currentExchangeRate": {
+                "@type": "UnitPriceSpecification",
+                "price": quote.price,
+                "priceCurrency": "USD"
+            }
+        };
+    };
 
     if (loading) {
         return (
@@ -72,19 +106,25 @@ const MarketDetailPage = () => {
         );
     }
 
+    const schema = generateFinancialSchema(quoteData);
+
     return (
         <div className="bg-gray-50 min-h-screen">
-            {/* ADDED HELMET FOR DYNAMIC TITLE */}
             <Helmet>
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
                 <link rel="canonical" href={`https://treishfin.treishvaamgroup.com/market/${ticker}`} />
                 <meta property="og:title" content={pageTitle} />
                 <meta property="og:description" content={pageDescription} />
+                {/* Inject JSON-LD Schema */}
+                {schema && (
+                    <script type="application/ld+json">
+                        {JSON.stringify(schema)}
+                    </script>
+                )}
             </Helmet>
 
             <div className="container mx-auto p-4 max-w-6xl font-sans">
-
                 {/* --- Component 1: Dynamic Market Summary Bar --- */}
                 <DynamicMarketSummary />
 

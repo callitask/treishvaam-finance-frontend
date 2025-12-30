@@ -34,54 +34,64 @@ const calculateReadingTime = (content) => {
 const SinglePostPage = () => {
     const { urlArticleId } = useParams();
 
-    const preloadedData = (typeof window !== 'undefined' &&
-        window.__PRELOADED_STATE__ &&
-        window.__PRELOADED_STATE__.urlArticleId === urlArticleId)
-        ? window.__PRELOADED_STATE__
-        : null;
-
-    const [post, setPost] = useState(preloadedData);
-    const [loading, setLoading] = useState(!preloadedData);
+    // STATE INITIALIZATION
+    // We start with null and let useEffect handle the hydration vs fetch decision
+    // This prevents state staleness on route changes
+    const [post, setPost] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
     const [headings, setHeadings] = useState([]);
     const [activeId, setActiveId] = useState('');
     const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
-    // --- FIX: Remove Server-Side Schema on Mount ---
+    // --- PHASE 3: EDGE HYDRATION & NAVIGATION HANDLER ---
     useEffect(() => {
-        const serverSchema = document.getElementById('server-schema');
-        if (serverSchema) {
-            serverSchema.remove();
-        }
+        // 1. Reset State on Navigation
+        setError(null);
 
-        if (post) {
+        const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
+
+        // 2. Hydration Check: Do we have preloaded data for THIS specific article?
+        if (globalState && globalState.urlArticleId === urlArticleId) {
+            console.log("⚡ Hydrating from Edge (Zero-Latency)");
+            setPost(globalState);
             setLoading(false);
-            if (window.__PRELOADED_STATE__ && window.__PRELOADED_STATE__.urlArticleId === urlArticleId) {
-                delete window.__PRELOADED_STATE__;
-            }
-            return;
+
+            // 3. Cleanup: Consume the state so it isn't reused for other pages
+            window.__PRELOADED_STATE__ = null;
+
+            // Remove server-side injected schema to avoid duplication
+            const serverSchema = document.getElementById('server-schema');
+            if (serverSchema) serverSchema.remove();
+
+        } else {
+            // 3. Fallback: Client-Side Fetch (Normal Navigation)
+            console.log("🔄 Fetching from API (Client Navigation)");
+            setLoading(true); // Ensure loading state is true when fetching
+
+            const fetchPost = async () => {
+                try {
+                    const response = await getPostByUrlId(urlArticleId);
+                    setPost(response.data);
+                } catch (err) {
+                    setError('Failed to fetch post.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchPost();
         }
 
-        const fetchPost = async () => {
-            try {
-                const response = await getPostByUrlId(urlArticleId);
-                setPost(response.data);
-            } catch (err) {
-                setError('Failed to fetch post.');
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchPost();
         window.scrollTo(0, 0);
-    }, [urlArticleId, post]);
+    }, [urlArticleId]); // Re-run whenever the URL ID changes
 
+    // --- CONTENT PROCESSING (Sanitization & TOC) ---
     useEffect(() => {
         if (!post?.content) return;
 
-        // --- PHASE 16 UPDATE: Allow YouTube Iframes ---
-        // We configure DOMPurify to allow iframe tags and specific attributes needed for YouTube
+        // Configure DOMPurify to allow YouTube iframes
         const cleanContent = DOMPurify.sanitize(post.content, {
             USE_PROFILES: { html: true },
             ADD_TAGS: ['iframe'],
@@ -99,10 +109,10 @@ const SinglePostPage = () => {
         });
 
         setHeadings(extractedHeadings);
-        // Use the cleaned content (with iframes) for rendering
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
 
+    // --- SCROLL SPY (Table of Contents) ---
     const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
@@ -146,6 +156,7 @@ const SinglePostPage = () => {
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
 
+    // SEO & Metadata Construction
     const categorySlug = post.category?.slug || 'uncategorized';
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `${post.title} - Treishvaam Finance`;
@@ -167,9 +178,7 @@ const SinglePostPage = () => {
     }
 
     let authorName = post.author || "Treishvaam Team";
-    if (authorName === "callitask@gmail.com") {
-        authorName = "Treishvaam";
-    }
+    if (authorName === "callitask@gmail.com") authorName = "Treishvaam";
 
     const schemas = generatePostSchema(post, authorName, pageUrl, imageUrl);
 
@@ -262,7 +271,6 @@ const SinglePostPage = () => {
                                     prose-strong:text-gray-900 dark:prose-strong:text-white
                                     prose-li:text-gray-700 dark:prose-li:text-gray-300
                                     prose-img:rounded-xl
-                                    /* Video Aspect Ratio Fix */
                                     [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-xl"
                                 dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)}
                             />
