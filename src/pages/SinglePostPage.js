@@ -24,7 +24,9 @@ const createSnippet = (html, length = 160) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
+// FIX: Defensive coding to prevent crash when content is missing/undefined
 const calculateReadingTime = (content) => {
+    if (!content) return '1 min read';
     const text = content.replace(/<[^>]*>/g, '');
     const wordCount = text.split(/\s+/).length;
     const readingTime = Math.ceil(wordCount / 200);
@@ -35,8 +37,6 @@ const SinglePostPage = () => {
     const { urlArticleId } = useParams();
 
     // STATE INITIALIZATION
-    // We start with null and let useEffect handle the hydration vs fetch decision
-    // This prevents state staleness on route changes
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -46,20 +46,24 @@ const SinglePostPage = () => {
     const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
-    // --- PHASE 3: EDGE HYDRATION & NAVIGATION HANDLER ---
+    // --- PHASE 4 FIX: ROBUST HYDRATION ---
     useEffect(() => {
         // 1. Reset State on Navigation
         setError(null);
 
         const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
 
-        // 2. Hydration Check: Do we have preloaded data for THIS specific article?
-        if (globalState && globalState.urlArticleId === urlArticleId) {
+        // 2. Hydration Check: Do we have VALID preloaded data?
+        // FIX: We strictly check for 'content' to ensure we don't hydrate partial/stale states
+        if (globalState &&
+            globalState.urlArticleId === urlArticleId &&
+            globalState.content) {
+
             console.log("⚡ Hydrating from Edge (Zero-Latency)");
             setPost(globalState);
             setLoading(false);
 
-            // 3. Cleanup: Consume the state so it isn't reused for other pages
+            // 3. Cleanup: Consume the state
             window.__PRELOADED_STATE__ = null;
 
             // Remove server-side injected schema to avoid duplication
@@ -67,15 +71,21 @@ const SinglePostPage = () => {
             if (serverSchema) serverSchema.remove();
 
         } else {
-            // 3. Fallback: Client-Side Fetch (Normal Navigation)
-            console.log("🔄 Fetching from API (Client Navigation)");
-            setLoading(true); // Ensure loading state is true when fetching
+            // 3. Fallback: Client-Side Fetch
+            if (globalState && !globalState.content) {
+                console.warn("⚠️ Stale Hydration Detected (Missing Content). Falling back to API.");
+            } else {
+                console.log("🔄 Fetching from API (Client Navigation)");
+            }
+
+            setLoading(true);
 
             const fetchPost = async () => {
                 try {
                     const response = await getPostByUrlId(urlArticleId);
                     setPost(response.data);
                 } catch (err) {
+                    console.error("API Fetch Error:", err);
                     setError('Failed to fetch post.');
                 } finally {
                     setLoading(false);
@@ -85,7 +95,7 @@ const SinglePostPage = () => {
         }
 
         window.scrollTo(0, 0);
-    }, [urlArticleId]); // Re-run whenever the URL ID changes
+    }, [urlArticleId]);
 
     // --- CONTENT PROCESSING (Sanitization & TOC) ---
     useEffect(() => {
