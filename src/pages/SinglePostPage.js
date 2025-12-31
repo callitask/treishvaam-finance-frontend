@@ -1,4 +1,3 @@
-// src/pages/SinglePostPage.js
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPostByUrlId, API_URL } from '../apiConfig';
@@ -6,13 +5,14 @@ import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
 import ShareButtons from '../components/ShareButtons';
 import throttle from 'lodash/throttle';
-import TableOfContents from '../components/TableOfContents';
 import { AudioPlayer } from '../components/AudioPlayer';
-import { ChevronRight, Calendar, User, Tag, Clock } from 'lucide-react';
+import { ChevronRight, Calendar, User, Tag, Clock, AlertCircle } from 'lucide-react'; // Added AlertCircle
 import { generatePostSchema } from '../utils/schemaGenerator';
+import TableOfContents from '../components/TableOfContents';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
+    // Usage of fixed locale to reduce hydration mismatches
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
@@ -24,10 +24,11 @@ const createSnippet = (html, length = 160) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
-// FIX: Defensive coding to prevent crash when content is missing/undefined
+// FIX: Defensive coding + String Casting to prevent 'replace' on undefined
 const calculateReadingTime = (content) => {
     if (!content) return '1 min read';
-    const text = content.replace(/<[^>]*>/g, '');
+    const safeContent = String(content || ''); // Force string
+    const text = safeContent.replace(/<[^>]*>/g, '');
     const wordCount = text.split(/\s+/).length;
     const readingTime = Math.ceil(wordCount / 200);
     return `${readingTime} min read`;
@@ -54,7 +55,7 @@ const SinglePostPage = () => {
         const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
 
         // 2. Hydration Check: Do we have VALID preloaded data?
-        // FIX: We strictly check for 'content' to ensure we don't hydrate partial/stale states
+        // FIX: Strictly check for 'content' to ensure we don't hydrate partial/stale states
         if (globalState &&
             globalState.urlArticleId === urlArticleId &&
             globalState.content) {
@@ -63,7 +64,7 @@ const SinglePostPage = () => {
             setPost(globalState);
             setLoading(false);
 
-            // 3. Cleanup: Consume the state
+            // 3. Cleanup: Consume the state so it doesn't pollute subsequent navs
             window.__PRELOADED_STATE__ = null;
 
             // Remove server-side injected schema to avoid duplication
@@ -83,10 +84,14 @@ const SinglePostPage = () => {
             const fetchPost = async () => {
                 try {
                     const response = await getPostByUrlId(urlArticleId);
-                    setPost(response.data);
+                    if (response.data) {
+                        setPost(response.data);
+                    } else {
+                        throw new Error("Empty response from API");
+                    }
                 } catch (err) {
                     console.error("API Fetch Error:", err);
-                    setError('Failed to fetch post.');
+                    setError('Unable to load article. The server might be experiencing high load.');
                 } finally {
                     setLoading(false);
                 }
@@ -160,8 +165,21 @@ const SinglePostPage = () => {
         };
     }, [handleScroll]);
 
-    if (loading) return <div className="text-center py-20 text-gray-500 dark:text-gray-400">Loading post...</div>;
-    if (error) return <div className="text-center py-20 text-red-500">{error}</div>;
+    if (loading) return (
+        <div className="flex justify-center items-center min-h-[50vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div>
+        </div>
+    );
+
+    if (error) return (
+        <div className="flex flex-col justify-center items-center min-h-[50vh] text-center px-4">
+            <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Something went wrong</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
+            <Link to="/" className="text-sky-600 hover:text-sky-700 font-semibold">Return to Home</Link>
+        </div>
+    );
+
     if (!post) return <div className="text-center py-20 text-gray-500">Post not found.</div>;
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
@@ -245,7 +263,10 @@ const SinglePostPage = () => {
                                 </div>
                                 <div className="flex items-center">
                                     <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                    <time dateTime={post.createdAt}>{formatDate(post.createdAt)}</time>
+                                    {/* FIX: Suppress Hydration Warning for timestamps */}
+                                    <time dateTime={post.createdAt} suppressHydrationWarning>
+                                        {formatDate(post.createdAt)}
+                                    </time>
                                 </div>
                                 <div className="flex items-center">
                                     <Clock className="w-4 h-4 mr-2 text-gray-400" />
