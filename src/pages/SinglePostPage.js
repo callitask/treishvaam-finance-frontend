@@ -6,13 +6,12 @@ import { Helmet } from 'react-helmet-async';
 import ShareButtons from '../components/ShareButtons';
 import throttle from 'lodash/throttle';
 import { AudioPlayer } from '../components/AudioPlayer';
-import { ChevronRight, Calendar, User, Tag, Clock, AlertCircle } from 'lucide-react'; // Added AlertCircle
+import { ChevronRight, Calendar, User, Tag, Clock, AlertCircle } from 'lucide-react';
 import { generatePostSchema } from '../utils/schemaGenerator';
 import TableOfContents from '../components/TableOfContents';
 
 const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    // Usage of fixed locale to reduce hydration mismatches
     return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
@@ -24,10 +23,9 @@ const createSnippet = (html, length = 160) => {
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
 };
 
-// FIX: Defensive coding + String Casting to prevent 'replace' on undefined
 const calculateReadingTime = (content) => {
     if (!content) return '1 min read';
-    const safeContent = String(content || ''); // Force string
+    const safeContent = String(content || '');
     const text = safeContent.replace(/<[^>]*>/g, '');
     const wordCount = text.split(/\s+/).length;
     const readingTime = Math.ceil(wordCount / 200);
@@ -37,7 +35,6 @@ const calculateReadingTime = (content) => {
 const SinglePostPage = () => {
     const { urlArticleId } = useParams();
 
-    // STATE INITIALIZATION
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -47,38 +44,32 @@ const SinglePostPage = () => {
     const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
-    // --- PHASE 4 FIX: ROBUST HYDRATION ---
+    // --- CLEANUP & HYDRATION ---
     useEffect(() => {
-        // 1. Reset State on Navigation
-        setError(null);
+        // 1. CLEANUP DUPLICATE SEO CONTENT
+        // This removes the "Plain Text" div that Google sees, ensuring users only see the React App.
+        const serverContent = document.getElementById('server-content');
+        if (serverContent) serverContent.remove();
 
+        const serverSchema = document.getElementById('server-schema');
+        if (serverSchema) serverSchema.remove();
+
+        setError(null);
         const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
 
-        // 2. Hydration Check: Do we have VALID preloaded data?
-        // FIX: Strictly check for 'content' to ensure we don't hydrate partial/stale states
+        // 2. Hydration Check
         if (globalState &&
             globalState.urlArticleId === urlArticleId &&
             globalState.content) {
 
-            console.log("⚡ Hydrating from Edge (Zero-Latency)");
+            console.log("⚡ Hydrating from Edge");
             setPost(globalState);
             setLoading(false);
-
-            // 3. Cleanup: Consume the state so it doesn't pollute subsequent navs
             window.__PRELOADED_STATE__ = null;
 
-            // Remove server-side injected schema to avoid duplication
-            const serverSchema = document.getElementById('server-schema');
-            if (serverSchema) serverSchema.remove();
-
         } else {
-            // 3. Fallback: Client-Side Fetch
-            if (globalState && !globalState.content) {
-                console.warn("⚠️ Stale Hydration Detected (Missing Content). Falling back to API.");
-            } else {
-                console.log("🔄 Fetching from API (Client Navigation)");
-            }
-
+            // 3. Fallback: API Fetch
+            console.log("🔄 Fetching from API (Client Navigation)");
             setLoading(true);
 
             const fetchPost = async () => {
@@ -98,15 +89,13 @@ const SinglePostPage = () => {
             };
             fetchPost();
         }
-
         window.scrollTo(0, 0);
     }, [urlArticleId]);
 
-    // --- CONTENT PROCESSING (Sanitization & TOC) ---
+    // --- CONTENT PROCESSING ---
     useEffect(() => {
         if (!post?.content) return;
 
-        // Configure DOMPurify to allow YouTube iframes
         const cleanContent = DOMPurify.sanitize(post.content, {
             USE_PROFILES: { html: true },
             ADD_TAGS: ['iframe'],
@@ -127,7 +116,7 @@ const SinglePostPage = () => {
         setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
     }, [post?.content]);
 
-    // --- SCROLL SPY (Table of Contents) ---
+    // --- SCROLL SPY ---
     const handleScroll = useMemo(() => throttle(() => {
         const contentElement = articleRef.current;
         if (!contentElement) return;
@@ -183,8 +172,6 @@ const SinglePostPage = () => {
     if (!post) return <div className="text-center py-20 text-gray-500">Post not found.</div>;
 
     const createMarkup = (htmlContent) => ({ __html: htmlContent });
-
-    // SEO & Metadata Construction
     const categorySlug = post.category?.slug || 'uncategorized';
     const pageUrl = `https://treishfin.treishvaamgroup.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const pageTitle = `${post.title} - Treishvaam Finance`;
@@ -263,7 +250,6 @@ const SinglePostPage = () => {
                                 </div>
                                 <div className="flex items-center">
                                     <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                                    {/* FIX: Suppress Hydration Warning for timestamps */}
                                     <time dateTime={post.createdAt} suppressHydrationWarning>
                                         {formatDate(post.createdAt)}
                                     </time>
@@ -275,7 +261,6 @@ const SinglePostPage = () => {
                             </div>
 
                             <AudioPlayer title={post.title} content={post.content} />
-
                         </header>
 
                         {post.coverImageUrl && (
