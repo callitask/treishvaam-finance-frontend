@@ -47,24 +47,26 @@ We use **Cloudflare Pages** for hosting.
 
 ## Architecture Highlights
 
-* **Materialized SEO (SSG Behavior)**: The application supports **"Publish-Time Materialization"**. For blog posts, the Backend generates a static HTML file. The Frontend detects this pre-rendered content via `window.__PRELOADED_STATE__` and uses `ReactDOM.hydrateRoot` to attach to it instantly, providing 100% SEO visibility and zero flicker.
+* **Hybrid SSG (Materialized SEO)**: The application supports **"Publish-Time Materialization"**. For blog posts, the Backend generates a static HTML file. The Cloudflare Worker serves this file (Strategy A) for 100% SEO indexability.
+* **Zero-Flicker Rendering (Strategy B)**: If the static file is missing or the app is transitioning, the Frontend detects `window.__PRELOADED_STATE__`. It uses **`ReactDOM.createRoot`** (instead of `hydrateRoot`) to render the UI instantly from this state, avoiding common React Hydration Mismatches (Error #418) while delivering sub-second First Contentful Paint (FCP).
+* **Automatic SEO Cleanup**: Upon mounting, `SinglePostPage.js` automatically detects and removes the static `#server-content` div injected by the backend. This prevents "Double Content" glitches where the user sees both the React app and the raw HTML text.
 * **Optimistic Locking (Data Integrity)**: The application implements a strict "Version Handshake" with the backend. When editing a post, the frontend captures the database `version`. If another admin modifies the post concurrently, the save operation triggers a **409 Conflict**, and the UI prompts the user to refresh, preventing "Lost Update" anomalies.
 * **Enterprise SEO & Structured Data**: The application dynamically generates and injects **JSON-LD Structured Data** (`schemaGenerator.js`) into the `<head>` for every page. This ensures Google correctly indexes content as `NewsArticle`, `BlogPosting`, or `FinancialProduct` (with real-time price data).
 * **Static Asset Offloading (Nginx Bypass)**: While image *uploads* are securely streamed to the backend, image *reads* (`/api/uploads/...`) are intercepted by Nginx and served directly from MinIO/Storage. The frontend relies on this direct-read path for high-performance asset delivery, bypassing the Java application layer entirely.
-* **Financial Precision Handling**: The frontend is architected to handle high-precision decimal data passed from the backend (Phase 2 Upgrade), ensuring stock prices and crypto values are displayed without floating-point rounding errors.
+* **Financial Precision Handling**: The frontend is architected to handle high-precision decimal data passed from the backend, ensuring stock prices and crypto values are displayed without floating-point rounding errors.
 * **Secure API Client**: All HTTP requests are handled by `src/apiConfig.js`. This client automatically attaches the Keycloak JWT (Bearer Token) to every request and handles 401/403 errors globally.
-* **Silent Single Sign-On (SSO)**: The application uses a hidden iframe strategy (`silent-check-sso.html`) to renew tokens in the background. The Backend strictly whitelists this frontend domain via **Content Security Policy (CSP)** to allow this flow while blocking all other framing attempts.
 * **Real User Monitoring (RUM)**: Grafana Faro is initialized in `src/faroConfig.js` to track frontend performance, core web vitals, and JS errors in real-time.
 
 ## Key Directories
 
+* `src/index.js`: **Critical.** Entry point implementing the "createRoot" rendering logic based on preloaded state.
 * `src/apiConfig.js`: **Critical.** Central configuration for API endpoints and Axios interceptors.
 * `src/context/AuthContext.js`: Handles Keycloak login/logout and session state.
 * `src/pages/BlogEditorPage.js`: **Critical.** Handles the complex state for post editing, including the **Optimistic Locking** version handshake and conflict resolution UI.
+* `src/pages/SinglePostPage.js`: **Critical.** Handles the display of articles and the cleanup of static server content.
 * `src/utils/schemaGenerator.js`: **SEO Core.** Generates Google-compliant JSON-LD schemas for Blog Posts and Market Data.
 * `public/silent-check-sso.html`: **Critical.** A static file loaded by Keycloak in an iframe to enable silent token renewal without page reloads.
 * `src/components/ImageCropUploader.js`: Handles image cropping and raw PNG upload logic.
-* `src/pages`: Lazy-loaded route components (Dashboard, Blog, Market).
 
 ## Commands
 
