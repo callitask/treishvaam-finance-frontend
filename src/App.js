@@ -3,7 +3,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { WatchlistProvider } from './context/WatchlistContext'; // <--- IMPORT
+import { WatchlistProvider } from './context/WatchlistContext';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -23,6 +23,7 @@ const ManagePostsPage = lazy(() => import('./pages/ManagePostsPage'));
 const BlogEditorPage = lazy(() => import('./pages/BlogEditorPage'));
 const ApiStatusPage = lazy(() => import('./pages/ApiStatusPage'));
 const AudiencePage = lazy(() => import('./pages/AudiencePage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage')); // <--- PHASE 2: Added Profile Page
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
@@ -34,7 +35,7 @@ function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <WatchlistProvider> {/* <--- WRAPPER ADDED */}
+        <WatchlistProvider>
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes with MainLayout */}
@@ -57,6 +58,7 @@ function App() {
                 element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
               >
                 <Route index element={<DashboardPage />} />
+                <Route path="profile" element={<ProfilePage />} /> {/* <--- PHASE 2: Added Route */}
                 <Route path="manage-posts" element={<ManagePostsPage />} />
                 <Route path="blog/new" element={<BlogEditorPage />} />
                 <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
@@ -65,7 +67,7 @@ function App() {
               </Route>
             </Routes>
           </Suspense>
-        </WatchlistProvider> {/* <--- END WRAPPER */}
+        </WatchlistProvider>
       </ThemeProvider>
     </AuthProvider>
   );

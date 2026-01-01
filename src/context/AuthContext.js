@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
-import { setAuthToken } from '../apiConfig';
+import { setAuthToken, getUserProfile } from '../apiConfig'; // PHASE 2: Added getUserProfile
 import { faro } from '../faroConfig';
 
 const AuthContext = createContext();
@@ -24,10 +24,6 @@ export const AuthProvider = ({ children }) => {
     isRun.current = true;
 
     // --- ENTERPRISE FIX: DETECT BOTS & SKIP AUTH ---
-    // We explicitly check for:
-    // 1. Standard Bot UserAgents (Googlebot, Bing, etc.)
-    // 2. Headless Browsers (Lighthouse, Inspection Tool uses navigator.webdriver)
-    // 3. Inspection Tool specific keywords in UA
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
 
@@ -48,7 +44,6 @@ export const AuthProvider = ({ children }) => {
     console.log("[Auth] Init Started");
 
     // --- CONFIGURATION ---
-    // Read from Cloudflare Environment Variable or Fallback
     const authUrl = process.env.REACT_APP_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
 
     const initKeycloak = new Keycloak({
@@ -60,43 +55,30 @@ export const AuthProvider = ({ children }) => {
     setKeycloak(initKeycloak);
 
     // --- AUTHENTICATION STRATEGY ---
-
-    // 1. Analyze URL for specific states
     const url = window.location.href;
     const hash = window.location.hash;
     const isLoginCallback = url.includes("code=") && url.includes("state=");
     const isLoginError = hash && hash.includes('error=login_required');
 
-    // 2. Check Session History
     const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
 
-    // Default Init Options
     let initOptions = {
       pkceMethod: 'S256',
       checkLoginIframe: false // Disable iframe to prevent 3rd-party cookie blocking
     };
 
-    // 3. Determine Strategy
     if (isLoginError) {
       console.warn("[Auth] Silent SSO Failed. Disabling future checks.");
       sessionStorage.setItem('kc_silent_sso_failed', 'true');
-
-      // Clean URL to remove error hash
       const cleanUrl = window.location.pathname + window.location.search;
       window.history.replaceState(null, null, cleanUrl);
 
-      // Load as Public (No onLoad)
-
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
-      // CRITICAL: We MUST proceed with init() to exchange the code.
-      // We do NOT set onLoad='check-sso' because the code is already present.
-      // We implicitly clear the failure flag because this is an explicit action.
       sessionStorage.removeItem('kc_silent_sso_failed');
 
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected).");
-      // Load as Public (No onLoad)
 
     } else {
       console.log("[Auth] Attempting Silent SSO...");
@@ -111,7 +93,6 @@ export const AuthProvider = ({ children }) => {
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
     );
 
-    // Pass initOptions explicitly
     const initPromise = initKeycloak.init(initOptions);
 
     Promise.race([initPromise, timeoutPromise])
@@ -119,7 +100,6 @@ export const AuthProvider = ({ children }) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
 
         if (authenticated) {
-          // Explicitly clear failure flags on success
           sessionStorage.removeItem('kc_silent_sso_failed');
 
           setToken(initKeycloak.token);
@@ -129,23 +109,45 @@ export const AuthProvider = ({ children }) => {
           const { name, email, realm_access } = initKeycloak.tokenParsed;
           const roles = realm_access ? realm_access.roles : [];
 
-          // --- OBSERVABILITY HOOK ---
-          // Link the anonymous Faro session to this authenticated user
-          if (faro) {
-            faro.api.setUser({
-              id: email, // Use email as unique stable ID
-              username: name,
-              email: email
-            });
-            console.log("[Faro] User context linked:", email);
-          }
-
-          setUser({
-            name,
+          // 1. Set Initial User State (Fast)
+          const initialUser = {
+            name, // Fallback to Token Name
             email,
             roles,
             isAdmin: roles.includes('admin') || roles.includes('publisher')
+          };
+          setUser(initialUser);
+
+          // 2. PHASE 2: Fetch Rich Profile (Display Name) from Backend
+          getUserProfile().then(response => {
+            if (response.data) {
+              const { displayName } = response.data;
+              console.log("[Auth] Enriched Profile:", displayName);
+
+              setUser(prev => ({
+                ...prev,
+                name: displayName || prev.name, // Override name with Display Name
+                displayName: displayName
+              }));
+
+              // Update Faro Context with Correct Name
+              if (faro) {
+                faro.api.setUser({
+                  id: email,
+                  username: displayName || name,
+                  email: email
+                });
+              }
+            }
+          }).catch(err => {
+            console.warn("[Auth] Failed to fetch extended profile", err);
           });
+
+          // Fallback Faro (if profile fetch fails/delays)
+          if (faro) {
+            faro.api.setUser({ id: email, username: name, email: email });
+          }
+
         } else {
           setIsAuthenticated(false);
           setAuthToken(null);
@@ -165,7 +167,6 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(() => {
     if (keycloak) {
       console.log("[Auth] Redirecting to Keycloak...");
-      // Clear failure flag to allow fresh attempt
       sessionStorage.removeItem('kc_silent_sso_failed');
       keycloak.login();
     }
@@ -175,12 +176,7 @@ export const AuthProvider = ({ children }) => {
     if (keycloak) {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-
-      // Clear Faro User Context on Logout
-      if (faro) {
-        faro.api.resetUser();
-      }
-
+      if (faro) faro.api.resetUser();
       keycloak.logout();
     }
   }, [keycloak]);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
-import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaExclamationTriangle } from 'react-icons/fa';
+import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaExclamationTriangle, FaUserEdit } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import ApiStatusPanel from '../components/ApiStatusPanel';
 
@@ -40,14 +40,24 @@ const DashboardPage = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+                    {/* PHASE 2: Displays the real Display Name now */}
                     <p className="text-slate-500 text-sm">Welcome back, {user?.name || 'Admin'}. Here's what's happening today.</p>
                 </div>
-                <Link
-                    to="/dashboard/blog/new"
-                    className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-95"
-                >
-                    <FaPlus size={12} /> New Article
-                </Link>
+                <div className="flex gap-2">
+                    {/* PHASE 2: Profile Button */}
+                    <Link
+                        to="/dashboard/profile"
+                        className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all"
+                    >
+                        <FaUserEdit size={14} /> Profile
+                    </Link>
+                    <Link
+                        to="/dashboard/blog/new"
+                        className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-95"
+                    >
+                        <FaPlus size={12} /> New Article
+                    </Link>
+                </div>
             </div>
 
             {/* --- STATS GRID --- */}

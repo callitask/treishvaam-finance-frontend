@@ -60,9 +60,13 @@ export const uploadFile = (formData) => api.post('/files/upload', formData, {
 export const getCategories = () => api.get('/categories');
 export const addCategory = (data) => api.post('/categories', data);
 
-/* -------------------- Auth -------------------- */
+/* -------------------- Auth & Profile -------------------- */
 // Deprecated: Login is handled by Keycloak redirect
 export const login = () => Promise.reject("Use Keycloak Login");
+// PHASE 2: New Profile Endpoints
+export const getUserProfile = () => api.get('/auth/me');
+export const updateUserProfile = (data) => api.put('/auth/profile', data);
+
 
 /* -------------------- Search -------------------- */
 export const searchPosts = (query) => api.get(`/search?q=${encodeURIComponent(query)}`);
