@@ -1,3 +1,4 @@
+
 # 06 - Frontend Architecture
 
 ## 1. Application Entry & Boot
@@ -21,13 +22,23 @@ The application entry point is `src/index.js`. It implements a specialized boot 
 
 ## 2. Routing Strategy (`App.js`)
 
+
 - **Route Hierarchy**:
-    - **Public Routes**: Wrapped in `MainLayout`. Includes `/`, `/about`, `/vision`, `/contact`, `/market/:ticker`, `/login`, and the dynamic blog routes (`/category/:slug/:id`).
-    - **Private Admin Routes**: All `/dashboard/*` routes are wrapped in `DashboardLayout` and protected by the `PrivateRoute` Guard.
+    - **Public Routes** (wrapped in `MainLayout`):
+        - `/` (Home)
+        - `/about` (AboutPage)
+        - `/vision` (VisionPage) — **New**: Renders a static roadmap and injects JSON-LD schema for SEO. No API fetch; content is static.
+        - `/audience` (AudiencePage) — **New**: Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements dynamic filters and cascading dropdowns. Data is displayed in tabular and chart form.
+        - `/api-status` (ApiStatusPage) — **New**: Renders `ApiStatusPanel`, which visualizes the health and logs of backend data pipelines. No direct API fetch in the page; all logic is in the panel/component.
+        - `/contact`
+        - `/market/:ticker`
+        - `/login`
+        - `/category/:slug/:id` (dynamic blog post routes)
+    - **Private Admin Routes** (wrapped in `DashboardLayout`):
+        - `/dashboard/*` (all admin tools, protected by `PrivateRoute`)
 
 - **Lazy Loading & Code Splitting**:
-    - Critical pages (`BlogPage`, `DashboardPage`) are loaded via `React.lazy` inside a `Suspense` boundary.
-    - This ensures the initial JavaScript bundle remains small, improving TTI (Time to Interactive).
+    - Critical pages (`BlogPage`, `DashboardPage`) are loaded via `React.lazy` inside a `Suspense` boundary for optimal bundle size.
 
 - **Route Guards**:
     - `PrivateRoute` checks `AuthContext.isAuthenticated`. If false, it captures the current URL and redirects to `/login`, preserving the deep link for post-login redirection.
@@ -55,11 +66,22 @@ When Cloudflare serves a static HTML file (Strategy A), the user sees "Plain HTM
 
 ## 5. State Management
 
+
 - **Global Contexts**:
-    - `AuthContext`: Identity state.
-    - `ThemeContext`: Dark/Light mode preference (persisted in `localStorage`).
-    - `WatchlistContext`: Market data favorites.
+    - `AuthContext`: Identity state (Keycloak OIDC, see below).
+    - `ThemeContext`: Dark/Light mode preference. **Persists to `localStorage` under the key `color-theme`**. On load, checks for stored preference, then system preference, then defaults to `light`. Exposes `theme` and `toggleTheme`.
+    - `WatchlistContext`: Market data favorites. **Persists to `localStorage` under the key `user-watchlist`**. Exposes `watchlist`, `addToWatchlist`, `removeFromWatchlist`, `toggleWatchlist`, and `isInWatchlist`.
 - **Local State**: Complex forms (like `BlogEditorPage`) use `useReducer` to manage the "Draft" state, including dirty checking and auto-save triggers.
+
+### `useManagePosts` Hook (Admin Post Management)
+
+- Handles all admin post management logic:
+    - Fetches posts, drafts, and categories in parallel using `getAllPostsForAdmin`, `getDrafts`, and `getCategories`.
+    - Deduplicates posts by ID, merges drafts and published posts.
+    - Supports view switching (`ALL`, `PUBLISHED`, `DRAFT`, `SCHEDULED`) and syncs with URL hash.
+    - Implements search, category filter, sorting, and pagination.
+    - Exposes handlers for select all, select one, delete, bulk delete, and duplicate.
+    - Returns computed stats: total, published, scheduled, drafts.
 
 ## 6. API Layer (BFF Pattern)
 
@@ -78,9 +100,28 @@ To prevent "Lost Updates" in a collaborative environment, the Frontend implement
 
 ## 8. Media Strategy (Lossless Pipeline)
 
+
 The frontend **disables** client-side image compression (`ImageCropUploader.js`).
 - **Why?**: Browser-based compression (Canvas/WASM) often strips metadata or introduces artifacts.
 - **Flow**: The frontend uploads raw PNG/JPEG blobs. The Backend (Java Virtual Threads) handles the CPU-intensive task of generating optimized WebP variants. This ensures "Publisher Quality" visuals.
+
+---
+
+## 10. Notable New/Updated Pages
+
+### ApiStatusPage
+- **Component:** `ApiStatusPanel`
+- **Purpose:** Visualizes backend data pipeline health and logs. No direct API fetch in the page; all logic is in the panel/component.
+
+### AudiencePage
+- **Component:** Inline logic
+- **Purpose:** Fetches and displays audience analytics with dynamic filters. Uses `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements cascading filter resets and date range selection.
+
+### VisionPage
+- **Component:** Inline logic
+- **Purpose:** Static roadmap and vision statement. Injects JSON-LD schema for SEO. No API fetch.
+
+---
 
 ## 9. Zero Trust Configuration
 
