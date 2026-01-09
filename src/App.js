@@ -16,6 +16,9 @@ const ContactPage = lazy(() => import('./pages/ContactPage'));
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SinglePostPage = lazy(() => import('./pages/SinglePostPage'));
 const MarketDetailPage = lazy(() => import('./pages/MarketDetailPage'));
+// --- Phase 1: AdSense Compliance Pages ---
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
 
 // --- Lazy-loaded Admin Components ---
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
@@ -23,7 +26,7 @@ const ManagePostsPage = lazy(() => import('./pages/ManagePostsPage'));
 const BlogEditorPage = lazy(() => import('./pages/BlogEditorPage'));
 const ApiStatusPage = lazy(() => import('./pages/ApiStatusPage'));
 const AudiencePage = lazy(() => import('./pages/AudiencePage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage')); // <--- PHASE 2: Added Profile Page
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
@@ -44,6 +47,10 @@ function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/vision" element={<VisionPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                {/* Legal Pages for AdSense Compliance */}
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+
                 <Route path="/market/:ticker" element={<MarketDetailPage />} />
                 <Route path="/blog" element={<Navigate to="/" replace />} />
                 <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
@@ -58,7 +65,7 @@ function App() {
                 element={<PrivateRoute><DashboardLayout /></PrivateRoute>}
               >
                 <Route index element={<DashboardPage />} />
-                <Route path="profile" element={<ProfilePage />} /> {/* <--- PHASE 2: Added Route */}
+                <Route path="profile" element={<ProfilePage />} />
                 <Route path="manage-posts" element={<ManagePostsPage />} />
                 <Route path="blog/new" element={<BlogEditorPage />} />
                 <Route path="blog/edit/:userFriendlySlug/:id" element={<BlogEditorPage />} />
