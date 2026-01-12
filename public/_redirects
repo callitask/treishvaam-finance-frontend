@@ -1,5 +1,4 @@
-# This rule proxies sitemap requests to your backend server
-/sitemap.xml    https://backend.treishvaamgroup.com/sitemap.xml   200
+# This file handles SPA fallbacks for Cloudflare Pages.
+# Note: sitemap.xml and robots.txt are handled by the associated Worker (treishfin-seo-worker).
 
-# This is the fallback rule for your React application
-/* /index.html     
+/* /index.html  200
