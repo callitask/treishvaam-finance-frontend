@@ -52,9 +52,9 @@ const FeedRowCard = ({ article, onCategoryClick, categoriesMap }) => {
                 </div>
 
                 <Link to={postLink} className="group-hover:text-sky-700 transition-colors block mb-3">
-                    <h3 className="text-xl font-black text-gray-900 font-serif leading-tight">
+                    <h4 className="text-xl font-black text-gray-900 font-serif leading-tight">
                         {article.title}
-                    </h3>
+                    </h4>
                 </Link>
 
                 <p className="text-gray-600 text-sm leading-7 font-serif line-clamp-2 md:line-clamp-3 mb-4 flex-grow">

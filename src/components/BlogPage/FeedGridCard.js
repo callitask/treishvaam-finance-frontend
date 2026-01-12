@@ -33,9 +33,9 @@ const FeedGridCard = ({ article, onCategoryClick, categoriesMap }) => {
                 </div>
 
                 <Link to={postLink} className="group-hover:text-sky-700 transition-colors">
-                    <h3 className="text-base font-bold text-gray-900 font-serif leading-tight mb-2 line-clamp-3">
+                    <h4 className="text-base font-bold text-gray-900 font-serif leading-tight mb-2 line-clamp-3">
                         {article.title}
-                    </h3>
+                    </h4>
                 </Link>
             </div>
         </div>

@@ -55,9 +55,9 @@ const BlogGridDesktop = ({
             {/* ZONE 2: THE BRIEFING STRIP (Market Briefs) */}
             {briefingPosts && briefingPosts.length > 0 && (
                 <div className="mb-10 py-6 border-y border-gray-100 bg-white">
-                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
                         Quick Reads
-                    </h4>
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {briefingPosts.map(article => (
                             <FeedTextCard
@@ -76,9 +76,9 @@ const BlogGridDesktop = ({
                 <div>
                     <div className="flex items-center gap-2 mb-6">
                         <span className="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
-                        <h4 className="text-xs font-black text-gray-900 uppercase tracking-widest">
+                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">
                             In Depth
-                        </h4>
+                        </h3>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">

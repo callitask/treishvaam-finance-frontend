@@ -31,14 +31,15 @@ const MarketCard = ({ title, data, cardType }) => {
             <h4 className="font-bold text-sm p-3 border-b border-gray-200/90 text-gray-800">{title}</h4>
             <div>
                 <table className="w-full text-xs">
+                    <caption className="sr-only">{title} Data Table</caption>
                     <thead>
                         <tr className="text-left text-gray-500 uppercase font-medium text-[11px]">
-                            <th className="py-1 px-2 font-semibold">Symbol</th>
-                            <th className="py-1 px-2 font-semibold">Name</th>
-                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Price</th>
-                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Chg</th>
-                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">%Chg</th>
-                            <th className="py-1 px-2 font-semibold text-right whitespace-nowrap">Vol</th>
+                            <th scope="col" className="py-1 px-2 font-semibold">Symbol</th>
+                            <th scope="col" className="py-1 px-2 font-semibold">Name</th>
+                            <th scope="col" className="py-1 px-2 font-semibold text-right whitespace-nowrap">Price</th>
+                            <th scope="col" className="py-1 px-2 font-semibold text-right whitespace-nowrap">Chg</th>
+                            <th scope="col" className="py-1 px-2 font-semibold text-right whitespace-nowrap">%Chg</th>
+                            <th scope="col" className="py-1 px-2 font-semibold text-right whitespace-nowrap">Vol</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">

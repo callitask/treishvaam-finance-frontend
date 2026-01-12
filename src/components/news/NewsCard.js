@@ -69,7 +69,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     {/* Content Block */}
                     <div className="nc-impact-content">
                         <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
-                        <h3 className="nc-impact-headline">{article.title}</h3>
+                        <h4 className="nc-impact-headline">{article.title}</h4>
                         <div className="nc-impact-meta">{getMeta()}</div>
                     </div>
                 </article>
