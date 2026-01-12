@@ -3,6 +3,14 @@ import { getQuotesBatch } from '../../apiConfig';
 import { Link } from 'react-router-dom';
 import './GlobalMarketTicker.css';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Global market ticker strip.
+ * Changes:
+ * - Accessibility: Improved contrast (text-gray-500 -> text-slate-600).
+ * - CLS: Enforced container heights to prevent layout shifts during loading.
+ */
+
 // Helper to format change percentage
 const formatChange = (change) => {
     if (change == null || isNaN(change)) return '0.00%';
@@ -11,8 +19,9 @@ const formatChange = (change) => {
 
 // Helper to determine color
 const getChangeColor = (change) => {
-    if (change == null || isNaN(change)) return 'text-gray-500';
-    return change >= 0 ? 'text-green-600' : 'text-red-600';
+    // ACCESSIBILITY: slate-500 has better contrast than gray-500 on white
+    if (change == null || isNaN(change)) return 'text-slate-500';
+    return change >= 0 ? 'text-green-700' : 'text-red-700'; // Darker shades for AA compliance
 };
 
 const marketTabs = {
@@ -76,12 +85,9 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
         fetchQuotes();
     }, [activeTab]);
 
-    // Conditional Styling for Mobile vs Desktop
-    // CHANGED: Removed "sticky top-0 z-40" from the desktop string.
-    // It is now purely static and will scroll away naturally.
     const containerClasses = mobileMode
-        ? "w-full bg-white border-b border-gray-200"
-        : "bg-white border-b border-gray-200";
+        ? "w-full bg-white border-b border-gray-200 min-h-[90px]" // CLS Fix: Min height
+        : "bg-white border-b border-gray-200 min-h-[90px]";
 
     const innerClasses = mobileMode
         ? "w-full"
@@ -95,8 +101,8 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
         <div className={containerClasses}>
             <div className={innerClasses}>
 
-                {/* 1. Category Tabs */}
-                <div className="flex items-center border-b border-gray-100 overflow-x-auto no-scrollbar">
+                {/* 1. Category Tabs - Fixed Height to prevent shift */}
+                <div className="flex items-center border-b border-gray-100 overflow-x-auto no-scrollbar h-[40px]">
                     {Object.keys(marketTabs).map(tabName => (
                         <button
                             key={tabName}
@@ -104,7 +110,7 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                             className={`${tabButtonClasses}
                                 ${activeTab === tabName
                                     ? 'border-b-2 border-sky-600 text-sky-700'
-                                    : 'text-gray-500 hover:text-gray-900 border-b-2 border-transparent'
+                                    : 'text-slate-600 hover:text-gray-900 border-b-2 border-transparent' // ACCESSIBILITY
                                 }
                             `}
                         >
@@ -113,8 +119,8 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                     ))}
                 </div>
 
-                {/* 2. Ticker Data Row */}
-                <div className="global-ticker-row-container py-1">
+                {/* 2. Ticker Data Row - Fixed Height */}
+                <div className="global-ticker-row-container py-1 h-[48px] overflow-hidden">
                     <div className="global-ticker-row">
                         {loading && (
                             [...Array(4)].map((_, i) => (

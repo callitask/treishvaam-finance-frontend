@@ -5,13 +5,11 @@ import { BASE_URL } from '../../apiConfig';
 /**
  * [AI-OPTIMIZED CONTEXT]
  * Component: NewsCard
- * Purpose: Renders individual news items in various visual styles (Impact, Standard, Opinion, Ranked).
+ * Purpose: Renders individual news items in various visual styles.
  * Changes:
- * 1. Semantic Upgrade: Changed all <h4> tags to <h3>.
- * Reason: These cards are usually nested inside a section with an <h2> title (e.g., "Market Intelligence").
- * Following hierarchy <h2> -> <h3> is strictly required for SEO and Screen Readers.
- * 2. Accessibility: Added 'alt=""' to decorative images if alt text is missing, ensuring screen readers ignore them rather than reading filenames.
- * Future Handling: If placing this card in a context where H3 is too high (e.g. inside a sidebar widget), consider passing a 'HeadingLevel' prop.
+ * 1. Semantic Upgrade: H4 -> H3 for SEO hierarchy.
+ * 2. Accessibility: Added empty alt tags for decorative images.
+ * 3. Performance (CLS): Added explicit width/height to all <img> tags to reserve space.
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
@@ -49,14 +47,20 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 <article className="nc-impact-card">
                     <div className="nc-impact-image-container">
                         {!imgError && article.imageUrl ? (
-                            <img src={getImageUrl(article.imageUrl)} alt={article.title} onError={() => setImgError(true)} />
+                            <img
+                                src={getImageUrl(article.imageUrl)}
+                                alt={article.title}
+                                onError={() => setImgError(true)}
+                                width="800"
+                                height="450"
+                                className="w-full h-full object-cover"
+                            />
                         ) : (
                             <div className="w-full h-full bg-gray-200"></div>
                         )}
                     </div>
                     <div className="nc-impact-content">
                         <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
-                        {/* SEO FIX: Promoted to H3 */}
                         <h3 className="nc-impact-headline">{article.title}</h3>
                         <div className="nc-impact-meta">{getMeta()}</div>
                     </div>
@@ -72,9 +76,15 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
                 <article className="nc-snap-card">
                     <div className="nc-snap-image">
-                        <img src={getImageUrl(article.imageUrl)} alt="" onError={() => setImgError(true)} />
+                        <img
+                            src={getImageUrl(article.imageUrl)}
+                            alt=""
+                            onError={() => setImgError(true)}
+                            width="400"
+                            height="225"
+                            className="w-full h-full object-cover"
+                        />
                     </div>
-                    {/* SEO FIX: Promoted to H3 */}
                     <h3 className="nc-snap-headline">{article.title}</h3>
                     <div className="nc-std-meta mt-2">{getMeta()}</div>
                 </article>
@@ -89,7 +99,6 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
                 <article className="nc-opinion-card">
                     <span className="nc-opinion-icon">“</span>
-                    {/* SEO FIX: Promoted to H3 */}
                     <h3 className="nc-opinion-headline">{article.title}</h3>
                     <div className="nc-opinion-author">{article.source || 'Analyst View'}</div>
                 </article>
@@ -104,7 +113,6 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 <article className="nc-ranked-card">
                     <div className="nc-rank-number">{rank ? String(rank).padStart(2, '0') : '#'}</div>
                     <div className="nc-ranked-content">
-                        {/* SEO FIX: Promoted to H3 */}
                         <h3 className="text-sm font-bold leading-tight">{article.title}</h3>
                         <div className="nc-std-meta mt-1">{getMeta()}</div>
                     </div>
@@ -120,13 +128,20 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             <article className="nc-standard-card">
                 <div className="nc-std-content">
                     <span className="nc-std-kicker">{article.source || 'Markets'}</span>
-                    {/* SEO FIX: Promoted to H3 */}
                     <h3 className="nc-std-headline">{article.title}</h3>
                     <div className="nc-std-meta">{getMeta()}</div>
                 </div>
                 {!imgError && article.imageUrl && (
                     <div className="nc-std-thumbnail">
-                        <img src={getImageUrl(article.imageUrl)} alt="" onError={() => setImgError(true)} loading="lazy" />
+                        <img
+                            src={getImageUrl(article.imageUrl)}
+                            alt=""
+                            onError={() => setImgError(true)}
+                            loading="lazy"
+                            width="150"
+                            height="150"
+                            className="w-full h-full object-cover"
+                        />
                     </div>
                 )}
             </article>

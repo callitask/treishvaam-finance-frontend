@@ -1,12 +1,21 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Smart image component that requests the correct resolution from the backend based on screen width.
+ * Changes:
+ * - Fixed srcSet to match Backend ImageService generation (-480, -800, -1200).
+ * - Added width/height prop support for CLS prevention.
+ * - Removed broken '-tiny' and '-small' references.
+ * Non-Negotiables: Must match Backend file naming exactly.
+ */
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { API_URL } from '../apiConfig';
 
-const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false }) => {
+const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
     // Render a simple placeholder if baseName is invalid.
     if (!baseName || typeof baseName !== 'string') {
-        return <div className={`bg-gray-200 ${className}`} />;
+        return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
     }
 
     const uuidRegex = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/;
@@ -14,18 +23,24 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
 
     if (!match) {
         console.warn(`ResponsiveAuthImage: Could not extract a valid image ID from baseName: "${baseName}"`);
-        return <div className={`bg-gray-200 ${className}`} />;
+        return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
     }
 
     const cleanedBaseName = match[0];
 
-    // Construct image URLs
-    const src = `${API_URL}/api/uploads/${cleanedBaseName}-small.webp`;
-    const placeholderSrc = `${API_URL}/api/uploads/${cleanedBaseName}-tiny.webp`; // New tiny version for the blur effect
+    // AI-NOTE: Matched to Backend ImageService.java generation logic
+    // Available variants: .webp (1920w), -1200.webp, -800.webp, -480.webp
+    const src = `${API_URL}/api/uploads/${cleanedBaseName}-800.webp`; // Default safe fallback
+
+    // Backend does not currently generate a 'tiny' blurred placeholder, so we use the smallest available (480)
+    // to prevent 404s on the placeholder request.
+    const placeholderSrc = `${API_URL}/api/uploads/${cleanedBaseName}-480.webp`;
+
     const srcSet = [
-        `${API_URL}/api/uploads/${cleanedBaseName}-small.webp 300w`,
-        `${API_URL}/api/uploads/${cleanedBaseName}-medium.webp 600w`,
-        `${API_URL}/api/uploads/${cleanedBaseName}.webp 1200w`
+        `${API_URL}/api/uploads/${cleanedBaseName}-480.webp 480w`,
+        `${API_URL}/api/uploads/${cleanedBaseName}-800.webp 800w`,
+        `${API_URL}/api/uploads/${cleanedBaseName}-1200.webp 1200w`,
+        `${API_URL}/api/uploads/${cleanedBaseName}.webp 1920w`
     ].join(', ');
 
     // PERFORMANCE FIX: If 'eager' is true (LCP images), use standard <img> tag
@@ -41,6 +56,8 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
                 onLoad={onLoad}
                 loading="eager"
                 fetchpriority="high" // Critical for LCP optimization
+                width={width}
+                height={height}
             />
         );
     }
@@ -55,6 +72,8 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
             effect="blur"
             className={className}
             afterLoad={onLoad} // Use afterLoad for the library's load event
+            width={width}
+            height={height}
         />
     );
 };
