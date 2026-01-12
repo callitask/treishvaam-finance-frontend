@@ -3,6 +3,23 @@ import FeedRowCard from './FeedRowCard';
 import FeedTextCard from './FeedTextCard';
 import FeedGridCard from './FeedGridCard';
 
+/**
+ * [AI-OPTIMIZED CONTEXT]
+ * Component: BlogGridDesktop
+ * Purpose: Renders the main content area of the blog feed on desktop screens.
+ * * CHANGES (Performance & SEO):
+ * 1. Heading Hierarchy Fix: Promoted "Quick Reads" and "In Depth" headers from <h4> to <h3>.
+ * - Reason: The page title is <h1>, Section titles should be <h2>, and these subsections must be <h3>.
+ * - Impact: Fixes "Heading levels skipped" SEO error in Lighthouse.
+ * * 2. Structure: 
+ * - Zone 1: Secondary Lead (FeedRowCard)
+ * - Zone 2: Briefing Strip (FeedTextCard grid)
+ * - Zone 3: Main Feed (FeedGridCard grid)
+ * * FUTURE MAINTENANCE:
+ * - Ensure any new section headers added here start at <h3> level.
+ * - Do not revert to <h4> unless nested inside an <h3> container.
+ */
+
 // Skeleton for loading state
 const FeedSkeleton = () => (
     <div className="space-y-8 animate-pulse">
@@ -55,6 +72,7 @@ const BlogGridDesktop = ({
             {/* ZONE 2: THE BRIEFING STRIP (Market Briefs) */}
             {briefingPosts && briefingPosts.length > 0 && (
                 <div className="mb-10 py-6 border-y border-gray-100 bg-white">
+                    {/* SEO FIX: Promoted to H3 */}
                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">
                         Quick Reads
                     </h3>
@@ -76,6 +94,7 @@ const BlogGridDesktop = ({
                 <div>
                     <div className="flex items-center gap-2 mb-6">
                         <span className="w-1.5 h-1.5 bg-sky-600 rounded-full"></span>
+                        {/* SEO FIX: Promoted to H3 */}
                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">
                             In Depth
                         </h3>

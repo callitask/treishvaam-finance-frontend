@@ -1,6 +1,20 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+/**
+ * [AI-OPTIMIZED CONTEXT]
+ * Component: Footer
+ * Purpose: Site-wide footer with links and legal info.
+ * * CHANGES (Accessibility):
+ * 1. Social Icons: Changed default color from 'text-gray-400' to 'text-gray-300'.
+ * - Reason: 'text-gray-400' on 'bg-gray-800' is borderline. 'text-gray-300' ensures safe contrast (> 7:1).
+ * 2. Disclaimer Text: Changed from 'text-gray-400' to 'text-gray-300'.
+ * - Impact: Improves readability for small legal text.
+ * 3. ARIA Labels: Ensured all social links have explicit aria-labels.
+ * * FUTURE MAINTENANCE:
+ * - Maintain high contrast on all footer text as it sits on a dark background.
+ */
+
 const Footer = ({ className }) => {
   const currentYear = new Date().getFullYear();
 
@@ -64,13 +78,14 @@ const Footer = ({ className }) => {
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Follow Us</h4>
             <div className="flex space-x-4">
-              <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-gray-400 hover:text-pink-500 transition duration-300">
+              {/* ACCESSIBILITY FIX: Lightened default icon color for contrast */}
+              <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="text-gray-300 hover:text-pink-500 transition duration-300">
                 <InstagramIcon width="28" height="28" />
               </a>
-              <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-gray-400 hover:text-blue-600 transition duration-300">
+              <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="Facebook" className="text-gray-300 hover:text-blue-600 transition duration-300">
                 <FacebookIcon width="28" height="28" />
               </a>
-              <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-gray-400 hover:text-blue-400 transition duration-300">
+              <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-gray-300 hover:text-blue-400 transition duration-300">
                 <LinkedInIcon width="28" height="28" />
               </a>
             </div>
@@ -80,7 +95,8 @@ const Footer = ({ className }) => {
         {/* Bottom Bar */}
         <div className="text-center text-sm border-t border-gray-700 pt-8">
           <p>&copy; {currentYear} Treishvaam Finance. All Rights Reserved.</p>
-          <p className="mt-2 text-xs max-w-3xl mx-auto text-gray-400">
+          {/* ACCESSIBILITY FIX: Lightened disclaimer text for contrast */}
+          <p className="mt-2 text-xs max-w-3xl mx-auto text-gray-300">
             <strong>Disclaimer:</strong> The content on this website is for educational and informational purposes only. Treishvaam Finance is not a financial adviser. Please consult with a qualified professional before making any investment decisions.
           </p>
         </div>

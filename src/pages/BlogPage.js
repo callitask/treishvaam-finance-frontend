@@ -23,6 +23,19 @@ const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/Market
 const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
 const VisionPage = React.lazy(() => import('./VisionPage'));
 
+/**
+ * [AI-OPTIMIZED CONTEXT]
+ * Component: BlogPage
+ * Purpose: The main landing page / feed of the application.
+ * * CHANGES (Accessibility & Structure):
+ * 1. Mobile Bottom Nav Contrast: 
+ * - Changed inactive icon color from 'text-gray-400' to 'text-slate-500'.
+ * - Reason: 'text-gray-400' on white background fails WCAG AA (Contrast < 4.5:1). 'text-slate-500' passes.
+ * 2. Layout Distribution: Uses 'distributeContent' util to split posts into Hero, Must Read, Briefing, and Feed.
+ * * FUTURE MAINTENANCE:
+ * - Ensure any new text elements added to MobileBottomNav meet WCAG AA contrast standards.
+ */
+
 const BlogPage = () => {
     const [posts, setPosts] = useState([]);
     const [page, setPage] = useState(0);
@@ -131,7 +144,8 @@ const BlogPage = () => {
                 <button
                     key={id}
                     onClick={() => { setActiveTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform duration-100 group ${activeTab === id ? 'text-sky-700' : 'text-gray-400 hover:text-gray-600'}`}
+                    // ACCESSIBILITY FIX: Changed text-gray-400 to text-slate-500 for better contrast
+                    className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform duration-100 group ${activeTab === id ? 'text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Icon size={20} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
                     <span className="text-[10px] font-bold tracking-wide">{label}</span>
