@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Search, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
-import { Link } from 'react-router-dom'; // --- ADDED: Import Link for navigation ---
+import { Link } from 'react-router-dom';
 import { getQuotesBatch } from '../../apiConfig';
+
+/**
+ * [AI-OPTIMIZED CONTEXT]
+ * Component: DynamicMarketSummary
+ * Purpose: Displays horizontal scrollable market ticker cards.
+ * Changes:
+ * 1. Updated 'text-gray-400' to 'text-gray-500' or 'text-gray-600' for better contrast ratio (Accessibility).
+ * 2. Added 'aria-label' to search input.
+ * Future Handling: Ensure all new text elements use at least contrast ratio 4.5:1 against white background.
+ */
 
 // Configuration mapping Tabs to Yahoo Finance Tickers
 const MARKET_TABS = {
@@ -33,12 +43,9 @@ const DynamicMarketSummary = () => {
             setLoading(true);
             try {
                 const tickers = MARKET_TABS[activeTab];
-                // Call existing API to fetch batch quotes from DB
                 const response = await getQuotesBatch(tickers);
 
                 if (isMounted && response.data) {
-                    // Map the requested tickers to the response data to preserve order
-                    // and handle missing data (e.g. if python script hasn't fetched it yet)
                     const orderedData = tickers.map(ticker => {
                         const found = response.data.find(item => item.ticker === ticker);
                         return found || { ticker, name: TICKER_NAMES[ticker] || ticker, currentPrice: null };
@@ -78,11 +85,14 @@ const DynamicMarketSummary = () => {
             <div className="mb-6">
                 <div className="relative group">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                        {/* ACCESSIBILITY FIX: Darkened icon color */}
+                        <Search className="h-5 w-5 text-gray-500 group-focus-within:text-blue-500 transition-colors" />
                     </div>
+                    {/* ACCESSIBILITY FIX: Added aria-label */}
                     <input
                         type="text"
-                        className="block w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all duration-200 shadow-sm"
+                        aria-label="Search for stocks, ETFs and more"
+                        className="block w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white transition-all duration-200 shadow-sm"
                         placeholder="Search for stocks, ETFs and more"
                     />
                 </div>
@@ -90,7 +100,8 @@ const DynamicMarketSummary = () => {
 
             {/* 2. Market Category Tabs */}
             <div className="flex items-center space-x-6 mb-5 overflow-x-auto no-scrollbar pb-2">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex-shrink-0 select-none">
+                {/* ACCESSIBILITY FIX: Darkened text color from gray-400 to gray-500 */}
+                <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex-shrink-0 select-none">
                     MARKETS
                 </span>
                 <div className="flex space-x-2">
@@ -130,7 +141,6 @@ const DynamicMarketSummary = () => {
                             if (isDown) trendColor = 'text-red-600';
 
                             return (
-                                // --- UPDATED: Wrapped in Link ---
                                 <Link
                                     to={`/market/${encodeURIComponent(item.ticker)}`}
                                     key={item.ticker}
@@ -142,7 +152,7 @@ const DynamicMarketSummary = () => {
                                             <div className={`p-1.5 rounded-full flex-shrink-0 ${isUp ? 'bg-green-50' : isDown ? 'bg-red-50' : 'bg-gray-50'}`}>
                                                 {isUp && <ArrowUp size={14} className="text-green-600" />}
                                                 {isDown && <ArrowDown size={14} className="text-red-600" />}
-                                                {isFlat && <ArrowRight size={14} className="text-gray-400" />}
+                                                {isFlat && <ArrowRight size={14} className="text-gray-500" />}
                                             </div>
                                             <span className="font-bold text-gray-800 text-sm truncate group-hover:text-blue-600 transition-colors">
                                                 {TICKER_NAMES[item.ticker] || item.name}
