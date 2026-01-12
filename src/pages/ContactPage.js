@@ -26,11 +26,31 @@ const ContactPage = () => {
         }
     };
 
+    const pageTitle = "Contact Us | Treishvaam Finance";
+    const pageDescription = "Get in touch with Treishvaam Finance for inquiries about our market analysis, educational content, or platform support.";
+    const pageUrl = "https://treishfin.treishvaamgroup.com/contact";
+    const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
+
     return (
         <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex flex-col font-sans">
             <Helmet>
-                <title>Contact Us | Treishvaam Finance</title>
-                <meta name="description" content="Contact Treishvaam Finance for inquiries." />
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
+                <link rel="canonical" href={pageUrl} />
+
+                {/* Open Graph */}
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content={pageUrl} />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+
+                {/* Twitter */}
+                <meta name="twitter:card" content="summary" />
+                <meta name="twitter:url" content={pageUrl} />
+                <meta name="twitter:title" content={pageTitle} />
+                <meta name="twitter:description" content={pageDescription} />
+                <meta name="twitter:image" content={imageUrl} />
             </Helmet>
 
             <Navbar />

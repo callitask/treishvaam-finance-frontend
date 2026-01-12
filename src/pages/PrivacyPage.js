@@ -1,8 +1,53 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
 
 const PrivacyPage = () => {
+    const pageTitle = "Privacy Policy | Treishvaam Finance";
+    const pageDescription = "Read the Privacy Policy of Treishvaam Finance. Learn how we collect, use, and protect your personal data, including identity, contact, and usage information.";
+    const pageUrl = "https://treishfin.treishvaamgroup.com/privacy";
+    const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
+
+    const schemaData = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": pageTitle,
+        "description": pageDescription,
+        "url": pageUrl,
+        "publisher": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance",
+            "logo": {
+                "@type": "ImageObject",
+                "url": imageUrl
+            }
+        }
+    };
+
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <Helmet>
+                <title>{pageTitle}</title>
+                <meta name="description" content={pageDescription} />
+                <link rel="canonical" href={pageUrl} />
+
+                {/* Open Graph */}
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content={pageUrl} />
+                <meta property="og:title" content={pageTitle} />
+                <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+
+                {/* Twitter */}
+                <meta name="twitter:card" content="summary" />
+                <meta name="twitter:url" content={pageUrl} />
+                <meta name="twitter:title" content={pageTitle} />
+                <meta name="twitter:description" content={pageDescription} />
+                <meta name="twitter:image" content={imageUrl} />
+
+                {/* Schema */}
+                <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
+            </Helmet>
+
             <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
                 <p className="text-gray-500 mb-8 text-sm">Last Updated: January 2026</p>

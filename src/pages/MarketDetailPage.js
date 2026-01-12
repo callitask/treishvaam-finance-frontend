@@ -65,6 +65,9 @@ const MarketDetailPage = () => {
         ? `Detailed financial analysis and live market data for ${quoteData.name} (${quoteData.ticker}). View charts, price history, and key statistics on Treishvaam Finance.`
         : "Real-time market data and analysis on Treishvaam Finance.";
 
+    const pageUrl = `https://treishfin.treishvaamgroup.com/market/${ticker}`;
+    const imageUrl = quoteData?.logoUrl || "https://treishfin.treishvaamgroup.com/logo.webp";
+
     // --- ENTERPRISE SEO: Structured Data for Financial Product ---
     const generateFinancialSchema = (quote) => {
         if (!quote) return null;
@@ -75,8 +78,8 @@ const MarketDetailPage = () => {
             "tickerSymbol": quote.ticker,
             "exchangeTicker": quote.exchange || "NYSE",
             "description": pageDescription,
-            "url": `https://treishfin.treishvaamgroup.com/market/${ticker}`,
-            "image": quote.logoUrl || "https://treishfin.treishvaamgroup.com/logo.webp",
+            "url": pageUrl,
+            "image": imageUrl,
             "currentExchangeRate": {
                 "@type": "UnitPriceSpecification",
                 "price": quote.price,
@@ -113,9 +116,22 @@ const MarketDetailPage = () => {
             <Helmet>
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
-                <link rel="canonical" href={`https://treishfin.treishvaamgroup.com/market/${ticker}`} />
+                <link rel="canonical" href={pageUrl} />
+
+                {/* Open Graph */}
+                <meta property="og:type" content="website" />
+                <meta property="og:url" content={pageUrl} />
                 <meta property="og:title" content={pageTitle} />
                 <meta property="og:description" content={pageDescription} />
+                <meta property="og:image" content={imageUrl} />
+
+                {/* Twitter */}
+                <meta name="twitter:card" content="summary" />
+                <meta name="twitter:url" content={pageUrl} />
+                <meta name="twitter:title" content={pageTitle} />
+                <meta name="twitter:description" content={pageDescription} />
+                <meta name="twitter:image" content={imageUrl} />
+
                 {/* Inject JSON-LD Schema */}
                 {schema && (
                     <script type="application/ld+json">
