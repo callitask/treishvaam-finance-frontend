@@ -4,20 +4,25 @@ import { getOptimizedImageIds } from '../../utils/imageOptimization';
 
 /**
  * AI-CONTEXT:
- * Purpose: Renders news cards with "Self-Healing" image logic.
- * Change Intent: Confirmed fallback logic to handle legacy images gracefully.
- * Critical Logic: 
- * - Try optimized WebP first (via srcset).
- * - If 404 (onError), switch 'useFallback' to true.
- * - This forces a re-render using ONLY 'src' (the original Master file).
+ * Purpose: Renders news cards.
+ * * ------------------------------------------------------------------
+ * CRITICAL HISTORY & "WHAT NOT TO DO":
+ * 1. 404s ON LEGACY IMAGES:
+ * - New images have optimized variants (-480.webp). Old images do not.
+ * - RESULT: Optimized URLs returned 404 for old articles.
+ * - FIX: Implemented "Self-Healing" Fallback.
+ * The 'onError' handler is MANDATORY. It detects the 404 on the optimized image
+ * and forces a re-render using ONLY the 'src' (Master Image).
+ * DO NOT REMOVE 'useFallback' STATE OR 'onError' LOGIC.
+ * ------------------------------------------------------------------
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
-    // Track if optimized version failed
+    // State to track if the optimized/resized version failed
     const [useFallback, setUseFallback] = useState(false);
-    // Track if even the fallback failed
+    // State to track if even the fallback failed (broken image)
     const [imgError, setImgError] = useState(false);
 
-    // Reset state when article changes (scrolling/filtering)
+    // AI-NOTE: Reset states if article changes
     useEffect(() => {
         setUseFallback(false);
         setImgError(false);
@@ -25,15 +30,17 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
 
     if (!article) return null;
 
-    // AI-NOTE: Generate URLs using the FIXED utility (preserves prefixes)
+    // AI-NOTE: Get optimized URLs. 
+    // If useFallback is true, we ignore srcset and only use src (Master URL).
     const { src, srcset } = getOptimizedImageIds(article.imageUrl);
 
+    // AI-NOTE: Handler for image load errors.
+    // 1st Failure: Try Master URL (legacy image support).
+    // 2nd Failure: Show gray placeholder.
     const handleError = () => {
         if (!useFallback) {
-            // First failure: Optimized version missing? Try Master.
             setUseFallback(true);
         } else {
-            // Second failure: Master missing? Show placeholder.
             setImgError(true);
         }
     };
@@ -50,12 +57,11 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
             return `2 MIN READ • ${timeStr}`;
         } catch (e) {
+            console.warn("Date parse error", e);
             return "2 MIN READ";
         }
     };
 
-    // Determine final props based on fallback state
-    // If useFallback is true, we pass undefined to srcSet, forcing the browser to use src
     const finalSrcSet = useFallback ? undefined : srcset;
 
     // --- VARIANT 1: IMPACT (Hero) ---

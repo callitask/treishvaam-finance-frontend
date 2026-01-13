@@ -2,27 +2,38 @@ import { BASE_URL } from '../apiConfig';
 
 /**
  * AI-CONTEXT:
- * Purpose: Centralizes image URL generation. 
- * Change Intent: Fixed critical bug where 'news-' prefix was stripped from legacy images. 
- * Now preserves full filename structure to ensure 404s are eliminated.
- * Critical Dependencies:
- * - Backend: Expects backend to generate 'filename-480.webp' for optimization.
- * - DB: Expects 'filename' to be passed exactly as stored in DB (e.g. 'news-uuid.jpg').
- * Non-Negotiables:
- * - Must preserve original filename prefix (e.g., 'news-', 'user-').
- * - Must return valid src (fallback) and srcset (optimized).
+ * Purpose: Centralizes image URL generation for responsive images (srcset) and SEO.
+ * * ------------------------------------------------------------------
+ * CRITICAL HISTORY & "WHAT NOT TO DO":
+ * 1. REGEX UUID PARSING (FAILED):
+ * - Attempted to parse UUIDs using Regex to find filenames.
+ * - RESULT: FAILED. Stripped critical prefixes like 'news-' or 'user-' from legacy images.
+ * - FIX: Do NOT use Regex to extracting IDs. Use simple string splitting to preserve full filenames.
+ * * 2. UNUSED VARIABLES (FAILED):
+ * - Left 'originalExtension' variable defined but unused.
+ * - RESULT: CI/CD Build FAILED. Cloudflare Pages treats warnings as errors (process.env.CI=true).
+ * - FIX: Strictly remove any unused variables. Do not comment them out.
+ * * 3. LEGACY IMAGE 404s (FIXED via FALLBACK):
+ * - Older images do not have resized variants (-480.webp).
+ * - RESULT: 404 errors on mobile.
+ * - FIX: This utility generates the URL, but the COMPONENT (NewsCard) handles the fallback.
+ * If this utility returns a URL that 404s, the component switches to 'src' (Master).
+ * ------------------------------------------------------------------
+ * * Critical Dependencies:
+ * - Backend: Expects 'filename-480.webp', 'filename-800.webp' convention.
+ * - apiConfig: Needs BASE_URL.
  */
 
-// AI-NOTE: Matches backend ImageService.java resizing logic
+// AI-NOTE: Matches backend ImageService.java generation logic (480w, 800w, 1200w)
 const RESIZE_VARIANTS = [480, 800, 1200];
 
 /**
- * Generates optimized src and srcset for a given image filename.
- * @param {string} inputString - The full filename from DB (e.g. "news-1234.jpg" or "abcd-1234.webp")
- * @returns {object} { src, srcset }
+ * Generates src and srcset for a given image filename.
+ * @param {string} inputString - The filename from the API (e.g., "news-uuid.jpg").
+ * @returns {object} { src, srcset } - 'src' is the Master/Fallback, 'srcset' contains resized variants.
  */
 export const getOptimizedImageIds = (inputString) => {
-    // 1. Safety Checks
+    // 1. Handle Null/Undefined
     if (!inputString || typeof inputString !== 'string') {
         return {
             src: '/placeholder-news.jpg',
@@ -30,7 +41,7 @@ export const getOptimizedImageIds = (inputString) => {
         };
     }
 
-    // 2. Handle External URLs
+    // 2. Handle External URLs (e.g., social login avatars, external ads)
     if (inputString.startsWith('http') || inputString.startsWith('https')) {
         return {
             src: inputString,
@@ -38,7 +49,7 @@ export const getOptimizedImageIds = (inputString) => {
         };
     }
 
-    // 3. Handle Static/Relative Paths
+    // 3. Handle Relative Paths (static assets)
     if (inputString.startsWith('/')) {
         return {
             src: `${BASE_URL}${inputString}`,
@@ -46,42 +57,35 @@ export const getOptimizedImageIds = (inputString) => {
         };
     }
 
-    // 4. Base Name Extraction (PRESERVE PREFIXES)
-    // Old Logic (Broken): match(/[a-f0-9-]{36}/) -> Stripped 'news-'
-    // New Logic (Fixed): Simply strip the extension.
+    // 4. Construct Backend URLs
+    // AI-NOTE: We intentionally use simple string manipulation here to preserve prefixes (like 'news-').
+    // Do NOT revert to Regex parsing.
 
     let baseName = inputString;
-    let originalExtension = '';
 
+    // Check if there is an extension to strip
     const extIndex = inputString.lastIndexOf('.');
     if (extIndex !== -1) {
         baseName = inputString.substring(0, extIndex);
-        originalExtension = inputString.substring(extIndex);
-    } else {
-        // If no extension, assume the whole string is the base
-        originalExtension = '.webp'; // Default assumption for backend 
     }
+    // If no extension, we treat the whole string as the base name.
 
-    // 5. Construct URLs
     const baseUrl = `${BASE_URL}/api/uploads`;
 
-    // Master Image (Fallback)
-    // Uses the EXACT filename from DB + Extension. 
-    // This guarantees we find the file if it exists.
+    // Construct the Master URL (Fallback) - uses original inputString to ensure exact match
     const src = `${baseUrl}/${inputString}`;
 
-    // Resized Variants
-    // Backend Logic: baseName + "-" + width + ".webp"
-    // Example: "news-1234-480.webp"
+    // Construct srcset string
+    // Format: "url-480.webp 480w, url-800.webp 800w, url-1200.webp 1200w"
     const srcsetParts = RESIZE_VARIANTS.map(width => {
         return `${baseUrl}/${baseName}-${width}.webp ${width}w`;
     });
 
-    // Add Master to srcset
+    // Append the master image to srcset as the largest option (1920w)
     srcsetParts.push(`${src} 1920w`);
 
     return {
-        src, // The safe, original file
-        srcset: srcsetParts.join(', ') // The optimized variants
+        src,
+        srcset: srcsetParts.join(', ')
     };
 };
