@@ -7,6 +7,13 @@ import { WatchlistProvider } from './context/WatchlistContext';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './layouts/DashboardLayout';
+import ThirdPartyScripts from './components/ThirdPartyScripts'; // IMPORT ADDED
+
+/**
+ * AI-CONTEXT:
+ * Purpose: Root Application Component.
+ * Changes: Added <ThirdPartyScripts /> to handle non-blocking Ad/Analytics loading.
+ */
 
 // --- Lazy-loaded Page Components ---
 const BlogPage = lazy(() => import('./pages/BlogPage'));
@@ -39,6 +46,9 @@ function App() {
     <AuthProvider>
       <ThemeProvider>
         <WatchlistProvider>
+          {/* AI-NOTE: Mount ThirdPartyScripts here to ensure global scope but deferred loading */}
+          <ThirdPartyScripts />
+
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes with MainLayout */}
