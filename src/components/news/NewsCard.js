@@ -6,23 +6,16 @@ import { getOptimizedImageIds } from '../../utils/imageOptimization';
  * AI-CONTEXT:
  * Purpose: Renders news cards.
  * * ------------------------------------------------------------------
- * CRITICAL HISTORY & "WHAT NOT TO DO":
- * 1. 404s ON LEGACY IMAGES:
- * - New images have optimized variants (-480.webp). Old images do not.
- * - RESULT: Optimized URLs returned 404 for old articles.
- * - FIX: Implemented "Self-Healing" Fallback.
- * The 'onError' handler is MANDATORY. It detects the 404 on the optimized image
- * and forces a re-render using ONLY the 'src' (Master Image).
- * DO NOT REMOVE 'useFallback' STATE OR 'onError' LOGIC.
+ * OPTIMIZATION UPDATE:
+ * - 'sizes' attributes tightened to prevent over-fetching.
+ * - Standard Card: "(max-width: 640px) 30vw, 150px" (Prevents loading 480w full size).
+ * - Impact Card: "(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 800px".
  * ------------------------------------------------------------------
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
-    // State to track if the optimized/resized version failed
     const [useFallback, setUseFallback] = useState(false);
-    // State to track if even the fallback failed (broken image)
     const [imgError, setImgError] = useState(false);
 
-    // AI-NOTE: Reset states if article changes
     useEffect(() => {
         setUseFallback(false);
         setImgError(false);
@@ -30,13 +23,8 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
 
     if (!article) return null;
 
-    // AI-NOTE: Get optimized URLs. 
-    // If useFallback is true, we ignore srcset and only use src (Master URL).
     const { src, srcset } = getOptimizedImageIds(article.imageUrl);
 
-    // AI-NOTE: Handler for image load errors.
-    // 1st Failure: Try Master URL (legacy image support).
-    // 2nd Failure: Show gray placeholder.
     const handleError = () => {
         if (!useFallback) {
             setUseFallback(true);
@@ -57,7 +45,6 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
             return `2 MIN READ • ${timeStr}`;
         } catch (e) {
-            console.warn("Date parse error", e);
             return "2 MIN READ";
         }
     };
@@ -65,6 +52,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     const finalSrcSet = useFallback ? undefined : srcset;
 
     // --- VARIANT 1: IMPACT (Hero) ---
+    // AI-NOTE: Optimized sizes for Hero. Mobile=100vw, Desktop=50vw or 800px max.
     if (variant === 'impact') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -74,7 +62,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                             <img
                                 src={src}
                                 srcSet={finalSrcSet}
-                                sizes="(max-width: 768px) 100vw, 800px"
+                                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 66vw, 800px"
                                 alt={article.title}
                                 onError={handleError}
                                 width="800"
@@ -152,6 +140,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     }
 
     // --- VARIANT 2: STANDARD (Default) ---
+    // AI-NOTE: Optimized sizes for Thumbnail. 
     return (
         <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
             <article className="nc-standard-card">
@@ -165,7 +154,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         <img
                             src={src}
                             srcSet={finalSrcSet}
-                            sizes="150px"
+                            sizes="(max-width: 640px) 30vw, 150px"
                             alt=""
                             onError={handleError}
                             loading="lazy"

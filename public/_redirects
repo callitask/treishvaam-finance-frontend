@@ -1,4 +1,5 @@
-# This file handles SPA fallbacks for Cloudflare Pages.
-# Note: sitemap.xml and robots.txt are handled by the associated Worker (treishfin-seo-worker).
+# Cloudflare Pages Redirects
+# Note: WWW Redirection and HTTPS enforcement are handled by Cloudflare Page Rules.
 
-/* /index.html  200
+# SPA Fallback (Critical for React Router)
+/* /index.html 200
