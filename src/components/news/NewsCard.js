@@ -4,23 +4,20 @@ import { getOptimizedImageIds } from '../../utils/imageOptimization';
 
 /**
  * AI-CONTEXT:
- * Purpose: Renders news items in various layouts (Impact, Market Snap, Standard).
- * Scope: BlogPage, Homepage, MarketDetailPage.
- * Critical Dependencies:
- * - Utility: imageOptimization.js for URL generation.
- * - CSS: NewsCard.css for layout stability (CLS).
- * Non-Negotiables:
- * - Impact Card MUST have fetchpriority="high".
- * - Must handle 404s on resized images by falling back to Master URL (Legacy Data Support).
- * Change Intent: Added self-healing fallback logic to fix "missing images" regression for older articles.
+ * Purpose: Renders news cards with "Self-Healing" image logic.
+ * Change Intent: Confirmed fallback logic to handle legacy images gracefully.
+ * Critical Logic: 
+ * - Try optimized WebP first (via srcset).
+ * - If 404 (onError), switch 'useFallback' to true.
+ * - This forces a re-render using ONLY 'src' (the original Master file).
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
-    // State to track if the optimized/resized version failed
+    // Track if optimized version failed
     const [useFallback, setUseFallback] = useState(false);
-    // State to track if even the fallback failed (broken image)
+    // Track if even the fallback failed
     const [imgError, setImgError] = useState(false);
 
-    // AI-NOTE: Reset states if article changes
+    // Reset state when article changes (scrolling/filtering)
     useEffect(() => {
         setUseFallback(false);
         setImgError(false);
@@ -28,17 +25,15 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
 
     if (!article) return null;
 
-    // AI-NOTE: Get optimized URLs. 
-    // If useFallback is true, we ignore srcset and only use src (Master URL).
+    // AI-NOTE: Generate URLs using the FIXED utility (preserves prefixes)
     const { src, srcset } = getOptimizedImageIds(article.imageUrl);
 
-    // AI-NOTE: Handler for image load errors.
-    // 1st Failure: Try Master URL (legacy image support).
-    // 2nd Failure: Show gray placeholder.
     const handleError = () => {
         if (!useFallback) {
+            // First failure: Optimized version missing? Try Master.
             setUseFallback(true);
         } else {
+            // Second failure: Master missing? Show placeholder.
             setImgError(true);
         }
     };
@@ -55,10 +50,13 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
             const timeStr = diffHrs < 1 ? 'JUST NOW' : diffHrs > 24 ? d.toLocaleDateString() : `${diffHrs}H AGO`;
             return `2 MIN READ • ${timeStr}`;
         } catch (e) {
-            console.warn("Date parse error", e);
             return "2 MIN READ";
         }
     };
+
+    // Determine final props based on fallback state
+    // If useFallback is true, we pass undefined to srcSet, forcing the browser to use src
+    const finalSrcSet = useFallback ? undefined : srcset;
 
     // --- VARIANT 1: IMPACT (Hero) ---
     if (variant === 'impact') {
@@ -69,7 +67,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         {!imgError && article.imageUrl ? (
                             <img
                                 src={src}
-                                srcSet={useFallback ? undefined : srcset}
+                                srcSet={finalSrcSet}
                                 sizes="(max-width: 768px) 100vw, 800px"
                                 alt={article.title}
                                 onError={handleError}
@@ -101,7 +99,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-snap-image">
                         <img
                             src={src}
-                            srcSet={useFallback ? undefined : srcset}
+                            srcSet={finalSrcSet}
                             sizes="(max-width: 768px) 95vw, 400px"
                             alt=""
                             onError={handleError}
@@ -160,7 +158,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-std-thumbnail">
                         <img
                             src={src}
-                            srcSet={useFallback ? undefined : srcset}
+                            srcSet={finalSrcSet}
                             sizes="150px"
                             alt=""
                             onError={handleError}

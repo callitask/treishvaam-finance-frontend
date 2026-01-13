@@ -5,40 +5,32 @@ import { getOptimizedImageIds } from '../utils/imageOptimization';
 
 /**
  * AI-CONTEXT:
- * Purpose: Smart image component for Auth/Profile sections.
- * Scope: Used in ProfilePage, LoginPage, etc.
- * Critical Dependencies:
- * - Utility: src/utils/imageOptimization.js.
- * Non-Negotiables:
- * - Must support fallback to Master URL if resized variants (srcset) 404.
- * Change Intent: Added error handling state to support legacy images.
+ * Purpose: Smart image component for Auth/Profile.
+ * Change Intent: Integrated corrected prefix-aware URL utility.
  */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
-    // State to track if optimized version failed
     const [useFallback, setUseFallback] = useState(false);
 
-    // AI-NOTE: Delegate logic to the shared utility
+    // AI-NOTE: Use the FIXED utility
     const { src, srcset } = getOptimizedImageIds(baseName);
 
-    // If no valid src returned, render placeholder
     if (!src || src.includes('placeholder')) {
         return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
     }
 
-    // Placeholder for blur effect (derived safely)
-    const placeholderSrc = src.replace(/(\.[\w\d]+)$/, '-480.webp');
-
+    // Fallback logic
     const handleError = () => {
         if (!useFallback) {
-            console.warn(`ResponsiveAuthImage: Optimization failed for ${baseName}, falling back to master.`);
             setUseFallback(true);
         }
     };
 
-    // If falling back, we remove srcset to force browser to use 'src'
     const finalSrcSet = useFallback ? undefined : srcset;
 
-    // PERFORMANCE FIX: If 'eager' is true (LCP images), use standard <img> tag
+    // Attempt to generate a placeholder URL for the blur effect
+    // We safely replace the extension of the *src* (which we know is correct now)
+    const placeholderSrc = src.replace(/(\.[^.]+)$/, '-480.webp');
+
     if (eager) {
         return (
             <img
