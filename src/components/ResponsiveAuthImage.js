@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import { getOptimizedImageIds } from '../utils/imageOptimization';
@@ -8,30 +8,35 @@ import { getOptimizedImageIds } from '../utils/imageOptimization';
  * Purpose: Smart image component for Auth/Profile sections.
  * Scope: Used in ProfilePage, LoginPage, etc.
  * Critical Dependencies:
- * - Utility: src/utils/imageOptimization.js (Logic Core).
+ * - Utility: src/utils/imageOptimization.js.
  * Non-Negotiables:
- * - Must accept 'baseName' prop.
- * - Must support 'eager' loading for LCP candidates.
- * - Must maintain existing LazyLoadImage behavior for non-critical images.
- * Change Intent: Refactored to use shared imageOptimization utility for DRY compliance and better maintainability.
- * Future AI Guidance: Do not re-introduce regex/url logic here. Keep it in the utility.
+ * - Must support fallback to Master URL if resized variants (srcset) 404.
+ * Change Intent: Added error handling state to support legacy images.
  */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
+    // State to track if optimized version failed
+    const [useFallback, setUseFallback] = useState(false);
 
     // AI-NOTE: Delegate logic to the shared utility
     const { src, srcset } = getOptimizedImageIds(baseName);
 
-    // If no valid src returned (e.g. empty baseName), render placeholder
+    // If no valid src returned, render placeholder
     if (!src || src.includes('placeholder')) {
         return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
     }
 
-    // AI-NOTE: Generate a low-res placeholder for the blur effect
-    // We manually construct the 480w URL here for the 'placeholderSrc' prop specific to this library
-    // The utility gives us the full srcset, but LazyLoadImage wants a single string for placeholder.
-    // We extract the base path from the result or regen it safely.
-    // Since we know the utility logic:
+    // Placeholder for blur effect (derived safely)
     const placeholderSrc = src.replace(/(\.[\w\d]+)$/, '-480.webp');
+
+    const handleError = () => {
+        if (!useFallback) {
+            console.warn(`ResponsiveAuthImage: Optimization failed for ${baseName}, falling back to master.`);
+            setUseFallback(true);
+        }
+    };
+
+    // If falling back, we remove srcset to force browser to use 'src'
+    const finalSrcSet = useFallback ? undefined : srcset;
 
     // PERFORMANCE FIX: If 'eager' is true (LCP images), use standard <img> tag
     if (eager) {
@@ -39,10 +44,11 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
             <img
                 alt={alt}
                 src={src}
-                srcSet={srcset}
+                srcSet={finalSrcSet}
                 sizes={sizes}
                 className={className}
                 onLoad={onLoad}
+                onError={handleError}
                 loading="eager"
                 fetchpriority="high"
                 width={width}
@@ -55,12 +61,13 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
         <LazyLoadImage
             alt={alt}
             src={src}
-            srcSet={srcset}
+            srcSet={finalSrcSet}
             sizes={sizes}
             placeholderSrc={placeholderSrc}
             effect="blur"
             className={className}
             afterLoad={onLoad}
+            onError={handleError}
             width={width}
             height={height}
         />

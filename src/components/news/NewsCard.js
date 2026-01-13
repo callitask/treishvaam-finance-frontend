@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './NewsCard.css';
 import { getOptimizedImageIds } from '../../utils/imageOptimization';
 
@@ -11,17 +11,37 @@ import { getOptimizedImageIds } from '../../utils/imageOptimization';
  * - CSS: NewsCard.css for layout stability (CLS).
  * Non-Negotiables:
  * - Impact Card MUST have fetchpriority="high".
- * - All images MUST use srcSet.
- * - Error handling must revert to placeholder or hide image.
- * Change Intent: Integrated imageOptimization utility to serve resized WebP images.
+ * - Must handle 404s on resized images by falling back to Master URL (Legacy Data Support).
+ * Change Intent: Added self-healing fallback logic to fix "missing images" regression for older articles.
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
+    // State to track if the optimized/resized version failed
+    const [useFallback, setUseFallback] = useState(false);
+    // State to track if even the fallback failed (broken image)
     const [imgError, setImgError] = useState(false);
+
+    // AI-NOTE: Reset states if article changes
+    useEffect(() => {
+        setUseFallback(false);
+        setImgError(false);
+    }, [article?.imageUrl]);
 
     if (!article) return null;
 
-    // AI-NOTE: Use the centralized utility to get the optimized srcset
+    // AI-NOTE: Get optimized URLs. 
+    // If useFallback is true, we ignore srcset and only use src (Master URL).
     const { src, srcset } = getOptimizedImageIds(article.imageUrl);
+
+    // AI-NOTE: Handler for image load errors.
+    // 1st Failure: Try Master URL (legacy image support).
+    // 2nd Failure: Show gray placeholder.
+    const handleError = () => {
+        if (!useFallback) {
+            setUseFallback(true);
+        } else {
+            setImgError(true);
+        }
+    };
 
     const getMeta = () => {
         if (!article.publishedAt) return "";
@@ -41,7 +61,6 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     };
 
     // --- VARIANT 1: IMPACT (Hero) ---
-    // AI-NOTE: LCP Critical Element. High priority fetch.
     if (variant === 'impact') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -50,10 +69,10 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         {!imgError && article.imageUrl ? (
                             <img
                                 src={src}
-                                srcSet={srcset}
+                                srcSet={useFallback ? undefined : srcset}
                                 sizes="(max-width: 768px) 100vw, 800px"
                                 alt={article.title}
-                                onError={() => setImgError(true)}
+                                onError={handleError}
                                 width="800"
                                 height="450"
                                 fetchpriority="high"
@@ -82,10 +101,10 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-snap-image">
                         <img
                             src={src}
-                            srcSet={srcset}
+                            srcSet={useFallback ? undefined : srcset}
                             sizes="(max-width: 768px) 95vw, 400px"
                             alt=""
-                            onError={() => setImgError(true)}
+                            onError={handleError}
                             width="400"
                             height="225"
                             className="w-full h-full object-cover"
@@ -141,10 +160,10 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-std-thumbnail">
                         <img
                             src={src}
-                            srcSet={srcset}
+                            srcSet={useFallback ? undefined : srcset}
                             sizes="150px"
                             alt=""
-                            onError={() => setImgError(true)}
+                            onError={handleError}
                             loading="lazy"
                             width="150"
                             height="150"

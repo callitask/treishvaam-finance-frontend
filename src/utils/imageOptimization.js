@@ -1,4 +1,4 @@
-import { API_URL } from '../apiConfig';
+import { BASE_URL } from '../apiConfig';
 
 /**
  * AI-CONTEXT:
@@ -6,7 +6,7 @@ import { API_URL } from '../apiConfig';
  * Scope: Used by NewsCard, ResponsiveAuthImage, and any future image components.
  * Critical Dependencies:
  * - Backend Naming Convention: Expects backend to generate 'uuid-480.webp', 'uuid-800.webp', etc.
- * - API_URL: Must be correctly defined in apiConfig.
+ * - BASE_URL: Must be correctly defined in apiConfig.
  * Non-Negotiables:
  * - Must always return a valid 'src' (fallback).
  * - Must force '.webp' extension for resized variants as per Backend ImageService guarantee.
@@ -43,7 +43,7 @@ export const getOptimizedImageIds = (inputString) => {
     // 3. Handle Static/Relative Paths
     if (inputString.startsWith('/')) {
         return {
-            src: `${API_URL}${inputString}`,
+            src: `${BASE_URL}${inputString}`,
             srcset: ''
         };
     }
@@ -58,7 +58,6 @@ export const getOptimizedImageIds = (inputString) => {
 
     if (match) {
         // If we found a UUID, use it as the base for robust matching
-        // This handles cases where input might be "uuid-800.webp" recursively
         baseName = match[0];
 
         // Try to preserve original extension if present in inputString for the fallback 'src'
@@ -81,7 +80,7 @@ export const getOptimizedImageIds = (inputString) => {
     }
 
     // 5. Construct URLs
-    const baseUrl = `${API_URL}/api/uploads`;
+    const baseUrl = `${BASE_URL}/api/uploads`;
 
     // Master image (fallback) - keep original extension or default
     const src = `${baseUrl}/${baseName}${originalExtension}`;
@@ -92,8 +91,7 @@ export const getOptimizedImageIds = (inputString) => {
         return `${baseUrl}/${baseName}-${width}.webp ${width}w`;
     });
 
-    // Add the master image to srcset as the largest option (assuming it's >1200w)
-    // We treat the master as the highest res backup
+    // Add the master image to srcset as the largest option
     srcsetParts.push(`${src} 1920w`);
 
     return {
