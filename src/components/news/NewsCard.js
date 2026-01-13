@@ -1,27 +1,27 @@
 import React, { useState } from 'react';
 import './NewsCard.css';
-import { BASE_URL } from '../../apiConfig';
+import { getOptimizedImageIds } from '../../utils/imageOptimization';
 
 /**
- * [AI-OPTIMIZED CONTEXT]
- * Component: NewsCard
- * Purpose: Renders individual news items in various visual styles.
- * Changes:
- * 1. Semantic Upgrade: H4 -> H3 for SEO hierarchy.
- * 2. Accessibility: Added empty alt tags for decorative images.
- * 3. Performance (CLS): Added explicit width/height to all <img> tags to reserve space.
+ * AI-CONTEXT:
+ * Purpose: Renders news items in various layouts (Impact, Market Snap, Standard).
+ * Scope: BlogPage, Homepage, MarketDetailPage.
+ * Critical Dependencies:
+ * - Utility: imageOptimization.js for URL generation.
+ * - CSS: NewsCard.css for layout stability (CLS).
+ * Non-Negotiables:
+ * - Impact Card MUST have fetchpriority="high".
+ * - All images MUST use srcSet.
+ * - Error handling must revert to placeholder or hide image.
+ * Change Intent: Integrated imageOptimization utility to serve resized WebP images.
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [imgError, setImgError] = useState(false);
 
     if (!article) return null;
 
-    const getImageUrl = (url) => {
-        if (!url) return '/placeholder-news.jpg';
-        if (url.startsWith('http') || url.startsWith('https')) return url;
-        if (url.startsWith('/')) return `${BASE_URL}${url}`;
-        return `${BASE_URL}/api/uploads/${url}`;
-    };
+    // AI-NOTE: Use the centralized utility to get the optimized srcset
+    const { src, srcset } = getOptimizedImageIds(article.imageUrl);
 
     const getMeta = () => {
         if (!article.publishedAt) return "";
@@ -40,7 +40,8 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         }
     };
 
-    // --- VARIANT 1: IMPACT (The Hero - Text Below Image) ---
+    // --- VARIANT 1: IMPACT (Hero) ---
+    // AI-NOTE: LCP Critical Element. High priority fetch.
     if (variant === 'impact') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -48,11 +49,14 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-impact-image-container">
                         {!imgError && article.imageUrl ? (
                             <img
-                                src={getImageUrl(article.imageUrl)}
+                                src={src}
+                                srcSet={srcset}
+                                sizes="(max-width: 768px) 100vw, 800px"
                                 alt={article.title}
                                 onError={() => setImgError(true)}
                                 width="800"
                                 height="450"
+                                fetchpriority="high"
                                 className="w-full h-full object-cover"
                             />
                         ) : (
@@ -70,14 +74,16 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 3: MARKET SNAP (Visual Stack) ---
+    // --- VARIANT 3: MARKET SNAP ---
     if (variant === 'market-snap' && !imgError && article.imageUrl) {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
                 <article className="nc-snap-card">
                     <div className="nc-snap-image">
                         <img
-                            src={getImageUrl(article.imageUrl)}
+                            src={src}
+                            srcSet={srcset}
+                            sizes="(max-width: 768px) 95vw, 400px"
                             alt=""
                             onError={() => setImgError(true)}
                             width="400"
@@ -93,7 +99,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 4: OPINION (Quote Box) ---
+    // --- VARIANT 4: OPINION ---
     if (variant === 'opinion') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -106,7 +112,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 5: RANKED (Trending List) ---
+    // --- VARIANT 5: RANKED ---
     if (variant === 'ranked') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -122,7 +128,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
         );
     }
 
-    // --- VARIANT 2: STANDARD (Default Rectangular Media Object) ---
+    // --- VARIANT 2: STANDARD (Default) ---
     return (
         <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
             <article className="nc-standard-card">
@@ -134,7 +140,9 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 {!imgError && article.imageUrl && (
                     <div className="nc-std-thumbnail">
                         <img
-                            src={getImageUrl(article.imageUrl)}
+                            src={src}
+                            srcSet={srcset}
+                            sizes="150px"
                             alt=""
                             onError={() => setImgError(true)}
                             loading="lazy"

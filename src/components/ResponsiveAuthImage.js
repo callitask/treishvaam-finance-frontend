@@ -1,61 +1,50 @@
-/**
- * AI-CONTEXT:
- * Purpose: Smart image component that requests the correct resolution from the backend based on screen width.
- * Changes:
- * - Fixed srcSet to match Backend ImageService generation (-480, -800, -1200).
- * - Added width/height prop support for CLS prevention.
- * - Removed broken '-tiny' and '-small' references.
- * Non-Negotiables: Must match Backend file naming exactly.
- */
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import { API_URL } from '../apiConfig';
+import { getOptimizedImageIds } from '../utils/imageOptimization';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Smart image component for Auth/Profile sections.
+ * Scope: Used in ProfilePage, LoginPage, etc.
+ * Critical Dependencies:
+ * - Utility: src/utils/imageOptimization.js (Logic Core).
+ * Non-Negotiables:
+ * - Must accept 'baseName' prop.
+ * - Must support 'eager' loading for LCP candidates.
+ * - Must maintain existing LazyLoadImage behavior for non-critical images.
+ * Change Intent: Refactored to use shared imageOptimization utility for DRY compliance and better maintainability.
+ * Future AI Guidance: Do not re-introduce regex/url logic here. Keep it in the utility.
+ */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
-    // Render a simple placeholder if baseName is invalid.
-    if (!baseName || typeof baseName !== 'string') {
+
+    // AI-NOTE: Delegate logic to the shared utility
+    const { src, srcset } = getOptimizedImageIds(baseName);
+
+    // If no valid src returned (e.g. empty baseName), render placeholder
+    if (!src || src.includes('placeholder')) {
         return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
     }
 
-    const uuidRegex = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/;
-    const match = baseName.match(uuidRegex);
-
-    if (!match) {
-        console.warn(`ResponsiveAuthImage: Could not extract a valid image ID from baseName: "${baseName}"`);
-        return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
-    }
-
-    const cleanedBaseName = match[0];
-
-    // AI-NOTE: Matched to Backend ImageService.java generation logic
-    // Available variants: .webp (1920w), -1200.webp, -800.webp, -480.webp
-    const src = `${API_URL}/api/uploads/${cleanedBaseName}-800.webp`; // Default safe fallback
-
-    // Backend does not currently generate a 'tiny' blurred placeholder, so we use the smallest available (480)
-    // to prevent 404s on the placeholder request.
-    const placeholderSrc = `${API_URL}/api/uploads/${cleanedBaseName}-480.webp`;
-
-    const srcSet = [
-        `${API_URL}/api/uploads/${cleanedBaseName}-480.webp 480w`,
-        `${API_URL}/api/uploads/${cleanedBaseName}-800.webp 800w`,
-        `${API_URL}/api/uploads/${cleanedBaseName}-1200.webp 1200w`,
-        `${API_URL}/api/uploads/${cleanedBaseName}.webp 1920w`
-    ].join(', ');
+    // AI-NOTE: Generate a low-res placeholder for the blur effect
+    // We manually construct the 480w URL here for the 'placeholderSrc' prop specific to this library
+    // The utility gives us the full srcset, but LazyLoadImage wants a single string for placeholder.
+    // We extract the base path from the result or regen it safely.
+    // Since we know the utility logic:
+    const placeholderSrc = src.replace(/(\.[\w\d]+)$/, '-480.webp');
 
     // PERFORMANCE FIX: If 'eager' is true (LCP images), use standard <img> tag
-    // This avoids JS delays from the lazy-load library and enables browser prioritization
     if (eager) {
         return (
             <img
                 alt={alt}
                 src={src}
-                srcSet={srcSet}
+                srcSet={srcset}
                 sizes={sizes}
                 className={className}
                 onLoad={onLoad}
                 loading="eager"
-                fetchpriority="high" // Critical for LCP optimization
+                fetchpriority="high"
                 width={width}
                 height={height}
             />
@@ -66,12 +55,12 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
         <LazyLoadImage
             alt={alt}
             src={src}
-            srcSet={srcSet}
+            srcSet={srcset}
             sizes={sizes}
             placeholderSrc={placeholderSrc}
             effect="blur"
             className={className}
-            afterLoad={onLoad} // Use afterLoad for the library's load event
+            afterLoad={onLoad}
             width={width}
             height={height}
         />
