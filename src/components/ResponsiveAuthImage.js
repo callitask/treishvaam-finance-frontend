@@ -10,7 +10,8 @@ import { getOptimizedImageIds } from '../utils/imageOptimization';
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
- * • Propagated width/height props to underlying <img> tags for CLS prevention
+ * • Fixed Placeholder Generation Regex to prevent domain corruption
+ * • Reason: prevented "...group.com" from becoming "...group-480.webp"
  */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
     const [useFallback, setUseFallback] = useState(false);
@@ -31,9 +32,18 @@ const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = 
 
     const finalSrcSet = useFallback ? undefined : srcset;
 
-    // Attempt to generate a placeholder URL for the blur effect
-    // We safely replace the extension of the *src* (which we know is correct now)
-    const placeholderSrc = src.replace(/(\.[^.]+)$/, '-480.webp');
+    // FIX: Safer Placeholder Generation
+    // 1. Check if src has an extension at the end (after the last slash)
+    // 2. If yes, replace it. If no, append the suffix.
+    // 3. This prevents replacing ".com" in the domain name.
+    let placeholderSrc;
+    if (src.match(/\.[^/.]+$/)) {
+        // Has extension (e.g. .jpg, .webp) -> Replace it
+        placeholderSrc = src.replace(/(\.[^/.]+)$/, '-480.webp');
+    } else {
+        // No extension (e.g. UUID only) -> Append suffix
+        placeholderSrc = src + '-480.webp';
+    }
 
     if (eager) {
         return (
