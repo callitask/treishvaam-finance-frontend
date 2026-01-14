@@ -22,6 +22,11 @@ import { BASE_URL } from '../apiConfig';
  * * Critical Dependencies:
  * - Backend: Expects 'filename-480.webp', 'filename-800.webp' convention.
  * - apiConfig: Needs BASE_URL.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Updated baseURL to include '/v1' to match backend WebConfig registry
+ * • Reason: Fixed 404 errors on blog feed images where path was missing version segment
  */
 
 // AI-NOTE: Matches backend ImageService.java generation logic (480w, 800w, 1200w)
@@ -70,7 +75,8 @@ export const getOptimizedImageIds = (inputString) => {
     }
     // If no extension, we treat the whole string as the base name.
 
-    const baseUrl = `${BASE_URL}/api/uploads`;
+    // FIX: Backend WebConfig serves static files at /api/v1/uploads/**, not /api/uploads
+    const baseUrl = `${BASE_URL}/api/v1/uploads`;
 
     // Construct the Master URL (Fallback) - uses original inputString to ensure exact match
     const src = `${baseUrl}/${inputString}`;
