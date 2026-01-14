@@ -5,33 +5,32 @@ import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Desktop Components
-import FeaturedColumn from '../components/BlogPage/FeaturedColumn';
-import MarketSidebar from '../components/BlogPage/MarketSidebar';
+// CHANGED: Lazy Load heavy desktop components for performance
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 import HeroSection from '../components/BlogPage/HeroSection';
 
-// Mobile Components
-import BlogSlideMobile from '../components/BlogPage/BlogSlideMobile';
-
 // Utils
 import { distributeContent } from '../utils/editorialDistributor';
 
-// Lazy Load Mobile Tabs
+// Lazy Load Mobile Tabs & Heavy Sidebars
 const MarketSlideMobile = React.lazy(() => import('../components/BlogPage/MarketSlideMobile'));
 const NewsTabMobile = React.lazy(() => import('../components/BlogPage/NewsTabMobile'));
 const VisionPage = React.lazy(() => import('./VisionPage'));
+const BlogSlideMobile = React.lazy(() => import('../components/BlogPage/BlogSlideMobile'));
+
+// New Lazy Loaded Desktop Components
+const FeaturedColumn = React.lazy(() => import('../components/BlogPage/FeaturedColumn'));
+const MarketSidebar = React.lazy(() => import('../components/BlogPage/MarketSidebar'));
 
 /**
  * [AI-OPTIMIZED CONTEXT]
  * Component: BlogPage
  * Purpose: The main landing page / feed of the application.
  * * CHANGES (Accessibility & Structure):
- * 1. Mobile Bottom Nav Contrast: 
- * - Changed inactive icon color from 'text-gray-400' to 'text-slate-500'.
- * - Reason: 'text-gray-400' on white background fails WCAG AA (Contrast < 4.5:1). 'text-slate-500' passes.
- * 2. Layout Distribution: Uses 'distributeContent' util to split posts into Hero, Must Read, Briefing, and Feed.
+ * 1. Lazy Loading: Implemented for Desktop Sidebar and Featured Column.
+ * 2. Performance: Reduced initial bundle size by splitting heavy widgets.
  * * FUTURE MAINTENANCE:
  * - Ensure any new text elements added to MobileBottomNav meet WCAG AA contrast standards.
  */
@@ -193,7 +192,9 @@ const BlogPage = () => {
                                     <div className="border-b-2 border-black pb-2 mb-4">
                                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
                                     </div>
-                                    <FeaturedColumn />
+                                    <Suspense fallback={<div className="h-40 bg-gray-50 animate-pulse rounded"></div>}>
+                                        <FeaturedColumn />
+                                    </Suspense>
                                 </div>
                             </aside>
 
@@ -226,7 +227,9 @@ const BlogPage = () => {
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
                                 {/* CHANGED: Sticky top adjusted to 150px */}
                                 <div className="sticky top-[150px] space-y-10">
-                                    <MarketSidebar />
+                                    <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse rounded"></div>}>
+                                        <MarketSidebar />
+                                    </Suspense>
                                 </div>
                             </aside>
                         </div>

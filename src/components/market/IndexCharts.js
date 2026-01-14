@@ -1,9 +1,22 @@
 // src/components/market/IndexCharts.js
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import TradingViewChart from './TradingViewChart'; // <--- NEW IMPORT
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+
+/**
+ * AI-CONTEXT:
+ * Purpose: Interactive Market Indices Chart Widget.
+ * Change Intent: Lazy Loading implemented for performance.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED:
+ * • Converted TradingViewChart to Lazy Load
+ * • Reason: Reduce initial bundle size (Main Thread Blocking)
+ */
+
+// Lazy Load the heavy chart library
+const TradingViewChart = React.lazy(() => import('./TradingViewChart'));
 
 const MARKET_INDICES = {
     'US': [
@@ -186,13 +199,15 @@ const IndexCharts = () => {
                             </div>
                         </div>
 
-                        {/* Updated Chart */}
+                        {/* Updated Chart: Lazy Loaded */}
                         <div className="h-[150px] -mx-1">
-                            <TradingViewChart
-                                data={chartData}
-                                color={isPos ? '#22c55e' : '#ef4444'}
-                                height={150}
-                            />
+                            <Suspense fallback={<div className="w-full h-full bg-gray-50 animate-pulse rounded"></div>}>
+                                <TradingViewChart
+                                    data={chartData}
+                                    color={isPos ? '#22c55e' : '#ef4444'}
+                                    height={150}
+                                />
+                            </Suspense>
                         </div>
 
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-3">

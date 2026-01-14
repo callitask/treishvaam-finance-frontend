@@ -14,6 +14,7 @@ import './GlobalMarketTicker.css';
  * - EDITED:
  * • Fixed CLS by enforcing exact height on Skeleton loader
  * • Improved text contrast (slate-500 -> slate-600) for WCAG AA compliance
+ * • Added accessibility color fixes (slate-600)
  */
 
 // Helper to format change percentage
