@@ -18,6 +18,9 @@ import { BASE_URL } from '../apiConfig';
  * - RESULT: 404 errors on mobile.
  * - FIX: This utility generates the URL, but the COMPONENT (NewsCard) handles the fallback.
  * If this utility returns a URL that 404s, the component switches to 'src' (Master).
+ * * 4. 404 ON MASTER WEBP (CRITICAL FIX):
+ * - Forcing 'src' to .webp caused broken images for legacy uploads that only exist as .jpg.
+ * - FIX: 'src' must ALWAYS be the original filename (inputString). Only 'srcset' should use .webp.
  * ------------------------------------------------------------------
  * * Critical Dependencies:
  * - Backend: Expects 'filename-480.webp', 'filename-800.webp' convention.
@@ -31,6 +34,10 @@ import { BASE_URL } from '../apiConfig';
  * • Forced Master Image (`src`) to use .webp extension
  * • Reason: Reduced LCP payload from ~2.8MB (JPG) to ~300KB (WebP)
  * • Logic: Swaps extension if present, appends if missing.
+ * - REVERTED (STABILITY FIX):
+ * • Reverted 'src' to use original filename
+ * • Reason: Fixed 404 errors for legacy images that do not have a master .webp counterpart.
+ * • Mechanism: 'srcset' still provides WebP, but 'src' is now a safe fallback.
  */
 
 // AI-NOTE: Matches backend ImageService.java generation logic (480w, 800w, 1200w)
@@ -82,10 +89,11 @@ export const getOptimizedImageIds = (inputString) => {
     // FIX: Backend WebConfig serves static files at /api/v1/uploads/**, not /api/uploads
     const baseUrl = `${BASE_URL}/api/v1/uploads`;
 
-    // PERFORMANCE FIX: Force WebP for the master image.
-    // The backend ImageService creates a master .webp for every upload.
-    // We prefer this over the raw .jpg/.png to save bandwidth (2.8MB -> 300KB).
-    const src = `${baseUrl}/${baseName}.webp`;
+    // STABILITY FIX: Use the original inputString for 'src'.
+    // This guarantees that if the browser falls back (or if WebP variants don't exist),
+    // it tries the file we KNOW exists (e.g., .jpg).
+    // The previous optimization (forcing .webp on src) caused 404s for legacy data.
+    const src = `${baseUrl}/${inputString}`;
 
     // Construct srcset string
     // Format: "url-480.webp 480w, url-800.webp 800w, url-1200.webp 1200w"
@@ -93,11 +101,12 @@ export const getOptimizedImageIds = (inputString) => {
         return `${baseUrl}/${baseName}-${width}.webp ${width}w`;
     });
 
-    // Append the master image to srcset as the largest option (1920w)
-    srcsetParts.push(`${src} 1920w`);
+    // Append the master WebP image to srcset as the largest option (1920w)
+    // This allows modern browsers to pick the high-res WebP if needed, without breaking 'src' fallback.
+    srcsetParts.push(`${baseUrl}/${baseName}.webp 1920w`);
 
     return {
-        src, // Now points to .webp
-        srcset: srcsetParts.join(', ')
+        src, // Safe fallback (Original extension)
+        srcset: srcsetParts.join(', ') // Optimized options (WebP)
     };
 };

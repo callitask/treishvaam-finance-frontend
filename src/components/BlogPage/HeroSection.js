@@ -9,6 +9,9 @@
  * - EDITED:
  * • Optimized 'sizes' attribute for better Mobile LCP (100vw priority)
  * • Enforced width/height to prevent layout shifts
+ * - EDITED (LCP OPTIMIZATION):
+ * • Tuned desktop 'sizes' from 1280px to 860px
+ * • Reason: Match actual grid width to trigger 1200w/800w WebP variant instead of Master
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -38,7 +41,10 @@ const HeroSection = ({ featuredPost }) => {
                         alt={featuredPost.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         eager={true}
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1280px"
+                        // AI-NOTE: Desktop grid width is ~860px (col-span-8). 
+                        // Setting sizes="860px" allows browser to pick the 1200w WebP variant (~200KB)
+                        // instead of the 1920w/Original (~3MB).
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 860px"
                         width={1280}
                         height={720}
                     />
