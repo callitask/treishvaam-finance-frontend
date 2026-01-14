@@ -7,6 +7,10 @@ import { getOptimizedImageIds } from '../utils/imageOptimization';
  * AI-CONTEXT:
  * Purpose: Smart image component for Auth/Profile.
  * Change Intent: Integrated corrected prefix-aware URL utility.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Propagated width/height props to underlying <img> tags for CLS prevention
  */
 const ResponsiveAuthImage = ({ baseName, alt, className, sizes, onLoad, eager = false, width, height }) => {
     const [useFallback, setUseFallback] = useState(false);

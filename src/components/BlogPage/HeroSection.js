@@ -4,6 +4,11 @@
  * Changes:
  * - Added explicit width/height to ResponsiveAuthImage for CLS prevention.
  * - Maintained strict sizes attribute for LCP optimization.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Optimized 'sizes' attribute for better Mobile LCP (100vw priority)
+ * • Enforced width/height to prevent layout shifts
  */
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -33,7 +38,7 @@ const HeroSection = ({ featuredPost }) => {
                         alt={featuredPost.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         eager={true}
-                        sizes="(max-width: 768px) 95vw, (max-width: 1280px) 66vw, 50vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1280px"
                         width={1280}
                         height={720}
                     />

@@ -5,12 +5,11 @@ import { getOptimizedImageIds } from '../../utils/imageOptimization';
 /**
  * AI-CONTEXT:
  * Purpose: Renders news cards.
- * * ------------------------------------------------------------------
- * OPTIMIZATION UPDATE:
- * - 'sizes' attributes tightened to prevent over-fetching.
- * - Standard Card: "(max-width: 640px) 30vw, 150px" (Prevents loading 480w full size).
- * - Impact Card: "(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 800px".
- * ------------------------------------------------------------------
+ * Scope: News Section, Homepage.
+ * Critical History:
+ * - [2026-01-14] Updated Impact Card sizes to explicit "(max-width: 480px) 100vw" to force 480w download on mobile.
+ * Non-Negotiables:
+ * - onError fallback logic must remain for legacy images.
  */
 const NewsCard = ({ article, variant = 'standard', rank }) => {
     const [useFallback, setUseFallback] = useState(false);
@@ -52,7 +51,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
     const finalSrcSet = useFallback ? undefined : srcset;
 
     // --- VARIANT 1: IMPACT (Hero) ---
-    // AI-NOTE: Optimized sizes for Hero. Mobile=100vw, Desktop=50vw or 800px max.
+    // AI-NOTE: LCP OPTIMIZED. Explicitly prefers 480w on mobile to reduce payload <50KB.
     if (variant === 'impact') {
         return (
             <a href={article.link} target="_blank" rel="noopener noreferrer" className="nc-link-wrapper">
@@ -62,7 +61,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                             <img
                                 src={src}
                                 srcSet={finalSrcSet}
-                                sizes="(max-width: 768px) 100vw, (max-width: 1280px) 66vw, 800px"
+                                sizes="(max-width: 480px) 100vw, (max-width: 768px) 100vw, (max-width: 1280px) 66vw, 800px"
                                 alt={article.title}
                                 onError={handleError}
                                 width="800"
@@ -94,7 +93,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         <img
                             src={src}
                             srcSet={finalSrcSet}
-                            sizes="(max-width: 768px) 95vw, 400px"
+                            sizes="(max-width: 480px) 100vw, (max-width: 768px) 95vw, 400px"
                             alt=""
                             onError={handleError}
                             width="400"

@@ -4,6 +4,15 @@ import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import Slider from "react-slick";
 import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Reusable card for blog post feed.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Changed title heading from H3 to H2 to fix Accessibility hierarchy (H1 -> H2)
+ */
+
 const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
     const sliderRef = useRef(null);
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
@@ -34,6 +43,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                                         alt={thumb.altText || article.title}
                                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                         width={400}
+                                        height={300}
                                     />
                                 </Link>
                             </div>
@@ -49,6 +59,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                     alt={article.thumbnails[0].altText || article.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     width={400}
+                    height={300}
                 />
             </Link>
         );
@@ -75,9 +86,10 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                     {isNew && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded ml-auto md:ml-0">NEW</span>}
                 </div>
 
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 font-serif leading-snug mb-3 group-hover:text-sky-700 transition-colors">
+                {/* ACCESSIBILITY: Changed H3 to H2 for correct hierarchy */}
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900 font-serif leading-snug mb-3 group-hover:text-sky-700 transition-colors">
                     <Link to={postLink}>{article.title}</Link>
-                </h3>
+                </h2>
 
                 <p className="text-gray-600 text-sm md:text-base leading-relaxed line-clamp-2 md:line-clamp-3 mb-4 font-serif">
                     {createSnippet(article.customSnippet || article.content, 160)}

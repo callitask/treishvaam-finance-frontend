@@ -9,6 +9,11 @@ import './GlobalMarketTicker.css';
  * Changes:
  * - Accessibility: Improved contrast (text-gray-500 -> text-slate-600).
  * - CLS: Enforced container heights to prevent layout shifts during loading.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Fixed CLS by enforcing exact height on Skeleton loader
+ * • Improved text contrast (slate-500 -> slate-600) for WCAG AA compliance
  */
 
 // Helper to format change percentage
@@ -20,7 +25,7 @@ const formatChange = (change) => {
 // Helper to determine color
 const getChangeColor = (change) => {
     // ACCESSIBILITY: slate-500 has better contrast than gray-500 on white
-    if (change == null || isNaN(change)) return 'text-slate-500';
+    if (change == null || isNaN(change)) return 'text-slate-600';
     return change >= 0 ? 'text-green-700' : 'text-red-700'; // Darker shades for AA compliance
 };
 
@@ -123,10 +128,10 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                 <div className="global-ticker-row-container py-1 h-[48px] overflow-hidden">
                     <div className="global-ticker-row">
                         {loading && (
-                            [...Array(4)].map((_, i) => (
-                                <div key={i} className="global-ticker-card skeleton px-4 py-2 border-r border-gray-100 min-w-[120px]">
-                                    <div className="skeleton-line w-16 h-3 mb-1 bg-gray-200 rounded"></div>
-                                    <div className="skeleton-line w-12 h-3 bg-gray-200 rounded"></div>
+                            [...Array(6)].map((_, i) => ( // Increased skeleton count to fill width
+                                <div key={i} className="global-ticker-card px-4 py-2 border-r border-gray-100 min-w-[120px] flex flex-col justify-center h-full">
+                                    <div className="w-16 h-3 mb-1 bg-gray-100 rounded animate-pulse"></div>
+                                    <div className="w-12 h-3 bg-gray-100 rounded animate-pulse"></div>
                                 </div>
                             ))
                         )}
