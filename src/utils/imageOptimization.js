@@ -11,12 +11,17 @@ import { BASE_URL } from '../apiConfig';
  * 2. ENABLED ENTERPRISE NEWS (MULTI-VARIANT):
  * - Detected 'news-mv-' prefix (New Enterprise System).
  * - Returns FULL srcset for these, enabling 480w/800w optimization on mobile.
+ * 3. FIXED DOUBLE PATH ISSUE (CRITICAL):
+ * - Backend now returns full path 'api/v1/uploads/news-mv-...'
+ * - Frontend was prepending base url again.
+ * - FIX: Normalized input to always extract just the filename before processing.
  * ------------------------------------------------------------------
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
  * • Added smart detection for 'news-' (Legacy) vs 'news-mv-' (Enterprise)
- * • Reason: Eliminate 404 errors for old items while enabling performance for new ones.
+ * • Added Path Normalization to strip directory prefixes
+ * • Reason: Fix broken images due to double-path construction
  */
 
 // AI-NOTE: Matches backend ImageService.java generation logic (480w, 800w, 1200w)
@@ -38,36 +43,45 @@ export const getOptimizedImageIds = (inputString) => {
         return { src: inputString, srcset: '' };
     }
 
-    // 3. Handle Relative Paths
-    if (inputString.startsWith('/')) {
+    // 3. Handle Relative Paths that are NOT API uploads (e.g. static assets)
+    // If it starts with / and DOES NOT contain 'api/v1/uploads' or 'api/uploads', treat as static website asset.
+    if (inputString.startsWith('/') && !inputString.includes('api/v1/uploads') && !inputString.includes('api/uploads')) {
         return { src: `${BASE_URL}${inputString}`, srcset: '' };
     }
 
-    // 4. Construct Backend URLs
-    let baseName = inputString;
-    const extIndex = inputString.lastIndexOf('.');
+    // 4. NORMALIZE INPUT: Strip directory paths to get raw filename
+    // Fixes the "Double Path" issue where backend returns "api/v1/uploads/file.webp"
+    let rawFilename = inputString;
+    const parts = inputString.split('/');
+    if (parts.length > 1) {
+        // Take the last segment (the actual filename)
+        rawFilename = parts[parts.length - 1];
+    }
+
+    // 5. Construct Base Name (remove extension)
+    let baseName = rawFilename;
+    const extIndex = rawFilename.lastIndexOf('.');
     if (extIndex !== -1) {
-        baseName = inputString.substring(0, extIndex);
+        baseName = rawFilename.substring(0, extIndex);
     }
 
     const baseUrl = `${BASE_URL}/api/v1/uploads`;
 
-    // SAFE FALLBACK: 'src' is always the original filename requested
-    const src = `${baseUrl}/${inputString}`;
+    // SAFE FALLBACK: 'src' uses the clean filename
+    const src = `${baseUrl}/${rawFilename}`;
 
-    // --- SMART LOGIC FOR NEWS ITEMS ---
+    // --- SMART LOGIC ---
     // Rule: Legacy News items (prefix 'news-') do NOT have variants.
     // Rule: Enterprise News items (prefix 'news-mv-') DO have variants.
-    // Rule: Blog/User items (UUID only) DO have variants.
 
     // Check if it is a Legacy News item (Starts with 'news-' BUT NOT 'news-mv-')
-    const isLegacyNews = inputString.startsWith('news-') && !inputString.startsWith('news-mv-');
+    const isLegacyNews = rawFilename.startsWith('news-') && !rawFilename.startsWith('news-mv-');
 
     if (isLegacyNews) {
         // LEGACY MODE: Return only src. Stops 404 console errors.
         return {
             src,
-            srcset: '' // No variants exist for these
+            srcset: ''
         };
     }
 
