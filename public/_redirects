@@ -1,5 +1,0 @@
-# Cloudflare Pages Redirects
-# Note: WWW Redirection and HTTPS enforcement are handled by Cloudflare Page Rules.
-
-# SPA Fallback (Critical for React Router)
-/* /index.html 200
