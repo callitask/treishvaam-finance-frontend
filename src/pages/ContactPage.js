@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+// AI-CONTEXT: Removed Navbar and Footer imports to prevent duplication (handled by MainLayout)
 import { API_URL } from '../apiConfig'; // Import base URL
 
 const ContactPage = () => {
@@ -32,7 +31,7 @@ const ContactPage = () => {
     const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
 
     return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex flex-col font-sans">
+        <>
             <Helmet>
                 <title>{pageTitle}</title>
                 <meta name="description" content={pageDescription} />
@@ -53,9 +52,12 @@ const ContactPage = () => {
                 <meta name="twitter:image" content={imageUrl} />
             </Helmet>
 
-            <Navbar />
-
-            <main className="flex-grow container mx-auto px-4 py-12 max-w-4xl">
+            {/* AI-NOTE: 
+               - Removed outer div with min-h-screen/bg-slate-50 because MainLayout handles the page container.
+               - Removed <Navbar /> and <Footer /> to fix duplication.
+               - Changed <main> to <div> to avoid nested <main> tags (MainLayout already provides one).
+            */}
+            <div className="w-full max-w-4xl mx-auto py-12">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 md:p-12">
                     <div className="text-center mb-10">
                         <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Get in Touch</h1>
@@ -124,10 +126,8 @@ const ContactPage = () => {
                         </div>
                     </form>
                 </div>
-            </main>
-
-            <Footer />
-        </div>
+            </div>
+        </>
     );
 };
 
