@@ -1,10 +1,14 @@
-# Allow all crawlers
+# AI-CONTEXT:
+# Purpose: Single Source of Truth for Crawler Directives (Worker Fall-through).
+# Critical: Contains strict security disallows previously managed by Edge Worker.
+# Dependencies: Must match Backend SecurityConfig patterns.
+
 User-agent: *
 
 # Allow access to all content by default
 Allow: /
 
-# --- CRITICAL FIX: Allow Googlebot to fetch content for rendering ---
+# --- ENTERPRISE SEO: Allow Googlebot to fetch content for rendering ---
 Allow: /api/posts
 Allow: /api/categories
 Allow: /api/market
@@ -16,6 +20,8 @@ Disallow: /api/contact/
 Disallow: /api/admin/
 Disallow: /dashboard/
 Disallow: /?q=*
+Disallow: /silent-check-sso.html
+Disallow: /login
 
 # Sitemap Index
 Sitemap: https://treishfin.treishvaamgroup.com/sitemap.xml
