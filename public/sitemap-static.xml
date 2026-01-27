@@ -21,21 +21,6 @@
         <changefreq>yearly</changefreq>
         <priority>0.5</priority>
     </url>
-    <url>
-        <loc>https://treishfin.treishvaamgroup.com/businesses</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.7</priority>
-    </url>
-    <url>
-        <loc>https://treishfin.treishvaamgroup.com/sustainability</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.7</priority>
-    </url>
-    <url>
-        <loc>https://treishfin.treishvaamgroup.com/investors</loc>
-        <changefreq>monthly</changefreq>
-        <priority>0.7</priority>
-    </url>
     
     <url>
         <loc>https://treishfin.treishvaamgroup.com/terms</loc>
