@@ -1,7 +1,7 @@
 /**
  * AI-CONTEXT:
  * Purpose: Public Entry Point (Root "/").
- * Design: "Davos-Grade" Institutional Financial Landing Page.
+ * Design: "Davos-Grade" Community Center Landing Page.
  * Target: High-Net-Worth Individuals & Intellectuals.
  * Features:
  * - Ultra-Minimal "LinkedIn-Professional" Aesthetic.
@@ -15,7 +15,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { getCategories, getTopGainers } from '../apiConfig';
 import {
     FaGoogle, FaFacebookF, FaLinkedinIn, FaTwitter,
-    FaChartLine, FaArrowRight, FaGlobeAmericas,
+    FaChartLine, FaArrowRight,
     FaSearchDollar, FaBuilding, FaArrowUp, FaArrowDown, FaLock
 } from 'react-icons/fa';
 import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
@@ -67,30 +67,30 @@ const LandingPage = () => {
                 <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
 
                     {/* =======================
-              LEFT COLUMN: THE PROPOSITION (Minimal & Authoritative)
+              LEFT COLUMN: THE COMMUNITY PROPOSITION
               ======================= */}
                     <div className="w-full lg:w-[45%] flex flex-col justify-center animate-fade-in-up order-2 lg:order-1">
 
                         {/* Exclusive Tag */}
                         <div className="flex items-center gap-3 mb-8">
                             <span className="w-8 h-[1px] bg-slate-400"></span>
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Institutional Access</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">Global Community</span>
                         </div>
 
                         {/* Hero Heading - Serif for Authority */}
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-serif font-medium text-slate-900 leading-[1.05] mb-8 tracking-tight">
                             The Network for <br />
-                            <span className="italic text-slate-500">Intelligent</span> Capital.
+                            <span className="italic text-slate-500">Intelligent</span> Minds.
                         </h1>
 
                         <p className="text-lg text-slate-600 mb-12 leading-relaxed max-w-lg font-light">
-                            Join an exclusive community of investors and thinkers. Access real-time market intelligence, proprietary data, and expert analysis in a distraction-free environment.
+                            Join a premier community of investors and thinkers. Share real-time market intelligence, proprietary data, and expert analysis in a distraction-free environment.
                         </p>
 
-                        {/* MEMBER ACCESS CARD (Clean & Secure) */}
+                        {/* COMMUNITY ACCESS CARD (Clean & Secure) */}
                         <div className="max-w-md">
                             <div className="flex items-center justify-between mb-4">
-                                <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">Member Sign In</p>
+                                <p className="text-xs font-bold text-slate-900 uppercase tracking-widest">Community Access</p>
                                 <FaLock className="text-slate-300 text-xs" />
                             </div>
 
@@ -124,7 +124,7 @@ const LandingPage = () => {
 
                                 <div className="text-center">
                                     <Link to="/home" className="text-xs font-bold text-slate-400 hover:text-slate-900 transition-colors uppercase tracking-wider border-b border-transparent hover:border-slate-900 pb-0.5">
-                                        Guest Access (Limited View)
+                                        Explore Community (Guest)
                                     </Link>
                                 </div>
                             </div>
@@ -132,7 +132,7 @@ const LandingPage = () => {
                             {/* Intelligence Tags */}
                             <div className="flex flex-wrap gap-x-6 gap-y-2">
                                 {loading ? (
-                                    <span className="text-xs text-slate-300">Loading intelligence...</span>
+                                    <span className="text-xs text-slate-300">Loading topics...</span>
                                 ) : (
                                     categories.map(cat => (
                                         <Link key={cat.id} to="/home" className="text-xs font-medium text-slate-400 hover:text-sky-700 transition-colors">
@@ -140,7 +140,7 @@ const LandingPage = () => {
                                         </Link>
                                     ))
                                 )}
-                                <Link to="/home" className="text-xs font-bold text-slate-900">View All Markets &rarr;</Link>
+                                <Link to="/home" className="text-xs font-bold text-slate-900">View All Topics &rarr;</Link>
                             </div>
                         </div>
                     </div>
