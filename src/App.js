@@ -7,15 +7,18 @@ import { WatchlistProvider } from './context/WatchlistContext';
 import PrivateRoute from './components/PrivateRoute';
 import MainLayout from './layouts/MainLayout';
 import DashboardLayout from './layouts/DashboardLayout';
-import ThirdPartyScripts from './components/ThirdPartyScripts'; // IMPORT ADDED
+import ThirdPartyScripts from './components/ThirdPartyScripts';
 
 /**
  * AI-CONTEXT:
- * Purpose: Root Application Component.
- * Changes: Added <ThirdPartyScripts /> to handle non-blocking Ad/Analytics loading.
+ * Purpose: Root Application Component & Routing Matrix.
+ * Update:
+ * - Added LandingPage at "/" for "Zero-Trust Entry".
+ * - Moved BlogPage (Feed) to "/home".
  */
 
 // --- Lazy-loaded Page Components ---
+const LandingPage = lazy(() => import('./pages/LandingPage')); // NEW
 const BlogPage = lazy(() => import('./pages/BlogPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const VisionPage = lazy(() => import('./pages/VisionPage'));
@@ -37,7 +40,7 @@ const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen bg-slate-50 dark:bg-slate-900 text-gray-500 dark:text-gray-400">
-    <p>Loading...</p>
+    <p>Loading Treishvaam...</p>
   </div>
 );
 
@@ -46,23 +49,32 @@ function App() {
     <AuthProvider>
       <ThemeProvider>
         <WatchlistProvider>
-          {/* AI-NOTE: Mount ThirdPartyScripts here to ensure global scope but deferred loading */}
+          {/* Global Analytics & Ads (Non-Blocking) */}
           <ThirdPartyScripts />
 
           <Suspense fallback={<PageLoader />}>
             <Routes>
               {/* Public Routes with MainLayout */}
               <Route element={<MainLayout />}>
-                <Route path="/" element={<BlogPage />} />
+                {/* ROOT: Landing Page (Entry) */}
+                <Route path="/" element={<LandingPage />} />
+
+                {/* HOME: Blog Feed (Content) */}
+                <Route path="/home" element={<BlogPage />} />
+
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/vision" element={<VisionPage />} />
                 <Route path="/contact" element={<ContactPage />} />
-                {/* Legal Pages for AdSense Compliance */}
+
+                {/* Legal Pages */}
                 <Route path="/privacy" element={<PrivacyPage />} />
                 <Route path="/terms" element={<TermsPage />} />
 
                 <Route path="/market/:ticker" element={<MarketDetailPage />} />
-                <Route path="/blog" element={<Navigate to="/" replace />} />
+
+                {/* Redirect old /blog to /home */}
+                <Route path="/blog" element={<Navigate to="/home" replace />} />
+
                 <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
                 <Route path="/login" element={<LoginPage />} />
               </Route>

@@ -10,10 +10,9 @@ import SearchAutocomplete from './SearchAutocomplete';
  * Component: Navbar
  * Purpose: Main navigation and header controller.
  * Changes:
- * 1. Added explicit `aria-label` to all icon-only buttons (Menu, Search, Theme, Socials) for Screen Reader support.
- * 2. Increased text contrast from `text-gray-400` to `text-gray-500` or `text-gray-600` to meet WCAG AA standards.
- * 3. Implemented 'display=swap' logic implicitly via CSS classes for better LCP.
- * Future Handling: When adding new buttons, ALWAYS include an `aria-label` describing the action.
+ * 1. Routing Update: "Home" and Logo now point to "/home" (Content Feed) instead of "/" (Landing Page).
+ * 2. Accessibility: Maintained strict aria-labels.
+ * 3. Sticky Logic: Preserved intersection observer for logo visibility.
  */
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -121,19 +120,18 @@ const Navbar = () => {
                     <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-800 dark:text-slate-200 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Menu">
                         <FaBars size={20} />
                     </button>
-                    <Link to="/" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    {/* LOGO points to /home to keep user in app */}
+                    <Link to="/home" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                         <span className="text-sm font-black text-slate-900 dark:text-white font-serif tracking-wide uppercase truncate">
                             TREISHVAAM FINANCE
                         </span>
                     </Link>
 
                     {/* Mobile Theme Toggle */}
-                    {/* ACCESSIBILITY FIX: Added aria-label for theme toggle */}
                     <button onClick={toggleTheme} className="p-2 text-slate-600 dark:text-slate-300 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors mr-1" aria-label="Toggle Dark Mode">
                         {theme === 'dark' ? <FaSun size={18} /> : <FaMoon size={18} />}
                     </button>
 
-                    {/* ACCESSIBILITY FIX: Added aria-label for search button */}
                     <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-slate-600 dark:text-slate-300 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Search">
                         <FaSearch size={18} />
                     </button>
@@ -146,14 +144,14 @@ const Navbar = () => {
                         <div className="relative w-[85%] max-w-sm bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
                             <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900 safe-pt">
                                 <span className="font-bold text-xl text-slate-900 dark:text-white font-serif">Menu</span>
-                                {/* ACCESSIBILITY FIX: Added aria-label for close menu */}
                                 <button onClick={() => setMobileMenuOpen(false)} className="text-gray-500 dark:text-gray-400 p-2 bg-white dark:bg-slate-800 rounded-full border dark:border-slate-700 shadow-sm active:scale-95 transition-transform" aria-label="Close Menu">
                                     <FaTimes size={18} />
                                 </button>
                             </div>
                             <div className="p-4 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
-                                <Link to="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
+                                {/* Navigation links point to /home */}
+                                <Link to="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
                                 <Link to="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
                                 <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">About Us</Link>
                                 <Link to="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Vision</Link>
@@ -189,12 +187,10 @@ const Navbar = () => {
                     </div>
                     <div className="flex items-center space-x-6">
                         <div className="flex space-x-4 border-r border-gray-300 dark:border-gray-600 pr-6">
-                            {/* ACCESSIBILITY FIX: Added aria-labels for social links */}
                             <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our LinkedIn" className="hover:text-[#0077b5] transition-colors"><FaLinkedinIn /></a>
                             <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our Facebook" className="hover:text-[#1877F3] transition-colors"><FaFacebookF /></a>
                             <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our Instagram" className="hover:text-[#E1306C] transition-colors"><FaInstagram /></a>
                         </div>
-                        {/* ACCESSIBILITY FIX: Added aria-label for desktop theme toggle */}
                         <button onClick={toggleTheme} className="flex items-center gap-1.5 text-gray-500 hover:text-sky-700 dark:text-gray-400 dark:hover:text-sky-400 transition-colors" title="Toggle Theme" aria-label="Toggle Dark Mode">
                             {theme === 'dark' ? <FaSun className="text-amber-400" /> : <FaMoon />}
                         </button>
@@ -223,7 +219,8 @@ const Navbar = () => {
 
             <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
-                    <Link to="/" className="text-center group">
+                    {/* LOGO points to /home */}
+                    <Link to="/home" className="text-center group">
                         <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                             TREISHVAAM FINANCE
                         </h1>
@@ -237,8 +234,9 @@ const Navbar = () => {
             <div className="hidden md:block sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
+                        {/* Sticky LOGO points to /home */}
                         <Link
-                            to="/"
+                            to="/home"
                             className={`absolute left-6 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${showStickyLogo
                                 ? 'opacity-100 pointer-events-auto translate-y-[-50%]'
                                 : 'opacity-0 pointer-events-none translate-y-[-40%]'
@@ -250,7 +248,8 @@ const Navbar = () => {
                         </Link>
 
                         <nav className="flex space-x-1">
-                            <NavLink to="/" className={getNavLinkClass} end>Home</NavLink>
+                            {/* Home NavLink points to /home */}
+                            <NavLink to="/home" className={getNavLinkClass}>Home</NavLink>
                             <NavLink to="/market/%5EDJI" className={getNavLinkClass}>Markets</NavLink>
                             <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
                             <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
