@@ -7,7 +7,7 @@
  * - Ultra-Minimal "LinkedIn-Professional" Aesthetic.
  * - "Glassmorphic" Market Terminal with live widgets.
  * - Zero-Friction Auth (Socials + Brokers).
- * - CI Fix: Removed unused imports.
+ * - FIX: Robust handling of Market Data API formats (String/Number).
  */
 
 import React, { useState, useEffect } from 'react';
@@ -41,6 +41,7 @@ const LandingPage = () => {
                 }
 
                 if (moverRes.status === 'fulfilled' && moverRes.value.data) {
+                    // Top 5 Gainers/Movers
                     setMarketMovers(moverRes.value.data.slice(0, 5));
                 }
             } catch (error) {
@@ -202,20 +203,32 @@ const LandingPage = () => {
                                         {loading ? (
                                             [1, 2, 3].map(i => <div key={i} className="h-8 border-b border-slate-50 animate-pulse bg-slate-50"></div>)
                                         ) : marketMovers.length > 0 ? (
-                                            marketMovers.map((mover, idx) => (
-                                                <div key={idx} className="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-2 -mx-2 rounded">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-xs font-bold text-slate-900 w-16">{mover.ticker}</span>
-                                                        <span className="text-[10px] text-slate-500 truncate w-24 hidden sm:block">{mover.name}</span>
+                                            marketMovers.map((mover, idx) => {
+                                                // SAFE PARSING LOGIC: Handle string '1.5%' or number 1.5
+                                                let changeVal = 0;
+                                                const rawChange = mover.changePercent !== undefined ? mover.changePercent : mover.changePercentage;
+
+                                                if (typeof rawChange === 'number') {
+                                                    changeVal = rawChange;
+                                                } else if (typeof rawChange === 'string') {
+                                                    changeVal = parseFloat(rawChange.replace('%', '')) || 0;
+                                                }
+
+                                                return (
+                                                    <div key={idx} className="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors px-2 -mx-2 rounded">
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-bold text-slate-900 w-16">{mover.ticker}</span>
+                                                            <span className="text-[10px] text-slate-500 truncate w-24 hidden sm:block">{mover.name}</span>
+                                                        </div>
+                                                        <div className={`text-xs font-mono font-medium flex items-center ${changeVal >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                                            {changeVal >= 0 ? '+' : ''}{changeVal.toFixed(2)}%
+                                                            {changeVal >= 0 ? <FaArrowUp className="ml-1 text-[8px]" /> : <FaArrowDown className="ml-1 text-[8px]" />}
+                                                        </div>
                                                     </div>
-                                                    <div className={`text-xs font-mono font-medium flex items-center ${mover.changePercent >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                                                        {mover.changePercent >= 0 ? '+' : ''}{mover.changePercent.toFixed(2)}%
-                                                        {mover.changePercent >= 0 ? <FaArrowUp className="ml-1 text-[8px]" /> : <FaArrowDown className="ml-1 text-[8px]" />}
-                                                    </div>
-                                                </div>
-                                            ))
+                                                );
+                                            })
                                         ) : (
-                                            // High-End Fallback Visual
+                                            // High-End Fallback Visual (if API Empty)
                                             [
                                                 { t: 'NVDA', n: 'NVIDIA Corp', c: 2.45 },
                                                 { t: 'AAPL', n: 'Apple Inc', c: -0.45 },
