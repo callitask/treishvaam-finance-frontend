@@ -1,0 +1,17 @@
+name = "treishfin-seo-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV Namespace Binding
+# PASTE YOUR ID BELOW INSIDE THE QUOTES
+[[kv_namespaces]]
+binding = "TREISHFIN_SEO_CACHE"
+id = "8e80f838a11349b2afddeece7c656d76"
+preview_id = "3f90e011cd8542d0a48d139f141687d6"
+
+# Cron Trigger (Runs 1 time per hour)
+[triggers]
+crons = ["0 * * * *"]
+
+# NOTE: NO [vars] SECTION HERE. 
+# URLs are managed via "npx wrangler secret put"
