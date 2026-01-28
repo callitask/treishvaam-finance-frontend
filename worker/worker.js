@@ -3,35 +3,30 @@
  *
  * Purpose:
  * - Enterprise Edge Controller for Treishvaam Finance.
- * - Handles: Zero-Trust Security, SEO Edge Hydration, KV-Backed Sitemap (Edge Replica).
+ * - Handles: Zero-Trust Security, Rich Result SEO Injection, KV-Backed Sitemap (Edge Replica).
  *
  * Scope:
  * - Intercepts all traffic to treishfin.treishvaamgroup.com
- * - Manages routing between Static Frontend (Pages), Dynamic Backend (API), and KV Store.
+ * - Manages routing between Static Frontend, Dynamic Backend, and KV Store.
  *
  * Critical Dependencies:
- * - Backend: via env.BACKEND_API_URL or env.BACKEND_URL
- * - KV Namespace: TREISHFIN_SEO_CACHE (Required for Sitemap Uptime)
- * - Frontend: Cloudflare Pages (Static Assets)
+ * - Backend: via env.BACKEND_API_URL
+ * - KV Namespace: TREISHFIN_SEO_CACHE
  *
  * Security Constraints:
- * - Strict Content-Security-Policy (CSP).
- * - HSTS enforcement.
- * - No hardcoded secrets.
+ * - Strict CSP & HSTS.
+ * - Geo-Location Header Injection.
  *
  * Non-Negotiables:
- * - SITEMAP: Must serve from KV if Backend is down.
- * - SEO: Must hydrate HTML for Bots to prevent "blank page" indexing.
- * - AVAILABILITY: Must serve cached content on 5xx errors.
- * - FREE TIER: Cron scheduled hourly (0 * * * *) to respect limits.
+ * - SITEMAP: Must use KV (Edge Replica) + Path Translation.
+ * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
+ * - ROBOTS: Must be served dynamically to point to the correct sitemap.
  *
  * IMMUTABLE CHANGE HISTORY:
- * - ADDED: Hybrid Sitemap Aggregation (Static + Dynamic).
- * - EDITED: Consolidated SEO, Security, Fallback.
- * - MERGED:
- * • RETAINED: SEO Hydration, Security Headers, Image Acceleration.
- * • REPLACED: Old Cache API sitemap logic with new KV-Backed logic.
- * • ADDED: Scheduled Handler for background updates.
+ * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
+ * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
+ * - RESTORED: Dynamic Robots.txt serving.
+ * - OPTIMIZED: KV Caching strategy for zero downtime.
  */
 
 export default {
@@ -40,37 +35,40 @@ export default {
     // =================================================================================
     async scheduled(event, env, ctx) {
         console.log("TRIGGER: Scheduled Sitemap Update");
-
-        // We fetch the metadata first to know what files exist
-        const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://api.treishvaamgroup.com";
+        const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
 
         // 1. Update Metadata
         try {
             const metaResp = await fetch(`${BACKEND_URL}/api/public/sitemap/meta`, {
                 headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
             });
+
             if (metaResp.ok) {
                 const metaJson = await metaResp.json();
                 // Store Metadata in KV
-                await env.TREISHFIN_SEO_CACHE.put("sitemap:meta", JSON.stringify(metaJson), { expirationTtl: 90000 }); // 25 hours
+                await env.TREISHFIN_SEO_CACHE.put("sitemap:meta", JSON.stringify(metaJson), { expirationTtl: 90000 });
 
-                // 2. Update Individual Sitemap Chunks (Rate Limited Loop)
+                // 2. Update Individual Sitemap Chunks
                 const filesToUpdate = [];
                 if (metaJson.blogs) filesToUpdate.push(...metaJson.blogs.map(path => ({ key: `sitemap:${path}`, path })));
                 if (metaJson.markets) filesToUpdate.push(...metaJson.markets.map(path => ({ key: `sitemap:${path}`, path })));
 
-                // Update first 5 chunks to stay within execution limits (Incremental update)
-                // In a real 10M+ scenario, we would use a cursor, but for now we prioritize the "latest" files (usually 0.xml)
+                // Process first 5 priority files (Incremental updates)
                 const priorityFiles = filesToUpdate.slice(0, 5);
 
                 for (const file of priorityFiles) {
                     try {
-                        const fileResp = await fetch(`${BACKEND_URL}${file.path}`, {
+                        // CRITICAL FIX: Translate Public Path to API Path
+                        const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
+
+                        const fileResp = await fetch(`${BACKEND_URL}${apiPath}`, {
                             headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
                         });
+
                         if (fileResp.ok && fileResp.headers.get("content-type")?.includes("xml")) {
                             const content = await fileResp.text();
                             await env.TREISHFIN_SEO_CACHE.put(file.key, content, { expirationTtl: 90000 });
+                            console.log(`SUCCESS: Updated ${file.key}`);
                         }
                     } catch (e) { console.error(`Failed to update ${file.key}`); }
                 }
@@ -79,28 +77,35 @@ export default {
     },
 
     // =================================================================================
-    // 2. REQUEST HANDLER
+    // 2. REQUEST HANDLER (MERGED LOGIC)
     // =================================================================================
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
 
+        // --- MANUAL FORCE UPDATE TOOL ---
+        if (url.pathname === '/sys/force-update') {
+            await this.scheduled(null, env, ctx);
+            return new Response("Manual Update Triggered! Check sitemap in 10 seconds.", { status: 200 });
+        }
+
         // 0. CONFIGURATION
-        const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://api.treishvaamgroup.com";
+        const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishfin.treishvaamgroup.com";
         const PARENT_ORG_URL = "https://treishvaamgroup.com";
-
         const backendConfig = new URL(BACKEND_URL);
 
-        // 1. UNIVERSAL HEADER INJECTION
+        // 1. UNIVERSAL HEADER INJECTION (Restored from Old Code)
         const cf = request.cf || {};
         const enhancedHeaders = new Headers(request.headers);
 
-        // Geo Intelligence
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
         enhancedHeaders.set("X-Visitor-Region", cf.region || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
         enhancedHeaders.set("X-Visitor-Continent", cf.continent || "Unknown");
         enhancedHeaders.set("X-Visitor-Timezone", cf.timezone || "UTC");
+        enhancedHeaders.set("X-Visitor-Lat", cf.latitude || "0");
+        enhancedHeaders.set("X-Visitor-Lon", cf.longitude || "0");
+        enhancedHeaders.set("X-Visitor-Device-Colo", cf.colo || "Unknown");
 
         const baseEnhancedRequest = new Request(request.url, {
             headers: enhancedHeaders,
@@ -109,7 +114,7 @@ export default {
             redirect: request.redirect
         });
 
-        // SECURITY HELPER
+        // SECURITY HELPER (Restored from Old Code)
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
@@ -128,7 +133,37 @@ export default {
         };
 
         // ----------------------------------------------
-        // 3. KV-BACKED SITEMAP LOGIC (NEW)
+        // 2. HIGH AVAILABILITY ROBOTS.TXT (Restored)
+        // ----------------------------------------------
+        if (url.pathname === "/robots.txt") {
+            const robotsTxt = `User-agent: *
+Allow: /
+
+# --- ENTERPRISE SEO: Allow Googlebot to fetch API data for rendering ---
+Allow: /api/posts
+Allow: /api/categories
+Allow: /api/market
+Allow: /api/news
+
+# Disallow crawlers from indexing Auth, Admin, and internal search paths
+Disallow: /api/auth/
+Disallow: /api/contact/
+Disallow: /api/admin/
+Disallow: /dashboard/
+Disallow: /?q=*
+Disallow: /silent-check-sso.html
+Disallow: /login
+
+# Sitemap Index
+Sitemap: ${FRONTEND_URL}/sitemap.xml`;
+
+            return new Response(robotsTxt, {
+                headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" }
+            });
+        }
+
+        // ----------------------------------------------
+        // 3. SITEMAP LOGIC (NEW KV ENGINE)
         // ----------------------------------------------
 
         // A. ROOT SITEMAP INDEX (/sitemap.xml)
@@ -142,7 +177,7 @@ export default {
         }
 
         // ----------------------------------------------
-        // 4. API PROXY + IMAGE ACCELERATION (EXISTING)
+        // 4. API PROXY (Restored Secure Routing)
         // ----------------------------------------------
         if (url.pathname.startsWith("/api")) {
             const targetUrl = new URL(request.url);
@@ -156,11 +191,11 @@ export default {
                 redirect: request.redirect
             });
 
-            // IMAGE ACCELERATION (FREE TIER CACHE)
+            // IMAGE ACCELERATION
             if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
                 const cache = caches.default;
                 const cacheKey = new Request(url.toString(), request);
-                let cachedResponse = await cache.match(cacheKey);
+                const cachedResponse = await cache.match(cacheKey);
                 if (cachedResponse) {
                     const cachedRes = new Response(cachedResponse.body, cachedResponse);
                     cachedRes.headers.set("X-Cache-Status", "HIT");
@@ -180,13 +215,16 @@ export default {
         }
 
         // ----------------------------------------------
-        // 5. STATIC ASSETS & FALLBACK (EXISTING)
+        // 5. STATIC ASSETS
         // ----------------------------------------------
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt)$/)) {
             const assetResp = await fetch(baseEnhancedRequest);
             return addSecurityHeaders(assetResp);
         }
 
+        // ----------------------------------------------
+        // 6. FETCH HTML SHELL WITH CACHING
+        // ----------------------------------------------
         let response;
         const cacheKey = new Request(url.origin + "/", request);
         const cache = caches.default;
@@ -212,28 +250,97 @@ export default {
         }
 
         // =================================================================================
-        // 6. SEO INTELLIGENCE & EDGE HYDRATION (EXISTING - PRESERVED)
+        // 7. SEO INTELLIGENCE & EDGE HYDRATION (RESTORED DETAILED LOGIC)
         // =================================================================================
 
-        // SCENARIO A: HOMEPAGE
+        // SCENARIO A: HOMEPAGE (With Social Links & Contact)
         if (url.pathname === "/" || url.pathname === "") {
             const pageTitle = "Treishvaam Finance (TreishFin) | Global Financial Analysis & News";
-            const pageDesc = "Treishvaam Finance (TreishFin) provides real-time market data, financial news, and expert analysis.";
+            const pageDesc = "Treishvaam Finance (TreishFin) provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
 
             const homeSchema = {
                 "@context": "https://schema.org",
                 "@type": "FinancialService",
                 "name": "Treishvaam Finance",
+                "alternateName": "TreishFin",
                 "url": FRONTEND_URL + "/",
                 "logo": "https://treishvaamgroup.com/logo512.webp",
+                "image": "https://treishvaamgroup.com/logo512.webp",
                 "description": pageDesc,
-                "parentOrganization": { "@type": "Corporation", "name": "Treishvaam Group", "url": PARENT_ORG_URL }
+                "priceRange": "$$",
+                "telephone": "+91 81785 29633",
+                "email": "treishfin.treishvaamgroup@gmail.com",
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": "Electronic City",
+                    "addressLocality": "Bangalore",
+                    "addressRegion": "Karnataka",
+                    "postalCode": "560100",
+                    "addressCountry": "IN"
+                },
+                "sameAs": [
+                    "https://www.linkedin.com/company/treishvaamfinance",
+                    "https://twitter.com/treishvaamfinance",
+                    "https://x.com/treishvaamfinance",
+                    "https://www.instagram.com/treishvaamfinance"
+                ],
+                "contactPoint": {
+                    "@type": "ContactPoint",
+                    "contactType": "customer service",
+                    "telephone": "+91 81785 29633",
+                    "email": "treishfin.treishvaamgroup@gmail.com",
+                    "areaServed": "Global",
+                    "availableLanguage": "English"
+                },
+                "parentOrganization": {
+                    "@type": "Corporation",
+                    "name": "Treishvaam Group",
+                    "url": PARENT_ORG_URL,
+                    "email": "treishvaamgroup@gmail.com",
+                    "telephone": "+91 81785 29633",
+                    "logo": "https://treishvaamgroup.com/logo512.webp",
+                    "image": "https://treishvaamgroup.com/logo512.webp",
+                    "sameAs": [
+                        "https://www.linkedin.com/company/treishvaamgroup",
+                        "https://twitter.com/treishvaamgroup",
+                        "https://x.com/treishvaamgroup",
+                        "https://www.instagram.com/treishvaamgroup"
+                    ],
+                    "address": {
+                        "@type": "PostalAddress",
+                        "streetAddress": "Electronic City",
+                        "addressLocality": "Bangalore",
+                        "addressRegion": "Karnataka",
+                        "postalCode": "560100",
+                        "addressCountry": "IN"
+                    }
+                },
+                "founder": {
+                    "@type": "Person",
+                    "name": "Amitsagar Kandpal",
+                    "jobTitle": "Founder & Chairman",
+                    "email": "callitask@gmail.com",
+                    "telephone": "+91 81785 29633",
+                    "url": "https://treishvaamgroup.com/",
+                    "sameAs": [
+                        "https://www.linkedin.com/in/amitsagarkandpal",
+                        "https://twitter.com/treishvaam",
+                        "https://x.com/treishvaam",
+                        "https://www.instagram.com/treishvaam"
+                    ]
+                },
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": `${FRONTEND_URL}/?q={search_term_string}`,
+                    "query-input": "required name=search_term_string"
+                }
             };
 
             const rewritten = new HTMLRewriter()
                 .on("title", { element(e) { e.setInnerContent(pageTitle); } })
                 .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
                 .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
+                .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageDesc); } })
                 .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(homeSchema)}</script>`, { html: true }); } })
                 .transform(response);
 
@@ -242,17 +349,47 @@ export default {
 
         // SCENARIO B: STATIC PAGES
         const staticPages = {
-            "/about": { title: "About Us | Treishfin", description: "Learn about Treishvaam Finance." },
-            "/vision": { title: "Treishfin · Our Vision", description: "Our roadmap driving Treishvaam Finance." },
-            "/contact": { title: "Treishfin · Contact Us", description: "Get in touch with the team." }
+            "/about": {
+                title: "About Us | Treishfin",
+                description: "Learn about Treishvaam Finance, our mission to democratize financial literacy, and our founder Amitsagar Kandpal.",
+                image: `${FRONTEND_URL}/logo.webp`
+            },
+            "/vision": {
+                title: "Treishfin · Our Vision",
+                description: "To build a world where financial literacy is a universal skill. Explore the philosophy and roadmap driving Treishvaam Finance.",
+                image: `${FRONTEND_URL}/logo.webp`
+            },
+            "/contact": {
+                title: "Treishfin · Contact Us",
+                description: "Have questions about financial markets or our platform? Get in touch with the Treishvaam Finance team today.",
+                image: `${FRONTEND_URL}/logo.webp`
+            }
         };
+
         if (staticPages[url.pathname]) {
             const pageData = staticPages[url.pathname];
+            const pageSchema = {
+                "@context": "https://schema.org",
+                "@type": "WebPage",
+                "name": pageData.title,
+                "description": pageData.description,
+                "url": FRONTEND_URL + url.pathname,
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "Treishvaam Finance",
+                    "parentOrganization": { "@type": "Corporation", "name": "Treishvaam Group" },
+                    "logo": { "@type": "ImageObject", "url": `${FRONTEND_URL}/logo.webp` }
+                }
+            };
+
             const rewritten = new HTMLRewriter()
                 .on("title", { element(e) { e.setInnerContent(pageData.title); } })
                 .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageData.description); } })
                 .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageData.title); } })
+                .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageData.description); } })
+                .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(pageSchema)}</script>`, { html: true }); } })
                 .transform(response);
+
             return addSecurityHeaders(rewritten);
         }
 
@@ -261,20 +398,24 @@ export default {
             const parts = url.pathname.split("/");
             const articleId = parts[parts.length - 1];
             const postSlug = parts.length >= 4 ? parts[parts.length - 2] : null;
+
             if (!articleId) return addSecurityHeaders(response);
 
             // Strategy A: Materialized HTML
             if (postSlug) {
                 try {
                     const materializedUrl = `${BACKEND_URL}/api/uploads/posts/${postSlug}.html`;
-                    const matResp = await fetch(materializedUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO" } });
+                    const matResp = await fetch(materializedUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Fetcher" } });
+
                     if (matResp.ok) {
                         const finalResp = new Response(matResp.body, { status: 200, headers: matResp.headers });
                         finalResp.headers.set("Content-Type", "text/html; charset=utf-8");
                         finalResp.headers.set("X-Source", "Materialized-HTML");
+                        finalResp.headers.set("Cache-Control", "public, max-age=3600");
                         const fixedResp = new HTMLRewriter()
                             .on("head", { element(e) { e.prepend('<base href="/" />', { html: true }); } })
                             .transform(finalResp);
+                        ctx.waitUntil(cache.put(request, fixedResp.clone()));
                         return addSecurityHeaders(fixedResp);
                     }
                 } catch (e) { }
@@ -283,41 +424,87 @@ export default {
             // Strategy B: Edge Hydration
             const apiUrl = `${BACKEND_URL}/api/v1/posts/url/${articleId}`;
             try {
-                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO" } });
-                if (apiResp.ok) {
-                    const post = await apiResp.json();
-                    const rewritten = new HTMLRewriter()
-                        .on("title", { element(e) { e.setInnerContent(post.title + " | Treishfin"); } })
-                        .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
-                        .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true }); } })
-                        .transform(response);
-                    return addSecurityHeaders(rewritten);
-                }
-            } catch (e) { }
+                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
+                if (!apiResp.ok) return addSecurityHeaders(response);
+                const post = await apiResp.json();
+                const imageUrl = post.coverImageUrl ? `${BACKEND_URL}/api/uploads/${post.coverImageUrl}.webp` : `${FRONTEND_URL}/logo.webp`;
+                const authorName = post.authorName || post.author || "Treishvaam Team";
+
+                const schema = {
+                    "@context": "https://schema.org",
+                    "@type": "NewsArticle",
+                    "headline": post.title,
+                    "image": [imageUrl],
+                    "datePublished": post.createdAt,
+                    "dateModified": post.updatedAt,
+                    "author": [{ "@type": "Person", "name": authorName, "url": `${FRONTEND_URL}/about` }],
+                    "publisher": { "@type": "Organization", "name": "Treishvaam Finance", "logo": { "@type": "ImageObject", "url": `${FRONTEND_URL}/logo.webp` } }
+                };
+
+                const rewritten = new HTMLRewriter()
+                    .on("title", { element(e) { e.setInnerContent(post.title + " | Treishfin"); } })
+                    .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<script type="application/ld+json">${JSON.stringify(schema)}</script>`, { html: true });
+                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
+                        }
+                    })
+                    .transform(response);
+
+                rewritten.headers.set("X-Source", "Edge-Hydration");
+                return addSecurityHeaders(rewritten);
+            } catch (e) { return addSecurityHeaders(response); }
         }
 
         // SCENARIO D: MARKET DATA
         if (url.pathname.startsWith("/market/")) {
             const rawTicker = url.pathname.split("/market/")[1];
-            if (rawTicker) {
-                const apiUrl = `${BACKEND_URL}/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`;
-                try {
-                    const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO" } });
-                    if (apiResp.ok) {
-                        const marketData = await apiResp.json();
-                        const quote = marketData.quoteData;
-                        if (quote) {
-                            const pageTitle = `${quote.name} (${quote.ticker}) Price | Treishfin`;
-                            const rewritten = new HTMLRewriter()
-                                .on("title", { element(e) { e.setInnerContent(pageTitle); } })
-                                .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
-                                .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true }); } })
-                                .transform(response);
-                            return addSecurityHeaders(rewritten);
+            if (!rawTicker) return addSecurityHeaders(response);
+
+            const decodedTicker = decodeURIComponent(rawTicker);
+            const safeTicker = encodeURIComponent(decodedTicker);
+            const apiUrl = `${BACKEND_URL}/api/v1/market/widget?ticker=${safeTicker}`;
+
+            try {
+                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
+                if (!apiResp.ok) return addSecurityHeaders(response);
+                const marketData = await apiResp.json();
+                const quote = marketData.quoteData;
+
+                if (!quote) return addSecurityHeaders(response);
+
+                const pageTitle = `${quote.name} (${quote.ticker}) Price, News & Analysis | Treishfin`;
+                const pageDesc = `Real-time stock price for ${quote.name} (${quote.ticker}). Market cap: ${quote.marketCap}. Detailed financial analysis on Treishvaam Finance.`;
+                const logoUrl = quote.logoUrl || `${FRONTEND_URL}/logo.webp`;
+
+                const schema = {
+                    "@context": "https://schema.org",
+                    "@type": "FinancialProduct",
+                    "name": quote.name,
+                    "tickerSymbol": quote.ticker,
+                    "exchangeTicker": quote.exchange || "NYSE",
+                    "description": pageDesc,
+                    "url": `${FRONTEND_URL}/market/${rawTicker}`,
+                    "image": logoUrl,
+                    "currentExchangeRate": { "@type": "UnitPriceSpecification", "price": quote.price, "priceCurrency": "USD" }
+                };
+
+                const rewritten = new HTMLRewriter()
+                    .on("title", { element(e) { e.setInnerContent(pageTitle); } })
+                    .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
+                    .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
+                    .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageDesc); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<script type="application/ld+json">${JSON.stringify(schema)}</script>`, { html: true });
+                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
                         }
-                    }
-                } catch (e) { }
-            }
+                    })
+                    .transform(response);
+
+                return addSecurityHeaders(rewritten);
+            } catch (e) { return addSecurityHeaders(response); }
         }
 
         return addSecurityHeaders(response);
@@ -325,7 +512,7 @@ export default {
 };
 
 // =================================================================================
-// 8. HELPER FUNCTIONS (UPDATED FOR KV)
+// 8. HELPER FUNCTIONS (Sitemap Engine)
 // =================================================================================
 
 /**
@@ -333,14 +520,9 @@ export default {
  */
 async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
     let metadata = null;
-
-    // 1. Try KV (Fastest)
     const cachedMeta = await env.TREISHFIN_SEO_CACHE.get("sitemap:meta");
-    if (cachedMeta) {
-        try { metadata = JSON.parse(cachedMeta); } catch (e) { }
-    }
+    if (cachedMeta) { try { metadata = JSON.parse(cachedMeta); } catch (e) { } }
 
-    // 2. Fallback to Backend (If KV Empty)
     if (!metadata) {
         try {
             const resp = await fetch(`${backendUrl}/api/public/sitemap/meta`, {
@@ -350,7 +532,6 @@ async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
         } catch (e) { }
     }
 
-    // 3. Construct XML
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap><loc>${frontendUrl}/sitemap-static.xml</loc></sitemap>`;
@@ -368,20 +549,17 @@ async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
  * SERVES DYNAMIC SITEMAP FROM KV
  */
 async function handleDynamicSitemapFromKV(url, env, backendUrl) {
-    // Generate Key: /sitemap-dynamic/blog/0.xml -> sitemap:/sitemap-dynamic/blog/0.xml
     const key = `sitemap:${url.pathname}`;
-
-    // 1. Try KV
     const cached = await env.TREISHFIN_SEO_CACHE.get(key);
     if (cached) {
         return new Response(cached, { headers: { "Content-Type": "application/xml", "X-Source": "KV-Cache" } });
     }
 
-    // 2. Fallback Backend
     try {
-        const backendResp = await fetch(`${backendUrl}${url.pathname}`);
+        // Translate path: /sitemap-dynamic/ -> /api/public/sitemap/
+        const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
+        const backendResp = await fetch(`${backendUrl}${apiPath}`);
         if (backendResp.ok) {
-            // We pass it through but don't block on saving to KV (let Cron handle that)
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("X-Source", "Backend-Fallback");
             return newResp;
