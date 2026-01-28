@@ -27,6 +27,8 @@
  * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
  * - RESTORED: Dynamic Robots.txt serving.
  * - OPTIMIZED: KV Caching strategy for zero downtime.
+ * - ADDED: SPA Fallback Logic (Status 404 -> /index.html 200) to fix deep linking.
+ * - UPDATED: Homepage SEO Scenario to include /home.
  */
 
 export default {
@@ -223,7 +225,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 6. FETCH HTML SHELL WITH CACHING
+        // 6. FETCH HTML SHELL WITH CACHING & SPA FALLBACK
         // ----------------------------------------------
         let response;
         const cacheKey = new Request(url.origin + "/", request);
@@ -231,6 +233,19 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 
         try {
             response = await fetch(baseEnhancedRequest);
+
+            // --- CRITICAL SPA FALLBACK FIX ---
+            // If the static host returns 404 for a navigation request, 
+            // fetch the entry point (index.html) and return it as 200 OK.
+            if (response.status === 404) {
+                const indexReq = new Request(new URL("/index.html", request.url), request);
+                const indexResp = await fetch(indexReq);
+                if (indexResp.ok) {
+                    response = new Response(indexResp.body, indexResp);
+                    // We must return 200 OK for Google to index this page
+                }
+            }
+
             if (response.ok) {
                 const clone = response.clone();
                 const cacheHeaders = new Headers(clone.headers);
@@ -254,7 +269,8 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // =================================================================================
 
         // SCENARIO A: HOMEPAGE (With Social Links & Contact)
-        if (url.pathname === "/" || url.pathname === "") {
+        // Added /home to ensure it shares the Homepage SEO Intelligence
+        if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
             const pageTitle = "Treishvaam Finance (TreishFin) | Global Financial Analysis & News";
             const pageDesc = "Treishvaam Finance (TreishFin) provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
 
