@@ -21,14 +21,16 @@
  * - SITEMAP: Must use KV (Edge Replica) + Path Translation.
  * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
  * - ROBOTS: Must be served dynamically to point to the correct sitemap.
+ * - STATIC PAGES: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
  * IMMUTABLE CHANGE HISTORY:
  * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
  * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
  * - RESTORED: Dynamic Robots.txt serving.
  * - OPTIMIZED: KV Caching strategy for zero downtime.
- * - ADDED: SPA Fallback Logic (Status 404 -> /index.html 200) to fix deep linking.
+ * - ADDED: Smart SPA Fallback (404 -> 200 OK for HTML) to fix Google Indexing.
  * - UPDATED: Homepage SEO Scenario to include /home.
+ * - CRITICAL FIX: Added KNOWN_SPA_ROUTES whitelist to force 200 OK fallback for static pages (About, Vision, etc.) to fix GSC 404s.
  */
 
 export default {
@@ -95,6 +97,13 @@ export default {
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishfin.treishvaamgroup.com";
         const PARENT_ORG_URL = "https://treishvaamgroup.com";
         const backendConfig = new URL(BACKEND_URL);
+
+        // DEFINE KNOWN SPA ROUTES (Critical for GSC Indexing)
+        // These routes exist in React but NOT as files. We MUST force 200 OK index.html for them.
+        const KNOWN_SPA_ROUTES = [
+            "/home", "/about", "/vision", "/contact",
+            "/privacy", "/terms", "/login", "/dashboard", "/manage-posts"
+        ];
 
         // 1. UNIVERSAL HEADER INJECTION (Restored from Old Code)
         const cf = request.cf || {};
@@ -225,35 +234,54 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 6. FETCH HTML SHELL WITH CACHING & SPA FALLBACK
+        // 6. FETCH HTML SHELL WITH INTELLIGENT SPA FALLBACK
         // ----------------------------------------------
         let response;
         const cacheKey = new Request(url.origin + "/", request);
         const cache = caches.default;
 
         try {
+            // A. Attempt to fetch the actual URL from Cloudflare Pages
             response = await fetch(baseEnhancedRequest);
 
-            // --- CRITICAL SPA FALLBACK FIX ---
-            // If the static host returns 404 for a navigation request, 
-            // fetch the entry point (index.html) and return it as 200 OK.
+            // B. SMART SPA FALLBACK (CRITICAL FIX FOR GSC 404s)
+            // If origin returns 404, check if this is a known React Route.
+            // If yes, we MUST return index.html with a 200 OK status.
             if (response.status === 404) {
-                const indexReq = new Request(new URL("/index.html", request.url), request);
-                const indexResp = await fetch(indexReq);
-                if (indexResp.ok) {
-                    response = new Response(indexResp.body, indexResp);
-                    // We must return 200 OK for Google to index this page
+                const acceptHeader = request.headers.get("Accept") || "";
+
+                // Check against known routes whitelist OR Accept header
+                const isKnownRoute = KNOWN_SPA_ROUTES.includes(url.pathname);
+                const expectsHtml = acceptHeader.includes("text/html");
+
+                if (isKnownRoute || expectsHtml) {
+                    // Fetch the Entry Point (index.html) from the same origin
+                    const indexReq = new Request(new URL("/index.html", request.url), request);
+                    const indexResp = await fetch(indexReq);
+
+                    if (indexResp.ok) {
+                        // Create a NEW 200 OK Response with the Index Body
+                        response = new Response(indexResp.body, indexResp);
+                        response.headers.set("X-SPA-Fallback", "Active");
+                        if (isKnownRoute) {
+                            response.headers.set("X-Route-Type", "Known-SPA-Page");
+                        }
+                    }
                 }
             }
 
+            // C. Cache Successful HTML Responses
             if (response.ok) {
                 const clone = response.clone();
                 const cacheHeaders = new Headers(clone.headers);
                 cacheHeaders.set("Cache-Control", "public, max-age=3600");
                 ctx.waitUntil(cache.put(cacheKey, new Response(clone.body, { status: clone.status, headers: cacheHeaders })));
             }
-        } catch (e) { response = null; }
+        } catch (e) {
+            response = null;
+        }
 
+        // D. Cache Fallback (Service Unavailable safety net)
         if (!response || response.status >= 500) {
             const cachedResponse = await cache.match(cacheKey);
             if (cachedResponse) {
@@ -526,61 +554,3 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         return addSecurityHeaders(response);
     }
 };
-
-// =================================================================================
-// 8. HELPER FUNCTIONS (Sitemap Engine)
-// =================================================================================
-
-/**
- * GENERATES SITEMAP INDEX FROM KV
- */
-async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
-    let metadata = null;
-    const cachedMeta = await env.TREISHFIN_SEO_CACHE.get("sitemap:meta");
-    if (cachedMeta) { try { metadata = JSON.parse(cachedMeta); } catch (e) { } }
-
-    if (!metadata) {
-        try {
-            const resp = await fetch(`${backendUrl}/api/public/sitemap/meta`, {
-                headers: { 'User-Agent': 'Cloudflare-Worker-Sitemap' }
-            });
-            if (resp.ok) metadata = await resp.json();
-        } catch (e) { }
-    }
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap><loc>${frontendUrl}/sitemap-static.xml</loc></sitemap>`;
-
-    if (metadata) {
-        if (metadata.blogs) metadata.blogs.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
-        if (metadata.markets) metadata.markets.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
-    }
-
-    xml += `</sitemapindex>`;
-    return new Response(xml, { headers: { "Content-Type": "application/xml", "X-Source": metadata ? "KV-Index" : "Fallback" } });
-}
-
-/**
- * SERVES DYNAMIC SITEMAP FROM KV
- */
-async function handleDynamicSitemapFromKV(url, env, backendUrl) {
-    const key = `sitemap:${url.pathname}`;
-    const cached = await env.TREISHFIN_SEO_CACHE.get(key);
-    if (cached) {
-        return new Response(cached, { headers: { "Content-Type": "application/xml", "X-Source": "KV-Cache" } });
-    }
-
-    try {
-        // Translate path: /sitemap-dynamic/ -> /api/public/sitemap/
-        const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-        const backendResp = await fetch(`${backendUrl}${apiPath}`);
-        if (backendResp.ok) {
-            const newResp = new Response(backendResp.body, backendResp);
-            newResp.headers.set("X-Source", "Backend-Fallback");
-            return newResp;
-        }
-    } catch (e) { }
-
-    return new Response("Sitemap Unavailable", { status: 404 });
-}
