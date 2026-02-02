@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+AI-CONTEXT:
+
+Purpose:
+- Static Sitemap Index for Google Search Console attribution.
+- References all child sitemaps (static + dynamic).
+- Hosted on Cloudflare Pages for persistent, crawlable access.
+
+Scope:
+- Main sitemap discovery file for search engines.
+- Updated manually when new sitemap segments are added.
+
+Critical Dependencies:
+- Frontend: Hosted in /public/ directory, served by Cloudflare Pages CDN.
+- Worker: Proxies this file with proper headers for caching.
+- Backend: Generates dynamic child sitemaps referenced here.
+
+Security Constraints:
+- No sensitive data.
+- Public, world-readable (required for SEO).
+
+Non-Negotiables:
+- Must include <lastmod> timestamps for Google change tracking.
+- Must use absolute URLs only (no relative paths).
+- Must validate against XML sitemap schema.
+
+IMMUTABLE CHANGE HISTORY:
+- ADDED:
+  • Initial creation to fix "No referring sitemaps detected" issue.
+  • Includes lastmod timestamps for Google attribution.
+  • Replaces dynamic Worker-generated sitemap index.
+  • Date: 2026-02-02
+  • Reason: Google requires persistent, trackable sitemap file for proper attribution.
+
+- DO-NOT-DELETE RULE:
+  This file must remain static and hosted on Cloudflare Pages.
+  Dynamic generation in Worker was causing Google attribution failure.
+  Future AI must never move this back to Worker code generation.
+-->
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <!-- Static Frontend Pages -->
+    <sitemap>
+        <loc>https://treishfin.treishvaamgroup.com/sitemap-static.xml</loc>
+        <lastmod>2026-02-02</lastmod>
+    </sitemap>
+    
+    <!-- Dynamic Blog Content (Backend-Generated) -->
+    <sitemap>
+        <loc>https://treishfin.treishvaamgroup.com/sitemap-dynamic/blog/0.xml</loc>
+        <lastmod>2026-02-02</lastmod>
+    </sitemap>
+    
+    <!-- Dynamic Market Data (Backend-Generated) -->
+    <sitemap>
+        <loc>https://treishfin.treishvaamgroup.com/sitemap-dynamic/market/0.xml</loc>
+        <lastmod>2026-02-02</lastmod>
+    </sitemap>
+</sitemapindex>

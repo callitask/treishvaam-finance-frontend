@@ -33,6 +33,11 @@
  * - CRITICAL FIX: Added KNOWN_SPA_ROUTES whitelist to force 200 OK fallback for static pages (About, Vision, etc.) to fix GSC 404s.
  * - BUGFIX: Added missing helper functions to prevent Error 1101.
  * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
+ * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
+ *   • Reason: Google Search Console "No referring sitemaps detected" issue.
+ *   • Solution: Static sitemap index on Pages with lastmod timestamps.
+ *   • Change: Updated /sitemap.xml handler to fetch from env.ASSETS.
+ *   • Preserved: ALL SEO schemas including organization details, social links, contact information.
  */
 
 export default {
@@ -181,15 +186,38 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 3. SITEMAP LOGIC (KV ENGINE)
+        // 3. SITEMAP LOGIC - SERVE STATIC INDEX FROM PAGES
         // ----------------------------------------------
 
-        // A. ROOT SITEMAP INDEX (/sitemap.xml)
+        // A. ROOT SITEMAP INDEX (/sitemap.xml) - CRITICAL CHANGE (2026-02-02)
+        // Serve static sitemap index from Cloudflare Pages instead of generating dynamically
+        // Reason: Google Search Console requires persistent file for attribution
         if (url.pathname === '/sitemap.xml') {
-            return handleKVSitemapIndex(env, FRONTEND_URL, BACKEND_URL);
+            // Fetch the static sitemap index from Cloudflare Pages
+            const sitemapResponse = await env.ASSETS.fetch(request);
+
+            // Add proper caching headers for Google crawling
+            const headers = new Headers(sitemapResponse.headers);
+            headers.set("Content-Type", "application/xml");
+            headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+            headers.set("X-Source", "Static-Pages");
+
+            return new Response(sitemapResponse.body, {
+                status: sitemapResponse.status,
+                headers: headers
+            });
         }
 
-        // B. DYNAMIC CHILD SITEMAPS (/sitemap-dynamic/...)
+        // B. STATIC SITEMAP (/sitemap-static.xml)
+        if (url.pathname === "/sitemap-static.xml") {
+            const staticResponse = await env.ASSETS.fetch(request);
+            const headers = new Headers(staticResponse.headers);
+            headers.set("Content-Type", "application/xml");
+            headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+            return new Response(staticResponse.body, { status: staticResponse.status, headers });
+        }
+
+        // C. DYNAMIC CHILD SITEMAPS (/sitemap-dynamic/...)
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(url, env, BACKEND_URL);
         }
@@ -237,7 +265,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // ----------------------------------------------
         // Strictly serve files with extensions from Pages
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
-            const assetResp = await fetch(baseEnhancedRequest);
+            const assetResp = await env.ASSETS.fetch(baseEnhancedRequest);
             return addSecurityHeaders(assetResp);
         }
 
@@ -250,7 +278,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 
         try {
             // A. Attempt to fetch the actual URL from Cloudflare Pages
-            response = await fetch(baseEnhancedRequest);
+            response = await env.ASSETS.fetch(baseEnhancedRequest);
 
             // B. AGGRESSIVE SPA FALLBACK (CRITICAL FOR GSC)
             // If the origin returns 404 (Not Found) AND it looks like a Page route (no extension or known route)
@@ -269,7 +297,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                     method: "GET"
                 });
 
-                const indexResp = await fetch(indexReq);
+                const indexResp = await env.ASSETS.fetch(indexReq);
 
                 if (indexResp.ok) {
                     // Create a NEW 200 OK Response with the Index Body
@@ -316,6 +344,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 
         // =================================================================================
         // 7. SEO INTELLIGENCE & EDGE HYDRATION (DETAILED LOGIC)
+        // CRITICAL: ALL ORGANIZATION DETAILS, SOCIAL LINKS, CONTACT INFO PRESERVED
         // =================================================================================
 
         // SCENARIO A: HOMEPAGE (With Social Links & Contact)
@@ -587,43 +616,19 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 // =================================================================================
 
 /**
- * GENERATES SITEMAP INDEX FROM KV
- */
-async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
-    let metadata = null;
-    const cachedMeta = await env.TREISHFIN_SEO_CACHE.get("sitemap:meta");
-    if (cachedMeta) { try { metadata = JSON.parse(cachedMeta); } catch (e) { } }
-
-    if (!metadata) {
-        try {
-            const resp = await fetch(`${backendUrl}/api/public/sitemap/meta`, {
-                headers: { 'User-Agent': 'Cloudflare-Worker-Sitemap' }
-            });
-            if (resp.ok) metadata = await resp.json();
-        } catch (e) { }
-    }
-
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <sitemap><loc>${frontendUrl}/sitemap-static.xml</loc></sitemap>`;
-
-    if (metadata) {
-        if (metadata.blogs) metadata.blogs.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
-        if (metadata.markets) metadata.markets.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
-    }
-
-    xml += `</sitemapindex>`;
-    return new Response(xml, { headers: { "Content-Type": "application/xml", "X-Source": metadata ? "KV-Index" : "Fallback" } });
-}
-
-/**
  * SERVES DYNAMIC SITEMAP FROM KV
  */
 async function handleDynamicSitemapFromKV(url, env, backendUrl) {
     const key = `sitemap:${url.pathname}`;
     const cached = await env.TREISHFIN_SEO_CACHE.get(key);
     if (cached) {
-        return new Response(cached, { headers: { "Content-Type": "application/xml", "X-Source": "KV-Cache" } });
+        return new Response(cached, {
+            headers: {
+                "Content-Type": "application/xml",
+                "X-Source": "KV-Cache",
+                "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
+            }
+        });
     }
 
     try {
@@ -633,6 +638,7 @@ async function handleDynamicSitemapFromKV(url, env, backendUrl) {
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("X-Source", "Backend-Fallback");
+            newResp.headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
             return newResp;
         }
     } catch (e) { }
