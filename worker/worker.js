@@ -36,7 +36,7 @@
  * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
  *   • Reason: Google Search Console "No referring sitemaps detected" issue.
  *   • Solution: Static sitemap index on Pages with lastmod timestamps.
- *   • Change: Updated /sitemap.xml handler to fetch from env.ASSETS.
+ *   • Fixed: Replaced env.ASSETS.fetch() with direct fetch() to Pages URL.
  *   • Preserved: ALL SEO schemas including organization details, social links, contact information.
  */
 
@@ -186,35 +186,77 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 3. SITEMAP LOGIC - SERVE STATIC INDEX FROM PAGES
+        // 3. SITEMAP LOGIC - SERVE STATIC FILES FROM PAGES CDN
         // ----------------------------------------------
 
-        // A. ROOT SITEMAP INDEX (/sitemap.xml) - CRITICAL CHANGE (2026-02-02)
-        // Serve static sitemap index from Cloudflare Pages instead of generating dynamically
+        // A. ROOT SITEMAP INDEX (/sitemap.xml) - CRITICAL FIX (2026-02-02)
+        // Fetch static sitemap index directly from Cloudflare Pages CDN
         // Reason: Google Search Console requires persistent file for attribution
+        // Fix: env.ASSETS doesn't exist in Workers - use direct fetch() instead
         if (url.pathname === '/sitemap.xml') {
-            // Fetch the static sitemap index from Cloudflare Pages
-            const sitemapResponse = await env.ASSETS.fetch(request);
+            try {
+                // Fetch the static sitemap.xml from Cloudflare Pages CDN
+                const sitemapUrl = `${FRONTEND_URL}/sitemap.xml`;
+                const sitemapResponse = await fetch(sitemapUrl, {
+                    cf: {
+                        cacheTtl: 3600,
+                        cacheEverything: true
+                    }
+                });
 
-            // Add proper caching headers for Google crawling
-            const headers = new Headers(sitemapResponse.headers);
-            headers.set("Content-Type", "application/xml");
-            headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-            headers.set("X-Source", "Static-Pages");
+                if (sitemapResponse.ok) {
+                    // Add proper caching headers for Google crawling
+                    const headers = new Headers(sitemapResponse.headers);
+                    headers.set("Content-Type", "application/xml; charset=utf-8");
+                    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+                    headers.set("X-Source", "Static-Pages-CDN");
 
-            return new Response(sitemapResponse.body, {
-                status: sitemapResponse.status,
-                headers: headers
+                    return new Response(sitemapResponse.body, {
+                        status: 200,
+                        headers: headers
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to fetch sitemap.xml:", e);
+            }
+
+            // Fallback: return error if static file fetch fails
+            return new Response("Sitemap temporarily unavailable", {
+                status: 503,
+                headers: { "Retry-After": "300" }
             });
         }
 
         // B. STATIC SITEMAP (/sitemap-static.xml)
         if (url.pathname === "/sitemap-static.xml") {
-            const staticResponse = await env.ASSETS.fetch(request);
-            const headers = new Headers(staticResponse.headers);
-            headers.set("Content-Type", "application/xml");
-            headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-            return new Response(staticResponse.body, { status: staticResponse.status, headers });
+            try {
+                const staticUrl = `${FRONTEND_URL}/sitemap-static.xml`;
+                const staticResponse = await fetch(staticUrl, {
+                    cf: {
+                        cacheTtl: 3600,
+                        cacheEverything: true
+                    }
+                });
+
+                if (staticResponse.ok) {
+                    const headers = new Headers(staticResponse.headers);
+                    headers.set("Content-Type", "application/xml; charset=utf-8");
+                    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+                    headers.set("X-Source", "Static-Pages-CDN");
+
+                    return new Response(staticResponse.body, {
+                        status: 200,
+                        headers: headers
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to fetch sitemap-static.xml:", e);
+            }
+
+            return new Response("Static sitemap temporarily unavailable", {
+                status: 503,
+                headers: { "Retry-After": "300" }
+            });
         }
 
         // C. DYNAMIC CHILD SITEMAPS (/sitemap-dynamic/...)
@@ -265,7 +307,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // ----------------------------------------------
         // Strictly serve files with extensions from Pages
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
-            const assetResp = await env.ASSETS.fetch(baseEnhancedRequest);
+            const assetResp = await fetch(baseEnhancedRequest);
             return addSecurityHeaders(assetResp);
         }
 
@@ -278,7 +320,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 
         try {
             // A. Attempt to fetch the actual URL from Cloudflare Pages
-            response = await env.ASSETS.fetch(baseEnhancedRequest);
+            response = await fetch(baseEnhancedRequest);
 
             // B. AGGRESSIVE SPA FALLBACK (CRITICAL FOR GSC)
             // If the origin returns 404 (Not Found) AND it looks like a Page route (no extension or known route)
@@ -297,7 +339,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                     method: "GET"
                 });
 
-                const indexResp = await env.ASSETS.fetch(indexReq);
+                const indexResp = await fetch(indexReq);
 
                 if (indexResp.ok) {
                     // Create a NEW 200 OK Response with the Index Body
@@ -624,7 +666,7 @@ async function handleDynamicSitemapFromKV(url, env, backendUrl) {
     if (cached) {
         return new Response(cached, {
             headers: {
-                "Content-Type": "application/xml",
+                "Content-Type": "application/xml; charset=utf-8",
                 "X-Source": "KV-Cache",
                 "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
             }
@@ -638,10 +680,16 @@ async function handleDynamicSitemapFromKV(url, env, backendUrl) {
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("X-Source", "Backend-Fallback");
+            newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
             newResp.headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
             return newResp;
         }
-    } catch (e) { }
+    } catch (e) {
+        console.error("Dynamic sitemap fetch failed:", e);
+    }
 
-    return new Response("Sitemap Unavailable", { status: 404 });
+    return new Response("Sitemap Unavailable", {
+        status: 404,
+        headers: { "Content-Type": "text/plain" }
+    });
 }
