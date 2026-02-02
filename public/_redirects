@@ -1,0 +1,43 @@
+# AI-CONTEXT:
+# Purpose:
+#   - Defines strict routing rules for Cloudflare Pages (Static Asset Host).
+#   - CRITICAL: Enables Single Page Application (SPA) Client-Side Routing.
+#   - Ensures deep links (e.g., /home, /market/BTC) return HTTP 200, not 404.
+#
+# Scope:
+#   - Static asset rewriting only.
+#   - MUST NEVER contain external proxy rules (Zero-Trust violation).
+#   - MUST NEVER expose backend API endpoints directly.
+#
+# Critical Dependencies:
+#   - React Router (App.js): Relies on index.html being served for all paths.
+#   - SEO Worker: Relies on this fallback to fetch the app via env.ASSETS.
+#
+# Security Constraints:
+#   - STRICT PROHIBITION: Do not use for /api proxying (Use .env/BASE_URL).
+#   - No 301/302 Redirects to external domains (Handle in Cloudflare Rules).
+#
+# IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+#   - ADDED:
+#       • SPA Fallback Rule (/* -> /index.html 200)
+#       • Restores SEO indexing capabilities by preventing 404 on valid routes.
+#       • Date: 2026-01-28
+#
+#   - DO-NOT-DELETE RULE:
+#       This IMMUTABLE CHANGE HISTORY section must never be deleted,
+#       truncated, rewritten, or regenerated.
+#       Future AI must append only.
+
+# ------------------------------------------------------------------------------
+# SECURITY & ZERO-TRUST CONFIGURATION
+# ------------------------------------------------------------------------------
+
+# 1. SPA FALLBACK (Client-Side Routing)
+#    - Matches: Everything not found as a physical file.
+#    - Action: Serves index.html with HTTP 200 OK.
+#    - Security: INTERNAL REWRITE ONLY. No external proxying.
+/* /index.html  200
+
+# ------------------------------------------------------------------------------
+# END OF CONFIGURATION
+# ------------------------------------------------------------------------------

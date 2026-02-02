@@ -1,4 +1,3 @@
-
 # 06 - Frontend Architecture
 
 ## 1. Application Entry & Boot
@@ -22,14 +21,13 @@ The application entry point is `src/index.js`. It implements a specialized boot 
 
 ## 2. Routing Strategy (`App.js`)
 
-
 - **Route Hierarchy**:
     - **Public Routes** (wrapped in `MainLayout`):
         - `/` (Home)
         - `/about` (AboutPage)
         - `/vision` (VisionPage) — **New**: Renders a static roadmap and injects JSON-LD schema for SEO. No API fetch; content is static.
-        - `/audience` (AudiencePage) — **New**: Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements dynamic filters and cascading dropdowns. Data is displayed in tabular and chart form.
-        - `/api-status` (ApiStatusPage) — **New**: Renders `ApiStatusPanel`, which visualizes the health and logs of backend data pipelines. No direct API fetch in the page; all logic is in the panel/component.
+        - `/audience` (AudiencePage) — **New**: Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements dynamic filters and cascading dropdowns.
+        - `/api-status` (ApiStatusPage) — **New**: Renders `ApiStatusPanel`, which visualizes the health and logs of backend data pipelines.
         - `/contact`
         - `/market/:ticker`
         - `/login`
@@ -45,7 +43,7 @@ The application entry point is `src/index.js`. It implements a specialized boot 
 
 ## 3. Hybrid SSG Integration (The "Visual Handover")
 
-The Frontend plays a critical role in the **"Strategy A / Strategy B"** rendering architecture described in the Backend docs.
+The Frontend plays a critical role in the **"Strategy A / Strategy B"** rendering architecture described in the Edge docs.
 
 ### The Problem
 When Cloudflare serves a static HTML file (Strategy A), the user sees "Plain HTML" text (`#server-content`) instantly. When React loads (`#root`), it renders the *same* content. For a split second, the content might appear duplicated or shifted.
@@ -66,60 +64,36 @@ When Cloudflare serves a static HTML file (Strategy A), the user sees "Plain HTM
 
 ## 5. State Management
 
-
 - **Global Contexts**:
-    - `AuthContext`: Identity state (Keycloak OIDC, see below).
-    - `ThemeContext`: Dark/Light mode preference. **Persists to `localStorage` under the key `color-theme`**. On load, checks for stored preference, then system preference, then defaults to `light`. Exposes `theme` and `toggleTheme`.
-    - `WatchlistContext`: Market data favorites. **Persists to `localStorage` under the key `user-watchlist`**. Exposes `watchlist`, `addToWatchlist`, `removeFromWatchlist`, `toggleWatchlist`, and `isInWatchlist`.
-- **Local State**: Complex forms (like `BlogEditorPage`) use `useReducer` to manage the "Draft" state, including dirty checking and auto-save triggers.
+    - `AuthContext`: Identity state (Keycloak OIDC).
+    - `ThemeContext`: Dark/Light mode preference. **Persists to `localStorage`**.
+    - `WatchlistContext`: Market data favorites. **Persists to `localStorage`**.
+- **Local State**: Complex forms (like `BlogEditorPage`) use `useReducer` to manage the "Draft" state.
 
 ### `useManagePosts` Hook (Admin Post Management)
-
 - Handles all admin post management logic:
-    - Fetches posts, drafts, and categories in parallel using `getAllPostsForAdmin`, `getDrafts`, and `getCategories`.
+    - Fetches posts, drafts, and categories in parallel.
     - Deduplicates posts by ID, merges drafts and published posts.
-    - Supports view switching (`ALL`, `PUBLISHED`, `DRAFT`, `SCHEDULED`) and syncs with URL hash.
+    - Supports view switching (`ALL`, `PUBLISHED`, `DRAFT`, `SCHEDULED`).
     - Implements search, category filter, sorting, and pagination.
-    - Exposes handlers for select all, select one, delete, bulk delete, and duplicate.
-    - Returns computed stats: total, published, scheduled, drafts.
 
 ## 6. API Layer (BFF Pattern)
 
 - **Abstraction**: `apiConfig.js` is the single source of truth for all network calls.
 - **Environment Agnostic**: The base URL uses `process.env.REACT_APP_API_URL`.
-    - **Local**: `http://localhost:8080`
-    - **Prod**: `https://backend.treishvaamgroup.com` (via Tunnel)
-- **Error Handling**: Global interceptors catch `401 Unauthorized` (triggering logout) and `403 Forbidden` (triggering permission alerts).
+- **Error Handling**: Global interceptors catch `401 Unauthorized` and `403 Forbidden`.
 
 ## 7. Data Integrity Strategy (Optimistic Locking)
 
 To prevent "Lost Updates" in a collaborative environment, the Frontend implements a strict handshake:
 1.  **Read**: When editing, the app captures the `version` field from the API.
 2.  **Write**: On save, this `version` is sent back.
-3.  **Conflict**: If the API returns **409 Conflict**, the UI displays a "Concurrent Edit Detected" modal, forcing the user to refresh and resolve differences manually.
+3.  **Conflict**: If the API returns **409 Conflict**, the UI displays a "Concurrent Edit Detected" modal.
 
 ## 8. Media Strategy (Lossless Pipeline)
 
-
 The frontend **disables** client-side image compression (`ImageCropUploader.js`).
-- **Why?**: Browser-based compression (Canvas/WASM) often strips metadata or introduces artifacts.
-- **Flow**: The frontend uploads raw PNG/JPEG blobs. The Backend (Java Virtual Threads) handles the CPU-intensive task of generating optimized WebP variants. This ensures "Publisher Quality" visuals.
-
----
-
-## 10. Notable New/Updated Pages
-
-### ApiStatusPage
-- **Component:** `ApiStatusPanel`
-- **Purpose:** Visualizes backend data pipeline health and logs. No direct API fetch in the page; all logic is in the panel/component.
-
-### AudiencePage
-- **Component:** Inline logic
-- **Purpose:** Fetches and displays audience analytics with dynamic filters. Uses `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements cascading filter resets and date range selection.
-
-### VisionPage
-- **Component:** Inline logic
-- **Purpose:** Static roadmap and vision statement. Injects JSON-LD schema for SEO. No API fetch.
+- **Flow**: The frontend uploads raw PNG/JPEG blobs. The Backend (Java Virtual Threads) handles the CPU-intensive task of generating optimized WebP variants.
 
 ---
 
@@ -128,3 +102,15 @@ The frontend **disables** client-side image compression (`ImageCropUploader.js`)
 The project follows **12-Factor App** principles:
 - **No Secrets**: No API keys or Secrets are hardcoded.
 - **Injection**: All configuration happens at runtime via environment variables injected by the hosting provider (Cloudflare Pages).
+
+---
+
+## 10. Edge Layer Integration (New)
+
+The Frontend repository now houses the **Edge Logic** in the `worker/` directory.
+- **Role:** This worker acts as the "Smart Router" sitting in front of the React application.
+- **Responsibilities:**
+    - **Sitemap Aggregation:** Combines static frontend sitemaps with dynamic backend data (cached in KV).
+    - **SEO Injection:** Injects JSON-LD and meta tags into HTML responses.
+    - **Security:** Enforces CSP, HSTS, and Zero-Trust headers before traffic hits the React app.
+- **Deployment:** The worker is deployed separately via `wrangler` but is version-controlled alongside the frontend code.

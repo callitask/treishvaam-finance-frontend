@@ -21,7 +21,7 @@
  * - SITEMAP: Must use KV (Edge Replica) + Path Translation.
  * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
  * - ROBOTS: Must be served dynamically to point to the correct sitemap.
- * - STATIC PAGES: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
+ * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
  * IMMUTABLE CHANGE HISTORY:
  * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
@@ -31,6 +31,8 @@
  * - ADDED: Smart SPA Fallback (404 -> 200 OK for HTML) to fix Google Indexing.
  * - UPDATED: Homepage SEO Scenario to include /home.
  * - CRITICAL FIX: Added KNOWN_SPA_ROUTES whitelist to force 200 OK fallback for static pages (About, Vision, etc.) to fix GSC 404s.
+ * - BUGFIX: Added missing helper functions to prevent Error 1101.
+ * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
  */
 
 export default {
@@ -99,13 +101,14 @@ export default {
         const backendConfig = new URL(BACKEND_URL);
 
         // DEFINE KNOWN SPA ROUTES (Critical for GSC Indexing)
-        // These routes exist in React but NOT as files. We MUST force 200 OK index.html for them.
+        // Explicit whitelist for key pages to guarantee 200 OK
         const KNOWN_SPA_ROUTES = [
             "/home", "/about", "/vision", "/contact",
-            "/privacy", "/terms", "/login", "/dashboard", "/manage-posts"
+            "/privacy", "/terms", "/login", "/dashboard", "/manage-posts",
+            "/newsroom", "/investors", "/careers", "/businesses", "/sustainability"
         ];
 
-        // 1. UNIVERSAL HEADER INJECTION (Restored from Old Code)
+        // 1. UNIVERSAL HEADER INJECTION
         const cf = request.cf || {};
         const enhancedHeaders = new Headers(request.headers);
 
@@ -125,7 +128,7 @@ export default {
             redirect: request.redirect
         });
 
-        // SECURITY HELPER (Restored from Old Code)
+        // SECURITY HELPER
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
@@ -135,6 +138,10 @@ export default {
             newHeaders.set("X-XSS-Protection", "1; mode=block");
             newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+            // Force 200 OK if we triggered a fallback
+            if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
+                return new Response(response.body, { status: 200, headers: newHeaders });
+            }
             return new Response(response.body, { status: response.status, headers: newHeaders });
         };
 
@@ -144,7 +151,7 @@ export default {
         };
 
         // ----------------------------------------------
-        // 2. HIGH AVAILABILITY ROBOTS.TXT (Restored)
+        // 2. HIGH AVAILABILITY ROBOTS.TXT
         // ----------------------------------------------
         if (url.pathname === "/robots.txt") {
             const robotsTxt = `User-agent: *
@@ -174,7 +181,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 3. SITEMAP LOGIC (NEW KV ENGINE)
+        // 3. SITEMAP LOGIC (KV ENGINE)
         // ----------------------------------------------
 
         // A. ROOT SITEMAP INDEX (/sitemap.xml)
@@ -188,7 +195,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 4. API PROXY (Restored Secure Routing)
+        // 4. API PROXY (Secure Routing)
         // ----------------------------------------------
         if (url.pathname.startsWith("/api")) {
             const targetUrl = new URL(request.url);
@@ -228,13 +235,14 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // ----------------------------------------------
         // 5. STATIC ASSETS
         // ----------------------------------------------
-        if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt)$/)) {
+        // Strictly serve files with extensions from Pages
+        if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
             const assetResp = await fetch(baseEnhancedRequest);
             return addSecurityHeaders(assetResp);
         }
 
         // ----------------------------------------------
-        // 6. FETCH HTML SHELL WITH INTELLIGENT SPA FALLBACK
+        // 6. FETCH HTML SHELL WITH AGGRESSIVE SPA FALLBACK
         // ----------------------------------------------
         let response;
         const cacheKey = new Request(url.origin + "/", request);
@@ -244,37 +252,50 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             // A. Attempt to fetch the actual URL from Cloudflare Pages
             response = await fetch(baseEnhancedRequest);
 
-            // B. SMART SPA FALLBACK (CRITICAL FIX FOR GSC 404s)
-            // If origin returns 404, check if this is a known React Route.
-            // If yes, we MUST return index.html with a 200 OK status.
-            if (response.status === 404) {
-                const acceptHeader = request.headers.get("Accept") || "";
+            // B. AGGRESSIVE SPA FALLBACK (CRITICAL FOR GSC)
+            // If the origin returns 404 (Not Found) AND it looks like a Page route (no extension or known route)
+            // We MUST swap the 404 with the content of index.html and status 200.
 
-                // Check against known routes whitelist OR Accept header
-                const isKnownRoute = KNOWN_SPA_ROUTES.includes(url.pathname);
-                const expectsHtml = acceptHeader.includes("text/html");
+            const isKnownSpaRoute = KNOWN_SPA_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + "/"));
+            const hasNoExtension = !url.pathname.includes(".");
+            const isNotApi = !url.pathname.startsWith("/api");
 
-                if (isKnownRoute || expectsHtml) {
-                    // Fetch the Entry Point (index.html) from the same origin
-                    const indexReq = new Request(new URL("/index.html", request.url), request);
-                    const indexResp = await fetch(indexReq);
+            if ((response.status === 404 || response.status === 403) && (isKnownSpaRoute || (hasNoExtension && isNotApi))) {
 
-                    if (indexResp.ok) {
-                        // Create a NEW 200 OK Response with the Index Body
-                        response = new Response(indexResp.body, indexResp);
-                        response.headers.set("X-SPA-Fallback", "Active");
-                        if (isKnownRoute) {
-                            response.headers.set("X-Route-Type", "Known-SPA-Page");
-                        }
+                // Fetch the Entry Point (index.html) from the same origin
+                // We construct a new request specifically for /index.html
+                const indexReq = new Request(new URL("/index.html", request.url), {
+                    headers: enhancedHeaders,
+                    method: "GET"
+                });
+
+                const indexResp = await fetch(indexReq);
+
+                if (indexResp.ok) {
+                    // Create a NEW 200 OK Response with the Index Body
+                    response = new Response(indexResp.body, indexResp);
+                    response.headers.set("X-SPA-Fallback", "Active");
+
+                    // Mark specific routes for debugging
+                    if (isKnownSpaRoute) {
+                        response.headers.set("X-Route-Type", "Known-SPA-Page");
+                    } else {
+                        response.headers.set("X-Route-Type", "Implicit-SPA-Page");
                     }
+
+                    // Overwrite status to 200 to ensure GSC indexes it
+                    response = new Response(response.body, {
+                        status: 200,
+                        headers: response.headers
+                    });
                 }
             }
 
-            // C. Cache Successful HTML Responses
-            if (response.ok) {
+            // C. Cache Successful HTML Responses (Short TTL for dynamic content)
+            if (response && response.ok) {
                 const clone = response.clone();
                 const cacheHeaders = new Headers(clone.headers);
-                cacheHeaders.set("Cache-Control", "public, max-age=3600");
+                cacheHeaders.set("Cache-Control", "public, max-age=600"); // 10 mins cache for HTML
                 ctx.waitUntil(cache.put(cacheKey, new Response(clone.body, { status: clone.status, headers: cacheHeaders })));
             }
         } catch (e) {
@@ -282,18 +303,19 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // D. Cache Fallback (Service Unavailable safety net)
+        // Only use this if we completely failed to get a response (network error)
         if (!response || response.status >= 500) {
             const cachedResponse = await cache.match(cacheKey);
             if (cachedResponse) {
                 response = new Response(cachedResponse.body, cachedResponse);
                 response.headers.set("X-Fallback-Source", "Worker-Cache");
             } else {
-                if (!response) return new Response("Service Unavailable", { status: 503 });
+                if (!response) return new Response("Service Unavailable - Backend Unreachable", { status: 503 });
             }
         }
 
         // =================================================================================
-        // 7. SEO INTELLIGENCE & EDGE HYDRATION (RESTORED DETAILED LOGIC)
+        // 7. SEO INTELLIGENCE & EDGE HYDRATION (DETAILED LOGIC)
         // =================================================================================
 
         // SCENARIO A: HOMEPAGE (With Social Links & Contact)
@@ -406,6 +428,11 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             "/contact": {
                 title: "Treishfin · Contact Us",
                 description: "Have questions about financial markets or our platform? Get in touch with the Treishvaam Finance team today.",
+                image: `${FRONTEND_URL}/logo.webp`
+            },
+            "/sustainability": {
+                title: "Sustainability | Treishvaam Finance",
+                description: "Our commitment to sustainable financial practices and ESG-focused market analysis.",
                 image: `${FRONTEND_URL}/logo.webp`
             }
         };
@@ -554,3 +581,61 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         return addSecurityHeaders(response);
     }
 };
+
+// =================================================================================
+// 8. HELPER FUNCTIONS (Sitemap Engine) - CRITICAL FOR AVOIDING ERROR 1101
+// =================================================================================
+
+/**
+ * GENERATES SITEMAP INDEX FROM KV
+ */
+async function handleKVSitemapIndex(env, frontendUrl, backendUrl) {
+    let metadata = null;
+    const cachedMeta = await env.TREISHFIN_SEO_CACHE.get("sitemap:meta");
+    if (cachedMeta) { try { metadata = JSON.parse(cachedMeta); } catch (e) { } }
+
+    if (!metadata) {
+        try {
+            const resp = await fetch(`${backendUrl}/api/public/sitemap/meta`, {
+                headers: { 'User-Agent': 'Cloudflare-Worker-Sitemap' }
+            });
+            if (resp.ok) metadata = await resp.json();
+        } catch (e) { }
+    }
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap><loc>${frontendUrl}/sitemap-static.xml</loc></sitemap>`;
+
+    if (metadata) {
+        if (metadata.blogs) metadata.blogs.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
+        if (metadata.markets) metadata.markets.forEach(file => xml += `<sitemap><loc>${frontendUrl}${file}</loc></sitemap>`);
+    }
+
+    xml += `</sitemapindex>`;
+    return new Response(xml, { headers: { "Content-Type": "application/xml", "X-Source": metadata ? "KV-Index" : "Fallback" } });
+}
+
+/**
+ * SERVES DYNAMIC SITEMAP FROM KV
+ */
+async function handleDynamicSitemapFromKV(url, env, backendUrl) {
+    const key = `sitemap:${url.pathname}`;
+    const cached = await env.TREISHFIN_SEO_CACHE.get(key);
+    if (cached) {
+        return new Response(cached, { headers: { "Content-Type": "application/xml", "X-Source": "KV-Cache" } });
+    }
+
+    try {
+        // Translate path: /sitemap-dynamic/ -> /api/public/sitemap/
+        const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
+        const backendResp = await fetch(`${backendUrl}${apiPath}`);
+        if (backendResp.ok) {
+            const newResp = new Response(backendResp.body, backendResp);
+            newResp.headers.set("X-Source", "Backend-Fallback");
+            return newResp;
+        }
+    } catch (e) { }
+
+    return new Response("Sitemap Unavailable", { status: 404 });
+}

@@ -1,8 +1,6 @@
-
 # 07 - Frontend Components
 
 ## 1. Component Hierarchy
-
 
 The `src/components` folder is organized by feature and UI domain:
 
@@ -33,9 +31,9 @@ This is the most architecturally significant component set, handling the "Visual
 
 - **SinglePostPage.js**:
     - **Role**: The "Hydration Manager" for blog posts.
-    - **Cleanup Logic**: Upon mounting, it actively searches for `<div id="server-content">` (the static HTML served by Cloudflare/Nginx) and **removes it** from the DOM. This prevents the "Double Content" glitch where users see both the React app and the raw HTML text.
-    - **State Injection**: It checks `window.__PRELOADED_STATE__`. If present, it initializes the article state immediately without fetching from the API, achieving **Zero-Latency Rendering**.
-    - **Fallback**: If the state is missing (e.g., direct client navigation), it falls back to a standard API fetch (`getPostByUrlId`).
+    - **Cleanup Logic**: Upon mounting, it actively searches for `<div id="server-content">` (the static HTML served by the **Cloudflare Worker/Edge Layer**) and **removes it** from the DOM. This prevents the "Double Content" glitch where users see both the React app and the raw HTML text.
+    - **State Injection**: It checks `window.__PRELOADED_STATE__`. If present (injected by the **Edge Worker**), it initializes the article state immediately without fetching from the API, achieving **Zero-Latency Rendering**.
+    - **Fallback**: If the state is missing (e.g., direct client navigation bypassing the Worker), it falls back to a standard API fetch (`getPostByUrlId`).
     - **Features**: Renders the Table of Contents (`TableOfContents.js`), Audio Player (`AudioPlayer.js`), and Social Share buttons.
 
 ## 4. Feature: Blog Editor (CMS)
@@ -71,7 +69,6 @@ The Blog Editor is a complex state machine designed for enterprise content manag
     - Displays financial news cards.
     - Handles the fallback image logic if the upstream provider (Finnhub) fails to return a thumbnail.
 
-
 ## 6. Reusable UI Elements
 
 - **PaginationControls**: Standardized pager for lists (Admin Table, Blog Feed).
@@ -82,7 +79,6 @@ The Blog Editor is a complex state machine designed for enterprise content manag
 - **DevelopmentNotice**: Placeholder component for feature flags or in-development notices. Currently renders nothing.
 
 ## 7. Observability Integration
-
 
 - **FaroErrorBoundary**: Top-level component that catches React render errors and sends stack traces to the Grafana Faro collector.
 
