@@ -39,21 +39,18 @@ IMMUTABLE CHANGE HISTORY:
   Future AI must never move this back to Worker code generation.
 -->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <!-- Static Frontend Pages -->
     <sitemap>
-        <loc>https://treishfin.treishvaamgroup.com/sitemap-static.xml</loc>
+        <loc>https://treishvaamfinance.com/sitemap-static.xml</loc>
         <lastmod>2026-02-02</lastmod>
     </sitemap>
     
-    <!-- Dynamic Blog Content (Backend-Generated) -->
     <sitemap>
-        <loc>https://treishfin.treishvaamgroup.com/sitemap-dynamic/blog/0.xml</loc>
+        <loc>https://treishvaamfinance.com/sitemap-dynamic/blog/0.xml</loc>
         <lastmod>2026-02-02</lastmod>
     </sitemap>
     
-    <!-- Dynamic Market Data (Backend-Generated) -->
     <sitemap>
-        <loc>https://treishfin.treishvaamgroup.com/sitemap-dynamic/market/0.xml</loc>
+        <loc>https://treishvaamfinance.com/sitemap-dynamic/market/0.xml</loc>
         <lastmod>2026-02-02</lastmod>
     </sitemap>
 </sitemapindex>

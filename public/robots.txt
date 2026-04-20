@@ -2,7 +2,6 @@
 # Purpose: Single Source of Truth for Crawler Directives (Worker Fall-through).
 # Critical: Contains strict security disallows previously managed by Edge Worker.
 # Dependencies: Must match Backend SecurityConfig patterns.
-
 User-agent: *
 
 # Allow access to all content by default
@@ -24,4 +23,4 @@ Disallow: /silent-check-sso.html
 Disallow: /login
 
 # Sitemap Index
-Sitemap: https://treishfin.treishvaamgroup.com/sitemap.xml
+Sitemap: https://treishvaamfinance.com/sitemap.xml

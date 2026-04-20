@@ -6,7 +6,7 @@
  * - Handles: Zero-Trust Security, Rich Result SEO Injection, KV-Backed Sitemap (Edge Replica).
  *
  * Scope:
- * - Intercepts all traffic to treishfin.treishvaamgroup.com
+ * - Intercepts all traffic to treishvaamfinance.com
  * - Manages routing between Static Frontend, Dynamic Backend, and KV Store.
  *
  * Critical Dependencies:
@@ -34,10 +34,14 @@
  * - BUGFIX: Added missing helper functions to prevent Error 1101.
  * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
  * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
- *   • Reason: Google Search Console "No referring sitemaps detected" issue.
- *   • Solution: Static sitemap index on Pages with lastmod timestamps.
- *   • Fixed: Replaced env.ASSETS.fetch() with direct fetch() to Pages URL.
- *   • Preserved: ALL SEO schemas including organization details, social links, contact information.
+ * • Reason: Google Search Console "No referring sitemaps detected" issue.
+ * • Solution: Static sitemap index on Pages with lastmod timestamps.
+ * • Fixed: Replaced env.ASSETS.fetch() with direct fetch() to Pages URL.
+ * • Preserved: ALL SEO schemas including organization details, social links, contact information.
+ * - EDITED:
+ * • Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
+ * • Why the edit was required: Domain migration to dedicated apex domain.
+ * • What behavior must remain unchanged: Edge SEO hydration, sitemap serving, and backend proxying.
  */
 
 export default {
@@ -101,7 +105,7 @@ export default {
 
         // 0. CONFIGURATION
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
-        const FRONTEND_URL = env.FRONTEND_URL || "https://treishfin.treishvaamgroup.com";
+        const FRONTEND_URL = env.FRONTEND_URL || "https://treishvaamfinance.com";
         const PARENT_ORG_URL = "https://treishvaamgroup.com";
         const backendConfig = new URL(BACKEND_URL);
 
@@ -392,14 +396,13 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // SCENARIO A: HOMEPAGE (With Social Links & Contact)
         // Added /home to ensure it shares the Homepage SEO Intelligence
         if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
-            const pageTitle = "Treishvaam Finance (TreishFin) | Global Financial Analysis & News";
-            const pageDesc = "Treishvaam Finance (TreishFin) provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
+            const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
+            const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
 
             const homeSchema = {
                 "@context": "https://schema.org",
                 "@type": "FinancialService",
                 "name": "Treishvaam Finance",
-                "alternateName": "TreishFin",
                 "url": FRONTEND_URL + "/",
                 "logo": "https://treishvaamgroup.com/logo512.webp",
                 "image": "https://treishvaamgroup.com/logo512.webp",
@@ -487,17 +490,17 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // SCENARIO B: STATIC PAGES
         const staticPages = {
             "/about": {
-                title: "About Us | Treishfin",
+                title: "About Us | Treishvaam Finance",
                 description: "Learn about Treishvaam Finance, our mission to democratize financial literacy, and our founder Amitsagar Kandpal.",
                 image: `${FRONTEND_URL}/logo.webp`
             },
             "/vision": {
-                title: "Treishfin · Our Vision",
+                title: "Treishvaam Finance · Our Vision",
                 description: "To build a world where financial literacy is a universal skill. Explore the philosophy and roadmap driving Treishvaam Finance.",
                 image: `${FRONTEND_URL}/logo.webp`
             },
             "/contact": {
-                title: "Treishfin · Contact Us",
+                title: "Treishvaam Finance · Contact Us",
                 description: "Have questions about financial markets or our platform? Get in touch with the Treishvaam Finance team today.",
                 image: `${FRONTEND_URL}/logo.webp`
             },
@@ -584,7 +587,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                 };
 
                 const rewritten = new HTMLRewriter()
-                    .on("title", { element(e) { e.setInnerContent(post.title + " | Treishfin"); } })
+                    .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
                     .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
                     .on("head", {
                         element(e) {
@@ -616,7 +619,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 
                 if (!quote) return addSecurityHeaders(response);
 
-                const pageTitle = `${quote.name} (${quote.ticker}) Price, News & Analysis | Treishfin`;
+                const pageTitle = `${quote.name} (${quote.ticker}) Price, News & Analysis | Treishvaam Finance`;
                 const pageDesc = `Real-time stock price for ${quote.name} (${quote.ticker}). Market cap: ${quote.marketCap}. Detailed financial analysis on Treishvaam Finance.`;
                 const logoUrl = quote.logoUrl || `${FRONTEND_URL}/logo.webp`;
 
