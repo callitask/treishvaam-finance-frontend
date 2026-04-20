@@ -20,7 +20,6 @@
  * Non-Negotiables:
  * - SITEMAP: Must use KV (Edge Replica) + Path Translation.
  * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
- * - ROBOTS: Must be served dynamically to point to the correct sitemap.
  * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
  * IMMUTABLE CHANGE HISTORY:
@@ -34,14 +33,19 @@
  * - BUGFIX: Added missing helper functions to prevent Error 1101.
  * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
  * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
- * • Reason: Google Search Console "No referring sitemaps detected" issue.
- * • Solution: Static sitemap index on Pages with lastmod timestamps.
- * • Fixed: Replaced env.ASSETS.fetch() with direct fetch() to Pages URL.
- * • Preserved: ALL SEO schemas including organization details, social links, contact information.
  * - EDITED:
  * • Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
  * • Why the edit was required: Domain migration to dedicated apex domain.
  * • What behavior must remain unchanged: Edge SEO hydration, sitemap serving, and backend proxying.
+ * - REMOVED:
+ * • Removed Worker intercepts for /robots.txt, /sitemap.xml, and /sitemap-static.xml.
+ * • Why removal was safe: These are now static files hosted natively on Cloudflare Pages.
+ * • What replaced it: Fall-through to the Static Assets handler (Section 4), which safely fetches from the Pages container without risking recursive subrequest loops.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
  */
 
 export default {
@@ -160,116 +164,14 @@ export default {
         };
 
         // ----------------------------------------------
-        // 2. HIGH AVAILABILITY ROBOTS.TXT
+        // 2. DYNAMIC SITEMAPS (KV CACHE)
         // ----------------------------------------------
-        if (url.pathname === "/robots.txt") {
-            const robotsTxt = `User-agent: *
-Allow: /
-
-# --- ENTERPRISE SEO: Allow Googlebot to fetch API data for rendering ---
-Allow: /api/posts
-Allow: /api/categories
-Allow: /api/market
-Allow: /api/news
-
-# Disallow crawlers from indexing Auth, Admin, and internal search paths
-Disallow: /api/auth/
-Disallow: /api/contact/
-Disallow: /api/admin/
-Disallow: /dashboard/
-Disallow: /?q=*
-Disallow: /silent-check-sso.html
-Disallow: /login
-
-# Sitemap Index
-Sitemap: ${FRONTEND_URL}/sitemap.xml`;
-
-            return new Response(robotsTxt, {
-                headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=86400" }
-            });
-        }
-
-        // ----------------------------------------------
-        // 3. SITEMAP LOGIC - SERVE STATIC FILES FROM PAGES CDN
-        // ----------------------------------------------
-
-        // A. ROOT SITEMAP INDEX (/sitemap.xml) - CRITICAL FIX (2026-02-02)
-        // Fetch static sitemap index directly from Cloudflare Pages CDN
-        // Reason: Google Search Console requires persistent file for attribution
-        // Fix: env.ASSETS doesn't exist in Workers - use direct fetch() instead
-        if (url.pathname === '/sitemap.xml') {
-            try {
-                // Fetch the static sitemap.xml from Cloudflare Pages CDN
-                const sitemapUrl = `${FRONTEND_URL}/sitemap.xml`;
-                const sitemapResponse = await fetch(sitemapUrl, {
-                    cf: {
-                        cacheTtl: 3600,
-                        cacheEverything: true
-                    }
-                });
-
-                if (sitemapResponse.ok) {
-                    // Add proper caching headers for Google crawling
-                    const headers = new Headers(sitemapResponse.headers);
-                    headers.set("Content-Type", "application/xml; charset=utf-8");
-                    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-                    headers.set("X-Source", "Static-Pages-CDN");
-
-                    return new Response(sitemapResponse.body, {
-                        status: 200,
-                        headers: headers
-                    });
-                }
-            } catch (e) {
-                console.error("Failed to fetch sitemap.xml:", e);
-            }
-
-            // Fallback: return error if static file fetch fails
-            return new Response("Sitemap temporarily unavailable", {
-                status: 503,
-                headers: { "Retry-After": "300" }
-            });
-        }
-
-        // B. STATIC SITEMAP (/sitemap-static.xml)
-        if (url.pathname === "/sitemap-static.xml") {
-            try {
-                const staticUrl = `${FRONTEND_URL}/sitemap-static.xml`;
-                const staticResponse = await fetch(staticUrl, {
-                    cf: {
-                        cacheTtl: 3600,
-                        cacheEverything: true
-                    }
-                });
-
-                if (staticResponse.ok) {
-                    const headers = new Headers(staticResponse.headers);
-                    headers.set("Content-Type", "application/xml; charset=utf-8");
-                    headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
-                    headers.set("X-Source", "Static-Pages-CDN");
-
-                    return new Response(staticResponse.body, {
-                        status: 200,
-                        headers: headers
-                    });
-                }
-            } catch (e) {
-                console.error("Failed to fetch sitemap-static.xml:", e);
-            }
-
-            return new Response("Static sitemap temporarily unavailable", {
-                status: 503,
-                headers: { "Retry-After": "300" }
-            });
-        }
-
-        // C. DYNAMIC CHILD SITEMAPS (/sitemap-dynamic/...)
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(url, env, BACKEND_URL);
         }
 
         // ----------------------------------------------
-        // 4. API PROXY (Secure Routing)
+        // 3. API PROXY (Secure Routing)
         // ----------------------------------------------
         if (url.pathname.startsWith("/api")) {
             const targetUrl = new URL(request.url);
@@ -307,16 +209,17 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // ----------------------------------------------
-        // 5. STATIC ASSETS
+        // 4. STATIC ASSETS
         // ----------------------------------------------
-        // Strictly serve files with extensions from Pages
+        // Strictly serve files with extensions from Pages natively
+        // This includes robots.txt, sitemap.xml, and sitemap-static.xml
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
             const assetResp = await fetch(baseEnhancedRequest);
             return addSecurityHeaders(assetResp);
         }
 
         // ----------------------------------------------
-        // 6. FETCH HTML SHELL WITH AGGRESSIVE SPA FALLBACK
+        // 5. FETCH HTML SHELL WITH AGGRESSIVE SPA FALLBACK
         // ----------------------------------------------
         let response;
         const cacheKey = new Request(url.origin + "/", request);
@@ -327,17 +230,12 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             response = await fetch(baseEnhancedRequest);
 
             // B. AGGRESSIVE SPA FALLBACK (CRITICAL FOR GSC)
-            // If the origin returns 404 (Not Found) AND it looks like a Page route (no extension or known route)
-            // We MUST swap the 404 with the content of index.html and status 200.
-
             const isKnownSpaRoute = KNOWN_SPA_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + "/"));
             const hasNoExtension = !url.pathname.includes(".");
             const isNotApi = !url.pathname.startsWith("/api");
 
             if ((response.status === 404 || response.status === 403) && (isKnownSpaRoute || (hasNoExtension && isNotApi))) {
 
-                // Fetch the Entry Point (index.html) from the same origin
-                // We construct a new request specifically for /index.html
                 const indexReq = new Request(new URL("/index.html", request.url), {
                     headers: enhancedHeaders,
                     method: "GET"
@@ -346,18 +244,15 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                 const indexResp = await fetch(indexReq);
 
                 if (indexResp.ok) {
-                    // Create a NEW 200 OK Response with the Index Body
                     response = new Response(indexResp.body, indexResp);
                     response.headers.set("X-SPA-Fallback", "Active");
 
-                    // Mark specific routes for debugging
                     if (isKnownSpaRoute) {
                         response.headers.set("X-Route-Type", "Known-SPA-Page");
                     } else {
                         response.headers.set("X-Route-Type", "Implicit-SPA-Page");
                     }
 
-                    // Overwrite status to 200 to ensure GSC indexes it
                     response = new Response(response.body, {
                         status: 200,
                         headers: response.headers
@@ -365,7 +260,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                 }
             }
 
-            // C. Cache Successful HTML Responses (Short TTL for dynamic content)
+            // C. Cache Successful HTML Responses
             if (response && response.ok) {
                 const clone = response.clone();
                 const cacheHeaders = new Headers(clone.headers);
@@ -376,8 +271,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             response = null;
         }
 
-        // D. Cache Fallback (Service Unavailable safety net)
-        // Only use this if we completely failed to get a response (network error)
+        // D. Cache Fallback
         if (!response || response.status >= 500) {
             const cachedResponse = await cache.match(cacheKey);
             if (cachedResponse) {
@@ -389,12 +283,10 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         }
 
         // =================================================================================
-        // 7. SEO INTELLIGENCE & EDGE HYDRATION (DETAILED LOGIC)
-        // CRITICAL: ALL ORGANIZATION DETAILS, SOCIAL LINKS, CONTACT INFO PRESERVED
+        // 6. SEO INTELLIGENCE & EDGE HYDRATION
         // =================================================================================
 
-        // SCENARIO A: HOMEPAGE (With Social Links & Contact)
-        // Added /home to ensure it shares the Homepage SEO Intelligence
+        // SCENARIO A: HOMEPAGE
         if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
             const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
             const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
@@ -657,7 +549,7 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
 };
 
 // =================================================================================
-// 8. HELPER FUNCTIONS (Sitemap Engine) - CRITICAL FOR AVOIDING ERROR 1101
+// 7. HELPER FUNCTIONS (Sitemap Engine) - CRITICAL FOR AVOIDING ERROR 1101
 // =================================================================================
 
 /**
