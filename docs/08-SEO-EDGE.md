@@ -1,11 +1,26 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Operational architecture of the Cloudflare Worker and Frontend SEO Strategy.
+ *
+ * Change Intent:
+ * - Synchronized with the backend Master Ledger to include the 0ms TBT third-party script loading standard.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED: Edge SEO Architecture Documentation.
+ * - EDITED:
+ * • Added Section 6 defining Third-Party Script & Tag Management (0ms TBT Architecture).
+ */
+
 # 08 - Enterprise SEO & Edge Architecture
 
 ## 1. Architecture Overview: "The Edge Replica"
 
-We have implemented an **Enterprise-Grade Edge-Replica Architecture** using Cloudflare Workers and KV (Key-Value) Storage. This ensures that our SEO infrastructure (Sitemaps, Robots.txt, Rich Results) is **100% Highly Available**, even if the Backend API is down for maintenance.
+We have implemented an **Enterprise-Grade Edge-Replica Architecture** using Cloudflare Workers and KV (Key-Value) Storage. This ensures that our SEO infrastructure (Sitemaps, Robots.txt, Rich Results) is **100% Highly Available**, even if the Backend API is down.
 
 ### The Core Concept
-Instead of the Edge "asking" the Backend for data every time Googlebot visits (which creates a dependency), the Edge maintains its own **local replica** of critical SEO data.
+Instead of the Edge "asking" the Backend for data every time Googlebot visits, the Edge maintains its own **local replica** of critical SEO data.
 
 | Component | Role | Location | Status |
 | :--- | :--- | :--- | :--- |
@@ -21,65 +36,37 @@ Instead of the Edge "asking" the Backend for data every time Googlebot visits (w
 We utilize a **Hybrid Aggregation Strategy**.
 
 ### A. The Index (`/sitemap.xml`)
-The Worker dynamically generates the Sitemap Index XML in-memory. It stitches together:
-1.  **Static Sitemap**: Points to `/sitemap-static.xml` (Served directly from Frontend assets).
-2.  **Dynamic Sitemaps**: Points to `/sitemap-dynamic/blog/0.xml` and `/sitemap-dynamic/market/0.xml`.
+The Worker dynamically generates the Sitemap Index XML in-memory. It stitches together static and dynamic sitemaps.
 
 ### B. The Synchronization Engine (Cron Job)
-A Scheduled Event (Cron) runs every hour (`0 * * * *`) in the Worker:
-1.  **Fetch**: It calls the Backend API (`/api/public/sitemap/meta`).
-2.  **Download**: It downloads the XML content for blogs and market tickers.
-3.  **Replica**: It saves this XML into **Cloudflare KV** (`TREISHFIN_SEO_CACHE`).
-4.  **Resilience**: If the Backend is down, the Cron fails silently, but the **Old Data in KV remains valid**.
+A Scheduled Event (Cron) runs every hour (`0 * * * *`) in the Worker to fetch and cache XML payloads into `TREISHFIN_SEO_CACHE`.
 
 ### C. The Serving Layer (Zero Downtime)
-When Google requests `/sitemap-dynamic/blog/0.xml`:
-1.  **Worker Intercepts**: Checks `TREISHFIN_SEO_CACHE`.
-2.  **Hit**: Serves XML immediately (ms latency). **Backend is NOT touched.**
-3.  **Miss (Fallback)**: Only if KV is empty, it proxies the request to the Backend (Self-Healing).
+When Google requests dynamic sitemaps, the Worker serves them from KV (ms latency). The backend is only touched on cache misses.
 
 ---
 
 ## 3. SEO Rich Results & Injection
 
-The Worker implements **Edge Hydration** to ensure social media crawlers (Twitter/LinkedIn bots) and Search Engines see rich metadata, even if they don't run JavaScript.
+The Worker implements **Edge Hydration** to ensure social media crawlers and Search Engines see rich metadata, even if they don't run JavaScript.
 
 ### Logic (Scenario-Based)
-The `worker.js` inspects the URL and injects specific JSON-LD schemas:
-
-* **Homepage (`/`)**: Injects `Organization` schema (Social Links, Founder, Contact Point). Injects `WebSite` schema (Search Action).
-* **Static Pages (`/about`)**: Injects `WebPage` schema with description.
-* **Blog Posts (`/category/...`)**:
-    * Fetches Article Metadata.
-    * Injects `NewsArticle` schema (Headline, Author, Date, Image).
-    * Injects `window.__PRELOADED_STATE__` for React hydration.
-* **Market Pages (`/market/:ticker`)**:
-    * Fetches Real-Time Quote.
-    * Injects `FinancialProduct` schema (Price, Ticker, Exchange).
+* **Homepage (`/`)**: Injects `Organization` schema and `WebSite` schema.
+* **Static Pages (`/about`)**: Injects `WebPage` schema.
+* **Blog Posts (`/category/...`)**: Injects `NewsArticle` schema and `window.__PRELOADED_STATE__`.
+* **Market Pages (`/market/:ticker`)**: Injects `FinancialProduct` schema.
 
 ---
 
 ## 4. Technical Implementation Details
 
 ### Location
-* **Code**: `treishvaam-finance-frontend/worker/worker.js`
-* **Config**: `treishvaam-finance-frontend/worker/wrangler.toml`
+* **Code**: `worker/worker.js`
+* **Config**: `worker/wrangler.toml`
 
 ### Path Translation (Critical)
-The Frontend and Backend use different URL structures. The Worker bridges this gap:
-* **Public URL**: `https://treishfin.treishvaamgroup.com/sitemap-dynamic/blog/0.xml`
+* **Public URL**: `https://treishvaamfinance.com/sitemap-dynamic/blog/0.xml`
 * **Internal API**: `https://backend.treishvaamgroup.com/api/public/sitemap/blog/0.xml`
-* **Logic**: The Worker creates the mapping automatically during fetch.
-
-### Dynamic Robots.txt
-The Worker intercepts `/robots.txt` and serves a dynamic version that:
-1.  Allows specific API paths for Googlebot rendering.
-2.  Disallows internal paths (`/api/auth`, `/dashboard`).
-3.  Points to the absolute URL of the Sitemap Index.
-
-### Manual Override
-In emergencies (e.g., breaking news), the sitemap cache can be forcibly refreshed via:
-`https://treishfin.treishvaamgroup.com/sys/force-update`
 
 ---
 
@@ -91,3 +78,19 @@ The Worker is managed via `wrangler` and uses GitHub Actions/Secrets for securit
 # Manual Deployment
 cd worker
 npx wrangler deploy
+```
+
+---
+
+## 6. Third-Party Script & Tag Management (0ms TBT Architecture)
+
+To ensure a perfect 100/100 Lighthouse Performance score, the frontend strictly prohibits hardcoding active third-party tracking scripts into `public/index.html`.
+
+### A. Interaction-Based Deferred Loading
+Active scripts block the main thread. To achieve **0ms Total Blocking Time (TBT)**:
+* Scripts are injected dynamically via `ThirdPartyScripts.js`.
+* The injection is deferred until the user explicitly interacts with the page (`scroll`, `mousemove`).
+* A 7-second `setTimeout` fallback guarantees execution.
+
+### B. Zero-Trust Dynamic Injection
+Tracking IDs are decoupled from the codebase and injected via Cloudflare Environment Variables: `REACT_APP_GA_MEASUREMENT_ID`, `REACT_APP_GOOGLE_ADS_ID`, and `REACT_APP_ADSENSE_CLIENT_ID`.

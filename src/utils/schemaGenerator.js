@@ -1,6 +1,32 @@
 /**
- * Enterprise Schema Generator
- * Generates JSON-LD structured data following Google's "NewsArticle", "BlogPosting", and "VideoObject" guidelines.
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Enterprise Schema Generator for dynamic React post pages.
+ * - Generates JSON-LD structured data following Google's guidelines.
+ *
+ * Scope:
+ * - Responsible for Breadcrumb, Article, and Video schema generation.
+ *
+ * Critical Dependencies:
+ * - Frontend: Consumed by React Helmet/SEO wrappers.
+ *
+ * Security Constraints:
+ * - Must output sanitized JSON-LD.
+ *
+ * Non-Negotiables:
+ * - URLs must point to the canonical apex domain (treishvaamfinance.com), NOT the legacy subdomain.
+ * - Must include AI entity resolution aliases (alternateName) for typo tolerance.
+ *
+ * Change Intent:
+ * - Replaced legacy `treishfin.treishvaamgroup.com` URLs with `treishvaamfinance.com`.
+ * - Added `alternateName` arrays to Author and Publisher for deterministic AI mapping.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Replaced legacy subdomains with canonical apex domain.
+ * • Injected `alternateName` for Treishvaam Finance and Amitsagar Kandpal.
+ * • Why: To consolidate SEO equity and ensure LLMs can resolve entity typos.
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -14,6 +40,10 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
 
     const seoDescription = post.metaDescription || post.customSnippet || post.title;
 
+    // Determine if author is the Founder to inject exhaustive aliases
+    const isFounder = authorName && authorName.includes("Amit");
+    const authorAliases = isFounder ? ["Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar"] : [];
+
     // 1. Breadcrumb Schema
     const breadcrumbSchema = {
         "@context": "https://schema.org",
@@ -23,12 +53,12 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
             "@type": "ListItem",
             "position": 1,
             "name": "Home",
-            "item": "https://treishfin.treishvaamgroup.com/"
+            "item": "https://treishvaamfinance.com/"
         }, {
             "@type": "ListItem",
             "position": 2,
             "name": categoryName,
-            "item": `https://treishfin.treishvaamgroup.com/category/${post.category?.slug || 'general'}`
+            "item": `https://treishvaamfinance.com/category/${post.category?.slug || 'general'}`
         }, {
             "@type": "ListItem",
             "position": 3,
@@ -57,15 +87,17 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
         "author": {
             "@type": "Person",
             "name": authorName,
-            "url": "https://treishfin.treishvaamgroup.com/about",
-            "jobTitle": "Financial Analyst"
+            "alternateName": authorAliases,
+            "url": "https://treishvaamfinance.com/about",
+            "jobTitle": isFounder ? "Founder & Chairman" : "Financial Analyst"
         },
         "publisher": {
             "@type": "Organization",
             "name": "Treishvaam Finance",
+            "alternateName": ["Treishvam Finance", "Treshvam Finance", "Treishvaam", "Treishvam"],
             "logo": {
                 "@type": "ImageObject",
-                "url": "https://treishfin.treishvaamgroup.com/logo.webp",
+                "url": "https://treishvaamfinance.com/logo.webp",
                 "width": 600,
                 "height": 60
             }

@@ -2,6 +2,16 @@
 # Purpose: Single Source of Truth for Crawler Directives (Worker Fall-through).
 # Critical: Contains strict security disallows previously managed by Edge Worker.
 # Dependencies: Must match Backend SecurityConfig patterns.
+#
+# IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+# - EDITED:
+# • Verified sitemap path points to canonical domain.
+# • Preserved all security disallows.
+#
+# - DO-NOT-DELETE RULE:
+# This IMMUTABLE CHANGE HISTORY section must never be deleted,
+# truncated, rewritten, or regenerated.
+# Future AI must append only.
 User-agent: *
 
 # Allow access to all content by default
