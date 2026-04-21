@@ -9,15 +9,18 @@ Unlike traditional SPAs, this application **does not** hold any API keys or secr
 ## Security & Configuration (Zero Trust)
 
 **Fort Knox Security Suite: ENABLED**
-This project strictly follows the **12-Factor App** configuration methodology. All production URLs are hidden from the codebase and injected strictly at runtime.
+This project strictly follows the **12-Factor App** configuration methodology. All production URLs and Tracking IDs are hidden from the codebase and injected strictly at runtime.
 
 ### 1. Environment Variables
-The application requires two key variables to function. These tell the frontend where to find the secure API and Authentication server.
+The application requires several variables to function correctly in a production environment. 
 
-| Variable Name | Description | Local Dev Value | Production Value |
-| :--- | :--- | :--- | :--- |
-| `REACT_APP_API_URL` | The URL of the Spring Boot Backend. | `http://localhost:8080` | `[REDACTED - INJECTED VIA CLOUDFLARE]` |
-| `REACT_APP_AUTH_URL` | The URL of the Keycloak Server. | `http://localhost:8080/auth` | `[REDACTED - INJECTED VIA CLOUDFLARE]` |
+| Variable Name | Description | Required |
+| :--- | :--- | :--- |
+| `REACT_APP_API_URL` | The URL of the Spring Boot Backend. | **Yes** |
+| `REACT_APP_AUTH_URL` | The URL of the Keycloak Server. | **Yes** |
+| `REACT_APP_GA_MEASUREMENT_ID` | Google Analytics 4 Measurement ID (`G-XXX`). | No |
+| `REACT_APP_ADSENSE_CLIENT_ID` | Google AdSense Publisher ID (`ca-pub-XXX`). | No |
+| `REACT_APP_GOOGLE_ADS_ID` | Google Ads Tracking ID (`AW-XXX`). | No |
 
 ### 2. Local Development Setup
 To run this project locally, you must create a `.env` file in the root directory (this file is git-ignored for security).
@@ -40,33 +43,26 @@ To run this project locally, you must create a `.env` file in the root directory
 We use **Cloudflare Pages** for hosting.
 1.  **Push** your code to the `main` branch.
 2.  **Go to Cloudflare Dashboard** -> Pages -> Settings -> Environment Variables.
-3.  **Add the Production Variables** (Mark them as "Encrypted" / "Secret"):
-    * `REACT_APP_API_URL`: `https://<HIDDEN_DOMAIN_OR_TUNNEL>`
-    * `REACT_APP_AUTH_URL`: `https://<HIDDEN_DOMAIN_OR_TUNNEL>/auth`
+3.  **Add the Production Variables** securely in the dashboard.
 4.  **Redeploy** to apply changes.
 
 ## Architecture Highlights
 
 * **Hybrid SSG (Materialized SEO)**: The application supports **"Publish-Time Materialization"**. For blog posts, the Backend generates a static HTML file. The Cloudflare Worker serves this file (Strategy A) for 100% SEO indexability.
+* **0ms TBT Analytics Loading**: Google Analytics, Google Ads, and AdSense scripts are loaded via an **Interaction-Based Deferred Strategy** (`ThirdPartyScripts.js`). This ensures a 100/100 Lighthouse Performance score by preventing third-party code from blocking the main thread during bot crawls.
 * **Zero-Flicker Rendering (Strategy B)**: If the static file is missing or the app is transitioning, the Frontend detects `window.__PRELOADED_STATE__`. It uses **`ReactDOM.createRoot`** (instead of `hydrateRoot`) to render the UI instantly from this state, avoiding common React Hydration Mismatches (Error #418) while delivering sub-second First Contentful Paint (FCP).
-* **Automatic SEO Cleanup**: Upon mounting, `SinglePostPage.js` automatically detects and removes the static `#server-content` div injected by the backend. This prevents "Double Content" glitches where the user sees both the React app and the raw HTML text.
-* **Optimistic Locking (Data Integrity)**: The application implements a strict "Version Handshake" with the backend. When editing a post, the frontend captures the database `version`. If another admin modifies the post concurrently, the save operation triggers a **409 Conflict**, and the UI prompts the user to refresh, preventing "Lost Update" anomalies.
-* **Enterprise SEO & Structured Data**: The application dynamically generates and injects **JSON-LD Structured Data** (`schemaGenerator.js`) into the `<head>` for every page. This ensures Google correctly indexes content as `NewsArticle`, `BlogPosting`, or `FinancialProduct` (with real-time price data).
-* **Static Asset Offloading (Nginx Bypass)**: While image *uploads* are securely streamed to the backend, image *reads* (`/api/uploads/...`) are intercepted by Nginx and served directly from MinIO/Storage. The frontend relies on this direct-read path for high-performance asset delivery, bypassing the Java application layer entirely.
-* **Financial Precision Handling**: The frontend is architected to handle high-precision decimal data passed from the backend, ensuring stock prices and crypto values are displayed without floating-point rounding errors.
-* **Secure API Client**: All HTTP requests are handled by `src/apiConfig.js`. This client automatically attaches the Keycloak JWT (Bearer Token) to every request and handles 401/403 errors globally.
-* **Real User Monitoring (RUM)**: Grafana Faro is initialized in `src/faroConfig.js` to track frontend performance, core web vitals, and JS errors in real-time.
+* **Optimistic Locking (Data Integrity)**: The application implements a strict "Version Handshake" with the backend. When editing a post, the frontend captures the database `version`. If another admin modifies the post concurrently, the save operation triggers a **409 Conflict**.
+* **Enterprise SEO & Structured Data**: The application dynamically generates and injects **JSON-LD Structured Data** into the `<head>` for every page.
+* **Static Asset Offloading (Nginx Bypass)**: Image *reads* (`/api/uploads/...`) are intercepted by Nginx and served directly from Storage, bypassing the Java application layer entirely.
 
 ## Key Directories
 
 * `src/index.js`: **Critical.** Entry point implementing the "createRoot" rendering logic based on preloaded state.
+* `src/components/ThirdPartyScripts.js`: **Critical.** Interaction-based loader for all active tracking scripts.
 * `src/apiConfig.js`: **Critical.** Central configuration for API endpoints and Axios interceptors.
-* `src/context/AuthContext.js`: Handles Keycloak login/logout and session state.
-* `src/pages/BlogEditorPage.js`: **Critical.** Handles the complex state for post editing, including the **Optimistic Locking** version handshake and conflict resolution UI.
+* `src/pages/BlogEditorPage.js`: **Critical.** Handles the complex state for post editing, including Optimistic Locking.
 * `src/pages/SinglePostPage.js`: **Critical.** Handles the display of articles and the cleanup of static server content.
-* `src/utils/schemaGenerator.js`: **SEO Core.** Generates Google-compliant JSON-LD schemas for Blog Posts and Market Data.
-* `public/silent-check-sso.html`: **Critical.** A static file loaded by Keycloak in an iframe to enable silent token renewal without page reloads.
-* `src/components/ImageCropUploader.js`: Handles image cropping and raw PNG upload logic.
+* `public/silent-check-sso.html`: **Critical.** A static file loaded by Keycloak in an iframe to enable silent token renewal.
 
 ## Commands
 

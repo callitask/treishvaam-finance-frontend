@@ -1,3 +1,28 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Documents the Treishvaam Finance Frontend React architecture.
+ *
+ * Scope:
+ * - Covers Boot Sequence, Routing, Hybrid SSG integration, Auth, State, API, and Zero-Trust protocols.
+ *
+ * Security Constraints:
+ * - Zero Trust: No API keys, tracking IDs, or secrets may be hardcoded. 
+ *
+ * Non-Negotiables:
+ * - All third-party scripts must adhere to the 0ms TBT interaction-based loading strategy.
+ *
+ * Change Intent:
+ * - Added Section 11 detailing the 0ms TBT Architecture and Zero-Trust environment variables for Google Analytics, Ads, and AdSense.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED: Initial Frontend Architecture documentation.
+ * - EDITED:
+ * • Added Section 11: Zero-Trust Third-Party Tag Management (0ms TBT Architecture).
+ * • Enforced environment variable protocol for GA4 and AdSense.
+ */
+
 # 06 - Frontend Architecture
 
 ## 1. Application Entry & Boot
@@ -105,12 +130,30 @@ The project follows **12-Factor App** principles:
 
 ---
 
-## 10. Edge Layer Integration (New)
+## 10. Edge Layer Integration
 
-The Frontend repository now houses the **Edge Logic** in the `worker/` directory.
+The Frontend repository houses the **Edge Logic** in the `worker/` directory.
 - **Role:** This worker acts as the "Smart Router" sitting in front of the React application.
 - **Responsibilities:**
     - **Sitemap Aggregation:** Combines static frontend sitemaps with dynamic backend data (cached in KV).
     - **SEO Injection:** Injects JSON-LD and meta tags into HTML responses.
     - **Security:** Enforces CSP, HSTS, and Zero-Trust headers before traffic hits the React app.
 - **Deployment:** The worker is deployed separately via `wrangler` but is version-controlled alongside the frontend code.
+
+---
+
+## 11. Third-Party Script & Tag Management (0ms TBT Architecture)
+
+To ensure a perfect 100/100 Lighthouse Performance score and pristine Core Web Vitals, the enterprise strictly prohibits hardcoding active third-party tracking scripts (Google Analytics, Google Ads, AdSense) into `public/index.html`.
+
+### Interaction-Based Deferred Loading
+Active scripts block the main thread. To achieve **0ms Total Blocking Time (TBT)** for SEO bots while retaining functionality for human users:
+* Scripts are injected dynamically via `ThirdPartyScripts.js`.
+* The injection is deferred until the user explicitly interacts with the page (e.g., `scroll`, `mousemove`, `touchstart`, `keydown`).
+* A 7-second `setTimeout` fallback guarantees execution if no interaction occurs.
+
+### Zero-Trust Dynamic Injection
+Hardcoded tracking IDs are a security and infrastructure liability. All tracking IDs are decoupled from the codebase and injected strictly via Cloudflare Environment Variables:
+* `REACT_APP_GA_MEASUREMENT_ID`
+* `REACT_APP_GOOGLE_ADS_ID`
+* `REACT_APP_ADSENSE_CLIENT_ID`
