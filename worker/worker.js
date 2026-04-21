@@ -43,7 +43,8 @@
  * • What replaced it: Fall-through to the Static Assets handler (Section 4), which safely fetches from the Pages container without risking recursive subrequest loops.
  * - EDITED (Current Phase):
  * • Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
- * • Why: To ensure AI bots (ChatGPT, Google-Extended) resolve entity typos flawlessly at the edge.
+ * • Fused "Trishvam" and "Treishvaam" directly into the Amitsagar Kandpal Person entity.
+ * • Why: To force LLM entity resolution between the person and the brand.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -298,7 +299,7 @@ export default {
                 "@context": "https://schema.org",
                 "@type": "FinancialService",
                 "name": "Treishvaam Finance",
-                "alternateName": ["Treishvam Finance", "Treshvam Finance", "Treishvaam"],
+                "alternateName": ["Treishvam Finance", "Treshvam Finance", "Trishvam Finance", "Treishvaam", "Treishvam", "Trishvam"],
                 "url": FRONTEND_URL + "/",
                 "logo": "https://treishvaamgroup.com/logo512.webp",
                 "image": "https://treishvaamgroup.com/logo512.webp",
@@ -331,7 +332,7 @@ export default {
                 "parentOrganization": {
                     "@type": "Corporation",
                     "name": "Treishvaam Group",
-                    "alternateName": ["Treishvam Group", "Treshvam Group"],
+                    "alternateName": ["Treishvam Group", "Treshvam Group", "Trishvam Group"],
                     "url": PARENT_ORG_URL,
                     "email": "treishvaamgroup@gmail.com",
                     "telephone": "+91 81785 29633",
@@ -355,7 +356,7 @@ export default {
                 "founder": {
                     "@type": "Person",
                     "name": "Amitsagar Kandpal",
-                    "alternateName": ["Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar"],
+                    "alternateName": ["Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar", "Treishvaam", "Treishvam", "Trishvam"],
                     "jobTitle": "Founder & Chairman",
                     "email": "callitask@gmail.com",
                     "telephone": "+91 81785 29633",

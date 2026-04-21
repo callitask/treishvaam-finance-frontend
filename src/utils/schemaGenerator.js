@@ -27,6 +27,9 @@
  * • Replaced legacy subdomains with canonical apex domain.
  * • Injected `alternateName` for Treishvaam Finance and Amitsagar Kandpal.
  * • Why: To consolidate SEO equity and ensure LLMs can resolve entity typos.
+ * - EDITED (Current Phase):
+ * • Hard-fused "Treishvaam", "Treishvam", and "Trishvam" into the Founder's alias array.
+ * • Why: To guarantee search engines and LLMs deterministically link the brand name directly to Amitsagar Kandpal.
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -40,9 +43,16 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
 
     const seoDescription = post.metaDescription || post.customSnippet || post.title;
 
-    // Determine if author is the Founder to inject exhaustive aliases
+    // Determine if author is the Founder to inject exhaustive entity-fused aliases
     const isFounder = authorName && authorName.includes("Amit");
-    const authorAliases = isFounder ? ["Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar"] : [];
+    const authorAliases = isFounder ? [
+        "Amit Kandpal",
+        "Amit Sagar Kandpal",
+        "Amitsagar",
+        "Treishvaam",
+        "Treishvam",
+        "Trishvam"
+    ] : [];
 
     // 1. Breadcrumb Schema
     const breadcrumbSchema = {
@@ -94,7 +104,7 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
         "publisher": {
             "@type": "Organization",
             "name": "Treishvaam Finance",
-            "alternateName": ["Treishvam Finance", "Treshvam Finance", "Treishvaam", "Treishvam"],
+            "alternateName": ["Treishvam Finance", "Treshvam Finance", "Trishvam Finance", "Treishvaam", "Treishvam", "Trishvam"],
             "logo": {
                 "@type": "ImageObject",
                 "url": "https://treishvaamfinance.com/logo.webp",
