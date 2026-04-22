@@ -13,14 +13,13 @@
  * Non-Negotiables:
  * - All third-party scripts must adhere to the 0ms TBT interaction-based loading strategy.
  *
- * Change Intent:
- * - Added Section 11 detailing the 0ms TBT Architecture and Zero-Trust environment variables for Google Analytics, Ads, and AdSense.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Initial Frontend Architecture documentation.
  * - EDITED:
  * • Added Section 11: Zero-Trust Third-Party Tag Management (0ms TBT Architecture).
  * • Enforced environment variable protocol for GA4 and AdSense.
+ * - EDITED (LATEST):
+ * • Updated routing and architectural scopes to reflect the migration to the dedicated Apex domain (treishvaamfinance.com) and the introduction of Edge-level SPA Fallbacks.
  */
 
 # 06 - Frontend Architecture
@@ -30,10 +29,10 @@
 The application entry point is `src/index.js`. It implements a specialized boot sequence designed for **Hybrid SSG** compatibility.
 
 - **Edge-Aware Rendering Strategy**:
-    - **Context**: The Backend injects SEO content into a sibling container (`<div id="server-content">`) to satisfy Googlebot, while leaving the React root (`<div id="root">`) empty.
+    - **Context**: The Backend/Edge injects SEO content into a sibling container (`<div id="server-content">`) to satisfy Googlebot, while leaving the React root (`<div id="root">`) empty.
     - **Logic**: We deliberately use `ReactDOM.createRoot()` instead of `hydrateRoot`.
     - **Reasoning**: `hydrateRoot` expects the HTML in `#root` to match the React Tree exactly. Since `#root` is empty (the content is next door), hydration would fail with Error #418/#423.
-    - **Zero-Latency Feel**: Even though we use `createRoot`, the app detects `window.__PRELOADED_STATE__` (injected by Cloudflare/Backend). This allows React to render the *correct* content instantly (0ms fetch time), simulating the speed of hydration without the fragility.
+    - **Zero-Latency Feel**: Even though we use `createRoot`, the app detects `window.__PRELOADED_STATE__` (injected by Cloudflare Worker). This allows React to render the *correct* content instantly (0ms fetch time), simulating the speed of hydration without the fragility.
 
 - **Faro Observability**:
     - `initFaro()` (`src/faroConfig.js`) initializes Real User Monitoring (RUM).
@@ -50,9 +49,9 @@ The application entry point is `src/index.js`. It implements a specialized boot 
     - **Public Routes** (wrapped in `MainLayout`):
         - `/` (Home)
         - `/about` (AboutPage)
-        - `/vision` (VisionPage) — **New**: Renders a static roadmap and injects JSON-LD schema for SEO. No API fetch; content is static.
-        - `/audience` (AudiencePage) — **New**: Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions` from `apiConfig`. Implements dynamic filters and cascading dropdowns.
-        - `/api-status` (ApiStatusPage) — **New**: Renders `ApiStatusPanel`, which visualizes the health and logs of backend data pipelines.
+        - `/vision` (VisionPage) — Renders a static roadmap and injects JSON-LD schema for SEO. 
+        - `/audience` (AudiencePage) — Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions`.
+        - `/api-status` (ApiStatusPage) — Visualizes the health and logs of backend data pipelines.
         - `/contact`
         - `/market/:ticker`
         - `/login`
@@ -135,16 +134,16 @@ The project follows **12-Factor App** principles:
 The Frontend repository houses the **Edge Logic** in the `worker/` directory.
 - **Role:** This worker acts as the "Smart Router" sitting in front of the React application.
 - **Responsibilities:**
-    - **Sitemap Aggregation:** Combines static frontend sitemaps with dynamic backend data (cached in KV).
-    - **SEO Injection:** Injects JSON-LD and meta tags into HTML responses.
+    - **Sitemap Aggregation & Cache-Shielding:** Combines static frontend sitemaps with dynamic backend data (cached in KV and protected by Edge Cache).
+    - **Aggressive SPA Fallback:** Intercepts 404 errors for known frontend routes to return a 200 OK index shell.
+    - **SEO Injection:** Injects Semantic JSON-LD and meta tags into HTML responses.
     - **Security:** Enforces CSP, HSTS, and Zero-Trust headers before traffic hits the React app.
-- **Deployment:** The worker is deployed separately via `wrangler` but is version-controlled alongside the frontend code.
 
 ---
 
 ## 11. Third-Party Script & Tag Management (0ms TBT Architecture)
 
-To ensure a perfect 100/100 Lighthouse Performance score and pristine Core Web Vitals, the enterprise strictly prohibits hardcoding active third-party tracking scripts (Google Analytics, Google Ads, AdSense) into `public/index.html`.
+To ensure a perfect 100/100 Lighthouse Performance score and pristine Core Web Vitals, the enterprise strictly prohibits hardcoding active third-party tracking scripts into `public/index.html`.
 
 ### Interaction-Based Deferred Loading
 Active scripts block the main thread. To achieve **0ms Total Blocking Time (TBT)** for SEO bots while retaining functionality for human users:

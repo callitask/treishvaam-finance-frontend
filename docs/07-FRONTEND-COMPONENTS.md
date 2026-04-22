@@ -5,12 +5,14 @@
  * - Documents the Treishvaam Finance Frontend React components hierarchy and core responsibilities.
  *
  * Change Intent:
- * - Added `ThirdPartyScripts.js` documentation to enforce the Interaction/Idle strategy and prevent future AI from refactoring it into blocking `<script>` tags.
+ * - Synchronized documentation to reflect the apex domain architecture and Semantic Entity integrations.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Initial Component Architecture documentation.
  * - EDITED:
  * • Documented `ThirdPartyScripts.js` and the interaction-based loading mechanism for SEO.
+ * - EDITED (LATEST):
+ * • Updated context to support apex domain migration and JSON-LD schema generation logic.
  */
 
 # 07 - Frontend Components
