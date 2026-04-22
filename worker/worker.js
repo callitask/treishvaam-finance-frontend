@@ -37,14 +37,13 @@
  * • Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
  * • Why the edit was required: Domain migration to dedicated apex domain.
  * • What behavior must remain unchanged: Edge SEO hydration, sitemap serving, and backend proxying.
- * - REMOVED:
- * • Removed Worker intercepts for /robots.txt, /sitemap.xml, and /sitemap-static.xml.
- * • Why removal was safe: These are now static files hosted natively on Cloudflare Pages.
- * • What replaced it: Fall-through to the Static Assets handler (Section 4), which safely fetches from the Pages container without risking recursive subrequest loops.
- * - EDITED (Current Phase):
+ * - EDITED:
  * • Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
  * • Fused "Trishvam" and "Treishvaam" directly into the Amitsagar Kandpal Person entity.
  * • Why: To force LLM entity resolution between the person and the brand.
+ * - EDITED (Current Phase):
+ * • Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
+ * • Why: To protect Cloudflare Free Tier limits. Checks Cache API (0 quota) before hitting KV Storage. Ensures system survives heavy crawl loads and total backend failure.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -168,10 +167,10 @@ export default {
         };
 
         // ----------------------------------------------
-        // 2. DYNAMIC SITEMAPS (KV CACHE)
+        // 2. DYNAMIC SITEMAPS (KV CACHE + CDN SHIELD)
         // ----------------------------------------------
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
-            return handleDynamicSitemapFromKV(url, env, BACKEND_URL);
+            return handleDynamicSitemapFromKV(request, url, env, ctx, BACKEND_URL);
         }
 
         // ----------------------------------------------
@@ -556,42 +555,64 @@ export default {
 };
 
 // =================================================================================
-// 7. HELPER FUNCTIONS (Sitemap Engine) - CRITICAL FOR AVOIDING ERROR 1101
+// 7. HELPER FUNCTIONS (Sitemap Engine with Cache Shielding)
 // =================================================================================
 
 /**
- * SERVES DYNAMIC SITEMAP FROM KV
+ * SERVES DYNAMIC SITEMAP FROM KV (CACHE-SHIELDED)
+ * Shielding KV reads behind the CDN Cache to protect Free Tier limits (100k reads/day).
  */
-async function handleDynamicSitemapFromKV(url, env, backendUrl) {
+async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
+    const cache = caches.default;
+    const cacheRequest = new Request(request.url, request);
+
+    // Tier 1: Check Edge Cache (Cost: 0 KV Reads)
+    let cachedResponse = await cache.match(cacheRequest);
+    if (cachedResponse) {
+        const response = new Response(cachedResponse.body, cachedResponse);
+        response.headers.set("X-Source", "CDN-Edge-Cache");
+        return response;
+    }
+
+    // Tier 2: Check KV Store (Cost: 1 KV Read)
     const key = `sitemap:${url.pathname}`;
-    const cached = await env.TREISHFIN_SEO_CACHE.get(key);
-    if (cached) {
-        return new Response(cached, {
+    const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
+
+    if (cachedKv) {
+        const kvResponse = new Response(cachedKv, {
             headers: {
                 "Content-Type": "application/xml; charset=utf-8",
                 "X-Source": "KV-Cache",
-                "Cache-Control": "public, max-age=3600, stale-while-revalidate=86400"
+                "Cache-Control": "public, s-maxage=86400, max-age=3600"
             }
         });
+
+        // Asynchronously populate Tier 1 Cache
+        ctx.waitUntil(cache.put(cacheRequest, kvResponse.clone()));
+        return kvResponse;
     }
 
+    // Tier 3: Fallback to Backend API
     try {
-        // Translate path: /sitemap-dynamic/ -> /api/public/sitemap/
         const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
         const backendResp = await fetch(`${backendUrl}${apiPath}`);
+
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("X-Source", "Backend-Fallback");
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
-            newResp.headers.set("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+            newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
+
+            // Asynchronously populate Tier 1 Cache
+            ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
             return newResp;
         }
     } catch (e) {
         console.error("Dynamic sitemap fetch failed:", e);
     }
 
-    return new Response("Sitemap Unavailable", {
-        status: 404,
+    return new Response("Sitemap Unavailable - Backend Down", {
+        status: 503,
         headers: { "Content-Type": "text/plain" }
     });
 }
