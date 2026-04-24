@@ -1,8 +1,38 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders the Contact Us page for Treishvaam Finance.
+ * - Handles client-side submission of contact inquiries to backend API.
+ *
+ * Scope:
+ * - Static informative page with interactive form.
+ *
+ * Critical Dependencies:
+ * - Frontend: React Router, react-helmet-async for SEO, axios for API fetching.
+ * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
+ *
+ * Security Constraints:
+ * - Contact data sent securely via API. No keys exposed.
+ *
+ * Non-Negotiables:
+ * - Canonical URLs must point to apex domain.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED:
+ * • Replaced legacy canonical and OpenGraph URLs (treishfin.treishvaamgroup.com) with canonical apex domain (treishvaamfinance.com).
+ * • Added AI-CONTEXT block.
+ * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
+ */
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Helmet } from 'react-helmet-async';
-// AI-CONTEXT: Removed Navbar and Footer imports to prevent duplication (handled by MainLayout)
-import { API_URL } from '../apiConfig'; // Import base URL
+import { API_URL } from '../apiConfig';
 
 const ContactPage = () => {
     const [formData, setFormData] = useState({ name: '', email: '', message: '' });
@@ -27,8 +57,8 @@ const ContactPage = () => {
 
     const pageTitle = "Contact Us | Treishvaam Finance";
     const pageDescription = "Get in touch with Treishvaam Finance for inquiries about our market analysis, educational content, or platform support.";
-    const pageUrl = "https://treishfin.treishvaamgroup.com/contact";
-    const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
+    const pageUrl = "https://treishvaamfinance.com/contact";
+    const imageUrl = "https://treishvaamfinance.com/logo.webp";
 
     return (
         <>
@@ -52,11 +82,6 @@ const ContactPage = () => {
                 <meta name="twitter:image" content={imageUrl} />
             </Helmet>
 
-            {/* AI-NOTE: 
-               - Removed outer div with min-h-screen/bg-slate-50 because MainLayout handles the page container.
-               - Removed <Navbar /> and <Footer /> to fix duplication.
-               - Changed <main> to <div> to avoid nested <main> tags (MainLayout already provides one).
-            */}
             <div className="w-full max-w-4xl mx-auto py-12">
                 <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8 md:p-12">
                     <div className="text-center mb-10">

@@ -1,11 +1,41 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders the Terms of Service legal page.
+ *
+ * Scope:
+ * - Static legal page.
+ *
+ * Critical Dependencies:
+ * - Frontend: React Router, react-helmet-async for SEO.
+ * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
+ *
+ * Security Constraints:
+ * - No sensitive data.
+ *
+ * Non-Negotiables:
+ * - Canonical URLs must point to apex domain.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED:
+ * • Replaced legacy canonical and OpenGraph URLs (treishfin.treishvaamgroup.com) with canonical apex domain (treishvaamfinance.com).
+ * • Added AI-CONTEXT block.
+ * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
+ */
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
 const TermsPage = () => {
     const pageTitle = "Terms of Service | Treishvaam Finance";
     const pageDescription = "Review the Terms of Service for Treishvaam Finance. Understand the rules, regulations, and disclaimers governing the use of our financial education platform.";
-    const pageUrl = "https://treishfin.treishvaamgroup.com/terms";
-    const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
+    const pageUrl = "https://treishvaamfinance.com/terms";
+    const imageUrl = "https://treishvaamfinance.com/logo.webp";
 
     const schemaData = {
         "@context": "https://schema.org",

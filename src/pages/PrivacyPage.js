@@ -1,11 +1,41 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders the Privacy Policy legal page.
+ *
+ * Scope:
+ * - Static legal page.
+ *
+ * Critical Dependencies:
+ * - Frontend: React Router, react-helmet-async for SEO.
+ * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
+ *
+ * Security Constraints:
+ * - No sensitive data.
+ *
+ * Non-Negotiables:
+ * - Canonical URLs must point to apex domain.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED:
+ * • Replaced legacy canonical and OpenGraph URLs (treishfin.treishvaamgroup.com) with canonical apex domain (treishvaamfinance.com).
+ * • Added AI-CONTEXT block.
+ * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
+ */
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 
 const PrivacyPage = () => {
     const pageTitle = "Privacy Policy | Treishvaam Finance";
     const pageDescription = "Read the Privacy Policy of Treishvaam Finance. Learn how we collect, use, and protect your personal data, including identity, contact, and usage information.";
-    const pageUrl = "https://treishfin.treishvaamgroup.com/privacy";
-    const imageUrl = "https://treishfin.treishvaamgroup.com/logo.webp";
+    const pageUrl = "https://treishvaamfinance.com/privacy";
+    const imageUrl = "https://treishvaamfinance.com/logo.webp";
 
     const schemaData = {
         "@context": "https://schema.org",

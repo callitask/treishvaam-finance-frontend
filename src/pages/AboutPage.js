@@ -1,3 +1,34 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders the About Us page for Treishvaam Finance.
+ * - Introduces the founder and core values.
+ *
+ * Scope:
+ * - Static informative page.
+ *
+ * Critical Dependencies:
+ * - Frontend: React Router, react-helmet-async for SEO.
+ * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
+ *
+ * Security Constraints:
+ * - No sensitive data.
+ *
+ * Non-Negotiables:
+ * - Canonical URLs must point to apex domain.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED:
+ * • Replaced legacy canonical and OpenGraph URLs (treishfin.treishvaamgroup.com) with canonical apex domain (treishvaamfinance.com).
+ * • Added AI-CONTEXT block.
+ * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
+ */
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -10,14 +41,14 @@ const AboutPage = () => {
             <Helmet>
                 <title>About Us | Treishvaam Finance</title>
                 <meta name="description" content="Treishvaam Finance is democratizing financial literacy through expert market analysis and education. Meet our founder, Amitsagar Kandpal, and discover our mission." />
-                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/about" />
+                <link rel="canonical" href="https://treishvaamfinance.com/about" />
 
                 {/* Open Graph / Facebook */}
                 <meta property="og:type" content="website" />
-                <meta property="og:url" content="https://treishfin.treishvaamgroup.com/about" />
+                <meta property="og:url" content="https://treishvaamfinance.com/about" />
                 <meta property="og:title" content="About Treishvaam Finance" />
                 <meta property="og:description" content="Empowering your financial journey with clarity, integrity, and data-driven expertise." />
-                <meta property="og:image" content="https://treishfin.treishvaamgroup.com/logo.webp" />
+                <meta property="og:image" content="https://treishvaamfinance.com/logo.webp" />
 
                 {/* Twitter */}
                 <meta name="twitter:card" content="summary_large_image" />

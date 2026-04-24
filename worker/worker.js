@@ -41,9 +41,13 @@
  * • Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
  * • Fused "Trishvam" and "Treishvaam" directly into the Amitsagar Kandpal Person entity.
  * • Why: To force LLM entity resolution between the person and the brand.
- * - EDITED (Current Phase):
+ * - EDITED:
  * • Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
  * • Why: To protect Cloudflare Free Tier limits. Checks Cache API (0 quota) before hitting KV Storage. Ensures system survives heavy crawl loads and total backend failure.
+ * - EDITED (Current Phase):
+ * • Prepended "finance:" to all TREISHFIN_SEO_CACHE sitemap keys (`sitemap:finance:...`).
+ * • Added `/privacy` and `/terms` to `staticPages` dictionary for Edge Hydration.
+ * • Why: To prevent cross-tenant cache poisoning from the Agro worker and ensure static legal pages receive JSON-LD schema to fix indexing.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -68,12 +72,12 @@ export default {
             if (metaResp.ok) {
                 const metaJson = await metaResp.json();
                 // Store Metadata in KV
-                await env.TREISHFIN_SEO_CACHE.put("sitemap:meta", JSON.stringify(metaJson), { expirationTtl: 90000 });
+                await env.TREISHFIN_SEO_CACHE.put("sitemap:finance:meta", JSON.stringify(metaJson), { expirationTtl: 90000 });
 
                 // 2. Update Individual Sitemap Chunks
                 const filesToUpdate = [];
-                if (metaJson.blogs) filesToUpdate.push(...metaJson.blogs.map(path => ({ key: `sitemap:${path}`, path })));
-                if (metaJson.markets) filesToUpdate.push(...metaJson.markets.map(path => ({ key: `sitemap:${path}`, path })));
+                if (metaJson.blogs) filesToUpdate.push(...metaJson.blogs.map(path => ({ key: `sitemap:finance:${path}`, path })));
+                if (metaJson.markets) filesToUpdate.push(...metaJson.markets.map(path => ({ key: `sitemap:finance:${path}`, path })));
 
                 // Process first 5 priority files (Incremental updates)
                 const priorityFiles = filesToUpdate.slice(0, 5);
@@ -406,6 +410,16 @@ export default {
                 title: "Sustainability | Treishvaam Finance",
                 description: "Our commitment to sustainable financial practices and ESG-focused market analysis.",
                 image: `${FRONTEND_URL}/logo.webp`
+            },
+            "/privacy": {
+                title: "Privacy Policy | Treishvaam Finance",
+                description: "Read the Privacy Policy of Treishvaam Finance. Learn how we collect, use, and protect your personal data.",
+                image: `${FRONTEND_URL}/logo.webp`
+            },
+            "/terms": {
+                title: "Terms of Service | Treishvaam Finance",
+                description: "Review the Terms of Service for Treishvaam Finance. Understand the rules governing the use of our platform.",
+                image: `${FRONTEND_URL}/logo.webp`
             }
         };
 
@@ -575,7 +589,7 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
     }
 
     // Tier 2: Check KV Store (Cost: 1 KV Read)
-    const key = `sitemap:${url.pathname}`;
+    const key = `sitemap:finance:${url.pathname}`;
     const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
 
     if (cachedKv) {
