@@ -44,10 +44,13 @@
  * - EDITED:
  * • Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
  * • Why: To protect Cloudflare Free Tier limits. Checks Cache API (0 quota) before hitting KV Storage. Ensures system survives heavy crawl loads and total backend failure.
- * - EDITED (Current Phase):
+ * - EDITED:
  * • Prepended "finance:" to all TREISHFIN_SEO_CACHE sitemap keys (`sitemap:finance:...`).
  * • Added `/privacy` and `/terms` to `staticPages` dictionary for Edge Hydration.
  * • Why: To prevent cross-tenant cache poisoning from the Agro worker and ensure static legal pages receive JSON-LD schema to fix indexing.
+ * - EDITED (Current Phase):
+ * • Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
+ * • Why: To provide structural hints to search engines for automatic Sitelinks generation below the main search result, following enterprise w3c practices.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -370,12 +373,34 @@ export default {
                         "https://x.com/treishvaam",
                         "https://www.instagram.com/treishvaam"
                     ]
-                },
+                }
+            };
+
+            const websiteSchema = {
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                "name": "Treishvaam Finance",
+                "url": FRONTEND_URL + "/",
                 "potentialAction": {
                     "@type": "SearchAction",
-                    "target": `${FRONTEND_URL}/?q={search_term_string}`,
+                    "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": `${FRONTEND_URL}/search?q={search_term_string}`
+                    },
                     "query-input": "required name=search_term_string"
                 }
+            };
+
+            const sitelinksSchema = {
+                "@context": "https://schema.org",
+                "@type": "ItemList",
+                "itemListElement": [
+                    { "@type": "SiteNavigationElement", "position": 1, "name": "Markets", "url": `${FRONTEND_URL}/market` },
+                    { "@type": "SiteNavigationElement", "position": 2, "name": "Financial News", "url": `${FRONTEND_URL}/blog` },
+                    { "@type": "SiteNavigationElement", "position": 3, "name": "About Us", "url": `${FRONTEND_URL}/about` },
+                    { "@type": "SiteNavigationElement", "position": 4, "name": "Our Vision", "url": `${FRONTEND_URL}/vision` },
+                    { "@type": "SiteNavigationElement", "position": 5, "name": "Contact", "url": `${FRONTEND_URL}/contact` }
+                ]
             };
 
             const rewritten = new HTMLRewriter()
@@ -383,7 +408,13 @@ export default {
                 .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
                 .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
                 .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(homeSchema)}</script>`, { html: true }); } })
+                .on("head", {
+                    element(e) {
+                        e.append(`<script type="application/ld+json">${JSON.stringify(homeSchema)}</script>`, { html: true });
+                        e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true });
+                        e.append(`<script type="application/ld+json">${JSON.stringify(sitelinksSchema)}</script>`, { html: true });
+                    }
+                })
                 .transform(response);
 
             return addSecurityHeaders(rewritten);
