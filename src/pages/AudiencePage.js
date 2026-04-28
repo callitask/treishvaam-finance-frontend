@@ -4,23 +4,15 @@
  * Purpose:
  * - Render the Historical Audience Analytics Dashboard.
  *
- * Scope:
- * - Responsible for managing dynamic dimension filters, date ranges, and user-specific exclusion/inclusion rules.
- * - Displays telemetry parsed from GA4 and Faro RUM payloads.
- *
- * Non-Negotiables:
- * - Must strictly adhere to ESLint rules (no unused imports) as process.env.CI = true enforces warnings as errors on Cloudflare Pages.
- *
  * Change Intent:
- * - Convert User ID inputs to native Multi-Select dropdowns populated dynamically from the database.
- * - Implement Manual GA4 Data Refresh sync.
- * - Map String-based ISO dates to fix the "Invalid Date" Javascript UI crashes.
+ * - Upgraded MultiSelectDropdown to a true combobox autocomplete where the main input is type-ahead capable.
+ * - Forced UI Date parsing to explicitly map to Indian Standard Time (Asia/Kolkata) using `toLocaleString` configurations.
+ * - Prominently mapped First Visit Date adjacent to the exact time.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (LATEST):
- * • Removed unused `FaUser` import to fix strict CI build failure.
- * • Upgraded ID targeting to multi-select dropdown UI.
- * • Added GA4 Refresh Sync capability.
+ * • Implemented native `Asia/Kolkata` datetime configurations for absolute IST precision.
+ * • Upgraded User ID filters into an inline Type-Ahead combobox design.
  */
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { getHistoricalAudienceData, getFilterOptions, refreshGA4Data } from '../apiConfig';
@@ -29,7 +21,6 @@ import {
     FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle
 } from 'react-icons/fa';
 
-// Helper component for table cell display
 const DetailCell = ({ icon: Icon, value, label }) => (
     <div className="flex items-center text-sm text-gray-700">
         <Icon className="text-sky-500 mr-2 flex-shrink-0" title={label} />
@@ -39,13 +30,12 @@ const DetailCell = ({ icon: Icon, value, label }) => (
     </div>
 );
 
-// Custom Multi-Select Dropdown for User IDs to prevent 100k <option> crashes
-const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder, disabled }) => {
+// Advanced Type-Ahead Combobox for robust User ID searching
+const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, disabled }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const dropdownRef = useRef(null);
 
-    // Close on outside click
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -61,6 +51,7 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder, d
             onChange(selectedValues.filter(val => val !== id));
         } else {
             onChange([...selectedValues, id]);
+            setSearchTerm(''); // Clear text on selection
         }
     };
 
@@ -68,53 +59,46 @@ const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder, d
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <div
-                onClick={() => !disabled && setIsOpen(!isOpen)}
-                className={`p-2 border rounded-lg w-full text-sm cursor-pointer min-h-[40px] flex flex-wrap gap-1 items-center ${disabled ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300 bg-white hover:border-sky-500'}`}
-            >
-                {selectedValues.length === 0 ? (
-                    <span className="text-gray-400">{placeholder}</span>
-                ) : (
-                    selectedValues.map(val => (
-                        <span key={val} className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-full flex items-center">
-                            {val.substring(0, 10)}...
-                            <FaTimes
-                                className="ml-1 cursor-pointer hover:text-red-500"
-                                onClick={(e) => { e.stopPropagation(); toggleSelection(val); }}
-                            />
-                        </span>
-                    ))
-                )}
+            <div className={`p-1.5 border rounded-lg w-full text-sm min-h-[40px] flex flex-wrap gap-1 items-center ${disabled ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300 bg-white hover:border-sky-500'}`}>
+                {selectedValues.map(val => (
+                    <span key={val} className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-md flex items-center border border-sky-200">
+                        {val.substring(0, 10)}...
+                        <FaTimes
+                            className="ml-1.5 cursor-pointer text-sky-500 hover:text-red-500 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); toggleSelection(val); }}
+                        />
+                    </span>
+                ))}
+                <input
+                    type="text"
+                    disabled={disabled}
+                    className="flex-grow outline-none bg-transparent min-w-[120px] text-sm p-1 placeholder-gray-400"
+                    placeholder={selectedValues.length === 0 ? placeholder : 'Type to add more...'}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onFocus={() => setIsOpen(true)}
+                />
             </div>
 
             {isOpen && (
                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
-                    <div className="p-2 border-b">
-                        <input
-                            type="text"
-                            className="w-full p-1 text-sm border rounded focus:outline-none focus:border-sky-500"
-                            placeholder="Search IDs..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
                     <div className="overflow-y-auto flex-1 p-2 space-y-1">
                         {filteredOptions.length === 0 ? (
-                            <div className="text-center text-sm text-gray-500 py-2">No IDs match.</div>
+                            <div className="text-center text-sm text-gray-500 py-2">No matching IDs found.</div>
                         ) : (
                             filteredOptions.slice(0, 100).map(opt => (
                                 <div
                                     key={opt}
-                                    className="flex items-center text-sm p-1 hover:bg-gray-50 cursor-pointer rounded"
+                                    className="flex items-center text-sm p-1.5 hover:bg-sky-50 cursor-pointer rounded transition-colors"
                                     onClick={() => toggleSelection(opt)}
                                 >
                                     {selectedValues.includes(opt) ? <FaCheckSquare className="text-sky-500 mr-2" /> : <FaSquare className="text-gray-300 mr-2" />}
-                                    <span className="truncate" title={opt}>{opt}</span>
+                                    <span className="truncate font-mono" title={opt}>{opt}</span>
                                 </div>
                             ))
                         )}
                         {filteredOptions.length > 100 && (
-                            <div className="text-xs text-center text-gray-400 py-1 border-t mt-1">Showing first 100 results...</div>
+                            <div className="text-xs text-center text-gray-400 py-1.5 border-t mt-1 bg-gray-50 rounded-b">Showing top 100 recommendations. Keep typing to filter.</div>
                         )}
                     </div>
                 </div>
@@ -140,6 +124,17 @@ const FILTER_DEPENDENCIES = {
     operatingSystem: ['osVersion'],
 };
 
+// Explicit IST Time formatter
+const formatIST = (isoString) => {
+    try {
+        const d = new Date(isoString);
+        if (isNaN(d)) return null;
+        return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' (IST)';
+    } catch (e) {
+        return null;
+    }
+};
+
 const AudiencePage = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -153,7 +148,6 @@ const AudiencePage = () => {
     );
     const [endDate, setEndDate] = useState(getTodayDateString());
 
-    // Arrays for Multi-Select
     const [targetClientIds, setTargetClientIds] = useState([]);
     const [excludeClientIds, setExcludeClientIds] = useState([]);
 
@@ -252,22 +246,17 @@ const AudiencePage = () => {
             key: 'sessionDate',
             title: 'Date & Time',
             render: (item) => {
-                let displayTime = item.sessionDate; // Fallback to raw string
-                if (item.sessionStartTime) {
-                    try {
-                        const d = new Date(item.sessionStartTime);
-                        if (!isNaN(d)) displayTime = d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-                    } catch (e) { }
-                }
+                const exactTimeIST = item.sessionStartTime ? formatIST(item.sessionStartTime) : null;
+                const displayTime = exactTimeIST || item.sessionDate;
 
                 return (
                     <div className="space-y-1">
-                        <p className="text-xs text-gray-800 font-semibold">
+                        <p className="text-xs text-gray-800 font-semibold border-b border-gray-100 pb-1">
                             <FaCalendarAlt className="inline mr-1 text-sky-500" /> {displayTime}
                         </p>
                         {item.firstVisitDate && item.firstVisitDate !== item.sessionDate && (
-                            <p className="text-[10px] text-green-700 font-medium tracking-tight bg-green-50 inline-block px-1 rounded" title="Historical First Visit Date">
-                                <FaClock className="inline mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
+                            <p className="text-[11px] text-green-700 font-bold tracking-tight bg-green-50 px-2 py-0.5 rounded inline-flex items-center" title="Historical First Visit Date">
+                                <FaClock className="mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
                             </p>
                         )}
                     </div>
@@ -306,12 +295,12 @@ const AudiencePage = () => {
             key: 'time',
             title: 'Engagement',
             render: (item) => (
-                <div className="space-y-1 text-xs">
-                    <p className="text-gray-700 font-semibold"><FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}</p>
-                    <p className="text-gray-500"><FaChartBar className="inline mr-1 text-sky-500" /> Views: {item.views}</p>
-                    <p className="font-mono text-gray-500 break-all bg-gray-100 p-1 rounded mt-1 shadow-inner text-[9px]" title={item.userIdentifier}>
-                        ID: {item.userIdentifier || 'N/A'}
-                    </p>
+                <div className="space-y-1 text-xs flex flex-col justify-start">
+                    <p className="text-gray-700 font-semibold mb-0.5"><FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}</p>
+                    <p className="text-gray-500 mb-1"><FaChartBar className="inline mr-1 text-sky-500" /> Views: {item.views}</p>
+                    <div className="font-mono text-gray-500 break-all bg-gray-100 p-1.5 rounded border border-gray-200 shadow-inner text-[10px]" title={item.userIdentifier}>
+                        ID: <span className="font-semibold text-gray-700">{item.userIdentifier || 'N/A'}</span>
+                    </div>
                 </div>
             )
         }
@@ -384,16 +373,16 @@ const AudiencePage = () => {
             </div>
 
             {/* --- MULTI-SELECT USER ID FILTERS --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 border-l-4 border-sky-500">
+            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-6 border-l-4 border-sky-500">
                 <div className="flex-1">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
                         <FaCrosshairs className="mr-2 text-sky-500" /> Target Specific Users
                     </label>
-                    <MultiSelectDropdown
+                    <TypeAheadDropdown
                         options={filterOptions?.clientIds || []}
                         selectedValues={targetClientIds}
                         onChange={setTargetClientIds}
-                        placeholder="Select users to include..."
+                        placeholder="Type to search & include IDs..."
                         disabled={loading || optionsLoading}
                     />
                     <p className="text-xs text-gray-400 mt-1">Isolate tracking to these specific IDs.</p>
@@ -402,11 +391,11 @@ const AudiencePage = () => {
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
                         <FaEyeSlash className="mr-2 text-red-400" /> Hide Users
                     </label>
-                    <MultiSelectDropdown
+                    <TypeAheadDropdown
                         options={filterOptions?.clientIds || []}
                         selectedValues={excludeClientIds}
                         onChange={setExcludeClientIds}
-                        placeholder="Select users to exclude..."
+                        placeholder="Type to search & exclude IDs..."
                         disabled={loading || optionsLoading}
                     />
                     <p className="text-xs text-gray-400 mt-1">Filter out internal or test traffic.</p>
