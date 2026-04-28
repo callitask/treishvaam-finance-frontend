@@ -1,30 +1,31 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Central Axios configuration and API method declarations.
+ *
+ * Scope:
+ * - Responsible for routing all frontend requests securely to the API proxy.
+ *
+ * Change Intent:
+ * - Export `refreshGA4Data` POST endpoint for Audience Dashboard manual syncing.
+ */
 // src/apiConfig.js
 import axios from 'axios';
 
-/**
- * Backend Base URL Configuration
- * ------------------------------
- * Best Practice: Use Environment Variables.
- * * Local Dev: Read from .env (http://localhost:8080)
- * * Production: Read from Cloudflare Environment Variables (https://backend.treishvaamgroup.com)
- */
 export const BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com';
-
-// Keep API_URL for backward compatibility with other components
 export const API_URL = BASE_URL;
 
 const api = axios.create({
   baseURL: `${BASE_URL}/api/v1`,
 });
 
-// Holds the current token, set by AuthContext
 let currentToken = null;
 
 export const setAuthToken = (token) => {
   currentToken = token;
 };
 
-// Attach JWT from Keycloak
 api.interceptors.request.use(
   (config) => {
     if (currentToken) {
@@ -61,9 +62,7 @@ export const getCategories = () => api.get('/categories');
 export const addCategory = (data) => api.post('/categories', data);
 
 /* -------------------- Auth & Profile -------------------- */
-// Deprecated: Login is handled by Keycloak redirect
 export const login = () => Promise.reject("Use Keycloak Login");
-// PHASE 2: New Profile Endpoints
 export const getUserProfile = () => api.get('/auth/me');
 export const updateUserProfile = (data) => api.put('/auth/profile', data);
 
@@ -71,7 +70,7 @@ export const updateUserProfile = (data) => api.put('/auth/profile', data);
 /* -------------------- Search -------------------- */
 export const searchPosts = (query) => api.get(`/search?q=${encodeURIComponent(query)}`);
 
-/* -------------------- News (FIXED ENDPOINTS) -------------------- */
+/* -------------------- News -------------------- */
 export const getNewsHighlights = () => api.get('/market/news/highlights');
 export const getArchivedNews = () => api.get('/market/news/archive');
 export const refreshNewsData = () => api.post('/news/admin/refresh');
@@ -97,7 +96,7 @@ export const flushPermanentData = (password) => api.post('/market/admin/flush-pe
 export const getHistoricalAudienceData = (params) => {
   const cleanParams = {};
   for (const key in params) {
-    if (params[key]) cleanParams[key] = params[key];
+    if (params[key] && params[key].length > 0) cleanParams[key] = params[key];
   }
   return api.get(`/analytics`, { params: cleanParams });
 };
@@ -105,9 +104,12 @@ export const getHistoricalAudienceData = (params) => {
 export const getFilterOptions = (params) => {
   const cleanParams = {};
   for (const key in params) {
-    if (params[key]) cleanParams[key] = params[key];
+    if (params[key] && params[key].length > 0) cleanParams[key] = params[key];
   }
   return api.get(`/analytics/filters`, { params: cleanParams });
 };
+
+// Added: GA4 Refresh Sync Hook
+export const refreshGA4Data = (startDate, endDate) => api.post('/analytics/refresh', { startDate, endDate });
 
 export default api;

@@ -8,33 +8,25 @@
  * - Responsible for managing dynamic dimension filters, date ranges, and user-specific exclusion/inclusion rules.
  * - Displays telemetry parsed from GA4 and Faro RUM payloads.
  *
- * Critical Dependencies:
- * - Backend: AnalyticsController (/api/v1/analytics and /api/v1/analytics/filters).
- * - Component: standard Tailwind UI formatting.
- *
- * Security Constraints:
- * - Must pass exclude parameters as clean, comma-separated strings to be processed by Spring Boot safely.
- *
  * Non-Negotiables:
- * - User ID filters must be standard text inputs, not dropdowns, to prevent browser memory crashes from attempting to render 100k+ unique visitor IDs in a select element.
  * - Must strictly adhere to ESLint rules (no unused imports) as process.env.CI = true enforces warnings as errors on Cloudflare Pages.
  *
  * Change Intent:
- * - Remove unused `FaUser` import to unblock the CI/CD deployment pipeline.
+ * - Convert User ID inputs to native Multi-Select dropdowns populated dynamically from the database.
+ * - Implement Manual GA4 Data Refresh sync.
+ * - Map String-based ISO dates to fix the "Invalid Date" Javascript UI crashes.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Added `targetClientId` and `excludeClientIds` manual text filters to allow targeted debugging and internal traffic hiding.
- * • Updated the 'Date' column to parse and display precise `sessionStartTime` (LocalDateTime) and `firstVisitDate` (LocalDate).
- * • Exposed full `userIdentifier` (non-truncated) to make copy-pasting easier for the exclude filter.
  * - EDITED (LATEST):
- * • Removed unused `FaUser` import from `react-icons/fa` to fix strict CI build failure.
+ * • Removed unused `FaUser` import to fix strict CI build failure.
+ * • Upgraded ID targeting to multi-select dropdown UI.
+ * • Added GA4 Refresh Sync capability.
  */
-import React, { useEffect, useState, useCallback } from 'react';
-import { getHistoricalAudienceData, getFilterOptions } from '../apiConfig';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { getHistoricalAudienceData, getFilterOptions, refreshGA4Data } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
-    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs
+    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle
 } from 'react-icons/fa';
 
 // Helper component for table cell display
@@ -47,12 +39,92 @@ const DetailCell = ({ icon: Icon, value, label }) => (
     </div>
 );
 
-// Function to format today's date in YYYY-MM-DD format
-const getTodayDateString = () => {
-    return new Date().toISOString().split('T')[0];
+// Custom Multi-Select Dropdown for User IDs to prevent 100k <option> crashes
+const MultiSelectDropdown = ({ options, selectedValues, onChange, placeholder, disabled }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const dropdownRef = useRef(null);
+
+    // Close on outside click
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const toggleSelection = (id) => {
+        if (selectedValues.includes(id)) {
+            onChange(selectedValues.filter(val => val !== id));
+        } else {
+            onChange([...selectedValues, id]);
+        }
+    };
+
+    const filteredOptions = options.filter(opt => opt.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <div
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                className={`p-2 border rounded-lg w-full text-sm cursor-pointer min-h-[40px] flex flex-wrap gap-1 items-center ${disabled ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300 bg-white hover:border-sky-500'}`}
+            >
+                {selectedValues.length === 0 ? (
+                    <span className="text-gray-400">{placeholder}</span>
+                ) : (
+                    selectedValues.map(val => (
+                        <span key={val} className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-full flex items-center">
+                            {val.substring(0, 10)}...
+                            <FaTimes
+                                className="ml-1 cursor-pointer hover:text-red-500"
+                                onClick={(e) => { e.stopPropagation(); toggleSelection(val); }}
+                            />
+                        </span>
+                    ))
+                )}
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
+                    <div className="p-2 border-b">
+                        <input
+                            type="text"
+                            className="w-full p-1 text-sm border rounded focus:outline-none focus:border-sky-500"
+                            placeholder="Search IDs..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <div className="overflow-y-auto flex-1 p-2 space-y-1">
+                        {filteredOptions.length === 0 ? (
+                            <div className="text-center text-sm text-gray-500 py-2">No IDs match.</div>
+                        ) : (
+                            filteredOptions.slice(0, 100).map(opt => (
+                                <div
+                                    key={opt}
+                                    className="flex items-center text-sm p-1 hover:bg-gray-50 cursor-pointer rounded"
+                                    onClick={() => toggleSelection(opt)}
+                                >
+                                    {selectedValues.includes(opt) ? <FaCheckSquare className="text-sky-500 mr-2" /> : <FaSquare className="text-gray-300 mr-2" />}
+                                    <span className="truncate" title={opt}>{opt}</span>
+                                </div>
+                            ))
+                        )}
+                        {filteredOptions.length > 100 && (
+                            <div className="text-xs text-center text-gray-400 py-1 border-t mt-1">Showing first 100 results...</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
-// Define the available filter types and their user-friendly labels (Excluding massive unique fields like ID)
+const getTodayDateString = () => new Date().toISOString().split('T')[0];
+
 const FILTER_TYPES = {
     country: 'Country',
     region: 'Region',
@@ -62,7 +134,6 @@ const FILTER_TYPES = {
     sessionSource: 'Session Source',
 };
 
-// Define dependencies for cascading resets
 const FILTER_DEPENDENCIES = {
     country: ['region', 'city'],
     region: ['city'],
@@ -73,134 +144,105 @@ const AudiencePage = () => {
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [optionsLoading, setOptionsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
 
-    // --- FILTER STATE ---
     const [startDate, setStartDate] = useState(
         new Date(new Date().getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     );
     const [endDate, setEndDate] = useState(getTodayDateString());
 
-    // Explicit User ID Filters
-    const [targetClientId, setTargetClientId] = useState('');
-    const [excludeClientIds, setExcludeClientIds] = useState('');
+    // Arrays for Multi-Select
+    const [targetClientIds, setTargetClientIds] = useState([]);
+    const [excludeClientIds, setExcludeClientIds] = useState([]);
 
-    // Dynamic dropdown filters
     const [filters, setFilters] = useState([]);
     const [filterOptions, setFilterOptions] = useState(null);
 
-    // Helper to convert all filters into a flat params object for the API
     const buildApiParams = useCallback(() => {
-        const params = {
-            startDate,
-            endDate,
-        };
+        const params = { startDate, endDate };
 
-        // Add dynamic dropdown filters
         filters.forEach(filter => {
             if (filter.type && filter.value) {
                 params[filter.type] = filter.value;
             }
         });
 
-        // Add User Identity filters
-        if (targetClientId.trim()) {
-            params.clientId = targetClientId.trim();
+        if (targetClientIds.length > 0) {
+            params.targetClientIds = targetClientIds.join(',');
         }
-
-        if (excludeClientIds.trim()) {
-            // Split by comma, trim whitespace, remove empty strings, and join back
-            params.excludeClientIds = excludeClientIds
-                .split(',')
-                .map(id => id.trim())
-                .filter(Boolean)
-                .join(',');
+        if (excludeClientIds.length > 0) {
+            params.excludeClientIds = excludeClientIds.join(',');
         }
 
         return params;
-    }, [startDate, endDate, filters, targetClientId, excludeClientIds]);
+    }, [startDate, endDate, filters, targetClientIds, excludeClientIds]);
 
+    const fetchDataAndOptions = useCallback(async () => {
+        setLoading(true);
+        setOptionsLoading(true);
+        setError('');
 
-    // Main data fetching logic
-    useEffect(() => {
-        const fetchDataAndOptions = async () => {
-            setLoading(true);
-            setOptionsLoading(true);
-            setError('');
+        const params = buildApiParams();
 
-            const params = buildApiParams();
-
-            try {
-                const [optionsResponse, dataResponse] = await Promise.all([
-                    getFilterOptions(params),
-                    getHistoricalAudienceData(params)
-                ]);
-
-                setFilterOptions(optionsResponse.data);
-                setData(dataResponse.data);
-
-            } catch (err) {
-                console.error('Error fetching audience data or options:', err);
-                if (err.response && (err.response.status === 403 || err.response.status === 401)) {
-                    setError('Access Denied. You do not have permission to view this data.');
-                } else {
-                    setError('Failed to fetch historical audience data. Check backend logs and GA4 setup.');
-                }
-                setData([]);
-                setFilterOptions(null);
-            } finally {
-                setLoading(false);
-                setOptionsLoading(false);
-            }
-        };
-
-        // Debounce slightly to prevent spamming the backend when typing comma-separated IDs
-        const timeoutId = setTimeout(() => {
-            fetchDataAndOptions();
-        }, 500);
-
-        return () => clearTimeout(timeoutId);
-
+        try {
+            const [optionsResponse, dataResponse] = await Promise.all([
+                getFilterOptions(params),
+                getHistoricalAudienceData(params)
+            ]);
+            setFilterOptions(optionsResponse.data);
+            setData(dataResponse.data);
+        } catch (err) {
+            console.error('Error fetching audience data:', err);
+            setError('Failed to fetch historical audience data.');
+            setData([]);
+        } finally {
+            setLoading(false);
+            setOptionsLoading(false);
+        }
     }, [buildApiParams]);
 
+    useEffect(() => {
+        const timeoutId = setTimeout(() => { fetchDataAndOptions(); }, 500);
+        return () => clearTimeout(timeoutId);
+    }, [fetchDataAndOptions]);
 
-    // --- FILTER ROW MANAGEMENT ---
+    const handleManualRefresh = async () => {
+        if (!window.confirm(`Are you sure you want to completely re-sync Google Analytics data between ${startDate} and ${endDate}? This will replace historical entries for these dates. Real-time Faro data will be preserved.`)) return;
 
-    const addFilter = () => {
-        setFilters(prevFilters => [
-            ...prevFilters,
-            { id: Date.now(), type: '', value: '' }
-        ]);
+        setIsRefreshing(true);
+        setError('');
+        setSuccessMsg('');
+
+        try {
+            const res = await refreshGA4Data(startDate, endDate);
+            setSuccessMsg(res.data.message || 'Data refreshed successfully.');
+            await fetchDataAndOptions(); // Reload view
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to trigger manual GA4 sync.');
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
-    const removeFilter = (id) => {
-        setFilters(prevFilters => prevFilters.filter(f => f.id !== id));
-    };
-
+    const addFilter = () => setFilters(prev => [...prev, { id: Date.now(), type: '', value: '' }]);
+    const removeFilter = (id) => setFilters(prev => prev.filter(f => f.id !== id));
     const updateFilter = (id, field, newValue) => {
-        setFilters(prevFilters => {
-            const newFilters = [...prevFilters];
+        setFilters(prev => {
+            const newFilters = [...prev];
             const filterIndex = newFilters.findIndex(f => f.id === id);
-            if (filterIndex === -1) return prevFilters;
+            if (filterIndex === -1) return prev;
 
             const oldFilter = newFilters[filterIndex];
             newFilters[filterIndex] = { ...oldFilter, [field]: newValue };
 
-            // CASCADING RESET LOGIC
-            if (field === 'type') {
-                newFilters[filterIndex].value = '';
-            }
+            if (field === 'type') newFilters[filterIndex].value = '';
 
             const dependencies = FILTER_DEPENDENCIES[oldFilter.type];
             if (field === 'value' && dependencies) {
-                return newFilters.map(f => {
-                    if (dependencies.includes(f.type)) {
-                        return { ...f, value: '' };
-                    }
-                    return f;
-                });
+                return newFilters.map(f => dependencies.includes(f.type) ? { ...f, value: '' } : f);
             }
-
             return newFilters;
         });
     };
@@ -209,72 +251,65 @@ const AudiencePage = () => {
         {
             key: 'sessionDate',
             title: 'Date & Time',
-            render: (item) => (
-                <div className="space-y-1">
-                    <p className="text-xs text-gray-800 font-semibold" title={`Stored Exact Time: ${item.sessionStartTime || 'N/A'}`}>
-                        <FaCalendarAlt className="inline mr-1 text-sky-500" />
-                        {item.sessionStartTime
-                            ? new Date(item.sessionStartTime).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                            : item.sessionDate}
-                    </p>
-                    {item.firstVisitDate && (
-                        <p className="text-xs text-green-700 font-medium" title="Global First Visit Date for this User ID">
-                            <FaClock className="inline mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
+            render: (item) => {
+                let displayTime = item.sessionDate; // Fallback to raw string
+                if (item.sessionStartTime) {
+                    try {
+                        const d = new Date(item.sessionStartTime);
+                        if (!isNaN(d)) displayTime = d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+                    } catch (e) { }
+                }
+
+                return (
+                    <div className="space-y-1">
+                        <p className="text-xs text-gray-800 font-semibold">
+                            <FaCalendarAlt className="inline mr-1 text-sky-500" /> {displayTime}
                         </p>
-                    )}
-                </div>
-            )
+                        {item.firstVisitDate && item.firstVisitDate !== item.sessionDate && (
+                            <p className="text-[10px] text-green-700 font-medium tracking-tight bg-green-50 inline-block px-1 rounded" title="Historical First Visit Date">
+                                <FaClock className="inline mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
+                            </p>
+                        )}
+                    </div>
+                );
+            }
         },
         {
             key: 'location',
-            title: 'Location (City, Region, Country)',
+            title: 'Location',
             render: (item) => (
-                <DetailCell
-                    icon={FaMapMarkedAlt}
-                    value={`${item.city || 'N/A'}, ${item.region || 'N/A'}, ${item.country || 'N/A'}`}
-                    label="Location"
-                />
+                <DetailCell icon={FaMapMarkedAlt} value={`${item.city || 'N/A'}, ${item.region || 'N/A'}, ${item.country || 'N/A'}`} label="Location" />
             )
         },
         {
             key: 'device',
             title: 'Device & OS',
             render: (item) => (
-                <div className="space-y-1">
-                    <p className="text-xs text-gray-700 font-semibold">
-                        <FaMobileAlt className="inline mr-1 text-sky-500" /> {item.deviceCategory} ({item.deviceModel || 'N/A'})
-                    </p>
-                    <p className="text-xs text-gray-500">
-                        <FaGlobe className="inline mr-1 text-sky-500" /> {item.operatingSystem} ({item.osVersion || 'N/A'})
-                    </p>
-                    <p className="text-xs text-gray-500">
-                        <FaDesktop className="inline mr-1 text-sky-500" /> Resolution: {item.screenResolution || 'N/A'}
-                    </p>
+                <div className="space-y-1 text-xs">
+                    <p className="text-gray-700 font-semibold"><FaMobileAlt className="inline mr-1 text-sky-500" /> {item.deviceCategory} ({item.deviceModel || 'N/A'})</p>
+                    <p className="text-gray-500"><FaGlobe className="inline mr-1 text-sky-500" /> {item.operatingSystem} ({item.osVersion || 'N/A'})</p>
+                    <p className="text-gray-500"><FaDesktop className="inline mr-1 text-sky-500" /> Res: {item.screenResolution || 'N/A'}</p>
                 </div>
             )
         },
         {
             key: 'traffic',
-            title: 'Source & Landing Page',
+            title: 'Traffic & Entry',
             render: (item) => (
-                <div className="space-y-1">
-                    <p className="text-xs text-gray-700 font-semibold">Source: {item.sessionSource}</p>
-                    <p className="text-xs text-gray-500 truncate max-w-xs" title={item.landingPage}>Landing: {item.landingPage}</p>
+                <div className="space-y-1 text-xs">
+                    <p className="text-gray-700 font-semibold break-words">Source: {item.sessionSource}</p>
+                    <p className="text-gray-500 truncate max-w-xs" title={item.landingPage}>Land: {item.landingPage}</p>
                 </div>
             )
         },
         {
             key: 'time',
-            title: 'Time & Views',
+            title: 'Engagement',
             render: (item) => (
-                <div className="space-y-1">
-                    <p className="text-xs text-gray-700 font-semibold">
-                        <FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                        <FaChartBar className="inline mr-1 text-sky-500" /> Sessions: {item.views}
-                    </p>
-                    <p className="text-[10px] font-mono text-gray-500 break-all bg-gray-100 p-1 rounded mt-1" title={item.userIdentifier}>
+                <div className="space-y-1 text-xs">
+                    <p className="text-gray-700 font-semibold"><FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}</p>
+                    <p className="text-gray-500"><FaChartBar className="inline mr-1 text-sky-500" /> Views: {item.views}</p>
+                    <p className="font-mono text-gray-500 break-all bg-gray-100 p-1 rounded mt-1 shadow-inner text-[9px]" title={item.userIdentifier}>
                         ID: {item.userIdentifier || 'N/A'}
                     </p>
                 </div>
@@ -297,11 +332,29 @@ const AudiencePage = () => {
 
     return (
         <div className="container mx-auto p-6 md:p-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-4">Historical Audience Report</h1>
-            <p className="text-gray-600 mb-6">Detailed visitor logs stored in the database. Data is synchronized daily from Google Analytics (GA4) and enriched via Edge Telemetry.</p>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800">Audience Intelligence</h1>
+                    <p className="text-gray-600 mt-1">Real-time Faro telemetry combined with historical GA4 records.</p>
+                </div>
+                <button
+                    onClick={handleManualRefresh}
+                    disabled={isRefreshing || loading}
+                    className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
+                >
+                    <FaSyncAlt className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Syncing GA4...' : 'Refresh GA4 Data'}
+                </button>
+            </div>
+
+            {successMsg && (
+                <div className="mb-4 p-3 bg-green-100 text-green-800 border-l-4 border-green-500 flex items-center rounded">
+                    <FaCheckCircle className="mr-2" /> {successMsg}
+                </div>
+            )}
 
             {/* --- DATE FILTER ROW --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 border-t-4 border-gray-800">
                 <div className="flex items-center space-x-2 w-full md:w-auto">
                     <label htmlFor="startDate" className="text-sm font-medium text-gray-700 flex-shrink-0">From:</label>
                     <input
@@ -310,7 +363,7 @@ const AudiencePage = () => {
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
                         className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-sky-500 focus:border-sky-500"
-                        disabled={loading || optionsLoading}
+                        disabled={loading || optionsLoading || isRefreshing}
                     />
                 </div>
                 <div className="flex items-center space-x-2 w-full md:w-auto">
@@ -321,45 +374,42 @@ const AudiencePage = () => {
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
                         className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-sky-500 focus:border-sky-500"
-                        disabled={loading || optionsLoading}
+                        disabled={loading || optionsLoading || isRefreshing}
                     />
                 </div>
                 <div className="text-sm text-gray-500 flex-grow text-right font-medium">
                     {(loading || optionsLoading) && <FaRedo className="inline mr-2 animate-spin text-sky-500" />}
-                    {loading ? 'Fetching report data...' : ''}
-                    {optionsLoading && !loading ? 'Updating options...' : ''}
+                    {loading ? 'Evaluating...' : ''}
                 </div>
             </div>
 
-            {/* --- EXPLICIT USER ID FILTERS --- */}
+            {/* --- MULTI-SELECT USER ID FILTERS --- */}
             <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-6 border-l-4 border-sky-500">
                 <div className="flex-1">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
-                        <FaCrosshairs className="mr-2 text-sky-500" /> Target Specific User ID
+                        <FaCrosshairs className="mr-2 text-sky-500" /> Target Specific Users
                     </label>
-                    <input
-                        type="text"
-                        value={targetClientId}
-                        onChange={(e) => setTargetClientId(e.target.value)}
-                        placeholder="e.g., r4u0xpo6..."
-                        className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-sky-500 focus:border-sky-500"
+                    <MultiSelectDropdown
+                        options={filterOptions?.clientIds || []}
+                        selectedValues={targetClientIds}
+                        onChange={setTargetClientIds}
+                        placeholder="Select users to include..."
                         disabled={loading || optionsLoading}
                     />
-                    <p className="text-xs text-gray-400 mt-1">Show ONLY data for this explicit User ID.</p>
+                    <p className="text-xs text-gray-400 mt-1">Isolate tracking to these specific IDs.</p>
                 </div>
                 <div className="flex-1">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
-                        <FaEyeSlash className="mr-2 text-red-400" /> Hide User IDs
+                        <FaEyeSlash className="mr-2 text-red-400" /> Hide Users
                     </label>
-                    <input
-                        type="text"
-                        value={excludeClientIds}
-                        onChange={(e) => setExcludeClientIds(e.target.value)}
-                        placeholder="e.g., callitas..., jnSu6j2F..."
-                        className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-red-400 focus:border-red-400"
+                    <MultiSelectDropdown
+                        options={filterOptions?.clientIds || []}
+                        selectedValues={excludeClientIds}
+                        onChange={setExcludeClientIds}
+                        placeholder="Select users to exclude..."
                         disabled={loading || optionsLoading}
                     />
-                    <p className="text-xs text-gray-400 mt-1">Exclude internal or test traffic (Comma separated).</p>
+                    <p className="text-xs text-gray-400 mt-1">Filter out internal or test traffic.</p>
                 </div>
             </div>
 
@@ -428,7 +478,7 @@ const AudiencePage = () => {
                         <FaExclamationTriangle className="mr-3 flex-shrink-0 text-xl" />
                         <div>
                             <p className="font-semibold">{error}</p>
-                            <p className="text-sm">Please check the date range and ensure the scheduled job is running successfully to import new data.</p>
+                            <p className="text-sm">Check the network tab or retry the fetch operation.</p>
                         </div>
                     </div>
                 )}
@@ -443,10 +493,7 @@ const AudiencePage = () => {
                         <thead className="bg-gray-50">
                             <tr>
                                 {columns.map(col => (
-                                    <th
-                                        key={col.key}
-                                        className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap"
-                                    >
+                                    <th key={col.key} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap">
                                         {col.title}
                                     </th>
                                 ))}
@@ -469,7 +516,7 @@ const AudiencePage = () => {
                                         <td colSpan={columns.length} className="px-6 py-16 text-center text-gray-500">
                                             <FaChartBar className="mx-auto text-5xl mb-4 text-gray-300" />
                                             <p className="text-xl font-semibold text-gray-700">No visitor data found.</p>
-                                            <p className="text-sm mt-2">Adjust the date range or remove strict User ID exclusions.</p>
+                                            <p className="text-sm mt-2">Adjust the date range, triggers, or hit 'Refresh GA4 Data'.</p>
                                         </td>
                                     </tr>
                                 )
