@@ -17,24 +17,24 @@
  *
  * Non-Negotiables:
  * - User ID filters must be standard text inputs, not dropdowns, to prevent browser memory crashes from attempting to render 100k+ unique visitor IDs in a select element.
+ * - Must strictly adhere to ESLint rules (no unused imports) as process.env.CI = true enforces warnings as errors on Cloudflare Pages.
  *
  * Change Intent:
- * - Add Target User ID and Hide User IDs filters.
- * - Render exact session start time and historical first visit date.
+ * - Remove unused `FaUser` import to unblock the CI/CD deployment pipeline.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
- * • Implemented dynamic filtering and API option syncing.
- * - EDITED (LATEST):
  * • Added `targetClientId` and `excludeClientIds` manual text filters to allow targeted debugging and internal traffic hiding.
  * • Updated the 'Date' column to parse and display precise `sessionStartTime` (LocalDateTime) and `firstVisitDate` (LocalDate).
  * • Exposed full `userIdentifier` (non-truncated) to make copy-pasting easier for the exclude filter.
+ * - EDITED (LATEST):
+ * • Removed unused `FaUser` import from `react-icons/fa` to fix strict CI build failure.
  */
 import React, { useEffect, useState, useCallback } from 'react';
 import { getHistoricalAudienceData, getFilterOptions } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
-    FaExclamationTriangle, FaChartBar, FaUser, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs
+    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs
 } from 'react-icons/fa';
 
 // Helper component for table cell display
