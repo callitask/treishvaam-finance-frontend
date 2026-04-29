@@ -5,20 +5,26 @@
  * - Render the Historical Audience Analytics Dashboard.
  *
  * Change Intent:
- * - Upgraded MultiSelectDropdown to a true combobox autocomplete where the main input is type-ahead capable.
- * - Forced UI Date parsing to explicitly map to Indian Standard Time (Asia/Kolkata) using `toLocaleString` configurations.
- * - Prominently mapped First Visit Date adjacent to the exact time.
+ * - Implemented client-side memory-safe Data Grouping via `useMemo` to analyze multi-session paths.
+ * - Unhid First Visit Date logic to guarantee persistent visibility on all rows.
+ * - Added inline `Target Isolate` action inside the data table to instantly drill down into a specific user.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED (LATEST):
+ * - EDITED:
  * • Implemented native `Asia/Kolkata` datetime configurations for absolute IST precision.
  * • Upgraded User ID filters into an inline Type-Ahead combobox design.
+ * - EDITED (LATEST):
+ * • Implemented memory-safe `useMemo` table grouping for User ID isolation.
+ * • Removed conditional hiding of `First Visit Date`.
+ * • Added inline `<FaCrosshairs />` isolate action directly to the engagement cell.
  */
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getHistoricalAudienceData, getFilterOptions, refreshGA4Data } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
-    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash, FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle
+    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash,
+    FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle, FaLayerGroup,
+    FaChevronDown, FaChevronRight
 } from 'react-icons/fa';
 
 const DetailCell = ({ icon: Icon, value, label }) => (
@@ -154,6 +160,10 @@ const AudiencePage = () => {
     const [filters, setFilters] = useState([]);
     const [filterOptions, setFilterOptions] = useState(null);
 
+    // Grouping State
+    const [isGroupedView, setIsGroupedView] = useState(false);
+    const [expandedGroups, setExpandedGroups] = useState({});
+
     const buildApiParams = useCallback(() => {
         const params = { startDate, endDate };
 
@@ -241,6 +251,40 @@ const AudiencePage = () => {
         });
     };
 
+    // Memoized flat or grouped table data structure
+    const tableData = useMemo(() => {
+        if (!isGroupedView) {
+            return data.map(d => ({ ...d, isChild: false, isParent: false, groupCount: 0 }));
+        }
+
+        const groups = {};
+        data.forEach(item => {
+            const id = item.userIdentifier || 'Unknown';
+            if (!groups[id]) groups[id] = [];
+            groups[id].push(item);
+        });
+
+        // Sort parent groups by their most recent activity
+        const sortedGroups = Object.values(groups).sort((a, b) => {
+            const dateA = new Date(a[0].sessionStartTime || a[0].sessionDate);
+            const dateB = new Date(b[0].sessionStartTime || b[0].sessionDate);
+            return dateB - dateA;
+        });
+
+        const result = [];
+        sortedGroups.forEach(group => {
+            const parent = { ...group[0], isParent: true, groupCount: group.length };
+            result.push(parent);
+            if (expandedGroups[parent.userIdentifier]) {
+                group.slice(1).forEach(child => {
+                    result.push({ ...child, isChild: true });
+                });
+            }
+        });
+        return result;
+    }, [data, isGroupedView, expandedGroups]);
+
+
     const columns = [
         {
             key: 'sessionDate',
@@ -250,12 +294,25 @@ const AudiencePage = () => {
                 const displayTime = exactTimeIST || item.sessionDate;
 
                 return (
-                    <div className="space-y-1">
+                    <div className="space-y-1 relative pl-5">
+                        {item.isParent && item.groupCount > 1 && (
+                            <button
+                                onClick={() => setExpandedGroups(prev => ({ ...prev, [item.userIdentifier]: !prev[item.userIdentifier] }))}
+                                className="absolute left-0 top-0.5 text-sky-500 hover:text-sky-700 p-1"
+                            >
+                                {expandedGroups[item.userIdentifier] ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+                            </button>
+                        )}
+                        {item.isParent && item.groupCount > 1 && (
+                            <span className="inline-block bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded font-bold mb-1 mr-2">
+                                {item.groupCount} Sessions
+                            </span>
+                        )}
                         <p className="text-xs text-gray-800 font-semibold border-b border-gray-100 pb-1">
                             <FaCalendarAlt className="inline mr-1 text-sky-500" /> {displayTime}
                         </p>
-                        {item.firstVisitDate && item.firstVisitDate !== item.sessionDate && (
-                            <p className="text-[11px] text-green-700 font-bold tracking-tight bg-green-50 px-2 py-0.5 rounded inline-flex items-center" title="Historical First Visit Date">
+                        {item.firstVisitDate && (
+                            <p className="text-[11px] text-green-700 font-bold tracking-tight bg-green-50 px-2 py-0.5 rounded inline-flex items-center mt-0.5" title="Historical First Visit Date">
                                 <FaClock className="mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
                             </p>
                         )}
@@ -298,8 +355,21 @@ const AudiencePage = () => {
                 <div className="space-y-1 text-xs flex flex-col justify-start">
                     <p className="text-gray-700 font-semibold mb-0.5"><FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}</p>
                     <p className="text-gray-500 mb-1"><FaChartBar className="inline mr-1 text-sky-500" /> Views: {item.views}</p>
-                    <div className="font-mono text-gray-500 break-all bg-gray-100 p-1.5 rounded border border-gray-200 shadow-inner text-[10px]" title={item.userIdentifier}>
-                        ID: <span className="font-semibold text-gray-700">{item.userIdentifier || 'N/A'}</span>
+                    <div className="flex items-center justify-between font-mono text-gray-500 break-all bg-gray-100 p-1.5 rounded border border-gray-200 shadow-inner text-[10px]" title={item.userIdentifier}>
+                        <span>ID: <span className="font-semibold text-gray-700">{item.userIdentifier || 'N/A'}</span></span>
+                        {item.userIdentifier && item.userIdentifier !== 'Not available (GA4)' && (
+                            <button
+                                onClick={() => {
+                                    if (!targetClientIds.includes(item.userIdentifier)) {
+                                        setTargetClientIds([...targetClientIds, item.userIdentifier]);
+                                    }
+                                }}
+                                className="ml-2 text-sky-500 hover:text-sky-700 focus:outline-none transition-transform hover:scale-110"
+                                title="Isolate this user"
+                            >
+                                <FaCrosshairs size={13} />
+                            </button>
+                        )}
                     </div>
                 </div>
             )
@@ -372,9 +442,9 @@ const AudiencePage = () => {
                 </div>
             </div>
 
-            {/* --- MULTI-SELECT USER ID FILTERS --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col lg:flex-row space-y-4 lg:space-y-0 lg:space-x-6 border-l-4 border-sky-500">
-                <div className="flex-1">
+            {/* --- MULTI-SELECT USER ID FILTERS & GROUPING TOGGLE --- */}
+            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-6 border-l-4 border-sky-500">
+                <div className="flex-1 w-full">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
                         <FaCrosshairs className="mr-2 text-sky-500" /> Target Specific Users
                     </label>
@@ -385,9 +455,8 @@ const AudiencePage = () => {
                         placeholder="Type to search & include IDs..."
                         disabled={loading || optionsLoading}
                     />
-                    <p className="text-xs text-gray-400 mt-1">Isolate tracking to these specific IDs.</p>
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 w-full">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
                         <FaEyeSlash className="mr-2 text-red-400" /> Hide Users
                     </label>
@@ -398,7 +467,18 @@ const AudiencePage = () => {
                         placeholder="Type to search & exclude IDs..."
                         disabled={loading || optionsLoading}
                     />
-                    <p className="text-xs text-gray-400 mt-1">Filter out internal or test traffic.</p>
+                </div>
+                <div className="flex items-center space-x-3 lg:ml-auto border border-gray-200 p-2.5 rounded-lg bg-gray-50 w-full lg:w-auto mt-4 lg:mt-0">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center cursor-pointer select-none" onClick={() => setIsGroupedView(!isGroupedView)}>
+                        <FaLayerGroup className={`mr-2 ${isGroupedView ? 'text-sky-500' : 'text-gray-400'} transition-colors`} />
+                        Group by ID
+                    </label>
+                    <button
+                        onClick={() => setIsGroupedView(!isGroupedView)}
+                        className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 focus:outline-none ${isGroupedView ? 'bg-sky-500' : 'bg-gray-300'}`}
+                    >
+                        <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isGroupedView ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
                 </div>
             </div>
 
@@ -489,11 +569,14 @@ const AudiencePage = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-100">
-                            {data.length > 0 ? (
-                                data.map((item, index) => (
-                                    <tr key={item.id || index} className="hover:bg-sky-50/40 transition-colors">
+                            {tableData.length > 0 ? (
+                                tableData.map((item, index) => (
+                                    <tr
+                                        key={item.id || `${item.userIdentifier}-${index}`}
+                                        className={`transition-colors ${item.isChild ? 'bg-gray-50/70 border-l-4 border-l-sky-300' : 'hover:bg-sky-50/40 bg-white'}`}
+                                    >
                                         {columns.map(col => (
-                                            <td key={col.key} className="px-6 py-4 whitespace-nowrap align-top">
+                                            <td key={col.key} className={`px-6 py-4 whitespace-nowrap align-top ${item.isChild ? 'opacity-90' : ''}`}>
                                                 {col.render(item)}
                                             </td>
                                         ))}
