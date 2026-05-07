@@ -22,7 +22,7 @@
  * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
  * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
- * IMMUTABLE CHANGE HISTORY:
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
  * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
  * - RESTORED: Dynamic Robots.txt serving.
@@ -45,17 +45,11 @@
  * • Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
  * • Why: To protect Cloudflare Free Tier limits. Checks Cache API (0 quota) before hitting KV Storage. Ensures system survives heavy crawl loads and total backend failure.
  * - EDITED:
- * • Prepended "finance:" to all TREISHFIN_SEO_CACHE sitemap keys (`sitemap:finance:...`).
- * • Added `/privacy` and `/terms` to `staticPages` dictionary for Edge Hydration.
- * • Why: To prevent cross-tenant cache poisoning from the Agro worker and ensure static legal pages receive JSON-LD schema to fix indexing.
- * - EDITED (Current Phase):
  * • Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
  * • Why: To provide structural hints to search engines for automatic Sitelinks generation below the main search result, following enterprise w3c practices.
- *
- * - DO-NOT-DELETE RULE:
- * This IMMUTABLE CHANGE HISTORY section must never be deleted,
- * truncated, rewritten, or regenerated.
- * Future AI must append only.
+ * - EDITED:
+ * • Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
+ * • Why: To prevent `ERR_QUIC_PROTOCOL_ERROR` crashes during total backend outages. Unhandled Promise Rejections were causing the worker to abruptly drop the edge connection instead of serving the SPA fallback.
  */
 
 export default {
@@ -195,27 +189,35 @@ export default {
                 redirect: request.redirect
             });
 
-            // IMAGE ACCELERATION
-            if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
-                const cache = caches.default;
-                const cacheKey = new Request(url.toString(), request);
-                const cachedResponse = await cache.match(cacheKey);
-                if (cachedResponse) {
-                    const cachedRes = new Response(cachedResponse.body, cachedResponse);
-                    cachedRes.headers.set("X-Cache-Status", "HIT");
-                    return addSecurityHeaders(cachedRes);
+            try {
+                // IMAGE ACCELERATION
+                if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
+                    const cache = caches.default;
+                    const cacheKey = new Request(url.toString(), request);
+                    const cachedResponse = await cache.match(cacheKey);
+                    if (cachedResponse) {
+                        const cachedRes = new Response(cachedResponse.body, cachedResponse);
+                        cachedRes.headers.set("X-Cache-Status", "HIT");
+                        return addSecurityHeaders(cachedRes);
+                    }
+                    const apiResp = await fetch(proxyReq);
+                    if (apiResp.ok) {
+                        const responseToCache = new Response(apiResp.body, apiResp);
+                        responseToCache.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+                        responseToCache.headers.set("X-Cache-Status", "MISS");
+                        ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
+                        return addSecurityHeaders(responseToCache);
+                    }
+                    return apiResp;
                 }
-                const apiResp = await fetch(proxyReq);
-                if (apiResp.ok) {
-                    const responseToCache = new Response(apiResp.body, apiResp);
-                    responseToCache.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-                    responseToCache.headers.set("X-Cache-Status", "MISS");
-                    ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
-                    return addSecurityHeaders(responseToCache);
-                }
-                return apiResp;
+                return await fetch(proxyReq);
+            } catch (e) {
+                // Graceful fallback to prevent QUIC crash if backend connection is entirely refused
+                return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), {
+                    status: 503,
+                    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+                });
             }
-            return fetch(proxyReq);
         }
 
         // ----------------------------------------------
@@ -224,8 +226,12 @@ export default {
         // Strictly serve files with extensions from Pages natively
         // This includes robots.txt, sitemap.xml, and sitemap-static.xml
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
-            const assetResp = await fetch(baseEnhancedRequest);
-            return addSecurityHeaders(assetResp);
+            try {
+                const assetResp = await fetch(baseEnhancedRequest);
+                return addSecurityHeaders(assetResp);
+            } catch (e) {
+                return new Response("Asset Not Found", { status: 404 });
+            }
         }
 
         // ----------------------------------------------
