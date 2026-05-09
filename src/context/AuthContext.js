@@ -1,3 +1,4 @@
+"use client";
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken, getUserProfile } from '../apiConfig'; // PHASE 2: Added getUserProfile
@@ -44,7 +45,7 @@ export const AuthProvider = ({ children }) => {
     console.log("[Auth] Init Started");
 
     // --- CONFIGURATION ---
-    const authUrl = process.env.REACT_APP_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
+    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || process.env.REACT_APP_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
 
     const initKeycloak = new Keycloak({
       url: authUrl,

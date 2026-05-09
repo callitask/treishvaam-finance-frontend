@@ -1,5 +1,16 @@
+/**
+ * AI-CONTEXT:
+ * Component: Footer
+ * Purpose: Site-wide footer with links and legal info.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`).
+ * • Why: Phase 3 Next.js Migration. Maintains valid internal routing under SSR.
+ */
+
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 /**
  * [AI-OPTIMIZED CONTEXT]
@@ -57,10 +68,10 @@ const Footer = ({ className }) => {
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Quick Links</h4>
             <ul className="space-y-2">
-              <li><Link to="/" className="hover:text-sky-400 transition duration-300">Home</Link></li>
-              <li><Link to="/about" className="hover:text-sky-400 transition duration-300">About Us</Link></li>
-              <li><Link to="/vision" className="hover:text-sky-400 transition duration-300">Our Vision</Link></li>
-              <li><Link to="/contact" className="hover:text-sky-400 transition duration-300">Contact</Link></li>
+              <li><Link href="/" className="hover:text-sky-400 transition duration-300">Home</Link></li>
+              <li><Link href="/about" className="hover:text-sky-400 transition duration-300">About Us</Link></li>
+              <li><Link href="/vision" className="hover:text-sky-400 transition duration-300">Our Vision</Link></li>
+              <li><Link href="/contact" className="hover:text-sky-400 transition duration-300">Contact</Link></li>
             </ul>
           </div>
 
@@ -68,8 +79,8 @@ const Footer = ({ className }) => {
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Legal & Contact</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link to="/privacy" className="hover:text-sky-400 transition duration-300">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="hover:text-sky-400 transition duration-300">Terms of Service</Link></li>
+              <li><Link href="/privacy" className="hover:text-sky-400 transition duration-300">Privacy Policy</Link></li>
+              <li><Link href="/terms" className="hover:text-sky-400 transition duration-300">Terms of Service</Link></li>
               <li className="pt-2">Email: <a href="mailto:treishvaam@gmail.com" className="hover:text-sky-400 transition duration-300 font-medium">treishvaam@gmail.com</a></li>
             </ul>
           </div>

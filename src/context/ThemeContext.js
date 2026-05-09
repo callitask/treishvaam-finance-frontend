@@ -1,3 +1,4 @@
+"use client";
 // src/context/ThemeContext.js
 import React, { createContext, useState, useEffect, useContext } from 'react';
 

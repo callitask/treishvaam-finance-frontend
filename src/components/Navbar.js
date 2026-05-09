@@ -1,19 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch, FaFacebookF, FaLinkedinIn, FaInstagram, FaCircle, FaMoon, FaSun } from 'react-icons/fa';
-import SearchAutocomplete from './SearchAutocomplete';
-
 /**
- * [AI-OPTIMIZED CONTEXT]
- * Component: Navbar
+ * AI-CONTEXT:
  * Purpose: Main navigation and header controller.
  * Changes:
  * 1. Routing Update: "Home" and Logo now point to "/home" (Content Feed) instead of "/" (Landing Page).
  * 2. Accessibility: Maintained strict aria-labels.
  * 3. Sticky Logic: Preserved intersection observer for logo visibility.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`, `next/navigation`).
+ * • Replaced `<NavLink>` dynamic styling with a custom `getNavLinkClass` utilizing `usePathname()`.
+ * • Added `"use client";` directive to support hooks (useState, useEffect, context).
+ * • Why: Phase 3 Next.js Migration. Allows Navbar to render within Next.js Server Components.
  */
+"use client";
+
+import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+import { FaSignOutAlt, FaUserCircle, FaBars, FaTimes, FaSearch, FaFacebookF, FaLinkedinIn, FaInstagram, FaCircle, FaMoon, FaSun } from 'react-icons/fa';
+import SearchAutocomplete from './SearchAutocomplete';
+
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isLoginDropdownOpen, setLoginDropdownOpen] = useState(false);
@@ -27,7 +36,8 @@ const Navbar = () => {
 
     const { auth, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
-    const navigate = useNavigate();
+    const router = useRouter();
+    const pathname = usePathname();
 
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -35,7 +45,7 @@ const Navbar = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        router.push('/login');
     };
 
     // Market Status Logic
@@ -104,11 +114,14 @@ const Navbar = () => {
         };
     }, []);
 
-    const getNavLinkClass = ({ isActive }) =>
-        `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
+    // Next.js replacement for react-router's NavLink active state
+    const getNavLinkClass = (path) => {
+        const isActive = pathname === path || (path !== '/' && pathname?.startsWith(path + '/'));
+        return `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
             ? 'border-sky-700 text-sky-700 dark:text-sky-400 dark:border-sky-400'
             : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white dark:hover:border-gray-600'
-        }`;
+            }`;
+    };
 
     return (
         <>
@@ -121,7 +134,7 @@ const Navbar = () => {
                         <FaBars size={20} />
                     </button>
                     {/* LOGO points to /home to keep user in app */}
-                    <Link to="/home" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    <Link href="/home" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                         <span className="text-sm font-black text-slate-900 dark:text-white font-serif tracking-wide uppercase truncate">
                             TREISHVAAM FINANCE
                         </span>
@@ -151,20 +164,20 @@ const Navbar = () => {
                             <div className="p-4 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
                                 {/* Navigation links point to /home */}
-                                <Link to="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
-                                <Link to="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
-                                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">About Us</Link>
-                                <Link to="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Vision</Link>
-                                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Contact</Link>
+                                <Link href="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
+                                <Link href="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
+                                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">About Us</Link>
+                                <Link href="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Vision</Link>
+                                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Contact</Link>
                             </nav>
                             <div className="p-5 border-t border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 safe-pb">
                                 {auth.isAuthenticated ? (
                                     <div className="space-y-3">
-                                        <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-center w-full py-3 bg-sky-700 text-white rounded-xl font-bold shadow-md hover:bg-sky-800 transition-colors">Dashboard</Link>
+                                        <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-center w-full py-3 bg-sky-700 text-white rounded-xl font-bold shadow-md hover:bg-sky-800 transition-colors">Dashboard</Link>
                                         <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="block text-center w-full py-2 text-red-600 font-semibold text-sm">Sign Out</button>
                                     </div>
                                 ) : (
-                                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Admin Login</Link>
+                                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Admin Login</Link>
                                 )}
                             </div>
                         </div>
@@ -220,7 +233,7 @@ const Navbar = () => {
             <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
                     {/* LOGO points to /home */}
-                    <Link to="/home" className="text-center group">
+                    <Link href="/home" className="text-center group">
                         <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                             TREISHVAAM FINANCE
                         </h1>
@@ -235,8 +248,9 @@ const Navbar = () => {
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
                         {/* Sticky LOGO points to /home */}
+
                         <Link
-                            to="/home"
+                            href="/home"
                             className={`absolute left-6 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${showStickyLogo
                                 ? 'opacity-100 pointer-events-auto translate-y-[-50%]'
                                 : 'opacity-0 pointer-events-none translate-y-[-40%]'
@@ -249,11 +263,11 @@ const Navbar = () => {
 
                         <nav className="flex space-x-1">
                             {/* Home NavLink points to /home */}
-                            <NavLink to="/home" className={getNavLinkClass}>Home</NavLink>
-                            <NavLink to="/market/%5EDJI" className={getNavLinkClass}>Markets</NavLink>
-                            <NavLink to="/vision" className={getNavLinkClass}>Vision</NavLink>
-                            <NavLink to="/about" className={getNavLinkClass}>About</NavLink>
-                            <NavLink to="/contact" className={getNavLinkClass}>Contact</NavLink>
+                            <Link href="/home" className={getNavLinkClass('/home')}>Home</Link>
+                            <Link href="/market/%5EDJI" className={getNavLinkClass('/market/%5EDJI')}>Markets</Link>
+                            <Link href="/vision" className={getNavLinkClass('/vision')}>Vision</Link>
+                            <Link href="/about" className={getNavLinkClass('/about')}>About</Link>
+                            <Link href="/contact" className={getNavLinkClass('/contact')}>Contact</Link>
                         </nav>
 
                         <div className="absolute right-6 top-1/2 transform -translate-y-1/2 w-64">
