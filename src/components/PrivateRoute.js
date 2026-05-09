@@ -1,11 +1,30 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Route protection wrapper for admin components.
+ * * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Migrated routing from `react-router-dom` (`<Navigate>`, `useLocation`) to Next.js App Router (`next/navigation`, `useRouter`, `usePathname`).
+ * • Switched from declarative rendering (<Navigate>) to an imperative `useEffect` push for client-side protection.
+ * • Added `"use client";` to top level.
+ * • Why: Phase 3 Next.js Migration.
+ */
+
+import React, { useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const PrivateRoute = ({ children }) => {
     const { auth, loading } = useAuth();
-    const location = useLocation();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    useEffect(() => {
+        if (!loading && !auth.isAuthenticated) {
+            router.push(`/login?from=${encodeURIComponent(pathname)}`);
+        }
+    }, [loading, auth.isAuthenticated, router, pathname]);
 
     // Only block rendering for PROTECTED routes
     if (loading) {
@@ -20,7 +39,7 @@ const PrivateRoute = ({ children }) => {
     }
 
     if (!auth.isAuthenticated) {
-        return <Navigate to="/login" state={{ from: location }} replace />;
+        return null; // Return null while the useEffect handles the redirect
     }
 
     return children;

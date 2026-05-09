@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  @apply bg-slate-50 text-gray-900 transition-colors duration-300; 
+}
+
+.dark body {
+  @apply bg-slate-900 text-gray-100;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+.safe-pt { padding-top: env(safe-area-inset-top); }
+
+.font-serif { font-family: 'Merriweather', serif; }
+.font-sans { font-family: 'Inter', sans-serif; }
+
+.skeleton {
+    @apply bg-gray-200 dark:bg-slate-700; 
+    background-image: linear-gradient(to right, var(--tw-gradient-stops)); 
+    background-repeat: no-repeat;
+    background-size: 800px 100%; 
+    animation: shimmer 1.5s infinite linear forwards;
+    will-change: background-position;
+}
+
+.skeleton {
+    --tw-gradient-from: #e5e7eb; 
+    --tw-gradient-to: #e5e7eb;
+    --tw-gradient-stops: var(--tw-gradient-from), #f3f4f6, var(--tw-gradient-to);
+}
+
+.dark .skeleton {
+    --tw-gradient-from: #334155; 
+    --tw-gradient-to: #334155;
+    --tw-gradient-stops: var(--tw-gradient-from), #1e293b, var(--tw-gradient-to); 
+}
+
+@keyframes shimmer {
+    0% { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+@layer components {
+  .cta-button-primary { 
+      @apply bg-sky-700 hover:bg-sky-800 text-white shadow-sm dark:bg-sky-600 dark:hover:bg-sky-500; 
+  }
+  
+  .card-base {
+      @apply bg-white border border-gray-200 shadow-sm rounded-lg dark:bg-slate-800 dark:border-slate-700;
+  }
+}

@@ -1,3 +1,16 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Loads heavy third-party scripts (AdSense, Analytics, Google Ads) non-blockingly.
+ * Scope: Global App Level.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Added `"use client";` directive to allow DOM manipulation.
+ * • Converted CRA environment variables (`REACT_APP_`) to Next.js Client equivalents (`NEXT_PUBLIC_`).
+ * • Why: Phase 3 Next.js Migration. Maintains zero-trust script injection via env.
+ */
+"use client";
+
 import { useEffect } from 'react';
 
 /**
@@ -46,9 +59,10 @@ const ThirdPartyScripts = () => {
 
             console.log("⚡ Injecting Third-Party Scripts (Interaction/Idle Detected)...");
 
-            const gaId = process.env.REACT_APP_GA_MEASUREMENT_ID;
-            const adsId = process.env.REACT_APP_GOOGLE_ADS_ID;
-            const adsenseId = process.env.REACT_APP_ADSENSE_CLIENT_ID;
+            // NEXT_PUBLIC replaces REACT_APP
+            const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+            const adsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
+            const adsenseId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
 
             requestAnimationFrame(() => {
                 // 1. Google Analytics & Google Ads (GA4 / GTM)

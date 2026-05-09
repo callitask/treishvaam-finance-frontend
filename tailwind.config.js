@@ -1,6 +1,13 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Tailwind CSS Configuration.
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED: Added app directory to content array.
+ */
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
+    "./app/**/*.{js,jsx,ts,tsx}",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
   darkMode: 'class',

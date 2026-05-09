@@ -1,5 +1,17 @@
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Global search autocomplete input for the Navbar.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Migrated routing from `react-router-dom` (`useNavigate`) to Next.js App Router (`next/navigation`, `useRouter`).
+ * • Added `"use client";` directive to support DOM refs and state hooks.
+ * • Why: Phase 3 Next.js Migration. Resolves Webpack build errors for missing react-router dependencies.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { searchPosts } from '../apiConfig';
 
@@ -8,7 +20,7 @@ const SearchAutocomplete = () => {
     const [results, setResults] = useState([]);
     const [showResults, setShowResults] = useState(false);
     const wrapperRef = useRef(null);
-    const navigate = useNavigate();
+    const router = useRouter();
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -46,7 +58,8 @@ const SearchAutocomplete = () => {
     const handleSelect = (post) => {
         setQuery('');
         setShowResults(false);
-        navigate(`/category/${post.category?.slug || 'general'}/${post.userFriendlySlug}/${post.urlArticleId}`);
+        // Next.js router.push replaces react-router navigate
+        router.push(`/category/${post.category?.slug || 'general'}/${post.userFriendlySlug}/${post.urlArticleId}`);
     };
 
     const handleEnter = (e) => {

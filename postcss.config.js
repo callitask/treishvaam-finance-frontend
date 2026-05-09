@@ -1,6 +1,12 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Restores Tailwind CSS compilation pipeline.
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED: Next.js compliant PostCSS configuration.
+ */
 module.exports = {
-  plugins: [
-    require('tailwindcss'),
-    require('autoprefixer'),
-  ],
-};
+    plugins: {
+        tailwindcss: {},
+        autoprefixer: {},
+    },
+}

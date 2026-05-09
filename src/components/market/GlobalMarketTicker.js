@@ -1,6 +1,18 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Global market ticker strip.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`).
+ * • Added `"use client";` directive to support API fetching hooks.
+ * • Why: Phase 3 Next.js Migration.
+ */
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { getQuotesBatch } from '../../apiConfig';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import './GlobalMarketTicker.css';
 
 /**
@@ -46,7 +58,7 @@ const TickerCard = ({ quote }) => {
     const color = getChangeColor(change);
 
     return (
-        <Link to={`/market/${encodeURIComponent(quote.ticker)}`} className="global-ticker-card">
+        <Link href={`/market/${encodeURIComponent(quote.ticker)}`} className="global-ticker-card">
             <span className="font-bold text-gray-900 text-xs truncate max-w-[100px] block">{quote.name}</span>
             <div className={`flex items-baseline gap-1.5 ${color} text-xs`}>
                 <span className="font-semibold tabular-nums tracking-tight">
