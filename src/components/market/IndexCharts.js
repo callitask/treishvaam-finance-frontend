@@ -92,7 +92,13 @@ const IndexCharts = () => {
 
     const chartData = useMemo(() => {
         if (!widgetData || !widgetData.historicalData) return [];
+
+        // DEFAULT TO 1 MONTH (30 Days) view to match Google Finance specificity
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 30);
+
         return [...widgetData.historicalData]
+            .filter(item => new Date(item.priceDate) >= cutoffDate) // Apply 1M filter
             .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
             .map(item => ({
                 time: item.priceDate,
