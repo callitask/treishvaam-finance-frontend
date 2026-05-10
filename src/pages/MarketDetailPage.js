@@ -1,180 +1,122 @@
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Legacy CRA page for displaying detailed market data.
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED: Added `"use client";` to bypass Next.js Server Component restrictions on hooks (useState, useEffect).
+ */
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getWidgetData } from '../apiConfig';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
-
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
-import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
 import DataSummary from '../components/market-detail/DataSummary';
 import AboutAsset from '../components/market-detail/AboutAsset';
-import DynamicMarketSummary from '../components/market/DynamicMarketSummary';
+import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
 
 const MarketDetailPage = () => {
     const { ticker } = useParams();
-    const [data, setData] = useState(null);
+    const [marketData, setMarketData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // --- PHASE 3: EDGE HYDRATION & NAVIGATION HANDLER ---
     useEffect(() => {
-        // Reset state for navigation
-        setError(null);
+        window.scrollTo(0, 0);
+    }, []);
 
-        const decodedTicker = decodeURIComponent(ticker);
-        const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
+    useEffect(() => {
+        let isMounted = true;
 
-        // Hydration Check: Does preloaded data match the requested ticker?
-        if (globalState && globalState.quoteData && globalState.quoteData.ticker === decodedTicker) {
-            console.log("⚡ Market Data Hydrated from Edge");
-            setData(globalState);
-            setLoading(false);
-            window.__PRELOADED_STATE__ = null; // Clean up
-        } else {
-            // Fallback Fetch
-            console.log("🔄 Fetching Market Data...");
+        const fetchMarketData = async () => {
+            if (!ticker) return;
             setLoading(true);
-            const fetchData = async () => {
-                try {
-                    const response = await getWidgetData(decodedTicker);
-                    if (!response.data || !response.data.quoteData) {
-                        throw new Error('No data returned for this asset.');
-                    }
-                    setData(response.data);
-                } catch (e) {
-                    console.error("Failed to fetch market detail data:", e);
-                    setError(e.message || 'Could not load data for this asset.');
-                } finally {
+            setError(null);
+            try {
+                // We use the new backend endpoint that aggregates Quote + History + Profile
+                const decodedTicker = decodeURIComponent(ticker);
+                const response = await getWidgetData(decodedTicker);
+
+                if (isMounted) {
+                    setMarketData(response.data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch market data:", err);
+                if (isMounted) {
+                    setError("Failed to load market data. Please try again later.");
+                }
+            } finally {
+                if (isMounted) {
                     setLoading(false);
                 }
-            };
-            fetchData();
-        }
-    }, [ticker]);
-
-    const { quoteData, historicalData, peers } = data || {};
-    const decodedTicker = decodeURIComponent(ticker);
-
-    // Fallback title while loading
-    const pageTitle = quoteData
-        ? `Treishfin · Market · ${quoteData.name} (${quoteData.ticker})`
-        : `Treishfin · Market · ${decodedTicker}`;
-
-    const pageDescription = quoteData
-        ? `Detailed financial analysis and live market data for ${quoteData.name} (${quoteData.ticker}). View charts, price history, and key statistics on Treishvaam Finance.`
-        : "Real-time market data and analysis on Treishvaam Finance.";
-
-    const pageUrl = `https://treishfin.treishvaamgroup.com/market/${ticker}`;
-    const imageUrl = quoteData?.logoUrl || "https://treishfin.treishvaamgroup.com/logo.webp";
-
-    // --- ENTERPRISE SEO: Structured Data for Financial Product ---
-    const generateFinancialSchema = (quote) => {
-        if (!quote) return null;
-        return {
-            "@context": "https://schema.org",
-            "@type": "FinancialProduct",
-            "name": quote.name,
-            "tickerSymbol": quote.ticker,
-            "exchangeTicker": quote.exchange || "NYSE",
-            "description": pageDescription,
-            "url": pageUrl,
-            "image": imageUrl,
-            "currentExchangeRate": {
-                "@type": "UnitPriceSpecification",
-                "price": quote.price,
-                "priceCurrency": "USD"
             }
         };
-    };
+
+        fetchMarketData();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [ticker]);
 
     if (loading) {
         return (
-            <div className="h-[60vh] flex flex-col items-center justify-center text-gray-500">
-                <Loader2 size={48} className="animate-spin text-blue-600" />
-                <span className="mt-4 text-lg">Loading market data...</span>
+            <div className="flex h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+                <div className="text-center">
+                    <Loader2 className="h-10 w-10 animate-spin text-sky-600 mx-auto mb-4" />
+                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">Compiling Market Data...</p>
+                </div>
             </div>
         );
     }
 
-    if (error) {
+    if (error || !marketData) {
         return (
-            <div className="container mx-auto p-4 max-w-4xl text-center">
-                <Link to="/" className="text-blue-600 hover:underline mb-4 inline-flex items-center">
-                    <ArrowLeft size={16} className="mr-1" /> Back to Home
-                </Link>
-                <h2 className="text-2xl font-bold text-red-600">Error</h2>
-                <p className="text-gray-600">{error}</p>
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg max-w-md text-center border border-red-200 dark:border-red-800">
+                    <h2 className="text-xl font-bold mb-2">Data Unavailable</h2>
+                    <p className="mb-6">{error || "The requested market data could not be found."}</p>
+                    <Link to="/" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
+                        <ArrowLeft size={16} className="mr-2" /> Return to Markets
+                    </Link>
+                </div>
             </div>
         );
     }
-
-    const schema = generateFinancialSchema(quoteData);
 
     return (
-        <div className="bg-gray-50 min-h-screen">
-            <Helmet>
-                <title>{pageTitle}</title>
-                <meta name="description" content={pageDescription} />
-                <link rel="canonical" href={pageUrl} />
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 py-6">
+            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
 
-                {/* Open Graph */}
-                <meta property="og:type" content="website" />
-                <meta property="og:url" content={pageUrl} />
-                <meta property="og:title" content={pageTitle} />
-                <meta property="og:description" content={pageDescription} />
-                <meta property="og:image" content={imageUrl} />
+                {/* 1. Header (Hero) */}
+                <MarketHero quote={marketData.quote} />
 
-                {/* Twitter */}
-                <meta name="twitter:card" content="summary" />
-                <meta name="twitter:url" content={pageUrl} />
-                <meta name="twitter:title" content={pageTitle} />
-                <meta name="twitter:description" content={pageDescription} />
-                <meta name="twitter:image" content={imageUrl} />
+                {/* 2. Main Content Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
-                {/* Inject JSON-LD Schema */}
-                {schema && (
-                    <script type="application/ld+json">
-                        {JSON.stringify(schema)}
-                    </script>
-                )}
-            </Helmet>
-
-            <div className="container mx-auto p-4 max-w-6xl font-sans">
-                {/* --- Component 1: Dynamic Market Summary Bar --- */}
-                <DynamicMarketSummary />
-
-                {/* --- Component 2: Page Hero --- */}
-                <MarketHero quote={quoteData} />
-
-                {/* --- Component 3: Main Content Body --- */}
-                <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                    {/* --- 4a. Left Column (Wide) --- */}
-                    <div className="md:col-span-2 flex flex-col gap-6">
-
-                        {/* Module 1: Interactive Chart */}
-                        <MainChart history={historicalData} quote={quoteData} />
-
-                        {/* Module 2: Comparison Carousel */}
-                        {peers && peers.length > 0 && (
-                            <ComparisonCarousel peers={peers} />
-                        )}
-
-                        {/* Module 3: About */}
-                        {quoteData.description && (
-                            <AboutAsset quote={quoteData} />
-                        )}
+                    {/* Left Column (Chart & About) */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <MainChart
+                            quote={marketData.quote}
+                            historicalData={marketData.historicalData}
+                        />
+                        <AboutAsset profile={marketData.profile} />
                     </div>
 
-                    {/* --- 4b. Right Column (Narrow) --- */}
-                    <div className="md:col-span-1 flex flex-col gap-6">
-
-                        {/* Module 1: Data Summary Card */}
-                        <DataSummary quote={quoteData} />
-
+                    {/* Right Column (Data Summary) */}
+                    <div className="space-y-6">
+                        <DataSummary quote={marketData.quote} />
                     </div>
                 </div>
+
+                {/* 3. Bottom Strip (Comparisons/Related) */}
+                {marketData.relatedAssets && marketData.relatedAssets.length > 0 && (
+                    <div className="mt-8 pt-8 border-t border-gray-200 dark:border-slate-700">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Related Assets</h3>
+                        <ComparisonCarousel relatedAssets={marketData.relatedAssets} />
+                    </div>
+                )}
+
             </div>
         </div>
     );

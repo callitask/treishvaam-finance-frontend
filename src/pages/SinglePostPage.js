@@ -1,226 +1,261 @@
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Legacy CRA page for displaying a single blog/news post.
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED: Added `"use client";` to bypass Next.js Server Component restrictions on hooks.
+ */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPostByUrlId, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
-import ShareButtons from '../components/ShareButtons';
-import throttle from 'lodash/throttle';
-import { AudioPlayer } from '../components/AudioPlayer';
-import { ChevronRight, Calendar, User, Tag, Clock, AlertCircle } from 'lucide-react';
-import { generatePostSchema } from '../utils/schemaGenerator';
+import { Calendar, User, ArrowLeft, Clock, Share2, Tag, Loader2, BookmarkPlus } from 'lucide-react';
+import ShareModal from '../components/ShareModal';
+import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
 
-const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-};
-
-const createSnippet = (html, length = 160) => {
-    if (!html) return '';
-    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
-    if (plainText.length <= length) return plainText;
-    const trimmed = plainText.substring(0, length);
-    return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
-};
-
-const calculateReadingTime = (content) => {
-    if (!content) return '1 min read';
-    const safeContent = String(content || '');
-    const text = safeContent.replace(/<[^>]*>/g, '');
-    const wordCount = text.split(/\s+/).length;
-    const readingTime = Math.ceil(wordCount / 200);
-    return `${readingTime} min read`;
-};
-
 const SinglePostPage = () => {
-    const { urlArticleId } = useParams();
-
+    const { id } = useParams();
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
-    const [headings, setHeadings] = useState([]);
-    const [activeId, setActiveId] = useState('');
-    const [progress, setProgress] = useState(0);
     const articleRef = useRef(null);
 
-    // --- CRITICAL CLEANUP & HYDRATION ---
+    // Fetch Post Data
     useEffect(() => {
-        // 1. REMOVE DUPLICATE SEO CONTENT IMMEDIATELY
-        const serverContent = document.getElementById('server-content');
-        if (serverContent) {
-            serverContent.style.display = 'none'; // Hide immediately
-            serverContent.remove(); // Remove from DOM
-        }
-
-        const serverSchema = document.getElementById('server-schema');
-        if (serverSchema) serverSchema.remove();
-
-        setError(null);
-        const globalState = typeof window !== 'undefined' ? window.__PRELOADED_STATE__ : null;
-
-        // 2. Hydration Check
-        if (globalState && globalState.urlArticleId === urlArticleId && globalState.content) {
-            console.log("⚡ Hydrating from Edge");
-            setPost(globalState);
-            setLoading(false);
-            window.__PRELOADED_STATE__ = null;
-        } else {
-            console.log("🔄 Fetching from API (Fallback)");
+        let isMounted = true;
+        const fetchPost = async () => {
             setLoading(true);
-            const fetchPost = async () => {
-                try {
-                    const response = await getPostByUrlId(urlArticleId);
-                    if (response.data) setPost(response.data);
-                    else throw new Error("Empty response");
-                } catch (err) {
-                    console.error("API Fetch Error:", err);
-                    setError('Unable to load article. The server might be experiencing high load.');
-                } finally {
+            try {
+                // If it's a number, it might be the DB ID. We try fetching by URL ID first.
+                // The API endpoint getPostByUrlId handles the business logic.
+                const response = await getPostByUrlId(id);
+                if (isMounted) {
+                    setPost(response.data);
                     setLoading(false);
                 }
-            };
+            } catch (err) {
+                console.error("Failed to fetch post:", err);
+                if (isMounted) {
+                    setError("Failed to load article. It may have been removed.");
+                    setLoading(false);
+                }
+            }
+        };
+
+        if (id) {
             fetchPost();
         }
-        window.scrollTo(0, 0);
-    }, [urlArticleId]);
+    }, [id]);
 
-    // --- CONTENT PROCESSING ---
-    useEffect(() => {
-        if (!post?.content) return;
-        const cleanContent = DOMPurify.sanitize(post.content, {
-            USE_PROFILES: { html: true },
-            ADD_TAGS: ['iframe'],
+    // Sanitize HTML
+    const sanitizedContent = useMemo(() => {
+        if (!post || !post.content) return '';
+        return DOMPurify.sanitize(post.content, {
+            ADD_TAGS: ['iframe', 'script', 'style'],
             ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target']
         });
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = cleanContent;
-        const headingElements = tempDiv.querySelectorAll('h2, h3, h4');
-        const extractedHeadings = Array.from(headingElements).map((el, index) => {
-            const id = `heading-${index}-${el.tagName}`;
-            el.id = id;
-            return { id, text: el.innerText, level: parseInt(el.tagName.substring(1), 10) };
-        });
-        setHeadings(extractedHeadings);
-        setPost(currentPost => ({ ...currentPost, contentWithIds: tempDiv.innerHTML }));
-    }, [post?.content]);
+    }, [post]);
 
-    // --- SCROLL SPY ---
-    const handleScroll = useMemo(() => throttle(() => {
-        const contentElement = articleRef.current;
-        if (!contentElement) return;
-        const articleTop = contentElement.getBoundingClientRect().top + window.scrollY;
-        const contentHeight = contentElement.scrollHeight;
-        const viewportHeight = window.innerHeight;
-        const scrollableDistance = contentHeight - viewportHeight;
-        const scrolledFromTop = window.scrollY - articleTop;
-        if (scrolledFromTop > 0 && scrollableDistance > 0) {
-            const scrollPercent = (scrolledFromTop / scrollableDistance) * 100;
-            setProgress(Math.min(100, Math.max(0, scrollPercent)));
-        } else {
-            setProgress(0);
-        }
-        let currentActiveId = '';
-        for (let i = headings.length - 1; i >= 0; i--) {
-            const element = document.getElementById(headings[i].id);
-            if (element && element.getBoundingClientRect().top < 200) {
-                currentActiveId = headings[i].id;
-                break;
-            }
-        }
-        setActiveId(currentActiveId);
-    }, 150), [headings]);
-
-    useEffect(() => {
-        window.addEventListener('scroll', handleScroll);
-        return () => {
-            handleScroll.cancel();
-            window.removeEventListener('scroll', handleScroll);
-        };
-    }, [handleScroll]);
-
-    if (loading) return <div className="flex justify-center items-center min-h-[50vh]"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600"></div></div>;
-    if (error) return <div className="flex flex-col justify-center items-center min-h-[50vh] text-center px-4"><AlertCircle className="w-12 h-12 text-red-500 mb-4" /><h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Something went wrong</h2><p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p><Link to="/" className="text-sky-600 hover:text-sky-700 font-semibold">Return to Home</Link></div>;
-    if (!post) return <div className="text-center py-20 text-gray-500">Post not found.</div>;
-
-    const createMarkup = (htmlContent) => ({ __html: htmlContent });
-    const categorySlug = post.category?.slug || 'uncategorized';
-    const pageUrl = `https://treishfin.treishvaamgroup.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
-    const pageTitle = `${post.title} - Treishvaam Finance`;
-    const seoDescription = post.metaDescription || post.customSnippet || createSnippet(post.content, 160);
-    const categoryName = post.category?.name || "General";
-    let imageUrl = `https://treishfin.treishvaamgroup.com/logo.webp`;
-    let srcSet = null;
-    if (post.coverImageUrl) {
-        const base = `${API_URL}/api/uploads/${post.coverImageUrl}`;
-        imageUrl = `${base}.webp`;
-        srcSet = `${base}-480.webp 480w, ${base}-800.webp 800w, ${base}-1200.webp 1200w, ${base}.webp 1920w`;
+    if (loading) {
+        return (
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+                <Loader2 className="h-10 w-10 animate-spin text-sky-600 mb-4" />
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">Loading Article...</p>
+            </div>
+        );
     }
-    let authorName = post.author || "Treishvaam Team";
-    if (authorName === "callitask@gmail.com") authorName = "Treishvaam";
-    const schemas = generatePostSchema(post, authorName, pageUrl, imageUrl);
+
+    if (error || !post) {
+        return (
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 transition-colors duration-300">
+                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-8 rounded-2xl max-w-md text-center border border-red-100 dark:border-red-800">
+                    <h2 className="text-2xl font-bold mb-3">Article Not Found</h2>
+                    <p className="mb-6 opacity-80">{error}</p>
+                    <Link to="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
+                        <ArrowLeft size={16} className="mr-2" /> Back to Feed
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    // Prepare data for rendering
+    const categoryName = post.category ? post.category.name : 'Uncategorized';
+    const categorySlug = post.category ? post.category.slug : 'general';
+    const authorName = post.authorName || 'Treishvaam Editorial';
+    const publishDate = new Date(post.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    // SEO & Share Metadata
+    const postUrl = typeof window !== 'undefined' ? window.location.href : `https://treishvaamfinance.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
+    const coverImageUrl = post.thumbnailUrl
+        ? `${API_URL}/api/v1/files/download/${post.thumbnailUrl}`
+        : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200'; // Fallback
 
     return (
-        <>
+        <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
+            <ReadingProgressBar targetRef={articleRef} />
+
+            {/* --- DYNAMIC SEO HELMET --- */}
             <Helmet>
-                <title>{pageTitle}</title>
-                <meta name="description" content={seoDescription} />
+                <title>{`${post.title} | Treishvaam Finance`}</title>
+                <meta name="description" content={post.metaDescription || post.excerpt || `Read ${post.title} on Treishvaam Finance.`} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
-                <link rel="canonical" href={pageUrl} />
+
+                {/* Open Graph / Facebook */}
                 <meta property="og:type" content="article" />
-                <meta property="og:url" content={pageUrl} />
+                <meta property="og:url" content={postUrl} />
                 <meta property="og:title" content={post.title} />
-                <meta property="og:description" content={seoDescription} />
-                <meta property="og:image" content={imageUrl} />
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:url" content={pageUrl} />
-                <meta name="twitter:title" content={post.title} />
-                <meta name="twitter:description" content={seoDescription} />
-                <meta name="twitter:image" content={imageUrl} />
-                {schemas && <script type="application/ld+json">{JSON.stringify(schemas)}</script>}
+                <meta property="og:description" content={post.metaDescription || post.excerpt} />
+                <meta property="og:image" content={coverImageUrl} />
+
+                {/* Twitter */}
+                <meta property="twitter:card" content="summary_large_image" />
+                <meta property="twitter:url" content={postUrl} />
+                <meta property="twitter:title" content={post.title} />
+                <meta property="twitter:description" content={post.metaDescription || post.excerpt} />
+                <meta property="twitter:image" content={coverImageUrl} />
             </Helmet>
-            <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 dark:bg-slate-900 transition-colors duration-300">
-                <div className="lg:grid lg:grid-cols-12 lg:gap-12">
-                    <div className="lg:col-span-8 xl:col-span-9">
-                        <nav className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">
-                            <Link to="/" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
-                            <ChevronRight className="w-4 h-4 mx-2" />
-                            <span className="text-gray-900 dark:text-white">{categoryName}</span>
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+
+                <div className="flex flex-col lg:flex-row gap-12">
+                    {/* LEFT COLUMN: Main Content */}
+                    <article className="w-full lg:w-[70%]" ref={articleRef}>
+
+                        {/* Breadcrumbs */}
+                        <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
+                            <Link to="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
+                            <span>/</span>
+                            <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
                         </nav>
-                        <header className="mb-10">
-                            <div className="inline-flex items-center px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 text-xs font-bold uppercase tracking-wider mb-4"><Tag className="w-3 h-3 mr-1.5" />{categoryName}</div>
-                            <h1 className="text-3xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight mb-6 font-serif">{post.title}</h1>
-                            <div className="flex flex-wrap items-center gap-4 sm:gap-8 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-slate-800 pb-8">
-                                <div className="flex items-center"><div className="w-10 h-10 bg-gray-200 dark:bg-slate-700 rounded-full flex items-center justify-center mr-3 text-gray-500 dark:text-gray-300"><User className="w-5 h-5" /></div><div><p className="text-gray-900 dark:text-white font-semibold leading-none">{authorName}</p><p className="text-xs mt-1">Financial Analyst</p></div></div>
-                                <div className="flex items-center"><Calendar className="w-4 h-4 mr-2 text-gray-400" /><time dateTime={post.createdAt} suppressHydrationWarning>{formatDate(post.createdAt)}</time></div>
-                                <div className="flex items-center"><Clock className="w-4 h-4 mr-2 text-gray-400" /><span>{calculateReadingTime(post.content)}</span></div>
+
+                        {/* Article Header */}
+                        <header className="mb-8">
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
+                                {post.title}
+                            </h1>
+
+                            {/* Meta Bar */}
+                            <div className="flex flex-wrap items-center justify-between border-y border-slate-200 dark:border-slate-800 py-4 gap-4">
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                    <div className="flex items-center font-semibold">
+                                        <User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
+                                        {authorName}
+                                    </div>
+                                    <div className="flex items-center">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        {publishDate}
+                                    </div>
+                                    <div className="flex items-center">
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        {post.estimatedReadingTime || 5} min read
+                                    </div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                                        title="Save to Bookmarks (Coming Soon)"
+                                    >
+                                        <BookmarkPlus className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setIsShareModalOpen(true)}
+                                        className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"
+                                    >
+                                        <Share2 className="w-4 h-4 mr-2" /> Share
+                                    </button>
+                                </div>
                             </div>
-                            <AudioPlayer title={post.title} content={post.content} />
                         </header>
-                        {post.coverImageUrl && <div className="mb-10 rounded-xl overflow-hidden shadow-lg border border-gray-100 dark:border-slate-800"><img src={imageUrl} srcSet={srcSet} sizes="(max-width: 600px) 480px, (max-width: 900px) 800px, 1200px" alt={post.coverImageAltText || post.title} className="w-full h-auto object-cover" width="1200" height="675" fetchPriority="high" /></div>}
-                        <main ref={articleRef}>
-                            <article className="prose prose-lg max-w-none prose-headings:font-serif prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-white prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-8 prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-strong:text-gray-900 dark:prose-strong:text-white prose-li:text-gray-700 dark:prose-li:text-gray-300 prose-img:rounded-xl [&_iframe]:w-full [&_iframe]:aspect-video [&_iframe]:rounded-xl" dangerouslySetInnerHTML={createMarkup(post.contentWithIds || post.content)} />
-                            <div className="mt-16 pt-8 border-t border-gray-200 dark:border-slate-800"><ShareButtons url={pageUrl} title={post.title} /></div>
-                            <div className="mt-12 bg-gray-50 dark:bg-slate-800 rounded-xl p-8 flex flex-col sm:flex-row items-start gap-6 border border-gray-100 dark:border-slate-700">
-                                <div className="w-16 h-16 bg-white dark:bg-slate-700 rounded-full flex items-center justify-center shadow-sm text-sky-600 dark:text-sky-400 shrink-0 border border-gray-200 dark:border-slate-600"><User className="w-8 h-8" /></div>
-                                <div><h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">About the Author</h3><p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{authorName} is a dedicated financial analyst at Treishvaam Finance. With a passion for simplifying complex market dynamics, they provide actionable insights to empower investors.</p><Link to="/about" className="inline-block mt-3 text-sm font-semibold text-sky-600 dark:text-sky-400 hover:underline">Read full bio &rarr;</Link></div>
+
+                        {/* Cover Image */}
+                        {post.thumbnailUrl && (
+                            <figure className="mb-10">
+                                <img
+                                    src={coverImageUrl}
+                                    alt={post.thumbnailAltText || post.title}
+                                    className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800"
+                                />
+                                {post.thumbnailAltText && (
+                                    <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
+                                        {post.thumbnailAltText}
+                                    </figcaption>
+                                )}
+                            </figure>
+                        )}
+
+                        {/* Article Body */}
+                        <div
+                            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed
+                                prose-headings:font-serif prose-headings:font-bold
+                                prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline
+                                prose-img:rounded-xl prose-img:shadow-sm"
+                            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+                        />
+
+                        {/* Tags */}
+                        {post.tags && post.tags.length > 0 && (
+                            <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                                    <Tag className="w-4 h-4 mr-2" /> Topics
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {post.tags.map((tag, index) => (
+                                        <span key={index} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors">
+                                            #{tag}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
-                        </main>
-                    </div>
-                    <aside className="hidden lg:block lg:col-span-4 xl:col-span-3">
+                        )}
+
+                    </article>
+
+                    {/* RIGHT COLUMN: Sidebar (Sticky) */}
+                    <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden transition-colors duration-300">
-                                <div className="p-4 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900"><h3 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">In this article</h3></div>
-                                <div className="p-4"><TableOfContents headings={headings} activeId={activeId} progress={progress} /></div>
+
+                            {/* Table of Contents Widget */}
+                            <TableOfContents content={post.content} />
+
+                            {/* Newsletter/Subscribe Widget */}
+                            <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>
+                                <div className="flex flex-col gap-2">
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
+                                        className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    />
+                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                        Subscribe
+                                    </button>
+                                </div>
                             </div>
-                            <div className="bg-sky-50 dark:bg-sky-900/20 rounded-xl p-6 text-center border border-sky-100 dark:border-sky-800/50">
-                                <h4 className="font-bold text-sky-900 dark:text-sky-200 mb-2">Stay Updated</h4><p className="text-sm text-sky-700 dark:text-sky-300 mb-4">Join our community for daily market insights.</p><Link to="/contact" className="block w-full py-2 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-semibold text-sm transition-colors">Get in Touch</Link>
-                            </div>
+
                         </div>
                     </aside>
                 </div>
-            </div>
-        </>
+            </main>
+
+            {/* Modals */}
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                url={postUrl}
+                title={post.title}
+            />
+        </div>
     );
-}
+};
+
 export default SinglePostPage;
