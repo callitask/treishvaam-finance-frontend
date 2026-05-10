@@ -4,6 +4,7 @@
  * Purpose: Legacy CRA page for displaying detailed market data.
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED: Added `"use client";` to bypass Next.js Server Component restrictions on hooks (useState, useEffect).
+ * - EDITED: Fortified `marketData` null-checks to prevent `Cannot read properties of undefined (reading 'changeAmount')` crashes when API returns malformed payloads.
  */
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -33,12 +34,16 @@ const MarketDetailPage = () => {
             setLoading(true);
             setError(null);
             try {
-                // We use the new backend endpoint that aggregates Quote + History + Profile
                 const decodedTicker = decodeURIComponent(ticker);
                 const response = await getWidgetData(decodedTicker);
 
                 if (isMounted) {
-                    setMarketData(response.data);
+                    // DEFENSIVE CHECK: Ensure the payload actually contains the required quote object
+                    if (response.data && response.data.quote) {
+                        setMarketData(response.data);
+                    } else {
+                        throw new Error("Malformed data received from server.");
+                    }
                 }
             } catch (err) {
                 console.error("Failed to fetch market data:", err);
@@ -70,13 +75,13 @@ const MarketDetailPage = () => {
         );
     }
 
-    if (error || !marketData) {
+    if (error || !marketData || !marketData.quote) {
         return (
             <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
                 <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg max-w-md text-center border border-red-200 dark:border-red-800">
                     <h2 className="text-xl font-bold mb-2">Data Unavailable</h2>
                     <p className="mb-6">{error || "The requested market data could not be found."}</p>
-                    <Link to="/" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
+                    <Link to="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
                         <ArrowLeft size={16} className="mr-2" /> Return to Markets
                     </Link>
                 </div>
