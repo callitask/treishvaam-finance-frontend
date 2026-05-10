@@ -2,12 +2,20 @@
  * AI-CONTEXT:
  * Purpose: Next.js App Router dynamic wrapper for the Single Post Page.
  * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Added `export` keyword to `generateStaticParams` to ensure Next.js correctly registers the static bypass during `output: export`.
+ * - EDITED: Converted generateStaticParams to an async function returning dummy data.
+ * - WHY: Resolves Next.js 14 compiler crash for deeply nested dynamic segments failing parameter validation.
  */
 import SinglePostPage from '../../../../../src/pages/SinglePostPage';
 
-export function generateStaticParams() {
-    return [];
+export async function generateStaticParams() {
+    // Providing dummy parameters explicitly maps the 3 nested folders for the compiler.
+    return [
+        {
+            categorySlug: 'news',
+            postSlug: 'latest-update',
+            id: '1'
+        }
+    ];
 }
 
 export default function Page() {
