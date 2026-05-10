@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from '../utils/react-router-shim';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Desktop Components
-// CHANGED: Lazy Load heavy desktop components for performance
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
-import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 import HeroSection from '../components/BlogPage/HeroSection';
 
 // Utils
@@ -28,11 +26,9 @@ const MarketSidebar = React.lazy(() => import('../components/BlogPage/MarketSide
  * [AI-OPTIMIZED CONTEXT]
  * Component: BlogPage
  * Purpose: The main landing page / feed of the application.
- * * CHANGES (Accessibility & Structure):
- * 1. Lazy Loading: Implemented for Desktop Sidebar and Featured Column.
- * 2. Performance: Reduced initial bundle size by splitting heavy widgets.
- * * FUTURE MAINTENANCE:
- * - Ensure any new text elements added to MobileBottomNav meet WCAG AA contrast standards.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Removed `GlobalMarketTicker`. The Ticker, Navbar, and Footer are now globally managed by `app/layout.tsx`.
+ * - EDITED: Changed sticky offsets. Next.js layout already provides padding, so `top-[92px]` was causing overlap.
  */
 
 const BlogPage = () => {
@@ -45,7 +41,7 @@ const BlogPage = () => {
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("All");
     const [searchParams] = useSearchParams();
-    const searchTerm = searchParams.get('q') || "";
+    const searchTerm = searchParams ? searchParams.get('q') : "";
     const [categoriesMap, setCategoriesMap] = useState({});
     const [isDataReady, setIsDataReady] = useState(false);
 
@@ -143,7 +139,6 @@ const BlogPage = () => {
                 <button
                     key={id}
                     onClick={() => { setActiveTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    // ACCESSIBILITY FIX: Changed text-gray-400 to text-slate-500 for better contrast
                     className={`flex flex-col items-center justify-center w-full h-full space-y-1 active:scale-95 transition-transform duration-100 group ${activeTab === id ? 'text-sky-700' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Icon size={20} className={`transition-all duration-300 ${activeTab === id ? 'fill-current scale-110 drop-shadow-sm' : ''}`} />
@@ -162,13 +157,11 @@ const BlogPage = () => {
                 <link rel="canonical" href={canonicalUrl} />
             </Helmet>
 
-            <section className="bg-white min-h-screen font-sans">
-
+            <section className="bg-white min-h-screen font-sans -mx-4 sm:-mx-6 lg:-mx-8">
                 {/* --- DESKTOP LAYOUT --- */}
                 <div className="hidden md:block">
-                    {/* CHANGED: Set to top-[92px] to dock exactly under Navbar. 
-                        Set z-30 (lower than Navbar's z-40) to stack correctly. */}
-                    <div className="sticky top-[92px] z-30 bg-white">
+                    {/* Sticky Category Strip - aligned under the global layout header */}
+                    <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
                         <CategoryStrip
                             categories={categories}
                             selectedCategory={selectedCategory}
@@ -177,18 +170,12 @@ const BlogPage = () => {
                         />
                     </div>
 
-                    {/* Market Ticker: Scrolls naturally. */}
-                    <div className="border-b border-gray-200 bg-gray-50/50">
-                        <GlobalMarketTicker />
-                    </div>
-
-                    <div className="container mx-auto px-4 lg:px-6 pt-10 pb-20">
+                    <div className="container mx-auto px-4 lg:px-6 pt-6 pb-20">
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
                             {/* LEFT COLUMN: The Briefing */}
                             <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
-                                {/* CHANGED: Sticky top adjusted to 150px to account for header stack */}
-                                <div className="sticky top-[150px] space-y-8">
+                                <div className="sticky top-[100px] space-y-8">
                                     <div className="border-b-2 border-black pb-2 mb-4">
                                         <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
                                     </div>
@@ -225,8 +212,7 @@ const BlogPage = () => {
 
                             {/* RIGHT COLUMN: Market Data */}
                             <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
-                                {/* CHANGED: Sticky top adjusted to 150px */}
-                                <div className="sticky top-[150px] space-y-10">
+                                <div className="sticky top-[100px] space-y-10">
                                     <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse rounded"></div>}>
                                         <MarketSidebar />
                                     </Suspense>
@@ -237,17 +223,14 @@ const BlogPage = () => {
                 </div>
 
                 {/* --- MOBILE LAYOUT --- */}
-                <div className="md:hidden pb-20 pt-14">
+                <div className="md:hidden pb-20 pt-2">
                     <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
                         {activeTab === 'home' && (
                             <BlogSlideMobile
-                                // NEW: Pass explicit sections to Mobile
                                 heroPost={hero}
                                 mustReadPost={mustRead}
                                 briefingPosts={briefing}
                                 feedPosts={feed}
-
-                                // Standard Props
                                 lastPostElementRef={lastPostElementRef}
                                 onCategoryClick={setSelectedCategory}
                                 categoriesMap={categoriesMap}
