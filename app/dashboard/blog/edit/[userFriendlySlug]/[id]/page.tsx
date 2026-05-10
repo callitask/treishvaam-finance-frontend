@@ -1,9 +1,10 @@
-"use client";
-/**
- * AI-CONTEXT:
- * Purpose: Next.js App Router wrapper for editing existing Blog posts.
- * IMMUTABLE CHANGE HISTORY:
- * - ADDED: Fixed relative import path and UTF encoding. Bypassed PowerShell wildcard bug.
- */
-import BlogEditorPage from '../../../../../../src/pages/BlogEditorPage';
-export default function Page() { return <BlogEditorPage />; }
+import React from 'react';
+
+// AI-CONTEXT: Satisfies the Next.js static export compiler for dynamic Client-Side routes
+export function generateStaticParams() {
+    return [];
+}
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+    return <>{children}</>;
+}
