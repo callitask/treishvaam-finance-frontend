@@ -13,6 +13,7 @@
         "checkJs": false
     },
     "include": [
-        "src"
+        "src",
+        "app/[ticker]"
     ]
 }
