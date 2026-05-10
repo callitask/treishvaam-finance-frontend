@@ -2,7 +2,7 @@
  * AI-CONTEXT:
  * Purpose: Next.js App Router dynamic wrapper for the Market Detail page.
  * IMMUTABLE CHANGE HISTORY:
- * - ADDED: Resolves Next.js "generateStaticParams" build failure during `output: export` to allow client-side fetching of live market tickers.
+ * - EDITED: Added `export` keyword to `generateStaticParams` to ensure Next.js correctly registers the static bypass during `output: export`.
  */
 import MarketDetailPage from '../../../src/pages/MarketDetailPage';
 

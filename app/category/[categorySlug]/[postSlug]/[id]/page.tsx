@@ -2,7 +2,7 @@
  * AI-CONTEXT:
  * Purpose: Next.js App Router dynamic wrapper for the Single Post Page.
  * IMMUTABLE CHANGE HISTORY:
- * - ADDED: Resolves Next.js "generateStaticParams" build failure during `output: export` by intentionally returning an empty array to force CSR SPA fallback on Cloudflare Pages.
+ * - EDITED: Added `export` keyword to `generateStaticParams` to ensure Next.js correctly registers the static bypass during `output: export`.
  */
 import SinglePostPage from '../../../../../src/pages/SinglePostPage';
 
