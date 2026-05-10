@@ -1,45 +1,26 @@
+"use client";
 /**
  * AI-CONTEXT:
  * Purpose: Global market ticker strip.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`).
- * • Added `"use client";` directive to support API fetching hooks.
- * • Why: Phase 3 Next.js Migration.
+ * - EDITED: Migrated routing to Next.js App Router (`next/link`).
+ * - EDITED: Integrated `formatEnterpriseTicker` to display human-readable asset names instead of raw API tickers.
  */
-"use client";
-
 import React, { useState, useEffect } from 'react';
 import { getQuotesBatch } from '../../apiConfig';
 import Link from 'next/link';
+import { formatEnterpriseTicker } from '../../utils/marketFormatter';
 import './GlobalMarketTicker.css';
 
-/**
- * AI-CONTEXT:
- * Purpose: Global market ticker strip.
- * Changes:
- * - Accessibility: Improved contrast (text-gray-500 -> text-slate-600).
- * - CLS: Enforced container heights to prevent layout shifts during loading.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Fixed CLS by enforcing exact height on Skeleton loader
- * • Improved text contrast (slate-500 -> slate-600) for WCAG AA compliance
- * • Added accessibility color fixes (slate-600)
- */
-
-// Helper to format change percentage
 const formatChange = (change) => {
     if (change == null || isNaN(change)) return '0.00%';
     return `${change.toFixed(2)}%`;
 };
 
-// Helper to determine color
 const getChangeColor = (change) => {
-    // ACCESSIBILITY: slate-500 has better contrast than gray-500 on white
     if (change == null || isNaN(change)) return 'text-slate-600';
-    return change >= 0 ? 'text-green-700' : 'text-red-700'; // Darker shades for AA compliance
+    return change >= 0 ? 'text-green-700' : 'text-red-700';
 };
 
 const marketTabs = {
@@ -57,10 +38,16 @@ const TickerCard = ({ quote }) => {
     const change = quote.changePercent || 0;
     const color = getChangeColor(change);
 
+    // Apply Enterprise Formatter
+    const { displayTicker, displayName } = formatEnterpriseTicker(quote.ticker, quote.name);
+
     return (
         <Link href={`/market/${encodeURIComponent(quote.ticker)}`} className="global-ticker-card">
-            <span className="font-bold text-gray-900 text-xs truncate max-w-[100px] block">{quote.name}</span>
-            <div className={`flex items-baseline gap-1.5 ${color} text-xs`}>
+            <div className="flex flex-col">
+                <span className="font-bold text-gray-900 text-xs truncate max-w-[100px] block">{displayName}</span>
+                <span className="text-[9px] text-slate-500 font-medium tracking-wider">{displayTicker}</span>
+            </div>
+            <div className={`flex items-baseline gap-1.5 ${color} text-xs mt-0.5`}>
                 <span className="font-semibold tabular-nums tracking-tight">
                     {quote.currentPrice ? quote.currentPrice.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : '...'}
                 </span>
@@ -104,7 +91,7 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
     }, [activeTab]);
 
     const containerClasses = mobileMode
-        ? "w-full bg-white border-b border-gray-200 min-h-[90px]" // CLS Fix: Min height
+        ? "w-full bg-white border-b border-gray-200 min-h-[90px]"
         : "bg-white border-b border-gray-200 min-h-[90px]";
 
     const innerClasses = mobileMode
@@ -118,30 +105,21 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
     return (
         <div className={containerClasses}>
             <div className={innerClasses}>
-
-                {/* 1. Category Tabs - Fixed Height to prevent shift */}
                 <div className="flex items-center border-b border-gray-100 overflow-x-auto no-scrollbar h-[40px]">
                     {Object.keys(marketTabs).map(tabName => (
                         <button
                             key={tabName}
                             onClick={() => setActiveTab(tabName)}
-                            className={`${tabButtonClasses}
-                                ${activeTab === tabName
-                                    ? 'border-b-2 border-sky-600 text-sky-700'
-                                    : 'text-slate-600 hover:text-gray-900 border-b-2 border-transparent' // ACCESSIBILITY
-                                }
-                            `}
+                            className={`${tabButtonClasses} ${activeTab === tabName ? 'border-b-2 border-sky-600 text-sky-700' : 'text-slate-600 hover:text-gray-900 border-b-2 border-transparent'}`}
                         >
                             {tabName}
                         </button>
                     ))}
                 </div>
-
-                {/* 2. Ticker Data Row - Fixed Height */}
                 <div className="global-ticker-row-container py-1 h-[48px] overflow-hidden">
                     <div className="global-ticker-row">
                         {loading && (
-                            [...Array(6)].map((_, i) => ( // Increased skeleton count to fill width
+                            [...Array(6)].map((_, i) => (
                                 <div key={i} className="global-ticker-card px-4 py-2 border-r border-gray-100 min-w-[120px] flex flex-col justify-center h-full">
                                     <div className="w-16 h-3 mb-1 bg-gray-100 rounded animate-pulse"></div>
                                     <div className="w-12 h-3 bg-gray-100 rounded animate-pulse"></div>

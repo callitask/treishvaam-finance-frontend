@@ -1,8 +1,18 @@
-// src/components/market-detail/MarketHero.js
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Primary header for the Market Detail page showing current price and daily change.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED: Added `"use client";` directive.
+ * - EDITED: Replaced `react-router-dom` Link with native `next/link`.
+ * - EDITED: Integrated `formatEnterpriseTicker` to ensure human-readable asset names and tickers (e.g. "EUR / INR" instead of "EURINR=X").
+ */
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { TrendingUp, TrendingDown, Share2, Star } from 'lucide-react'; // <--- Import Star
-import { useWatchlist } from '../../context/WatchlistContext'; // <--- Import Hook
+import Link from 'next/link';
+import { TrendingUp, TrendingDown, Share2, Star } from 'lucide-react';
+import { useWatchlist } from '../../context/WatchlistContext';
+import { formatEnterpriseTicker } from '../../utils/marketFormatter';
 
 // Helper to format the big price number
 const formatPrice = (price, currency) => {
@@ -33,23 +43,26 @@ const MarketHero = ({ quote }) => {
     const { isInWatchlist, toggleWatchlist } = useWatchlist();
     const isWatched = isInWatchlist(quote.ticker);
 
+    // --- ENTERPRISE FORMATTING ---
+    const { displayTicker, displayName } = formatEnterpriseTicker(quote.ticker, quote.name);
+
     return (
         <div className="pb-4 border-b border-gray-200 dark:border-slate-700 transition-colors duration-300">
             {/* Breadcrumb */}
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                <Link to="/" className="hover:text-blue-600 dark:hover:text-blue-400">HOME</Link>
+                <Link href="/home" className="hover:text-blue-600 dark:hover:text-blue-400">HOME</Link>
                 <span className="mx-2">&gt;</span>
-                <span className="text-gray-700 dark:text-gray-300">{quote.ticker}</span>
+                <span className="text-gray-700 dark:text-gray-300">{displayTicker}</span>
             </div>
 
             <div className="flex justify-between items-start">
                 {/* Asset Title */}
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{quote.name}</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{displayName}</h1>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-x-2">
-                        <span>{quote.ticker}</span>
+                        <span>{displayTicker}</span>
                         <span>&middot;</span>
-                        <span>{quote.currency}</span>
+                        <span>{quote.currency || 'USD'}</span>
                         <span>&middot;</span>
                         <span>{quote.primaryExchange || 'Global Market'}</span>
                     </div>
@@ -60,8 +73,8 @@ const MarketHero = ({ quote }) => {
                     <button
                         onClick={() => toggleWatchlist(quote.ticker)}
                         className={`p-2 rounded-full transition-colors border ${isWatched
-                                ? 'bg-amber-50 border-amber-200 text-amber-500 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
-                                : 'bg-white border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-300 dark:bg-slate-800 dark:border-slate-600 dark:hover:text-amber-400'
+                            ? 'bg-amber-50 border-amber-200 text-amber-500 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
+                            : 'bg-white border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-300 dark:bg-slate-800 dark:border-slate-600 dark:hover:text-amber-400'
                             }`}
                         title={isWatched ? "Remove from Watchlist" : "Add to Watchlist"}
                     >
