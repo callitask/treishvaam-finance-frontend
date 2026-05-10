@@ -1,13 +1,4 @@
 "use client";
-/**
- * AI-CONTEXT:
- * Purpose: Global market ticker strip.
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Migrated routing to Next.js App Router (`next/link`).
- * - EDITED: Stripped broken `GlobalMarketTicker.css` dependency and rebuilt entirely with Tailwind CSS flexbox constraints.
- * - EDITED: Integrated `formatEnterpriseTicker` to display human-readable asset names instead of raw API tickers.
- * - EDITED: Implemented dynamic key extraction to safely resolve price and percentage data from varying API payload structures.
- */
 import React, { useState, useEffect } from 'react';
 import { getQuotesBatch } from '../../apiConfig';
 import Link from 'next/link';
@@ -18,9 +9,10 @@ const formatChange = (change) => {
     return `${change.toFixed(2)}%`;
 };
 
+// RESTORED CLASSIC GREEN/RED
 const getChangeColor = (change) => {
-    if (change == null || isNaN(change)) return 'text-slate-600';
-    return change >= 0 ? 'text-emerald-600' : 'text-red-600';
+    if (change == null || isNaN(change)) return 'text-slate-600 dark:text-slate-400';
+    return change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
 };
 
 const marketTabs = {
@@ -36,15 +28,17 @@ const marketTabs = {
 const TickerCard = ({ quote }) => {
     if (!quote) return null;
 
-    // SAFE EXTRACTION: Handle variations in backend payload structure
-    const rawPrice = quote.currentPrice ?? quote.price ?? quote.regularMarketPrice ?? null;
-    const rawChange = quote.changePercent ?? quote.changePercentage ?? quote.regularMarketChangePercent ?? 0;
+    const rawPrice = quote.price ?? quote.currentPrice ?? quote.regularMarketPrice ?? null;
+    const rawChange = quote.changePercentage ?? quote.changePercent ?? quote.regularMarketChangePercent ?? 0;
 
-    // Ensure change is a parsed float
-    const parsedChange = typeof rawChange === 'string' ? parseFloat(rawChange.replace('%', '')) : rawChange;
+    let parsedChange = 0;
+    if (typeof rawChange === 'string') {
+        parsedChange = parseFloat(rawChange.replace('%', ''));
+    } else if (typeof rawChange === 'number') {
+        parsedChange = rawChange;
+    }
+
     const color = getChangeColor(parsedChange);
-
-    // Enforce Human-Readable formatting
     const { displayTicker, displayName } = formatEnterpriseTicker(quote.ticker, quote.name);
 
     return (
@@ -108,8 +102,6 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
     return (
         <div className={containerClasses}>
             <div className={innerClasses}>
-
-                {/* 1. Category Tabs */}
                 <div className="flex items-center overflow-x-auto no-scrollbar border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 px-2 sm:px-4">
                     {Object.keys(marketTabs).map(tabName => (
                         <button
@@ -124,8 +116,6 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                         </button>
                     ))}
                 </div>
-
-                {/* 2. Ticker Data Row (Horizontal Flex constraint) */}
                 <div className="w-full overflow-x-auto no-scrollbar bg-white dark:bg-slate-900">
                     <div className="flex items-center min-w-max h-[72px]">
                         {loading && (

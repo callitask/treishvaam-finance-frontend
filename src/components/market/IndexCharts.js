@@ -85,7 +85,6 @@ const IndexCharts = () => {
 
     const quote = widgetData?.quoteData;
 
-    // SAFE EXTRACTION
     const rawPrice = quote?.currentPrice ?? quote?.price ?? null;
     const rawChangeAmt = quote?.changeAmount ?? quote?.change ?? 0;
     const rawChangePct = quote?.changePercent ?? quote?.changePercentage ?? 0;
@@ -154,11 +153,14 @@ const IndexCharts = () => {
                         <div className="flex items-baseline justify-between mb-2">
                             <span className="text-2xl font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                                 {formatSmartPrice(rawPrice, quote.currency, activeIndexData.symbol)}
-                                {!activeIndexData.symbol.startsWith('^') && quote.currency && (
-                                    <span className="text-[10px] font-bold text-slate-400 ml-1">{quote.currency}</span>
+                                {/* Explicit Native Currency display next to the price */}
+                                {!activeIndexData.symbol.startsWith('^') && quote.currency && quote.currency !== 'null' && (
+                                    <span className="text-[10px] font-bold text-slate-400 ml-1.5 uppercase tracking-widest">{quote.currency}</span>
                                 )}
                             </span>
-                            <div className={`flex items-center font-bold ${isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+
+                            {/* RESTORED CLASSIC GREEN/RED */}
+                            <div className={`flex items-center font-bold ${isPos ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                                 {isPos ? <TrendingUp size={14} className="mr-0.5" /> : <TrendingDown size={14} className="mr-0.5" />}
                                 {rawChangeAmt >= 0 ? '+' : ''}{rawChangeAmt.toFixed(2)} ({rawChangePct >= 0 ? '+' : ''}{rawChangePct.toFixed(2)}%)
                             </div>
@@ -166,7 +168,7 @@ const IndexCharts = () => {
 
                         <div className="h-[150px] -mx-1">
                             <Suspense fallback={<div className="w-full h-full bg-slate-50 animate-pulse rounded"></div>}>
-                                <TradingViewChart data={chartData} color={isPos ? '#059669' : '#dc2626'} height={150} />
+                                <TradingViewChart data={chartData} color={isPos ? '#16a34a' : '#dc2626'} height={150} />
                             </Suspense>
                         </div>
 
