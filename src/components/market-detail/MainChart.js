@@ -1,4 +1,10 @@
-// src/components/market-detail/MainChart.js
+"use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Renders the historical price chart for the asset.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Fixed prop name from `history` to `historicalData` to correctly receive the API payload from MarketDetailPage.
+ */
 import React, { useState, useMemo } from 'react';
 import TradingViewChart from '../market/TradingViewChart';
 import './MainChart.css';
@@ -13,21 +19,19 @@ const timeframes = [
     { label: 'Max', days: 99999 },
 ];
 
-const MainChart = ({ history, quote }) => {
+const MainChart = ({ historicalData, quote }) => {
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
 
     // 1. Transform Data for TradingView
-    // TradingView expects { time: 'YYYY-MM-DD', value: 123.45 } and MUST be sorted ascending
     const fullChartData = useMemo(() => {
-        if (!history || history.length === 0) return [];
-        // Clone and sort just in case
-        return [...history]
+        if (!historicalData || historicalData.length === 0) return [];
+        return [...historicalData]
             .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
             .map(item => ({
                 time: item.priceDate,
                 value: parseFloat(item.closePrice)
             }));
-    }, [history]);
+    }, [historicalData]);
 
     // 2. Filter Data based on Timeframe
     const filteredData = useMemo(() => {
@@ -40,7 +44,7 @@ const MainChart = ({ history, quote }) => {
         let cutoffDate = new Date();
 
         if (tf.type === 'ytd') {
-            cutoffDate = new Date(now.getFullYear(), 0, 1); // Jan 1st of current year
+            cutoffDate = new Date(now.getFullYear(), 0, 1);
         } else {
             cutoffDate.setDate(now.getDate() - tf.days);
         }
@@ -48,17 +52,16 @@ const MainChart = ({ history, quote }) => {
         return fullChartData.filter(item => new Date(item.time) >= cutoffDate);
     }, [fullChartData, activeTimeframe]);
 
-    // 3. Determine Chart Color (Green if ending higher than starting)
+    // 3. Determine Chart Color
     const chartColor = useMemo(() => {
         if (filteredData.length < 2) return '#0ea5e9'; // Default Blue
         const startPrice = filteredData[0].value;
         const endPrice = filteredData[filteredData.length - 1].value;
-        return endPrice >= startPrice ? '#22c55e' : '#ef4444'; // Green or Red
+        return endPrice >= startPrice ? '#16a34a' : '#dc2626'; // Green or Red
     }, [filteredData]);
 
     return (
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-lg p-4 transition-colors duration-300">
-            {/* Time-Range Selector */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg p-4 transition-colors duration-300">
             <div className="timeframe-selector-group mb-4">
                 {timeframes.map(tf => (
                     <button
@@ -71,7 +74,6 @@ const MainChart = ({ history, quote }) => {
                 ))}
             </div>
 
-            {/* TradingView Chart Area */}
             <div className="h-[300px] md:h-[400px] w-full">
                 {filteredData.length > 0 ? (
                     <TradingViewChart
@@ -80,7 +82,7 @@ const MainChart = ({ history, quote }) => {
                         height={400}
                     />
                 ) : (
-                    <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                    <div className="h-full flex items-center justify-center text-slate-400 text-sm">
                         No chart data available for this timeframe.
                     </div>
                 )}

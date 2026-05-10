@@ -1,19 +1,10 @@
+"use client";
 /**
  * AI-CONTEXT:
  * Purpose: Main navigation and header controller.
- * Changes:
- * 1. Routing Update: "Home" and Logo now point to "/home" (Content Feed) instead of "/" (Landing Page).
- * 2. Accessibility: Maintained strict aria-labels.
- * 3. Sticky Logic: Preserved intersection observer for logo visibility.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`, `next/navigation`).
- * • Replaced `<NavLink>` dynamic styling with a custom `getNavLinkClass` utilizing `usePathname()`.
- * • Added `"use client";` directive to support hooks (useState, useEffect, context).
- * • Why: Phase 3 Next.js Migration. Allows Navbar to render within Next.js Server Components.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Fixed legacy `to=` props on Next.js `<Link>` components, changing them to `href=` to prevent silent navigation failures.
  */
-"use client";
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -28,9 +19,8 @@ const Navbar = () => {
     const [isLoginDropdownOpen, setLoginDropdownOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
-    const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-gray-400' });
+    const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-slate-400' });
 
-    // NEW: State for sticky logo visibility
     const [showStickyLogo, setShowStickyLogo] = useState(false);
     const brandingRef = useRef(null);
 
@@ -48,7 +38,6 @@ const Navbar = () => {
         router.push('/login');
     };
 
-    // Market Status Logic
     useEffect(() => {
         const checkMarketStatus = () => {
             const now = new Date();
@@ -62,7 +51,7 @@ const Navbar = () => {
             const isOpen = isWeekday && totalMinutes >= openTime && totalMinutes < closeTime;
             setMarketStatus({
                 isOpen: isOpen,
-                color: isOpen ? 'text-green-600' : 'text-gray-400'
+                color: isOpen ? 'text-green-600' : 'text-slate-400'
             });
         };
         checkMarketStatus();
@@ -70,7 +59,6 @@ const Navbar = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Scroll Logic (Mobile Header Hide/Show)
     useEffect(() => {
         const controlNavbar = () => {
             if (typeof window !== 'undefined') {
@@ -90,7 +78,6 @@ const Navbar = () => {
         return () => window.removeEventListener('scroll', controlNavbar);
     }, [lastScrollY]);
 
-    // Intersection Observer for Sticky Logo
     useEffect(() => {
         const observer = new IntersectionObserver(
             ([entry]) => {
@@ -114,12 +101,11 @@ const Navbar = () => {
         };
     }, []);
 
-    // Next.js replacement for react-router's NavLink active state
     const getNavLinkClass = (path) => {
         const isActive = pathname === path || (path !== '/' && pathname?.startsWith(path + '/'));
         return `text-xs font-bold uppercase tracking-widest px-6 py-3 border-b-2 transition-all duration-300 ${isActive
             ? 'border-sky-700 text-sky-700 dark:text-sky-400 dark:border-sky-400'
-            : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300 dark:text-gray-300 dark:hover:text-white dark:hover:border-gray-600'
+            : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300 dark:text-slate-300 dark:hover:text-white dark:hover:border-slate-600'
             }`;
     };
 
@@ -127,50 +113,43 @@ const Navbar = () => {
         <>
             {/* MOBILE HEADER */}
             <header className={`md:hidden fixed top-0 w-full z-[100] transition-transform duration-300 ease-out will-change-transform ${isVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-                <div className="absolute inset-0 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-sm transition-colors duration-300"></div>
+                <div className="absolute inset-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-300"></div>
                 <div className="relative flex items-center justify-between px-4 h-14">
-                    {/* ACCESSIBILITY FIX: Added aria-label for menu button */}
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-800 dark:text-slate-200 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Menu">
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-800 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Menu">
                         <FaBars size={20} />
                     </button>
-                    {/* LOGO points to /home to keep user in app */}
                     <Link href="/home" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                         <span className="text-sm font-black text-slate-900 dark:text-white font-serif tracking-wide uppercase truncate">
                             TREISHVAAM FINANCE
                         </span>
                     </Link>
-
-                    {/* Mobile Theme Toggle */}
-                    <button onClick={toggleTheme} className="p-2 text-slate-600 dark:text-slate-300 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors mr-1" aria-label="Toggle Dark Mode">
+                    <button onClick={toggleTheme} className="p-2 text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-800 rounded-full transition-colors mr-1" aria-label="Toggle Dark Mode">
                         {theme === 'dark' ? <FaSun size={18} /> : <FaMoon size={18} />}
                     </button>
-
-                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-slate-600 dark:text-slate-300 active:bg-gray-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Search">
+                    <button onClick={() => setMobileMenuOpen(true)} className="p-2 -mr-2 text-slate-600 dark:text-slate-300 active:bg-slate-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Search">
                         <FaSearch size={18} />
                     </button>
                 </div>
 
-                {/* Mobile Drawer */}
                 {isMobileMenuOpen && (
                     <div className="fixed inset-0 z-[110] flex h-screen w-screen">
                         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setMobileMenuOpen(false)} />
                         <div className="relative w-[85%] max-w-sm bg-white dark:bg-slate-900 h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
-                            <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-gray-50 dark:bg-slate-900 safe-pt">
+                            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900 safe-pt">
                                 <span className="font-bold text-xl text-slate-900 dark:text-white font-serif">Menu</span>
-                                <button onClick={() => setMobileMenuOpen(false)} className="text-gray-500 dark:text-gray-400 p-2 bg-white dark:bg-slate-800 rounded-full border dark:border-slate-700 shadow-sm active:scale-95 transition-transform" aria-label="Close Menu">
+                                <button onClick={() => setMobileMenuOpen(false)} className="text-slate-500 dark:text-slate-400 p-2 bg-white dark:bg-slate-800 rounded-full border dark:border-slate-700 shadow-sm active:scale-95 transition-transform" aria-label="Close Menu">
                                     <FaTimes size={18} />
                                 </button>
                             </div>
-                            <div className="p-4 bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800"><SearchAutocomplete /></div>
+                            <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
-                                {/* Navigation links point to /home */}
-                                <Link href="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Home</Link>
-                                <Link href="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Markets</Link>
-                                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">About Us</Link>
-                                <Link href="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Vision</Link>
-                                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-slate-800 border-b border-gray-50 dark:border-slate-800">Contact</Link>
+                                <Link href="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Home</Link>
+                                <Link href="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Markets</Link>
+                                <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">About Us</Link>
+                                <Link href="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Vision</Link>
+                                <Link href="/contact" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Contact</Link>
                             </nav>
-                            <div className="p-5 border-t border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 safe-pb">
+                            <div className="p-5 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 safe-pb">
                                 {auth.isAuthenticated ? (
                                     <div className="space-y-3">
                                         <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block text-center w-full py-3 bg-sky-700 text-white rounded-xl font-bold shadow-md hover:bg-sky-800 transition-colors">Dashboard</Link>
@@ -188,39 +167,39 @@ const Navbar = () => {
             {/* DESKTOP HEADER */}
             <div className="h-9 hidden md:block w-full"></div>
 
-            <div className="hidden md:flex fixed top-0 w-full z-[50] bg-gray-100 dark:bg-slate-800 text-gray-500 dark:text-gray-400 text-xs border-b border-gray-200 dark:border-slate-700 items-center">
+            <div className="hidden md:flex fixed top-0 w-full z-[50] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs border-b border-slate-200 dark:border-slate-700 items-center">
                 <div className="container mx-auto px-6 h-9 flex justify-between items-center">
                     <div className="flex items-center space-x-4 font-medium tracking-wide">
                         <span>{today}</span>
-                        <span className="w-px h-3 bg-gray-300 dark:bg-gray-600"></span>
+                        <span className="w-px h-3 bg-slate-300 dark:bg-slate-600"></span>
                         <div className="flex items-center gap-2">
                             <FaCircle className={`w-2 h-2 ${marketStatus.color}`} />
                             <span>{marketStatus.isOpen ? 'Market Open' : 'Market Closed'}</span>
                         </div>
                     </div>
                     <div className="flex items-center space-x-6">
-                        <div className="flex space-x-4 border-r border-gray-300 dark:border-gray-600 pr-6">
+                        <div className="flex space-x-4 border-r border-slate-300 dark:border-slate-600 pr-6">
                             <a href="https://linkedin.com/company/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our LinkedIn" className="hover:text-[#0077b5] transition-colors"><FaLinkedinIn /></a>
                             <a href="https://facebook.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our Facebook" className="hover:text-[#1877F3] transition-colors"><FaFacebookF /></a>
                             <a href="https://instagram.com/treishvaamfinance" target="_blank" rel="noreferrer" aria-label="Visit our Instagram" className="hover:text-[#E1306C] transition-colors"><FaInstagram /></a>
                         </div>
-                        <button onClick={toggleTheme} className="flex items-center gap-1.5 text-gray-500 hover:text-sky-700 dark:text-gray-400 dark:hover:text-sky-400 transition-colors" title="Toggle Theme" aria-label="Toggle Dark Mode">
+                        <button onClick={toggleTheme} className="flex items-center gap-1.5 text-slate-500 hover:text-sky-700 dark:text-slate-400 dark:hover:text-sky-400 transition-colors" title="Toggle Theme" aria-label="Toggle Dark Mode">
                             {theme === 'dark' ? <FaSun className="text-amber-400" /> : <FaMoon />}
                         </button>
                         {auth.isAuthenticated ? (
                             <div className="flex items-center space-x-3">
-                                <Link to="/dashboard" className="font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700">Dashboard</Link>
-                                <button onClick={handleLogout} className="text-gray-400 hover:text-red-600" title="Logout" aria-label="Logout"><FaSignOutAlt /></button>
+                                <Link href="/dashboard" className="font-bold text-slate-700 dark:text-slate-300 hover:text-sky-700">Dashboard</Link>
+                                <button onClick={handleLogout} className="text-slate-400 hover:text-red-600" title="Logout" aria-label="Logout"><FaSignOutAlt /></button>
                             </div>
                         ) : (
                             <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
-                                <button className="flex items-center font-bold text-gray-700 dark:text-gray-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
-                                    <FaUserCircle className="mr-1.5 text-sm text-gray-400" /> Sign In
+                                <button className="flex items-center font-bold text-slate-700 dark:text-slate-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
+                                    <FaUserCircle className="mr-1.5 text-sm text-slate-400" /> Sign In
                                 </button>
                                 {isLoginDropdownOpen && (
                                     <div className="absolute right-0 top-full pt-2 z-50">
-                                        <div className="bg-white dark:bg-slate-800 rounded shadow-xl border border-gray-100 dark:border-slate-700 py-1 w-32">
-                                            <Link to="/login" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-700">Admin Login</Link>
+                                        <div className="bg-white dark:bg-slate-800 rounded shadow-xl border border-slate-100 dark:border-slate-700 py-1 w-32">
+                                            <Link href="/login" className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Admin Login</Link>
                                         </div>
                                     </div>
                                 )}
@@ -232,23 +211,20 @@ const Navbar = () => {
 
             <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
-                    {/* LOGO points to /home */}
                     <Link href="/home" className="text-center group">
-                        <h1 className="text-5xl font-black text-gray-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
+                        <h1 className="text-5xl font-black text-slate-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                             TREISHVAAM FINANCE
                         </h1>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 font-bold tracking-[0.3em] uppercase mt-2 text-sky-800 dark:text-sky-400">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold tracking-[0.3em] uppercase mt-2 text-sky-800 dark:text-sky-400">
                             Market Intelligence & Analysis
                         </p>
                     </Link>
                 </div>
             </div>
 
-            <div className="hidden md:block sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-gray-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
+            <div className="hidden md:block sticky top-9 z-[40] bg-white dark:bg-slate-900 border-y border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
-                        {/* Sticky LOGO points to /home */}
-
                         <Link
                             href="/home"
                             className={`absolute left-6 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${showStickyLogo
@@ -256,13 +232,12 @@ const Navbar = () => {
                                 : 'opacity-0 pointer-events-none translate-y-[-40%]'
                                 }`}
                         >
-                            <span className="font-black text-gray-900 dark:text-white font-serif tracking-tight text-xl uppercase">
+                            <span className="font-black text-slate-900 dark:text-white font-serif tracking-tight text-xl uppercase">
                                 TREISHVAAM FINANCE
                             </span>
                         </Link>
 
                         <nav className="flex space-x-1">
-                            {/* Home NavLink points to /home */}
                             <Link href="/home" className={getNavLinkClass('/home')}>Home</Link>
                             <Link href="/market/%5EDJI" className={getNavLinkClass('/market/%5EDJI')}>Markets</Link>
                             <Link href="/vision" className={getNavLinkClass('/vision')}>Vision</Link>
