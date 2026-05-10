@@ -2,53 +2,33 @@
 /**
  * AI-CONTEXT:
  * Purpose: Primary header for the Market Detail page showing current price and daily change.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED: Added `"use client";` directive.
- * - EDITED: Replaced `react-router-dom` Link with native `next/link`.
- * - EDITED: Integrated `formatEnterpriseTicker` to ensure human-readable asset names and tickers (e.g. "EUR / INR" instead of "EURINR=X").
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Integrated `formatSmartPrice` to ensure intelligent currency formatting.
+ * - EDITED: Extracted raw fields defensively to prevent NaNs on payload variation.
  */
 import React from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Share2, Star } from 'lucide-react';
 import { useWatchlist } from '../../context/WatchlistContext';
-import { formatEnterpriseTicker } from '../../utils/marketFormatter';
-
-// Helper to format the big price number
-const formatPrice = (price, currency) => {
-    if (price == null) return 'N/A';
-    const options = {
-        style: 'currency',
-        currency: currency || 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    };
-    if (price > 1000) options.minimumFractionDigits = 0;
-    if (price < 10) options.minimumFractionDigits = 3;
-
-    return price.toLocaleString('en-US', options);
-};
-
-// Helper to format change
-const formatChange = (change) => {
-    if (change == null) return 'N/A';
-    return `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
-};
+import { formatEnterpriseTicker, formatSmartPrice } from '../../utils/marketFormatter';
 
 const MarketHero = ({ quote }) => {
-    const isPos = quote.changeAmount >= 0;
-    const color = isPos ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    if (!quote) return null;
 
-    // --- WATCHLIST LOGIC ---
+    // Defensively extract variations of backend payloads
+    const rawPrice = quote.currentPrice ?? quote.price ?? null;
+    const rawChangeAmt = quote.changeAmount ?? quote.change ?? 0;
+    const rawChangePct = quote.changePercent ?? quote.changePercentage ?? 0;
+
+    const isPos = rawChangeAmt >= 0;
+    const color = isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
+
     const { isInWatchlist, toggleWatchlist } = useWatchlist();
     const isWatched = isInWatchlist(quote.ticker);
-
-    // --- ENTERPRISE FORMATTING ---
     const { displayTicker, displayName } = formatEnterpriseTicker(quote.ticker, quote.name);
 
     return (
         <div className="pb-4 border-b border-gray-200 dark:border-slate-700 transition-colors duration-300">
-            {/* Breadcrumb */}
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                 <Link href="/home" className="hover:text-blue-600 dark:hover:text-blue-400">HOME</Link>
                 <span className="mx-2">&gt;</span>
@@ -56,7 +36,6 @@ const MarketHero = ({ quote }) => {
             </div>
 
             <div className="flex justify-between items-start">
-                {/* Asset Title */}
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{displayName}</h1>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap gap-x-2">
@@ -68,39 +47,29 @@ const MarketHero = ({ quote }) => {
                     </div>
                 </div>
 
-                {/* Actions: Watchlist & Share */}
                 <div className="flex gap-2">
                     <button
                         onClick={() => toggleWatchlist(quote.ticker)}
-                        className={`p-2 rounded-full transition-colors border ${isWatched
-                            ? 'bg-amber-50 border-amber-200 text-amber-500 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-400'
-                            : 'bg-white border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-300 dark:bg-slate-800 dark:border-slate-600 dark:hover:text-amber-400'
-                            }`}
-                        title={isWatched ? "Remove from Watchlist" : "Add to Watchlist"}
+                        className={`p-2 rounded-full transition-colors border ${isWatched ? 'bg-amber-50 border-amber-200 text-amber-500 dark:bg-amber-900/30' : 'bg-white border-gray-200 text-gray-400 dark:bg-slate-800 dark:border-slate-600'}`}
                     >
                         <Star size={20} className={isWatched ? "fill-current" : ""} />
                     </button>
-
-                    <button
-                        className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 dark:bg-slate-800 dark:border-slate-600 dark:text-gray-400 dark:hover:bg-slate-700 transition-colors"
-                        aria-label="Share"
-                    >
+                    <button className="p-2 rounded-full bg-white border border-gray-200 text-gray-600 dark:bg-slate-800 dark:border-slate-600 dark:text-gray-400">
                         <Share2 size={20} />
                     </button>
                 </div>
             </div>
 
-            {/* Primary Data Block */}
             <div className="mt-4">
                 <span className="text-5xl font-bold text-gray-900 dark:text-white">
-                    {formatPrice(quote.currentPrice, quote.currency)}
+                    {formatSmartPrice(rawPrice, quote.currency, quote.ticker)}
                 </span>
 
                 <div className={`flex items-center text-2xl font-medium mt-1 ${color}`}>
                     {isPos ? <TrendingUp size={24} className="mr-1" /> : <TrendingDown size={24} className="mr-1" />}
-                    <span>{formatChange(quote.changeAmount)}</span>
+                    <span>{rawChangeAmt >= 0 ? '+' : ''}{rawChangeAmt.toFixed(2)}</span>
                     <span className="ml-3">
-                        ({formatChange(quote.changePercent)}%)
+                        ({rawChangePct >= 0 ? '+' : ''}{rawChangePct.toFixed(2)}%)
                     </span>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">

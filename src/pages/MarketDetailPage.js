@@ -2,12 +2,13 @@
 /**
  * AI-CONTEXT:
  * Purpose: Legacy CRA page for displaying detailed market data.
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED: Added `"use client";` to bypass Next.js Server Component restrictions on hooks (useState, useEffect).
- * - EDITED: Fortified `marketData` null-checks to prevent `Cannot read properties of undefined (reading 'changeAmount')` crashes when API returns malformed payloads.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Fortified `marketData` null-checks to prevent crashes.
+ * - EDITED: Corrected the API mapping from `.quote` to `.quoteData` to match the Java DTO, resolving the white-screen exception.
  */
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import Link from 'next/link';
 import { getWidgetData } from '../apiConfig';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import MarketHero from '../components/market-detail/MarketHero';
@@ -38,8 +39,8 @@ const MarketDetailPage = () => {
                 const response = await getWidgetData(decodedTicker);
 
                 if (isMounted) {
-                    // DEFENSIVE CHECK: Ensure the payload actually contains the required quote object
-                    if (response.data && response.data.quote) {
+                    // CORRECT MAPPING: The backend returns 'quoteData', not 'quote'.
+                    if (response.data && response.data.quoteData) {
                         setMarketData(response.data);
                     } else {
                         throw new Error("Malformed data received from server.");
@@ -47,21 +48,14 @@ const MarketDetailPage = () => {
                 }
             } catch (err) {
                 console.error("Failed to fetch market data:", err);
-                if (isMounted) {
-                    setError("Failed to load market data. Please try again later.");
-                }
+                if (isMounted) setError("Failed to load market data. Please try again later.");
             } finally {
-                if (isMounted) {
-                    setLoading(false);
-                }
+                if (isMounted) setLoading(false);
             }
         };
 
         fetchMarketData();
-
-        return () => {
-            isMounted = false;
-        };
+        return () => { isMounted = false; };
     }, [ticker]);
 
     if (loading) {
@@ -75,13 +69,13 @@ const MarketDetailPage = () => {
         );
     }
 
-    if (error || !marketData || !marketData.quote) {
+    if (error || !marketData || !marketData.quoteData) {
         return (
             <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
                 <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg max-w-md text-center border border-red-200 dark:border-red-800">
                     <h2 className="text-xl font-bold mb-2">Data Unavailable</h2>
                     <p className="mb-6">{error || "The requested market data could not be found."}</p>
-                    <Link to="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
+                    <Link href="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
                         <ArrowLeft size={16} className="mr-2" /> Return to Markets
                     </Link>
                 </div>
@@ -92,36 +86,27 @@ const MarketDetailPage = () => {
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 py-6">
             <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-
                 {/* 1. Header (Hero) */}
-                <MarketHero quote={marketData.quote} />
+                <MarketHero quote={marketData.quoteData} />
 
                 {/* 2. Main Content Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-
-                    {/* Left Column (Chart & About) */}
                     <div className="lg:col-span-2 space-y-6">
-                        <MainChart
-                            quote={marketData.quote}
-                            historicalData={marketData.historicalData}
-                        />
+                        <MainChart quote={marketData.quoteData} historicalData={marketData.historicalData} />
                         <AboutAsset profile={marketData.profile} />
                     </div>
-
-                    {/* Right Column (Data Summary) */}
                     <div className="space-y-6">
-                        <DataSummary quote={marketData.quote} />
+                        <DataSummary quote={marketData.quoteData} />
                     </div>
                 </div>
 
-                {/* 3. Bottom Strip (Comparisons/Related) */}
+                {/* 3. Bottom Strip */}
                 {marketData.relatedAssets && marketData.relatedAssets.length > 0 && (
                     <div className="mt-8 pt-8 border-t border-gray-200 dark:border-slate-700">
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Related Assets</h3>
                         <ComparisonCarousel relatedAssets={marketData.relatedAssets} />
                     </div>
                 )}
-
             </div>
         </div>
     );

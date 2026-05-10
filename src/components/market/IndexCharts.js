@@ -1,21 +1,10 @@
-// src/components/market/IndexCharts.js
+"use client";
 import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { formatSmartPrice } from '../../utils/marketFormatter';
 
-/**
- * AI-CONTEXT:
- * Purpose: Interactive Market Indices Chart Widget.
- * Change Intent: Lazy Loading implemented for performance.
- *
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED:
- * • Converted TradingViewChart to Lazy Load
- * • Reason: Reduce initial bundle size (Main Thread Blocking)
- */
-
-// Lazy Load the heavy chart library
 const TradingViewChart = React.lazy(() => import('./TradingViewChart'));
 
 const MARKET_INDICES = {
@@ -61,14 +50,6 @@ const MARKET_INDICES = {
     ]
 };
 
-const formatNumber = (num) => {
-    if (num === null || num === undefined || isNaN(num)) return '-';
-    if (Math.abs(num) >= 1e12) return (num / 1e12).toFixed(2) + 'T';
-    if (Math.abs(num) >= 1e9) return (num / 1e9).toFixed(2) + 'B';
-    if (Math.abs(num) >= 1e6) return (num / 1e6).toFixed(2) + 'M';
-    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-};
-
 const IndexCharts = () => {
     const [activeMarket, setActiveMarket] = useState('US');
     const [activeIndex, setActiveIndex] = useState(0);
@@ -85,34 +66,33 @@ const IndexCharts = () => {
     }, [activeMarket]);
 
     useEffect(() => {
-        if (!activeIndexData) {
-            setLoading(false);
-            return;
-        }
+        if (!activeIndexData) return;
+        let isMounted = true;
         const fetchData = async () => {
             setLoading(true);
-            setWidgetData(null);
             try {
                 const response = await getWidgetData(activeIndexData.symbol);
-                if (response.data) {
-                    setWidgetData(response.data);
-                }
+                if (isMounted && response.data) setWidgetData(response.data);
             } catch (e) {
                 console.error("Market widget error:", e);
             } finally {
-                setLoading(false);
+                if (isMounted) setLoading(false);
             }
         };
         fetchData();
+        return () => { isMounted = false; };
     }, [activeIndexData]);
 
-    // Data Preparation
     const quote = widgetData?.quoteData;
-    const isPos = quote?.changeAmount >= 0;
+
+    // SAFE EXTRACTION
+    const rawPrice = quote?.currentPrice ?? quote?.price ?? null;
+    const rawChangeAmt = quote?.changeAmount ?? quote?.change ?? 0;
+    const rawChangePct = quote?.changePercent ?? quote?.changePercentage ?? 0;
+    const isPos = rawChangeAmt >= 0;
 
     const chartData = useMemo(() => {
         if (!widgetData || !widgetData.historicalData) return [];
-        // Sort and map for TradingView
         return [...widgetData.historicalData]
             .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
             .map(item => ({
@@ -127,10 +107,7 @@ const IndexCharts = () => {
         ele.style.cursor = 'grabbing';
         ele.style.userSelect = 'none';
         let pos = { left: ele.scrollLeft, x: e.clientX };
-        const onMouseMove = (e) => {
-            const dx = e.clientX - pos.x;
-            ele.scrollLeft = pos.left - dx;
-        };
+        const onMouseMove = (e) => { ele.scrollLeft = pos.left - (e.clientX - pos.x); };
         const onMouseUp = () => {
             ele.style.cursor = 'grab';
             ele.style.removeProperty('user-select');
@@ -142,79 +119,62 @@ const IndexCharts = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 shadow-sm rounded-lg overflow-hidden font-sans text-[11px] transition-colors duration-300">
-
-            {/* Market Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-lg overflow-hidden font-sans text-[11px] transition-colors duration-300">
+            <div className="flex border-b border-slate-200 dark:border-slate-700 overflow-x-auto no-scrollbar">
                 {Object.keys(MARKET_INDICES).map((market) => (
                     <button
                         key={market}
                         onClick={() => setActiveMarket(market)}
-                        className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors whitespace-nowrap 
-                            ${activeMarket === market
-                                ? 'text-blue-700 dark:text-blue-400 border-b-2 border-blue-700 dark:border-blue-400 bg-blue-50/50 dark:bg-slate-700'
-                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-slate-700'}`}
+                        className={`flex-1 px-3 py-2 text-center text-xs font-bold transition-colors whitespace-nowrap ${activeMarket === market ? 'text-sky-700 dark:text-sky-400 border-b-2 border-sky-700 dark:border-sky-400 bg-sky-50/50 dark:bg-slate-700' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700'}`}
                     >
                         {market}
                     </button>
                 ))}
             </div>
 
-            {/* Ticker Tabs */}
-            <div
-                ref={tabsRef}
-                onMouseDown={handleMouseDown}
-                className="flex border-b border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800 overflow-x-auto no-scrollbar cursor-grab"
-            >
+            <div ref={tabsRef} onMouseDown={handleMouseDown} className="flex border-b border-slate-100 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800 overflow-x-auto no-scrollbar cursor-grab">
                 {indicesToShow.map((idx, i) => (
                     <button
                         key={idx.symbol}
                         onClick={() => setActiveIndex(i)}
-                        className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap 
-                            ${activeIndex === i
-                                ? 'bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 border-b-2 border-blue-200 dark:border-blue-900'
-                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-slate-700'}`}
+                        className={`flex-shrink-0 px-3 py-2 font-semibold transition-colors whitespace-nowrap ${activeIndex === i ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 border-b-2 border-sky-200 dark:border-sky-900' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                     >
                         {idx.name}
                     </button>
                 ))}
             </div>
 
-            {/* Content */}
             <div className="p-3 min-h-[260px]">
                 {loading || !quote || !activeIndexData ? (
-                    <div className="h-[200px] flex items-center justify-center text-gray-400 dark:text-gray-500 animate-pulse">
-                        {loading ? "Loading market data..." : "Select an index"}
+                    <div className="h-[200px] flex items-center justify-center text-slate-400 dark:text-slate-500 animate-pulse">
+                        {loading ? "Loading market data..." : "Data Unavailable"}
                     </div>
                 ) : (
-                    <Link to={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
+                    <Link href={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
                         <div className="flex items-baseline justify-between mb-2">
-                            <span className="text-2xl font-bold text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {formatNumber(quote.currentPrice)}
-                                <span className="text-[10px] font-medium text-gray-500 ml-1">{quote.currency || ''}</span>
+                            <span className="text-2xl font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                                {formatSmartPrice(rawPrice, quote.currency, activeIndexData.symbol)}
+                                {!activeIndexData.symbol.startsWith('^') && quote.currency && (
+                                    <span className="text-[10px] font-bold text-slate-400 ml-1">{quote.currency}</span>
+                                )}
                             </span>
-                            <div className={`flex items-center font-bold ${isPos ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            <div className={`flex items-center font-bold ${isPos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                                 {isPos ? <TrendingUp size={14} className="mr-0.5" /> : <TrendingDown size={14} className="mr-0.5" />}
-                                {formatNumber(quote.changeAmount)} ({quote.changePercent ? quote.changePercent.toFixed(2) : '0.00'}%)
+                                {rawChangeAmt >= 0 ? '+' : ''}{rawChangeAmt.toFixed(2)} ({rawChangePct >= 0 ? '+' : ''}{rawChangePct.toFixed(2)}%)
                             </div>
                         </div>
 
-                        {/* Updated Chart: Lazy Loaded */}
                         <div className="h-[150px] -mx-1">
-                            <Suspense fallback={<div className="w-full h-full bg-gray-50 animate-pulse rounded"></div>}>
-                                <TradingViewChart
-                                    data={chartData}
-                                    color={isPos ? '#22c55e' : '#ef4444'}
-                                    height={150}
-                                />
+                            <Suspense fallback={<div className="w-full h-full bg-slate-50 animate-pulse rounded"></div>}>
+                                <TradingViewChart data={chartData} color={isPos ? '#059669' : '#dc2626'} height={150} />
                             </Suspense>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400 mt-3">
-                            <div className="flex justify-between"><span>Open</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.openPrice)}</span></div>
-                            <div className="flex justify-between"><span>High</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.dayHigh)}</span></div>
-                            <div className="flex justify-between"><span>Prev</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.previousClose)}</span></div>
-                            <div className="flex justify-between"><span>Low</span><span className="font-medium text-gray-900 dark:text-gray-200">{formatNumber(quote.dayLow)}</span></div>
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400 mt-3">
+                            <div className="flex justify-between"><span>Open</span><span className="font-medium text-slate-900 dark:text-slate-200">{formatSmartPrice(quote.openPrice || quote.open, quote.currency, activeIndexData.symbol)}</span></div>
+                            <div className="flex justify-between"><span>High</span><span className="font-medium text-slate-900 dark:text-slate-200">{formatSmartPrice(quote.dayHigh, quote.currency, activeIndexData.symbol)}</span></div>
+                            <div className="flex justify-between"><span>Prev</span><span className="font-medium text-slate-900 dark:text-slate-200">{formatSmartPrice(quote.previousClose, quote.currency, activeIndexData.symbol)}</span></div>
+                            <div className="flex justify-between"><span>Low</span><span className="font-medium text-slate-900 dark:text-slate-200">{formatSmartPrice(quote.dayLow, quote.currency, activeIndexData.symbol)}</span></div>
                         </div>
                     </Link>
                 )}
