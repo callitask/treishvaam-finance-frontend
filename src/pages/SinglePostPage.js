@@ -6,6 +6,7 @@
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
  * - EDITED: Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
  * - EDITED: Removed DOMPurify; parsed headings natively for TableOfContents.
+ * - EDITED: Replaced `<ReadingProgressBar targetRef={...} />` with explicit `headings`, `activeId`, and `progress` props. Added window scroll listener to dynamically calculate reading progress and track the active heading in view. This resolves crashes on legacy posts and restores UI functionality.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -24,6 +25,9 @@ const SinglePostPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+    const [activeId, setActiveId] = useState('');
+    const [progress, setProgress] = useState(0);
 
     const articleRef = useRef(null);
 
@@ -49,6 +53,8 @@ const SinglePostPage = () => {
         if (id) {
             fetchPost();
         }
+
+        return () => { isMounted = false; }
     }, [id]);
 
     // Parse the raw HTML into structured heading objects for TableOfContents
@@ -58,7 +64,7 @@ const SinglePostPage = () => {
         let match;
         const headings = [];
         while ((match = regex.exec(post.content)) !== null) {
-            const level = parseInt(match[1]);
+            const level = parseInt(match[1], 10);
             const text = match[3].replace(/<[^>]+>/g, '');
             const idMatch = match[2].match(/id=["']([^"']+)["']/);
             const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -66,6 +72,44 @@ const SinglePostPage = () => {
         }
         return headings;
     }, [post]);
+
+    // Track scroll progress and active heading
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!articleRef.current) return;
+
+            // 1. Calculate overall reading progress percentage
+            const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
+            setProgress(Math.min(100, Math.max(0, scrolled)));
+
+            // 2. Determine which heading is currently active in the viewport
+            if (extractedHeadings.length === 0) return;
+
+            let currentActiveId = extractedHeadings[0].id;
+            for (const heading of extractedHeadings) {
+                const element = document.getElementById(heading.id);
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    // If heading is near the top or passed the top, it's the active section
+                    if (rect.top <= 150) {
+                        currentActiveId = heading.id;
+                    } else {
+                        // Once we find a heading below the threshold, break
+                        break;
+                    }
+                }
+            }
+            setActiveId(currentActiveId);
+        };
+
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        // Run once on mount to initialize
+        handleScroll();
+
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [extractedHeadings]);
 
     if (loading) {
         return (
@@ -104,7 +148,8 @@ const SinglePostPage = () => {
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            <ReadingProgressBar targetRef={articleRef} />
+            {/* FIX: Replaced targetRef with correct explicit props to prevent component crash */}
+            <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
@@ -148,7 +193,8 @@ const SinglePostPage = () => {
                     </article>
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            <TableOfContents headings={extractedHeadings} />
+                            {/* FIX: Passed correct dynamic properties to TOC instead of static data */}
+                            <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>

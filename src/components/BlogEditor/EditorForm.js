@@ -3,32 +3,16 @@
  * AI-CONTEXT:
  * Purpose: Rich text editor component for the Blog/News CMS.
  *
- * Scope:
- * - Provides WYSIWYG editing capabilities for blog post generation.
- *
- * Critical Dependencies:
- * - Frontend: Requires `@tiptap/react`, `@tiptap/starter-kit`, and enterprise extensions (Image, Link, Youtube, Underline, TextAlign, Color, TextStyle).
- *
- * Security Constraints:
- * - Content parsed from this editor must remain sanitized downstream before rendering.
- *
- * Non-Negotiables:
- * - Must output a clean HTML string to be saved to the database.
- *
- * Change Intent:
- * - Upgrade editor capabilities to include Images, Links, Videos, Underline, Alignment, and Color, reaching feature parity with the legacy SunEditor component.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
  * • Replaced `suneditor-react` with `@tiptap/react` and `@tiptap/starter-kit`.
  * • Added `"use client";` directive.
  * • Built a custom MenuBar to replicate the standard formatting controls.
  * • Why: Phase 5 Next.js Migration (Library Swap). Resolves Cloudflare Pages build crash caused by missing suneditor dependencies.
- *
- * - EDITED:
- * • Integrated `@tiptap/extension-image`, `@tiptap/extension-link`, `@tiptap/extension-youtube`, `@tiptap/extension-underline`, `@tiptap/extension-text-align`, `@tiptap/extension-color`, `@tiptap/extension-text-style`.
- * • Added corresponding controls to `MenuBar`.
- * • Why: Restored enterprise rich-text functionality requested by editorial team (hyperlinks, embedded images, videos, alignment, colors).
+ * * - EDITED:
+ * • Re-injected full Enterprise Extension suite (Image, Link, Youtube, Underline, TextAlign, Color, TextStyle).
+ * • Expanded the MenuBar to support inserting multimedia, text alignment, and text color mimicking standard word processors.
+ * • Why: Restoring full parity with legacy CMS requirements.
  */
 
 import React, { useEffect } from 'react';

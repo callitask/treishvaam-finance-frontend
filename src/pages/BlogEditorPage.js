@@ -21,6 +21,7 @@ import EditorForm from '../components/BlogEditor/EditorForm';
  * Purpose: Full rich text editor and content management system for posts.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED: Replaced `editorRef.current.getContents(true)` with `editorRef.current.getHTML()` to fix publishing crash with Tiptap.
  */
 const BlogEditorPage = () => {
     const params = useParams();
@@ -133,7 +134,11 @@ const BlogEditorPage = () => {
         if (!title.trim() && !content.trim()) return;
         setSaveStatus('Saving...');
         try {
-            const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
+            // FIX: Use getHTML() instead of getContents(true)
+            const editorContent = editorRef.current && typeof editorRef.current.getHTML === 'function'
+                ? editorRef.current.getHTML()
+                : content;
+
             const draftData = { title, content: editorContent, customSnippet, metaDescription, keywords, version };
             if (postId) {
                 const res = await updateDraft(postId, draftData);
@@ -255,8 +260,9 @@ const BlogEditorPage = () => {
     };
 
     const handleAddFromPostClick = () => {
-        if (!editorRef.current) return;
-        const editorContent = editorRef.current.getContents(true);
+        if (!editorRef.current || typeof editorRef.current.getHTML !== 'function') return;
+        // FIX: Use getHTML() instead of getContents(true)
+        const editorContent = editorRef.current.getHTML();
         const parser = new DOMParser();
         const doc = parser.parseFromString(editorContent, 'text/html');
         const images = Array.from(doc.querySelectorAll('img')).map(img => img.src);
@@ -280,12 +286,14 @@ const BlogEditorPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-        if (!editorRef.current) return setError("Editor is not yet available.");
+        if (!editorRef.current || typeof editorRef.current.getHTML !== 'function') return setError("Editor is not yet available.");
         if (!selectedCategory) return setError("Please select a category.");
 
         const formData = new FormData();
         formData.append('title', title);
-        formData.append('content', editorRef.current.getContents(true));
+        // FIX: Use getHTML() instead of getContents(true)
+        formData.append('content', editorRef.current.getHTML());
+
         if (version !== null && version !== undefined) formData.append('version', version);
         formData.append('category', selectedCategory.name);
         formData.append('featured', isFeatured);
