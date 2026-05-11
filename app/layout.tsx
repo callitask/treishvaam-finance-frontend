@@ -1,5 +1,6 @@
 import React from 'react';
-import './globals.css';
+// AI-CONTEXT: Pointed Next.js to the legacy CRA Tailwind stylesheet
+import '../src/index.css';
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
 import { Providers } from './providers';
@@ -17,8 +18,6 @@ export default function RootLayout({
 }) {
     const theme = 'light';
 
-    // AI-CONTEXT: Restored CRA standard DOM structure without Next.js font overrides.
-    // Restored GlobalMarketTicker and top-padding logic exactly as it was in MainLayout.js.
     return (
         <html lang="en" className={theme}>
             <body>
