@@ -7,6 +7,7 @@
  * - EDITED: Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
  * - EDITED: Removed DOMPurify; parsed headings natively for TableOfContents.
  * - EDITED: Replaced `<ReadingProgressBar targetRef={...} />` with explicit `headings`, `activeId`, and `progress` props. Added window scroll listener to dynamically calculate reading progress and track the active heading in view. This resolves crashes on legacy posts and restores UI functionality.
+ * - EDITED: Added `extractedHeadings.length === 0` safety catch to the scroll listener to prevent `reading 'id'` crashes on legacy posts that lack H2/H3 tags.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -85,7 +86,11 @@ const SinglePostPage = () => {
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
             // 2. Determine which heading is currently active in the viewport
-            if (extractedHeadings.length === 0) return;
+            // FIX: Safely handle legacy posts that do not have any sub-headings
+            if (!extractedHeadings || extractedHeadings.length === 0) {
+                setActiveId('');
+                return;
+            }
 
             let currentActiveId = extractedHeadings[0].id;
             for (const heading of extractedHeadings) {
@@ -148,7 +153,6 @@ const SinglePostPage = () => {
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            {/* FIX: Replaced targetRef with correct explicit props to prevent component crash */}
             <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
@@ -193,7 +197,6 @@ const SinglePostPage = () => {
                     </article>
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            {/* FIX: Passed correct dynamic properties to TOC instead of static data */}
                             <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
