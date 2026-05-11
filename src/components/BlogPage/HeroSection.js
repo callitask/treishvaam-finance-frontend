@@ -1,20 +1,12 @@
 /**
  * AI-CONTEXT:
  * Purpose: Displays the main featured article (LCP Element) at the top of the blog feed.
- * Changes:
- * - Added explicit width/height to ResponsiveAuthImage for CLS prevention.
- * - Maintained strict sizes attribute for LCP optimization.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Optimized 'sizes' attribute for better Mobile LCP (100vw priority)
- * • Enforced width/height to prevent layout shifts
- * - EDITED (LCP OPTIMIZATION):
- * • Tuned desktop 'sizes' from 1280px to 860px
- * • Reason: Match actual grid width to trigger 1200w/800w WebP variant instead of Master
+ * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED: Optimized 'sizes' attribute for better Mobile LCP.
  */
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
 
@@ -32,18 +24,13 @@ const HeroSection = ({ featuredPost }) => {
 
     return (
         <div className="mb-10 pb-10 border-b border-gray-200 group">
-            <Link to={postLink} className="block relative aspect-video overflow-hidden rounded-sm mb-5">
+            <Link href={postLink} className="block relative aspect-video overflow-hidden rounded-sm mb-5">
                 <div className="w-full h-full bg-gray-100">
-                    {/* PERFORMANCE FIX: Strictly matched sizes to CSS grid columns to reduce LCP payload */}
-                    {/* CLS FIX: Added explicit width/height to define aspect ratio immediately */}
                     <ResponsiveAuthImage
                         baseName={heroImage}
                         alt={featuredPost.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                         eager={true}
-                        // AI-NOTE: Desktop grid width is ~860px (col-span-8). 
-                        // Setting sizes="860px" allows browser to pick the 1200w WebP variant (~200KB)
-                        // instead of the 1920w/Original (~3MB).
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 860px"
                         width={1280}
                         height={720}
@@ -62,7 +49,7 @@ const HeroSection = ({ featuredPost }) => {
                     </span>
                 </div>
 
-                <Link to={postLink} className="group-hover:text-sky-700 transition-colors">
+                <Link href={postLink} className="group-hover:text-sky-700 transition-colors">
                     <h1 className="text-3xl md:text-4xl font-black text-gray-900 font-serif leading-tight">
                         {featuredPost.title}
                     </h1>

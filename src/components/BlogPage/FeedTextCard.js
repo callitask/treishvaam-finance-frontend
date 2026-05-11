@@ -1,7 +1,13 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { categoryStyles, formatDateTime } from '../../utils/blogUtils';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Text-only card for blog feed.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 const FeedTextCard = ({ article, onCategoryClick, categoriesMap }) => {
     const { displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryName = article.category?.name || 'News';
@@ -20,7 +26,7 @@ const FeedTextCard = ({ article, onCategoryClick, categoriesMap }) => {
                 </button>
             </div>
 
-            <Link to={postLink} className="block mb-2 flex-grow">
+            <Link href={postLink} className="block mb-2 flex-grow">
                 <h4 className="text-sm font-bold text-gray-900 font-serif leading-snug group-hover:text-sky-700 line-clamp-3">
                     {article.title}
                 </h4>

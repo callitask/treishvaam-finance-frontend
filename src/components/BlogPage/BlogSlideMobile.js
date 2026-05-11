@@ -1,9 +1,15 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import MobilePostCard from './MobilePostCard';
 import CategoryStripMobile from './CategoryStripMobile';
 import GlobalMarketTicker from '../market/GlobalMarketTicker';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Mobile layout for Blog Page.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 const BlogSlideMobile = ({
     heroPost,
     mustReadPost,
@@ -20,7 +26,6 @@ const BlogSlideMobile = ({
     hasMore
 }) => {
 
-    // Construct the "Rail" content from Must Read + Briefings
     const railPosts = [
         ...(mustReadPost ? [mustReadPost] : []),
         ...(briefingPosts || [])
@@ -29,17 +34,14 @@ const BlogSlideMobile = ({
     return (
         <div className="min-h-screen bg-white dark:bg-slate-900 pb-24 w-full overflow-x-hidden transition-colors duration-300">
 
-            {/* 1. MARKET TICKER */}
             <GlobalMarketTicker mobileMode={true} />
 
-            {/* 2. CATEGORY NAV */}
             <CategoryStripMobile
                 categories={categories}
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
             />
 
-            {/* 3. HERO STORY (Explicitly the Editor's Choice) */}
             {heroPost && (
                 <div className="mb-0 border-t border-gray-100 dark:border-slate-800">
                     <MobilePostCard
@@ -51,7 +53,6 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 4. MUST READS RAIL (Combines "Must Read" & "Briefings") */}
             {railPosts.length > 0 && (
                 <div className="py-5 pl-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 mb-3">
                     <div className="flex items-center justify-between pr-4 mb-3">
@@ -65,7 +66,7 @@ const BlogSlideMobile = ({
                         {railPosts.map(post => (
                             <Link
                                 key={post.id}
-                                to={`/category/${categoriesMap[post.category?.name] || 'news'}/${post.userFriendlySlug}/${post.urlArticleId}`}
+                                href={`/category/${categoriesMap[post.category?.name] || 'news'}/${post.userFriendlySlug}/${post.urlArticleId}`}
                                 className="flex-shrink-0 w-64 bg-white dark:bg-slate-800 p-3 rounded-lg border border-gray-200 dark:border-slate-700 shadow-sm active:scale-95 transition-transform"
                             >
                                 <div className="flex items-center gap-2 mb-2">
@@ -81,7 +82,6 @@ const BlogSlideMobile = ({
                 </div>
             )}
 
-            {/* 5. MAIN FEED (Standard Grid Posts) */}
             <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800">
                 <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50">
                     <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Latest Stories</h4>
@@ -107,7 +107,6 @@ const BlogSlideMobile = ({
                 )}
             </div>
 
-            {/* 6. LOADING */}
             {loading && (
                 <div className="p-4 space-y-4 bg-white dark:bg-slate-900">
                     {[...Array(3)].map((_, i) => (
