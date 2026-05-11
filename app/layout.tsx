@@ -31,7 +31,8 @@ export default function RootLayout({
                         <main className="flex-grow pt-[120px] lg:pt-[140px] bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
                             {children}
                         </main>
-                        <Footer />
+                        {/* AI-CONTEXT: Passed empty className to satisfy TS validation */}
+                        <Footer className="" />
                     </div>
                 </Providers>
             </body>
