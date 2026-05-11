@@ -1,112 +1,91 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { FaPlus, FaFileSignature } from 'react-icons/fa';
+"use client";
+import React, { useMemo } from 'react';
+import Link from 'next/link';
 import { useManagePosts } from '../hooks/useManagePosts';
-
-// Sub-components
 import PostStatsRibbon from '../components/manage-posts/PostStatsRibbon';
 import PostFilterBar from '../components/manage-posts/PostFilterBar';
 import PostTable from '../components/manage-posts/PostTable';
 import PaginationControls from '../components/manage-posts/PaginationControls';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Manage posts dashboard page.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 const ManagePostsPage = () => {
-    // Hooks encapsulate all logic
     const {
         posts, categories, loading, error, stats,
-        view, setView,
-        searchQuery, setSearchQuery,
+        view, setView, searchQuery, setSearchQuery,
         selectedCategory, setSelectedCategory,
-        sortConfig, handleSort,
-        currentPage, setCurrentPage,
-        itemsPerPage, setItemsPerPage,
-        selectedIds, handleSelectAll, handleSelectOne,
-        handleDelete, handleBulkDelete, handleDuplicate,
-        totalItems, totalPages
+        sortConfig, handleSort, currentPage, setCurrentPage,
+        itemsPerPage, setItemsPerPage, selectedIds,
+        totalPages, totalItems, handleSelectAll,
+        handleSelectOne, handleDelete, handleBulkDelete, handleDuplicate
     } = useManagePosts();
 
-    // Dynamic Title Logic
-    const getPageTitle = () => {
-        switch (view) {
-            case 'DRAFT': return 'Manage Drafts';
-            case 'SCHEDULED': return 'Scheduled Content';
-            case 'PUBLISHED': return 'Published Posts';
-            default: return 'Content Management';
-        }
-    };
-
     return (
-        <div className="p-6 md:p-8 max-w-[1600px] mx-auto min-h-screen">
-
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+        <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto min-h-[calc(100vh-80px)] flex flex-col space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-                        {view === 'DRAFT' && <FaFileSignature className="text-slate-400" />}
-                        {getPageTitle()}
-                    </h1>
-                    <p className="text-slate-500 mt-1 text-sm">
-                        {view === 'DRAFT'
-                            ? 'Review, edit, and publish your work-in-progress.'
-                            : 'Create, edit, and organize your digital assets.'}
-                    </p>
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Content Library</h1>
+                    <p className="text-sm text-slate-500 mt-1">Manage and track your published articles and drafts.</p>
                 </div>
-                <Link
-                    to="/dashboard/blog/new"
-                    className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-5 rounded-lg shadow-sm transition-all transform active:scale-95"
-                >
-                    <FaPlus size={14} /> Create New
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link
+                        href="/dashboard/blog/new"
+                        className="inline-flex items-center justify-center bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm px-6 py-2.5 rounded-lg shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        Create New Article
+                    </Link>
+                </div>
             </div>
 
-            {/* Visual Stats */}
-            <PostStatsRibbon
-                stats={stats}
-                currentView={view}
-                onViewChange={setView}
-            />
-
-            {/* Error Banner */}
             {error && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 text-red-700 rounded-r shadow-sm">
-                    <p className="font-bold">Error</p>
-                    <p className="text-sm">{error}</p>
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md">
+                    <p className="text-sm text-red-700 font-medium">{error}</p>
                 </div>
             )}
 
-            {/* Controls */}
+            <PostStatsRibbon stats={stats} currentView={view} onViewChange={setView} />
+
             <PostFilterBar
                 searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
+                onSearchChange={setSearchQuery}
                 categories={categories}
                 selectedCategory={selectedCategory}
-                setSelectedCategory={setSelectedCategory}
+                onCategoryChange={setSelectedCategory}
                 selectedCount={selectedIds.length}
                 onBulkDelete={handleBulkDelete}
             />
 
-            {/* Data Grid */}
-            <PostTable
-                posts={posts}
-                currentView={view} // Pass view to toggle columns
-                loading={loading}
-                selectedIds={selectedIds}
-                onSelectAll={handleSelectAll}
-                onSelectOne={handleSelectOne}
-                sortConfig={sortConfig}
-                onSort={handleSort}
-                onDelete={handleDelete}
-                onDuplicate={handleDuplicate}
-            />
+            <div className="flex-grow flex flex-col">
+                <PostTable
+                    posts={posts}
+                    currentView={view}
+                    loading={loading}
+                    selectedIds={selectedIds}
+                    onSelectAll={handleSelectAll}
+                    onSelectOne={handleSelectOne}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                    onDelete={handleDelete}
+                    onDuplicate={handleDuplicate}
+                />
 
-            {/* Pagination */}
-            <PaginationControls
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                onPageChange={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
-            />
+                {!loading && posts.length > 0 && (
+                    <div className="mt-auto pt-6 pb-2">
+                        <PaginationControls
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalItems={totalItems}
+                            itemsPerPage={itemsPerPage}
+                            onPageChange={setCurrentPage}
+                            onItemsPerPageChange={setItemsPerPage}
+                        />
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

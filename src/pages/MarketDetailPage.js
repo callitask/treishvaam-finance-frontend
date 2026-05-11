@@ -1,112 +1,116 @@
 "use client";
-/**
- * AI-CONTEXT:
- * Purpose: Legacy CRA page for displaying detailed market data.
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Fortified `marketData` null-checks to prevent crashes.
- * - EDITED: Corrected the API mapping from `.quote` to `.quoteData` to match the Java DTO, resolving the white-screen exception.
- */
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import Link from 'next/link';
-import { getWidgetData } from '../apiConfig';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getMarketData, getQuoteData } from '../apiConfig';
+import { Helmet } from 'react-helmet-async';
+
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
 import DataSummary from '../components/market-detail/DataSummary';
 import AboutAsset from '../components/market-detail/AboutAsset';
 import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Market detail page for specific tickers.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/navigation.
+ */
 const MarketDetailPage = () => {
-    const { ticker } = useParams();
+    const params = useParams();
+    // In Next.js, dynamic routes might return encoded values depending on the request path
+    const rawTicker = params?.ticker;
+    const ticker = rawTicker ? decodeURIComponent(rawTicker) : null;
+
     const [marketData, setMarketData] = useState(null);
+    const [quoteData, setQuoteData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        window.scrollTo(0, 0);
-    }, []);
+        if (!ticker) return;
 
-    useEffect(() => {
-        let isMounted = true;
-
-        const fetchMarketData = async () => {
-            if (!ticker) return;
+        const fetchData = async () => {
             setLoading(true);
             setError(null);
             try {
-                const decodedTicker = decodeURIComponent(ticker);
-                const response = await getWidgetData(decodedTicker);
+                const [marketRes, quoteRes] = await Promise.all([
+                    getMarketData(ticker).catch(e => { console.warn("Market static data fetch failed", e); return { data: null }; }),
+                    getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
+                ]);
 
-                if (isMounted) {
-                    // CORRECT MAPPING: The backend returns 'quoteData', not 'quote'.
-                    if (response.data && response.data.quoteData) {
-                        setMarketData(response.data);
-                    } else {
-                        throw new Error("Malformed data received from server.");
-                    }
+                if (!marketRes.data && !quoteRes.data) {
+                    throw new Error("Asset not found or no data available.");
                 }
+
+                setMarketData(marketRes.data);
+                setQuoteData(quoteRes.data);
+
             } catch (err) {
-                console.error("Failed to fetch market data:", err);
-                if (isMounted) setError("Failed to load market data. Please try again later.");
+                console.error("Failed to load market details", err);
+                setError(err.message || "Failed to load market data.");
             } finally {
-                if (isMounted) setLoading(false);
+                setLoading(false);
             }
         };
 
-        fetchMarketData();
-        return () => { isMounted = false; };
+        fetchData();
+        const intervalId = setInterval(async () => {
+            try {
+                const res = await getQuoteData(ticker);
+                if (res.data) setQuoteData(res.data);
+            } catch (e) {
+                // Silent fail for polling
+            }
+        }, 30000);
+
+        return () => clearInterval(intervalId);
     }, [ticker]);
 
     if (loading) {
         return (
-            <div className="flex h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-                <div className="text-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-sky-600 mx-auto mb-4" />
-                    <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest">Compiling Market Data...</p>
-                </div>
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-sky-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Loading Market Data...</p>
             </div>
         );
     }
 
-    if (error || !marketData || !marketData.quoteData) {
+    if (error) {
         return (
-            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
-                <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-6 rounded-lg max-w-md text-center border border-red-200 dark:border-red-800">
-                    <h2 className="text-xl font-bold mb-2">Data Unavailable</h2>
-                    <p className="mb-6">{error || "The requested market data could not be found."}</p>
-                    <Link href="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold">
-                        <ArrowLeft size={16} className="mr-2" /> Return to Markets
-                    </Link>
-                </div>
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 px-4 text-center">
+                <h2 className="text-2xl font-bold text-red-600 mb-3">Asset Not Found</h2>
+                <p className="mb-6 text-slate-600">{error}</p>
+                <button onClick={() => window.history.back()} className="text-sky-600 font-bold hover:underline">
+                    &larr; Go Back
+                </button>
             </div>
         );
     }
+
+    const title = quoteData?.name || marketData?.name || ticker;
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 py-6">
-            <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
-                {/* 1. Header (Hero) */}
-                <MarketHero quote={marketData.quoteData} />
+        <div className="bg-slate-50 min-h-screen pb-12">
+            <Helmet>
+                <title>{`${title} (${ticker}) | Treishvaam Finance`}</title>
+                <meta name="description" content={`Live quote, historical chart, and data for ${title} (${ticker}).`} />
+            </Helmet>
 
-                {/* 2. Main Content Grid */}
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
+                <MarketHero ticker={ticker} quoteData={quoteData} marketData={marketData} />
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <div className="lg:col-span-2 space-y-6">
-                        <MainChart quote={marketData.quoteData} historicalData={marketData.historicalData} />
-                        <AboutAsset profile={marketData.profile} />
+                        <MainChart ticker={ticker} quoteData={quoteData} />
+                        <AboutAsset marketData={marketData} quoteData={quoteData} />
                     </div>
-                    <div className="space-y-6">
-                        <DataSummary quote={marketData.quoteData} />
+
+                    <div className="lg:col-span-1 space-y-6">
+                        <DataSummary quoteData={quoteData} marketData={marketData} />
+                        <ComparisonCarousel peers={marketData?.peers} />
                     </div>
                 </div>
-
-                {/* 3. Bottom Strip */}
-                {marketData.relatedAssets && marketData.relatedAssets.length > 0 && (
-                    <div className="mt-8 pt-8 border-t border-gray-200 dark:border-slate-700">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Related Assets</h3>
-                        <ComparisonCarousel relatedAssets={marketData.relatedAssets} />
-                    </div>
-                )}
             </div>
         </div>
     );
