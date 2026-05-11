@@ -2,7 +2,8 @@
  * AI-CONTEXT:
  * Purpose: Global application stylesheet.
  * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Overwrote Next.js defaults with exact original React CRA CSS from src/index.css to restore design fidelity.
+ * - EDITED: Overwrote Next.js defaults with exact original React CRA CSS.
+ * - EDITED: Restored missing Google Fonts imports to fix typography regressions.
  */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&display=swap');
@@ -11,7 +12,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* --- GLOBAL APP BEHAVIOR --- */
 html, body {
   overscroll-behavior-y: none;
   touch-action: manipulation;
@@ -23,12 +23,10 @@ body {
   @apply bg-slate-50 text-gray-900 transition-colors duration-300; 
 }
 
-/* Dark Mode Overrides for Body */
 .dark body {
   @apply bg-slate-900 text-gray-100;
 }
 
-/* --- UTILITIES --- */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -38,31 +36,25 @@ body {
 .font-serif { font-family: 'Merriweather', serif; }
 .font-sans { font-family: 'Inter', sans-serif; }
 
-/* --- SKELETON LOADER (Adaptive) --- */
 .skeleton {
     @apply bg-gray-200 dark:bg-slate-700; 
     background-image: linear-gradient(to right, var(--tw-gradient-stops)); 
+    background-repeat: no-repeat;
+    background-size: 800px 100%; 
+    animation: shimmer 1.5s infinite linear forwards;
+    will-change: background-position;
 }
 
-/* Light Mode Skeleton Gradient */
 .skeleton {
     --tw-gradient-from: #e5e7eb; 
     --tw-gradient-to: #e5e7eb;
     --tw-gradient-stops: var(--tw-gradient-from), #f3f4f6, var(--tw-gradient-to);
 }
 
-/* Dark Mode Skeleton Gradient */
 .dark .skeleton {
-    --tw-gradient-from: #334155; /* slate-700 */
+    --tw-gradient-from: #334155; 
     --tw-gradient-to: #334155;
     --tw-gradient-stops: var(--tw-gradient-from), #1e293b, var(--tw-gradient-to); 
-}
-
-.skeleton {
-    background-repeat: no-repeat;
-    background-size: 800px 100%; 
-    animation: shimmer 1.5s infinite linear forwards;
-    will-change: background-position;
 }
 
 @keyframes shimmer {

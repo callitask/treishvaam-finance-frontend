@@ -4,9 +4,8 @@
  * Purpose: Legacy CRA page for displaying a single blog/news post.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
- * - EDITED: Stripped react-helmet-async entirely to prevent hydration bugs. SEO is handled by Edge SSR wrapper.
- * - EDITED: Removed DOMPurify to fix fatal Next.js SSR `.filter()` exception on the Edge.
- * - EDITED: Parsed headings natively to fix TableOfContents crash.
+ * - EDITED: Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
+ * - EDITED: Removed DOMPurify; parsed headings natively for TableOfContents.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -106,6 +105,7 @@ const SinglePostPage = () => {
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             <ReadingProgressBar targetRef={articleRef} />
+
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
                     <article className="w-full lg:w-[70%]" ref={articleRef}>
@@ -136,7 +136,6 @@ const SinglePostPage = () => {
                                 {post.thumbnailAltText && <figcaption className="text-center text-xs text-slate-500 mt-3 italic">{post.thumbnailAltText}</figcaption>}
                             </figure>
                         )}
-                        {/* Render backend HTML directly since DOMPurify crashes Next.js Edge SSR */}
                         <div className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm" dangerouslySetInnerHTML={{ __html: post.content }} />
                         {post.tags && post.tags.length > 0 && (
                             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
@@ -149,7 +148,6 @@ const SinglePostPage = () => {
                     </article>
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            {/* Replaced invalid 'content' prop with the properly parsed 'headings' array */}
                             <TableOfContents headings={extractedHeadings} />
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>

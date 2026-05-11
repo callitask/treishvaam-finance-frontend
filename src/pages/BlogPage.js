@@ -29,8 +29,7 @@ const MarketSidebar = React.lazy(() => import('../components/BlogPage/MarketSide
  * Purpose: The main landing page / feed of the application.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Changed sticky offsets. CategoryStrip now uses `top-[92px]` to stack perfectly under the Navbar.
- * - EDITED: Relocated GlobalMarketTicker directly beneath the CategoryStrip for perfect scroll-away behavior.
- * - EDITED: Removed Helmet.
+ * - EDITED: Placed CategoryStrip ABOVE the GlobalMarketTicker so it pins properly while the ticker scrolls away.
  */
 
 const BlogPage = () => {
@@ -144,7 +143,7 @@ const BlogPage = () => {
         <section className="bg-white min-h-screen font-sans -mx-4 sm:-mx-6 lg:-mx-8">
             <div className="hidden md:block">
 
-                {/* 2. Category Strip stacks strictly at 92px below the native Navbar */}
+                {/* 1. Category Strip rendered FIRST so it pins strictly below Navbar */}
                 <div className="sticky top-[92px] z-30 bg-white border-b border-gray-200 shadow-sm transition-colors duration-300">
                     <CategoryStrip
                         categories={categories}
@@ -154,7 +153,7 @@ const BlogPage = () => {
                     />
                 </div>
 
-                {/* 3. Global Ticker flows naturally below Category Strip. Scrolls up and disappears cleanly. */}
+                {/* 2. Global Ticker rendered SECOND so it naturally scrolls away */}
                 <div className="w-full relative z-20">
                     <GlobalMarketTicker />
                 </div>
