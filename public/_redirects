@@ -1,8 +1,6 @@
 # AI-CONTEXT:
 # Purpose:
 #   - Defines strict routing rules for Cloudflare Pages (Static Asset Host).
-#   - CRITICAL: Enables Single Page Application (SPA) Client-Side Routing.
-#   - Ensures deep links (e.g., /home, /market/BTC) return HTTP 200, not 404.
 #
 # Scope:
 #   - Static asset rewriting only.
@@ -10,7 +8,6 @@
 #   - MUST NEVER expose backend API endpoints directly.
 #
 # Critical Dependencies:
-#   - React Router (App.js): Relies on index.html being served for all paths.
 #   - SEO Worker: Relies on this fallback to fetch the app via env.ASSETS.
 #
 # Security Constraints:
@@ -23,21 +20,17 @@
 #       • Restores SEO indexing capabilities by preventing 404 on valid routes.
 #       • Date: 2026-01-28
 #
+#   - REMOVED:
+#       • SPA Fallback Rule (/* -> /index.html 200)
+#       • Why removal was safe: Upgraded to Next.js App Router with Cloudflare Edge SSR (@cloudflare/next-on-pages). The legacy CRA SPA fallback intercepts SSR static asset chunks, causing an infinite redirect loop.
+#       • Replaced by: Edge-native dynamic SSR routing. Must never return for SSR-enabled Next.js apps.
+#
 #   - DO-NOT-DELETE RULE:
 #       This IMMUTABLE CHANGE HISTORY section must never be deleted,
 #       truncated, rewritten, or regenerated.
 #       Future AI must append only.
-
 # ------------------------------------------------------------------------------
 # SECURITY & ZERO-TRUST CONFIGURATION
 # ------------------------------------------------------------------------------
 
-# 1. SPA FALLBACK (Client-Side Routing)
-#    - Matches: Everything not found as a physical file.
-#    - Action: Serves index.html with HTTP 200 OK.
-#    - Security: INTERNAL REWRITE ONLY. No external proxying.
-/* /index.html  200
-
-# ------------------------------------------------------------------------------
-# END OF CONFIGURATION
-# ------------------------------------------------------------------------------
+# No active edge redirects. Handled dynamically via Next.js Edge Runtime.

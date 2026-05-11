@@ -3,7 +3,9 @@
 #  * Purpose: Cloudflare Pages configuration for the Finance Frontend.
 #  * IMMUTABLE CHANGE HISTORY:
 #  * - EDITED: Changed pages_build_output_dir from "out" to ".vercel/output/static" to align with @cloudflare/next-on-pages v1.13.16 edge compiler.
+#  * - EDITED: Added `compatibility_flags = ["nodejs_compat"]` to allow Next.js Edge SSR to use native node modules.
 #  */
 name = "treishvaam-finance-frontend"
 pages_build_output_dir = ".vercel/output/static"
 compatibility_date = "2024-11-20"
+compatibility_flags = ["nodejs_compat"]
