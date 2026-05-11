@@ -1,24 +1,30 @@
+"use client";
 import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { Helmet } from 'react-helmet-async';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Secure login page wrapper for Keycloak SSO.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/navigation.
+ */
 const LoginPage = () => {
     const { login, auth, loading } = useAuth();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
-    // Prevent circular redirect to /login
-    let from = location.state?.from?.pathname || "/dashboard";
+    let from = searchParams?.get('redirect') || "/dashboard";
     if (from === "/login") from = "/dashboard";
 
     useEffect(() => {
         if (auth.isAuthenticated) {
-            navigate(from, { replace: true });
+            router.replace(from);
         }
-    }, [auth.isAuthenticated, navigate, from]);
+    }, [auth.isAuthenticated, router, from]);
 
     return (
         <div className="min-h-screen hero-silver-gradient flex items-center justify-center p-4">
@@ -35,14 +41,10 @@ const LoginPage = () => {
                 <button
                     onClick={login}
                     disabled={loading}
-                    className={`py-3 px-8 rounded-lg text-white font-semibold shadow-lg transition duration-300 hover:scale-105 flex items-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'cta-button-primary'
-                        }`}
+                    className={`py-3 px-8 rounded-lg text-white font-semibold shadow-lg transition duration-300 hover:scale-105 flex items-center gap-2 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'cta-button-primary'}`}
                 >
                     {loading ? (
-                        <>
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            Connecting...
-                        </>
+                        <><Loader2 className="h-5 w-5 animate-spin" /> Connecting...</>
                     ) : (
                         "Sign In with SSO"
                     )}

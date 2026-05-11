@@ -1,15 +1,21 @@
+"use client";
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import './ComparisonCarousel.css';
 
-// Helper to format change
+/**
+ * AI-CONTEXT:
+ * Purpose: Market detail comparison carousel.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
+
 const formatChange = (change) => {
     if (change == null || isNaN(change)) return 'N/A';
     return `${change >= 0 ? '+' : ''}${change.toFixed(2)}%`;
 };
 
-// Helper to determine color
 const getChangeColor = (change) => {
     if (change == null || isNaN(change)) return 'text-gray-500';
     return change >= 0 ? 'text-green-600' : 'text-red-600';
@@ -20,7 +26,7 @@ const PeerCard = ({ peer }) => {
     const color = getChangeColor(change);
 
     return (
-        <Link to={`/market/${encodeURIComponent(peer.ticker)}`} className="carousel-card">
+        <Link href={`/market/${encodeURIComponent(peer.ticker)}`} className="carousel-card block">
             <h4 className="text-sm font-semibold text-gray-800 truncate">{peer.name}</h4>
             <div className="text-lg font-bold text-gray-900 my-1">
                 {peer.currentPrice.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}

@@ -1,19 +1,12 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-// REMOVED: import imageCompression from 'browser-image-compression'; 
-// Enterprise Grade: We now rely on the Backend (Java 21/Virtual Threads) for compression.
+import { useRouter, useParams } from 'next/navigation';
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 
-// Import New Utils
 import { canvasToBlob } from '../utils/editorUtils';
-
-// Import New Modals
 import CropModal from '../components/BlogEditor/modals/CropModal';
 import LockChoiceModal from '../components/BlogEditor/modals/LockChoiceModal';
 import AddFromPostModal from '../components/BlogEditor/modals/AddFromPostModal';
-
-// Import New Sidebar Panels
 import MetaPanel from '../components/BlogEditor/MetaPanel';
 import SeoPanel from '../components/BlogEditor/SeoPanel';
 import CategoryPanel from '../components/BlogEditor/CategoryPanel';
@@ -21,18 +14,21 @@ import PlacementPanel from '../components/BlogEditor/PlacementPanel';
 import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
 import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
-
-// Import New Main Content Component
 import EditorForm from '../components/BlogEditor/EditorForm';
 
-// MAIN COMPONENT
+/**
+ * AI-CONTEXT:
+ * Purpose: Full rich text editor and content management system for posts.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/navigation.
+ */
 const BlogEditorPage = () => {
-    const { id } = useParams();
-    const navigate = useNavigate();
+    const params = useParams();
+    const id = params?.id;
+    const router = useRouter();
 
-    // STATE
     const [postId, setPostId] = useState(null);
-    const [version, setVersion] = useState(null); // Optimistic Locking Version
+    const [version, setVersion] = useState(null);
     const [saveStatus, setSaveStatus] = useState('Idle');
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -45,15 +41,12 @@ const BlogEditorPage = () => {
     const [newCategoryName, setNewCategoryName] = useState('');
     const [modalState, setModalState] = useState({ isOpen: false, type: null, src: '', aspect: undefined });
     const [scheduledTime, setScheduledTime] = useState('');
-
-    // --- SEO & SNIPPET STATE ---
     const [customSnippet, setCustomSnippet] = useState('');
     const [metaDescription, setMetaDescription] = useState('');
     const [keywords, setKeywords] = useState('');
     const [seoTitle, setSeoTitle] = useState('');
     const [canonicalUrl, setCanonicalUrl] = useState('');
     const [focusKeyword, setFocusKeyword] = useState('');
-
     const [coverImageAltText, setCoverImageAltText] = useState('');
     const [thumbnailMode, setThumbnailMode] = useState('single');
     const [storyThumbnails, setStoryThumbnails] = useState([]);
@@ -69,12 +62,9 @@ const BlogEditorPage = () => {
     const [thumbnailAltText, setThumbnailAltText] = useState('');
     const [isLockChoiceModalOpen, setLockChoiceModalOpen] = useState(false);
     const [pendingCrop, setPendingCrop] = useState(null);
-
-    // --- NEW PLACEMENT STATE ---
     const [displaySection, setDisplaySection] = useState('STANDARD');
     const [postUserFriendlySlug, setPostUserFriendlySlug] = useState('');
 
-    // REFS
     const editorRef = useRef(null);
     const fileInputRef = useRef(null);
     const isContentLoaded = useRef(false);
@@ -90,7 +80,7 @@ const BlogEditorPage = () => {
                     const postRes = await getPost(id);
                     const post = postRes.data;
                     setPostId(post.id);
-                    setVersion(post.version); // Capture Version from DB
+                    setVersion(post.version);
                     setTitle(post.title);
                     setContent(post.content);
 
@@ -104,13 +94,10 @@ const BlogEditorPage = () => {
                     setCustomSnippet(post.customSnippet || '');
                     setMetaDescription(post.metaDescription || '');
                     setKeywords(post.keywords || '');
-
-                    // Populate New Fields
                     setSeoTitle(post.seoTitle || '');
                     setCanonicalUrl(post.canonicalUrl || '');
                     setFocusKeyword(post.focusKeyword || '');
                     setDisplaySection(post.displaySection || 'STANDARD');
-
                     setCoverImageAltText(post.coverImageAltText || '');
                     setPostUserFriendlySlug(post.userFriendlySlug || '');
 
@@ -132,9 +119,7 @@ const BlogEditorPage = () => {
                     if (post.coverImageUrl) setCoverPreview(`${API_URL}/api/uploads/${post.coverImageUrl}.webp`);
                     if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
                 } else {
-                    if (categoriesRes.data?.length > 0) {
-                        setSelectedCategory(categoriesRes.data[0]);
-                    }
+                    if (categoriesRes.data?.length > 0) setSelectedCategory(categoriesRes.data[0]);
                 }
             } catch (err) {
                 setError('Failed to load initial data.');
@@ -149,35 +134,24 @@ const BlogEditorPage = () => {
         setSaveStatus('Saving...');
         try {
             const editorContent = editorRef.current ? editorRef.current.getContents(true) : content;
-            const draftData = {
-                title,
-                content: editorContent,
-                customSnippet,
-                metaDescription,
-                keywords,
-                version // Pass version for draft integrity
-            };
+            const draftData = { title, content: editorContent, customSnippet, metaDescription, keywords, version };
             if (postId) {
                 const res = await updateDraft(postId, draftData);
-                // Update version after successful save to stay in sync
                 if (res.data && res.data.version) setVersion(res.data.version);
             } else {
                 const response = await createDraft(draftData);
                 setPostId(response.data.id);
                 if (response.data.version) setVersion(response.data.version);
-                navigate(`/dashboard/blog/edit/${response.data.userFriendlySlug}/${response.data.id}`, { replace: true });
+                router.replace(`/dashboard/blog/edit/${response.data.userFriendlySlug}/${response.data.id}`);
             }
             setSaveStatus('Saved');
         } catch (err) {
             setSaveStatus('Error');
-            console.error("Auto-save failed:", err);
-            // Handle Optimistic Locking in Drafts
             if (err.response && err.response.status === 409) {
-                alert("Conflict Detected: This draft has been modified in another session. Please refresh to avoid overwriting changes.");
                 setError("Conflict detected. Please refresh the page.");
             }
         }
-    }, [title, content, customSnippet, metaDescription, keywords, postId, navigate, version]);
+    }, [title, content, customSnippet, metaDescription, keywords, postId, router, version]);
 
     useEffect(() => {
         if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -209,25 +183,16 @@ const BlogEditorPage = () => {
         const aspect = orientation === 'landscape' ? 16 / 9 : 4 / 5;
         setThumbnailOrientation(orientation);
         setLockedAspectRatio(aspect);
-        if (pendingCrop) {
-            addCroppedImageToStory(pendingCrop.canvas);
-        }
+        if (pendingCrop) addCroppedImageToStory(pendingCrop.canvas);
         setLockChoiceModalOpen(false);
         setPendingCrop(null);
     }
 
     const addCroppedImageToStory = async (canvas) => {
         const croppedBlob = await canvasToBlob(canvas);
-        // Enterprise Fix: No client-side compression. Send as PNG.
         const finalFile = new File([croppedBlob], `thumbnail-${Date.now()}.png`, { type: 'image/png' });
         const previewUrl = URL.createObjectURL(finalFile);
-        const newThumbnail = {
-            id: `new-${Date.now()}`,
-            preview: previewUrl,
-            altText: '',
-            source: 'new',
-            file: finalFile,
-        };
+        const newThumbnail = { id: `new-${Date.now()}`, preview: previewUrl, altText: '', source: 'new', file: finalFile };
         setStoryThumbnails(prev => [...prev, newThumbnail]);
     }
 
@@ -253,7 +218,6 @@ const BlogEditorPage = () => {
             }
         } else {
             const croppedBlob = await canvasToBlob(canvas);
-            // Enterprise Fix: No client-side compression. Send as PNG.
             const finalFile = new File([croppedBlob], "image.png", { type: 'image/png' });
             const previewUrl = URL.createObjectURL(finalFile);
 
@@ -322,45 +286,30 @@ const BlogEditorPage = () => {
         const formData = new FormData();
         formData.append('title', title);
         formData.append('content', editorRef.current.getContents(true));
-
-        // --- KEY INTEGRATION: Pass Version ---
-        if (version !== null && version !== undefined) {
-            formData.append('version', version);
-        }
-
+        if (version !== null && version !== undefined) formData.append('version', version);
         formData.append('category', selectedCategory.name);
         formData.append('featured', isFeatured);
         formData.append('customSnippet', customSnippet);
         formData.append('metaDescription', metaDescription);
         formData.append('keywords', keywords);
-
-        // --- NEW FIELDS ---
         formData.append('seoTitle', seoTitle);
         formData.append('canonicalUrl', canonicalUrl);
         formData.append('focusKeyword', focusKeyword);
         formData.append('displaySection', displaySection);
-        // ------------------
-
         formData.append('coverImageAltText', coverImageAltText);
         tags.forEach(tag => formData.append('tags', tag));
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
-
         formData.append('userFriendlySlug', postUserFriendlySlug);
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
             const metadata = storyThumbnails.map((thumb, index) => ({
-                source: thumb.source,
-                fileName: thumb.source === 'new' ? thumb.file.name : null,
-                url: thumb.source === 'existing' ? thumb.url : null,
-                altText: thumb.altText,
-                displayOrder: index
+                source: thumb.source, fileName: thumb.source === 'new' ? thumb.file.name : null,
+                url: thumb.source === 'existing' ? thumb.url : null, altText: thumb.altText, displayOrder: index
             }));
             formData.append('thumbnailMetadata', JSON.stringify(metadata));
-            storyThumbnails.forEach(thumb => {
-                if (thumb.source === 'new') formData.append('newThumbnails', thumb.file);
-            });
+            storyThumbnails.forEach(thumb => { if (thumb.source === 'new') formData.append('newThumbnails', thumb.file); });
         } else {
             if (finalThumbFile) {
                 const metadata = [{ source: 'new', fileName: 'thumbnail.png', altText: thumbnailAltText, displayOrder: 0 }];
@@ -376,24 +325,13 @@ const BlogEditorPage = () => {
         }
 
         try {
-            if (postId) {
-                await updatePost(postId, formData);
-            } else {
-                await createPost(formData);
-            }
-            navigate('/dashboard/manage-posts');
+            if (postId) await updatePost(postId, formData);
+            else await createPost(formData);
+            router.push('/dashboard/manage-posts');
         } catch (err) {
-            console.error(err);
-            // --- CONFLICT HANDLING (409) ---
             if (err.response && err.response.status === 409) {
-                const confirmReload = window.confirm(
-                    "CONFLICT DETECTED!\n\nSomeone else has updated this post while you were editing.\nYour changes cannot be saved over theirs.\n\nClick OK to reload the page (you will lose your changes).\nClick Cancel to keep your text so you can copy it manually."
-                );
-                if (confirmReload) {
-                    window.location.reload();
-                } else {
-                    setError("CRITICAL: Version conflict. Please back up your text manually.");
-                }
+                if (window.confirm("CONFLICT DETECTED!\n\nSomeone else has updated this post. Click OK to reload (lose changes).")) window.location.reload();
+                else setError("CRITICAL: Version conflict. Please back up your text manually.");
             } else {
                 setError('Failed to save the post. Check console for details.');
             }
@@ -402,24 +340,13 @@ const BlogEditorPage = () => {
 
     return (
         <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
-            {/* Added id and name attributes to fix the warning */}
-            <input
-                type="file"
-                id="file-upload"
-                name="file-upload"
-                ref={fileInputRef}
-                className="hidden"
-                accept="image/*"
-            />
-
+            <input type="file" id="file-upload" name="file-upload" ref={fileInputRef} className="hidden" accept="image/*" />
             <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
 
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-                {/* --- REFACTORED SIDEBAR --- */}
                 <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
                         <div className="text-sm">
@@ -432,106 +359,16 @@ const BlogEditorPage = () => {
                     {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
 
                     <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
-
-                        <MetaPanel
-                            title={title}
-                            onTitleChange={setTitle}
-                            userFriendlySlug={postUserFriendlySlug}
-                            onUserFriendlySlugChange={setPostUserFriendlySlug}
-                        />
-
-                        {/* Updated SEO Panel with new props */}
-                        <SeoPanel
-                            title={title}
-                            keywords={keywords}
-                            onKeywordsChange={setKeywords}
-                            metaDescription={metaDescription}
-                            onMetaDescriptionChange={setMetaDescription}
-                            customSnippet={customSnippet}
-                            onCustomSnippetChange={setCustomSnippet}
-                            // New Props
-                            seoTitle={seoTitle}
-                            onSeoTitleChange={setSeoTitle}
-                            canonicalUrl={canonicalUrl}
-                            onCanonicalUrlChange={setCanonicalUrl}
-                            focusKeyword={focusKeyword}
-                            onFocusKeywordChange={setFocusKeyword}
-                        />
-
-                        <CategoryPanel
-                            selectedCategory={selectedCategory}
-                            onCategoryChange={setSelectedCategory}
-                            allCategories={allCategories}
-                            showNewCategoryInput={showNewCategoryInput}
-                            onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)}
-                            newCategoryName={newCategoryName}
-                            onNewCategoryNameChange={setNewCategoryName}
-                            onAddNewCategory={handleAddNewCategory}
-                        />
-
-                        {/* REPLACED LayoutPanel WITH PlacementPanel */}
-                        <PlacementPanel
-                            displaySection={displaySection}
-                            onDisplaySectionChange={setDisplaySection}
-                            tags={tags}
-                            onTagsChange={setTags}
-                        />
-
-                        <ThumbnailPanel
-                            thumbnailMode={thumbnailMode}
-                            onThumbnailModeChange={setThumbnailMode}
-                            thumbPreview={thumbPreview}
-                            thumbnailAltText={thumbnailAltText}
-                            onThumbnailAltTextChange={setThumbnailAltText}
-                            onUploadSingleClick={() => {
-                                fileInputRef.current.multiple = false;
-                                fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail');
-                                fileInputRef.current.click();
-                            }}
-                            storyThumbnails={storyThumbnails}
-                            setStoryThumbnails={setStoryThumbnails}
-                            onAddFromPostClick={handleAddFromPostClick}
-                            onUploadStoryClick={() => {
-                                fileInputRef.current.multiple = false;
-                                fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio);
-                                fileInputRef.current.click();
-                            }}
-                        />
-
-                        <CoverImagePanel
-                            coverPreview={coverPreview}
-                            coverImageAltText={coverImageAltText}
-                            onCoverImageAltTextChange={setCoverImageAltText}
-                            onUploadCoverClick={() => {
-                                fileInputRef.current.multiple = false;
-                                fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover');
-                                fileInputRef.current.click();
-                            }}
-                        />
-
-                        <PublishPanel
-                            scheduledTime={scheduledTime}
-                            onScheduledTimeChange={setScheduledTime}
-                            isFeatured={isFeatured}
-                            onIsFeaturedChange={setIsFeatured}
-                            isUpdating={!!postId}
-                        />
-
+                        <MetaPanel title={title} onTitleChange={setTitle} userFriendlySlug={postUserFriendlySlug} onUserFriendlySlugChange={setPostUserFriendlySlug} />
+                        <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
+                        <CategoryPanel selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} allCategories={allCategories} showNewCategoryInput={showNewCategoryInput} onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)} newCategoryName={newCategoryName} onNewCategoryNameChange={setNewCategoryName} onAddNewCategory={handleAddNewCategory} />
+                        <PlacementPanel displaySection={displaySection} onDisplaySectionChange={setDisplaySection} tags={tags} onTagsChange={setTags} />
+                        <ThumbnailPanel thumbnailMode={thumbnailMode} onThumbnailModeChange={setThumbnailMode} thumbPreview={thumbPreview} thumbnailAltText={thumbnailAltText} onThumbnailAltTextChange={setThumbnailAltText} onUploadSingleClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail'); fileInputRef.current.click(); }} storyThumbnails={storyThumbnails} setStoryThumbnails={setStoryThumbnails} onAddFromPostClick={handleAddFromPostClick} onUploadStoryClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio); fileInputRef.current.click(); }} />
+                        <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
+                        <PublishPanel scheduledTime={scheduledTime} onScheduledTimeChange={setScheduledTime} isFeatured={isFeatured} onIsFeaturedChange={setIsFeatured} isUpdating={!!postId} />
                     </form>
                 </div>
-
-                {/* EDITOR */}
-                <EditorForm
-                    content={content}
-                    onContentChange={setContent}
-                    editorRef={editorRef}
-                    onImageUploadBefore={handleImageUploadBefore}
-                    onLoad={() => {
-                        if (editorRef.current && content && !isContentLoaded.current) {
-                            isContentLoaded.current = true;
-                        }
-                    }}
-                />
+                <EditorForm content={content} onContentChange={setContent} editorRef={editorRef} onImageUploadBefore={handleImageUploadBefore} onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }} />
             </div>
         </div>
     );
