@@ -6,6 +6,7 @@
  */
 import SinglePostPage from '../../../../../src/pages/SinglePostPage';
 
+// This tells the compiler to skip pre-building this dynamic route
 export function generateStaticParams() {
     return [];
 }
