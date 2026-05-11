@@ -5,13 +5,13 @@
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
  * - EDITED: Stripped react-helmet-async entirely to prevent hydration bugs. SEO is handled by Edge SSR wrapper.
- * - EDITED: Implemented native heading parsing to fix TableOfContents `.filter` crash.
+ * - EDITED: Removed DOMPurify to fix fatal Next.js SSR `.filter()` exception on the Edge.
+ * - EDITED: Parsed headings natively to fix TableOfContents crash.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getPostByUrlId, API_URL } from '../apiConfig';
-import DOMPurify from 'dompurify';
 import { Calendar, User, ArrowLeft, Clock, Share2, Tag, Loader2, BookmarkPlus } from 'lucide-react';
 import ShareModal from '../components/ShareModal';
 import ReadingProgressBar from '../components/ReadingProgressBar';
@@ -52,14 +52,6 @@ const SinglePostPage = () => {
         }
     }, [id]);
 
-    const sanitizedContent = useMemo(() => {
-        if (!post || !post.content) return '';
-        return DOMPurify.sanitize(post.content, {
-            ADD_TAGS: ['iframe', 'script', 'style'],
-            ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'target']
-        });
-    }, [post]);
-
     // Parse the raw HTML into structured heading objects for TableOfContents
     const extractedHeadings = useMemo(() => {
         if (!post || !post.content) return [];
@@ -70,8 +62,8 @@ const SinglePostPage = () => {
             const level = parseInt(match[1]);
             const text = match[3].replace(/<[^>]+>/g, '');
             const idMatch = match[2].match(/id=["']([^"']+)["']/);
-            const id = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            headings.push({ id, text, level });
+            const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            headings.push({ id: headingId, text, level });
         }
         return headings;
     }, [post]);
@@ -114,7 +106,6 @@ const SinglePostPage = () => {
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             <ReadingProgressBar targetRef={articleRef} />
-
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
                     <article className="w-full lg:w-[70%]" ref={articleRef}>
@@ -145,7 +136,8 @@ const SinglePostPage = () => {
                                 {post.thumbnailAltText && <figcaption className="text-center text-xs text-slate-500 mt-3 italic">{post.thumbnailAltText}</figcaption>}
                             </figure>
                         )}
-                        <div className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
+                        {/* Render backend HTML directly since DOMPurify crashes Next.js Edge SSR */}
+                        <div className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm" dangerouslySetInnerHTML={{ __html: post.content }} />
                         {post.tags && post.tags.length > 0 && (
                             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center"><Tag className="w-4 h-4 mr-2" /> Topics</h3>
@@ -157,9 +149,8 @@ const SinglePostPage = () => {
                     </article>
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            {/* FIX: Replaced content={post.content} with the parsed headings array to prevent .filter crash */}
+                            {/* Replaced invalid 'content' prop with the properly parsed 'headings' array */}
                             <TableOfContents headings={extractedHeadings} />
-
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>

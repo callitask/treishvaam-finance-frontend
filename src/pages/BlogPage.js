@@ -8,6 +8,7 @@ import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-i
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import HeroSection from '../components/BlogPage/HeroSection';
+import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 
 // Utils
 import { distributeContent } from '../utils/editorialDistributor';
@@ -27,8 +28,8 @@ const MarketSidebar = React.lazy(() => import('../components/BlogPage/MarketSide
  * Component: BlogPage
  * Purpose: The main landing page / feed of the application.
  * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Removed `GlobalMarketTicker`. The Ticker, Navbar, and Footer are now globally managed by `app/layout.tsx`.
- * - EDITED: Changed sticky offsets. CategoryStrip now uses `top-[92px]` to stack perfectly under the 92px Navbar.
+ * - EDITED: Changed sticky offsets. CategoryStrip now uses `top-[92px]` to stack perfectly under the Navbar.
+ * - EDITED: Relocated GlobalMarketTicker directly beneath the CategoryStrip for perfect scroll-away behavior.
  * - EDITED: Removed Helmet.
  */
 
@@ -142,7 +143,8 @@ const BlogPage = () => {
     return (
         <section className="bg-white min-h-screen font-sans -mx-4 sm:-mx-6 lg:-mx-8">
             <div className="hidden md:block">
-                {/* FIX: Set top-[92px] so it slides up and stops exactly under the Navbar */}
+
+                {/* 2. Category Strip stacks strictly at 92px below the native Navbar */}
                 <div className="sticky top-[92px] z-30 bg-white border-b border-gray-200 shadow-sm transition-colors duration-300">
                     <CategoryStrip
                         categories={categories}
@@ -150,6 +152,11 @@ const BlogPage = () => {
                         setSelectedCategory={setSelectedCategory}
                         loading={loadingCategories}
                     />
+                </div>
+
+                {/* 3. Global Ticker flows naturally below Category Strip. Scrolls up and disappears cleanly. */}
+                <div className="w-full relative z-20">
+                    <GlobalMarketTicker />
                 </div>
 
                 <div className="container mx-auto px-4 lg:px-6 pt-6 pb-20">

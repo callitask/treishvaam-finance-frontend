@@ -58,9 +58,7 @@ const MarketDetailPage = () => {
             try {
                 const res = await getQuoteData(ticker);
                 if (res.data) setQuoteData(res.data);
-            } catch (e) {
-                // Silent fail for polling
-            }
+            } catch (e) { }
         }, 30000);
 
         return () => clearInterval(intervalId);
