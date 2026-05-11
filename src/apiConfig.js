@@ -1,16 +1,11 @@
 /**
  * AI-CONTEXT:
- *
- * Purpose:
- * - Central Axios configuration and API method declarations.
- *
- * Scope:
- * - Responsible for routing all frontend requests securely to the API proxy.
- *
- * Change Intent:
- * - Export `refreshGA4Data` POST endpoint for Audience Dashboard manual syncing.
+ * Purpose: Central Axios configuration and API method declarations.
+ * Scope: Responsible for routing all frontend requests securely to the API proxy.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Added getMarketData and getQuoteData to fix Next.js import crash.
+ * - EDITED: Exported refreshGA4Data POST endpoint for Audience Dashboard manual syncing.
  */
-// src/apiConfig.js
 import axios from 'axios';
 
 export const BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com';
@@ -66,7 +61,6 @@ export const login = () => Promise.reject("Use Keycloak Login");
 export const getUserProfile = () => api.get('/auth/me');
 export const updateUserProfile = (data) => api.put('/auth/profile', data);
 
-
 /* -------------------- Search -------------------- */
 export const searchPosts = (query) => api.get(`/search?q=${encodeURIComponent(query)}`);
 
@@ -83,6 +77,10 @@ export const refreshMovers = () => api.post('/market/admin/refresh-movers');
 export const refreshIndices = () => api.post('/market/admin/refresh-indices');
 export const flushMovers = (password) => api.post('/market/admin/flush-movers', { password });
 export const flushIndices = (password) => api.post('/market/admin/flush-indices', { password });
+
+// AI-CONTEXT: Missing endpoints added to fix Next.js build
+export const getMarketData = (ticker) => api.get(`/market/data/${encodeURIComponent(ticker)}`);
+export const getQuoteData = (ticker) => api.get(`/market/quote/${encodeURIComponent(ticker)}`);
 
 /* -------------------- Market Widgets -------------------- */
 export const getWidgetData = (ticker) => api.get(`/market/widget?ticker=${encodeURIComponent(ticker)}`);
@@ -109,7 +107,6 @@ export const getFilterOptions = (params) => {
   return api.get(`/analytics/filters`, { params: cleanParams });
 };
 
-// Added: GA4 Refresh Sync Hook
 export const refreshGA4Data = (startDate, endDate) => api.post('/analytics/refresh', { startDate, endDate });
 
 export default api;
