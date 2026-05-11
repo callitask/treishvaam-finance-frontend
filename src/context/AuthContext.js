@@ -1,8 +1,14 @@
 "use client";
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
-import { setAuthToken, getUserProfile } from '../apiConfig'; // PHASE 2: Added getUserProfile
+import { setAuthToken, getUserProfile } from '../apiConfig';
 import { faro } from '../faroConfig';
+
+/**
+ * AI-CONTEXT:
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL. Added strict window checks for SSR safety.
+ */
 
 const AuthContext = createContext();
 
@@ -21,6 +27,7 @@ export const AuthProvider = ({ children }) => {
   const isRun = useRef(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return; // Strict SSR Guard
     if (isRun.current) return;
     isRun.current = true;
 
@@ -39,13 +46,13 @@ export const AuthProvider = ({ children }) => {
     if (isBot) {
       console.log("[Auth] Bot/Crawler detected. Skipping Keycloak initialization for SEO.");
       setLoading(false);
-      return; // STOP HERE. Do not init Keycloak.
+      return;
     }
 
     console.log("[Auth] Init Started");
 
     // --- CONFIGURATION ---
-    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || process.env.REACT_APP_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
+    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
 
     const initKeycloak = new Keycloak({
       url: authUrl,
@@ -65,7 +72,7 @@ export const AuthProvider = ({ children }) => {
 
     let initOptions = {
       pkceMethod: 'S256',
-      checkLoginIframe: false // Disable iframe to prevent 3rd-party cookie blocking
+      checkLoginIframe: false
     };
 
     if (isLoginError) {
@@ -110,16 +117,14 @@ export const AuthProvider = ({ children }) => {
           const { name, email, realm_access } = initKeycloak.tokenParsed;
           const roles = realm_access ? realm_access.roles : [];
 
-          // 1. Set Initial User State (Fast)
           const initialUser = {
-            name, // Fallback to Token Name
+            name,
             email,
             roles,
             isAdmin: roles.includes('admin') || roles.includes('publisher')
           };
           setUser(initialUser);
 
-          // 2. PHASE 2: Fetch Rich Profile (Display Name) from Backend
           getUserProfile().then(response => {
             if (response.data) {
               const { displayName } = response.data;
@@ -127,11 +132,10 @@ export const AuthProvider = ({ children }) => {
 
               setUser(prev => ({
                 ...prev,
-                name: displayName || prev.name, // Override name with Display Name
+                name: displayName || prev.name,
                 displayName: displayName
               }));
 
-              // Update Faro Context with Correct Name
               if (faro) {
                 faro.api.setUser({
                   id: email,
@@ -144,8 +148,7 @@ export const AuthProvider = ({ children }) => {
             console.warn("[Auth] Failed to fetch extended profile", err);
           });
 
-          // Fallback Faro (if profile fetch fails/delays)
-          if (faro) {
+          if (faro && !faro.api.getUser()) {
             faro.api.setUser({ id: email, username: name, email: email });
           }
 
@@ -166,7 +169,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback(() => {
-    if (keycloak) {
+    if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
       keycloak.login();
@@ -174,7 +177,7 @@ export const AuthProvider = ({ children }) => {
   }, [keycloak]);
 
   const logout = useCallback(() => {
-    if (keycloak) {
+    if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
       if (faro) faro.api.resetUser();
@@ -182,7 +185,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [keycloak]);
 
-  // Token Refresh Logic
   useEffect(() => {
     if (!keycloak || !isAuthenticated) return;
 

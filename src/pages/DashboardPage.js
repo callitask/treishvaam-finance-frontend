@@ -11,12 +11,13 @@ import ApiStatusPanel from '../components/ApiStatusPanel';
  * Purpose: Main dashboard landing page.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED: Migrated REACT_APP_API_BASE_URL to NEXT_PUBLIC_API_BASE_URL.
  */
 const DashboardPage = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [error, setError] = useState('');
-    const API_URL = process.env.REACT_APP_API_BASE_URL || 'https://backend.treishvaamgroup.com';
+    const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://backend.treishvaamgroup.com';
 
     const linkedInAuthUrl = `${API_URL}/api/v1/oauth2/authorization/linkedin`;
 

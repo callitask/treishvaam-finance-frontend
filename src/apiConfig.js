@@ -5,10 +5,11 @@
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Added getMarketData and getQuoteData to fix Next.js import crash.
  * - EDITED: Exported refreshGA4Data POST endpoint for Audience Dashboard manual syncing.
+ * - EDITED: Migrated process.env.REACT_APP_ to process.env.NEXT_PUBLIC_ for Next.js compatibility.
  */
 import axios from 'axios';
 
-export const BASE_URL = process.env.REACT_APP_API_URL || 'https://backend.treishvaamgroup.com';
+export const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
 export const API_URL = BASE_URL;
 
 const api = axios.create({
