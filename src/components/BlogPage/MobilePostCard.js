@@ -1,10 +1,16 @@
 // src/components/BlogPage/MobilePostCard.js
 import React, { memo, forwardRef } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import { formatDateTime } from '../../utils/blogUtils';
 import { FaClock } from 'react-icons/fa';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Mobile layout for Blog Page.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false, isHero = false }, ref) => {
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryName = article.category?.name || 'News';
@@ -13,11 +19,10 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
 
     const thumbnail = article.thumbnails && article.thumbnails.length > 0 ? article.thumbnails[0] : null;
 
-    // --- VIEW 1: HERO CARD (Cinematic 16:9) ---
     if (isHero) {
         return (
             <div ref={ref} className="relative w-full aspect-video overflow-hidden bg-slate-900 group shadow-md mb-2">
-                <Link to={postLink} aria-label={article.title} className="block w-full h-full relative">
+                <Link href={postLink} aria-label={article.title} className="block w-full h-full relative">
                     {thumbnail ? (
                         <ResponsiveAuthImage
                             baseName={thumbnail.imageUrl}
@@ -32,10 +37,8 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
                         </div>
                     )}
 
-                    {/* Gradient Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
 
-                    {/* Text Content */}
                     <div className="absolute bottom-0 left-0 right-0 p-4 flex flex-col justify-end">
                         <div className="flex items-center gap-2 mb-1.5">
                             <span onClick={(e) => { e.preventDefault(); onCategoryClick(categoryName); }} className="inline-block px-2 py-0.5 bg-sky-600/90 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-widest rounded-sm shadow-sm border border-white/10">
@@ -58,7 +61,6 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
         );
     }
 
-    // --- VIEW 2: COMPACT LIST CARD ---
     return (
         <div ref={ref} className="p-4 flex gap-4 items-start active:bg-gray-50 dark:active:bg-slate-800 transition-colors border-b border-gray-100 dark:border-slate-800 last:border-0 bg-white dark:bg-slate-900">
             <div className="flex-1 flex flex-col h-full min-h-[5rem]">
@@ -69,7 +71,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
                         </span>
                         {isNew && <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>}
                     </div>
-                    <Link to={postLink}>
+                    <Link href={postLink}>
                         <h3 className="text-[15px] font-bold text-gray-900 dark:text-gray-100 font-serif leading-[1.35] line-clamp-3 mb-1">
                             {article.title}
                         </h3>
@@ -81,7 +83,7 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
             </div>
 
             {thumbnail && (
-                <Link to={postLink} className="w-[90px] h-[65px] flex-shrink-0 rounded bg-gray-100 dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden relative">
+                <Link href={postLink} className="w-[90px] h-[65px] flex-shrink-0 rounded bg-gray-100 dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden relative">
                     <ResponsiveAuthImage
                         baseName={thumbnail.imageUrl}
                         alt={thumbnail.altText || article.title}

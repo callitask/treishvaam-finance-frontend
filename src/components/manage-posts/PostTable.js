@@ -1,8 +1,14 @@
 import React from 'react';
 import { FaEdit, FaTrash, FaCopy, FaEye, FaSort, FaSortUp, FaSortDown, FaPenFancy } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 
+/**
+ * AI-CONTEXT:
+ * Purpose: Table to manage posts.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 const StatusBadge = ({ status }) => {
     const styles = {
         PUBLISHED: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -64,7 +70,7 @@ const PostTable = ({
                     {isDraftView ? 'Start writing a new story to see it here.' : 'Adjust your filters or create new content.'}
                 </p>
                 {isDraftView && (
-                    <Link to="/dashboard/blog/new" className="mt-4 inline-block text-sm font-bold text-sky-600 hover:underline">
+                    <Link href="/dashboard/blog/new" className="mt-4 inline-block text-sm font-bold text-sky-600 hover:underline">
                         Create New Draft
                     </Link>
                 )}
@@ -144,7 +150,7 @@ const PostTable = ({
                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div className="flex items-center justify-end space-x-3">
                                         <Link
-                                            to={`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`}
+                                            href={`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`}
                                             className={`flex items-center gap-1 transition-colors ${isDraftView ? 'text-sky-600 font-bold hover:text-sky-800' : 'text-gray-400 hover:text-sky-600'}`}
                                             title="Edit"
                                         >
@@ -161,7 +167,7 @@ const PostTable = ({
                                         </button>
 
                                         {post.status === 'PUBLISHED' && (
-                                            <a
+                                            <Link
                                                 href={`/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`}
                                                 target="_blank"
                                                 rel="noreferrer"
@@ -169,7 +175,7 @@ const PostTable = ({
                                                 title="View Live"
                                             >
                                                 <FaEye />
-                                            </a>
+                                            </Link>
                                         )}
 
                                         <button

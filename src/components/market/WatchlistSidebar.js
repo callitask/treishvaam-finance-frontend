@@ -2,10 +2,15 @@
 import React, { useEffect, useState } from 'react';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { getQuotesBatch } from '../../apiConfig';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { ArrowUp, ArrowDown, Star, Loader2 } from 'lucide-react';
 
-// NAMED EXPORT (Fixed)
+/**
+ * AI-CONTEXT:
+ * Purpose: Watchlist sidebar for markets.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ */
 export const WatchlistSidebar = () => {
     const { watchlist, toggleWatchlist } = useWatchlist();
     const [quotes, setQuotes] = useState([]);
@@ -68,7 +73,7 @@ export const WatchlistSidebar = () => {
 
                     return (
                         <div key={quote.ticker} className="p-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors group relative">
-                            <Link to={`/market/${encodeURIComponent(quote.ticker)}`} className="flex justify-between items-center">
+                            <Link href={`/market/${encodeURIComponent(quote.ticker)}`} className="flex justify-between items-center block">
                                 <div className="min-w-0 flex-1 pr-4">
                                     <div className="font-bold text-sm text-gray-900 dark:text-white truncate">{quote.ticker}</div>
                                     <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{quote.name}</div>
