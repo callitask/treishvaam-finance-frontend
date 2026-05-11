@@ -4,17 +4,15 @@
  * Scope: Defines the global HTML shell, providers, and shared UI components.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Restored original React MainLayout.js structure/classes to fix design breakage.
- * - EDITED: Moved GlobalMarketTicker down into the <main> container to fix top-bar overlap.
  * - EDITED: Injected Next.js optimized GA4 tracking script securely using NEXT_PUBLIC_ env variables.
- * - EDITED: Re-added @ts-ignore to globals.css import to fix TS compiler build crash.
- * - EDITED: Removed artificial pt-24 lg:pt-32 to fix the gap between Navbar, Ticker, and Category Strip.
+ * - EDITED: Reordered Navbar -> GlobalMarketTicker and removed pt-[140px] to fix massive layout gaps.
  */
 import React from 'react';
 import Script from 'next/script';
 
 // AI-CONTEXT: Bypassing strict TS declaration check for the global stylesheet
 // @ts-ignore
-import './globals.css';
+import '../src/index.css';
 
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
@@ -65,14 +63,16 @@ export default function RootLayout({
             </head>
             <body>
                 <Providers>
-                    <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
+                    <div className="flex flex-col min-h-screen">
+                        {/* 1. Navbar is fixed/sticky at the top */}
                         <Navbar />
-                        {/* Gap Fixed: Removed artificial padding-top, relies natively on DOM flow */}
-                        <main className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8 min-h-screen">
-                            <GlobalMarketTicker />
+                        {/* 2. Ticker flows under Navbar. It will scroll UP and disappear naturally */}
+                        <GlobalMarketTicker />
+                        {/* 3. Main content without artificial padding gaps */}
+                        <main className="flex-grow bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
                             {children}
                         </main>
-                        <Footer className="hidden sm:block" />
+                        <Footer className="" />
                     </div>
                 </Providers>
             </body>

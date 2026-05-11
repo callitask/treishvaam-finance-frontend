@@ -4,7 +4,8 @@
  * Purpose: Legacy CRA page for displaying a single blog/news post.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
- * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
+ * - EDITED: Stripped react-helmet-async entirely to prevent hydration bugs. SEO is handled by Edge SSR wrapper.
+ * - EDITED: Implemented native heading parsing to fix TableOfContents `.filter` crash.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -59,6 +60,22 @@ const SinglePostPage = () => {
         });
     }, [post]);
 
+    // Parse the raw HTML into structured heading objects for TableOfContents
+    const extractedHeadings = useMemo(() => {
+        if (!post || !post.content) return [];
+        const regex = /<h([2-3])([^>]*)>(.*?)<\/h\1>/gi;
+        let match;
+        const headings = [];
+        while ((match = regex.exec(post.content)) !== null) {
+            const level = parseInt(match[1]);
+            const text = match[3].replace(/<[^>]+>/g, '');
+            const idMatch = match[2].match(/id=["']([^"']+)["']/);
+            const id = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            headings.push({ id, text, level });
+        }
+        return headings;
+    }, [post]);
+
     if (loading) {
         return (
             <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
@@ -97,6 +114,7 @@ const SinglePostPage = () => {
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             <ReadingProgressBar targetRef={articleRef} />
+
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
                     <article className="w-full lg:w-[70%]" ref={articleRef}>
@@ -139,7 +157,9 @@ const SinglePostPage = () => {
                     </article>
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            <TableOfContents content={post.content} />
+                            {/* FIX: Replaced content={post.content} with the parsed headings array to prevent .filter crash */}
+                            <TableOfContents headings={extractedHeadings} />
+
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>

@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from '../utils/react-router-shim';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
-import { Helmet } from 'react-helmet-async';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
 
 // Desktop Components
@@ -29,7 +28,8 @@ const MarketSidebar = React.lazy(() => import('../components/BlogPage/MarketSide
  * Purpose: The main landing page / feed of the application.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Removed `GlobalMarketTicker`. The Ticker, Navbar, and Footer are now globally managed by `app/layout.tsx`.
- * - EDITED: Changed sticky offsets. Next.js layout already provides padding, so `top-[92px]` was causing overlap.
+ * - EDITED: Changed sticky offsets. CategoryStrip now uses `top-[92px]` to stack perfectly under the 92px Navbar.
+ * - EDITED: Removed Helmet.
  */
 
 const BlogPage = () => {
@@ -46,10 +46,8 @@ const BlogPage = () => {
     const [categoriesMap, setCategoriesMap] = useState({});
     const [isDataReady, setIsDataReady] = useState(false);
 
-    // --- Mobile Tab State ---
     const [activeTab, setActiveTab] = useState('home');
 
-    // --- Infinite Scroll Logic ---
     const observer = useRef();
     const lastPostElementRef = useCallback(node => {
         if (loading) return;
@@ -62,7 +60,6 @@ const BlogPage = () => {
         if (node) observer.current.observe(node);
     }, [loading, hasMore]);
 
-    // --- Data Fetching ---
     useEffect(() => { setPosts([]); setPage(0); setHasMore(true); }, [selectedCategory, searchTerm]);
 
     useEffect(() => {
@@ -92,23 +89,16 @@ const BlogPage = () => {
             .finally(() => { setLoadingCategories(false); setIsDataReady(true); });
     }, []);
 
-    // --- Filtering ---
     const filteredPosts = useMemo(() => {
         let postsToFilter = posts;
         if (selectedCategory !== "All") { postsToFilter = postsToFilter.filter(p => p.category?.name === selectedCategory); }
         if (searchTerm) { const term = searchTerm.toLowerCase(); postsToFilter = postsToFilter.filter(p => p.title.toLowerCase().includes(term)); }
-        // Ensure standard date sort as baseline before distribution
         return postsToFilter.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     }, [posts, selectedCategory, searchTerm]);
 
-    // --- Layout Logic (New Editorial Distributor) ---
     const { hero, mustRead, briefing, feed } = useMemo(() => {
         return distributeContent(filteredPosts);
     }, [filteredPosts]);
-
-    const pageTitle = "Treishfin · Treishvaam Finance | Financial News & Analysis";
-    const pageDescription = "Stay ahead with the latest financial news, market updates, and expert analysis from Treishvaam Finance.";
-    const canonicalUrl = "https://treishfin.treishvaamgroup.com/";
 
     if (error) {
         return (
@@ -128,7 +118,6 @@ const BlogPage = () => {
         </div>
     );
 
-    // --- FIXED BOTTOM NAVIGATION ---
     const MobileBottomNav = () => (
         <nav className="fixed bottom-0 left-0 right-0 h-[64px] bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-[90] flex justify-around items-center px-2 safe-pb transition-all duration-300">
             {[
@@ -151,123 +140,88 @@ const BlogPage = () => {
     );
 
     return (
-        <>
-            <Helmet>
-                <title>{pageTitle}</title>
-                <meta name="description" content={pageDescription} />
-                <link rel="canonical" href={canonicalUrl} />
-            </Helmet>
-
-            <section className="bg-white min-h-screen font-sans -mx-4 sm:-mx-6 lg:-mx-8">
-                {/* --- DESKTOP LAYOUT --- */}
-                <div className="hidden md:block">
-                    {/* Sticky Category Strip - aligned under the global layout header */}
-                    <div className="sticky top-0 z-30 bg-white border-b border-gray-200">
-                        <CategoryStrip
-                            categories={categories}
-                            selectedCategory={selectedCategory}
-                            setSelectedCategory={setSelectedCategory}
-                            loading={loadingCategories}
-                        />
-                    </div>
-
-                    <div className="container mx-auto px-4 lg:px-6 pt-6 pb-20">
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
-                            {/* LEFT COLUMN: The Briefing */}
-                            <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
-                                <div className="sticky top-[100px] space-y-8">
-                                    <div className="border-b-2 border-black pb-2 mb-4">
-                                        <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
-                                    </div>
-                                    <Suspense fallback={<div className="h-40 bg-gray-50 animate-pulse rounded"></div>}>
-                                        <FeaturedColumn />
-                                    </Suspense>
-                                </div>
-                            </aside>
-
-                            {/* CENTER COLUMN: Main Editorial Feed */}
-                            <div className="lg:col-span-8 xl:col-span-6 order-2 px-0 lg:px-4">
-
-                                {/* 1. HERO SECTION */}
-                                <HeroSection featuredPost={hero} />
-
-                                <div className="flex items-center gap-3 mb-6">
-                                    <span className="w-2 h-8 bg-sky-700"></span>
-                                    <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">Latest Analysis</h2>
-                                </div>
-
-                                {/* 2. SMART GRID (Must Read + Briefs + Standard) */}
-                                <BlogGridDesktop
-                                    mustReadPost={mustRead}
-                                    briefingPosts={briefing}
-                                    feedPosts={feed}
-                                    lastPostElementRef={lastPostElementRef}
-                                    onCategoryClick={setSelectedCategory}
-                                    categoriesMap={categoriesMap}
-                                    loading={loading}
-                                    page={page}
-                                    hasMore={hasMore}
-                                />
-                            </div>
-
-                            {/* RIGHT COLUMN: Market Data */}
-                            <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
-                                <div className="sticky top-[100px] space-y-10">
-                                    <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse rounded"></div>}>
-                                        <MarketSidebar />
-                                    </Suspense>
-                                </div>
-                            </aside>
-                        </div>
-                    </div>
+        <section className="bg-white min-h-screen font-sans -mx-4 sm:-mx-6 lg:-mx-8">
+            <div className="hidden md:block">
+                {/* FIX: Set top-[92px] so it slides up and stops exactly under the Navbar */}
+                <div className="sticky top-[92px] z-30 bg-white border-b border-gray-200 shadow-sm transition-colors duration-300">
+                    <CategoryStrip
+                        categories={categories}
+                        selectedCategory={selectedCategory}
+                        setSelectedCategory={setSelectedCategory}
+                        loading={loadingCategories}
+                    />
                 </div>
 
-                {/* --- MOBILE LAYOUT --- */}
-                <div className="md:hidden pb-20 pt-2">
-                    <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
-                        {activeTab === 'home' && (
-                            <BlogSlideMobile
-                                heroPost={hero}
+                <div className="container mx-auto px-4 lg:px-6 pt-6 pb-20">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                        <aside className="lg:col-span-3 order-1 border-r border-gray-100 pr-6 hidden xl:block">
+                            <div className="sticky top-[160px] space-y-8">
+                                <div className="border-b-2 border-black pb-2 mb-4">
+                                    <h3 className="text-xs font-black text-gray-900 uppercase tracking-widest">The Briefing</h3>
+                                </div>
+                                <Suspense fallback={<div className="h-40 bg-gray-50 animate-pulse rounded"></div>}>
+                                    <FeaturedColumn />
+                                </Suspense>
+                            </div>
+                        </aside>
+
+                        <div className="lg:col-span-8 xl:col-span-6 order-2 px-0 lg:px-4">
+                            <HeroSection featuredPost={hero} />
+                            <div className="flex items-center gap-3 mb-6">
+                                <span className="w-2 h-8 bg-sky-700"></span>
+                                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight font-serif">Latest Analysis</h2>
+                            </div>
+                            <BlogGridDesktop
                                 mustReadPost={mustRead}
                                 briefingPosts={briefing}
                                 feedPosts={feed}
                                 lastPostElementRef={lastPostElementRef}
                                 onCategoryClick={setSelectedCategory}
                                 categoriesMap={categoriesMap}
-                                categories={categories}
-                                selectedCategory={selectedCategory}
-                                setSelectedCategory={setSelectedCategory}
-                                loadingCategories={loadingCategories}
                                 loading={loading}
                                 page={page}
                                 hasMore={hasMore}
                             />
-                        )}
+                        </div>
 
-                        {activeTab === 'markets' && (
-                            <div className="animate-in fade-in duration-200">
-                                <MarketSlideMobile />
+                        <aside className="lg:col-span-4 xl:col-span-3 order-3 border-l border-gray-100 pl-6">
+                            <div className="sticky top-[160px] space-y-10">
+                                <Suspense fallback={<div className="h-64 bg-gray-50 animate-pulse rounded"></div>}>
+                                    <MarketSidebar />
+                                </Suspense>
                             </div>
-                        )}
-
-                        {activeTab === 'briefs' && (
-                            <div className="animate-in fade-in duration-200">
-                                <NewsTabMobile />
-                            </div>
-                        )}
-
-                        {activeTab === 'vision' && (
-                            <div className="animate-in fade-in duration-200">
-                                <VisionPage />
-                            </div>
-                        )}
-                    </Suspense>
-
-                    <MobileBottomNav />
+                        </aside>
+                    </div>
                 </div>
-            </section>
-        </>
+            </div>
+
+            <div className="md:hidden pb-20 pt-2">
+                <Suspense fallback={<div className="p-10 text-center"><div className="w-8 h-8 border-2 border-sky-600 rounded-full animate-spin mx-auto"></div></div>}>
+                    {activeTab === 'home' && (
+                        <BlogSlideMobile
+                            heroPost={hero}
+                            mustReadPost={mustRead}
+                            briefingPosts={briefing}
+                            feedPosts={feed}
+                            lastPostElementRef={lastPostElementRef}
+                            onCategoryClick={setSelectedCategory}
+                            categoriesMap={categoriesMap}
+                            categories={categories}
+                            selectedCategory={selectedCategory}
+                            setSelectedCategory={setSelectedCategory}
+                            loadingCategories={loadingCategories}
+                            loading={loading}
+                            page={page}
+                            hasMore={hasMore}
+                        />
+                    )}
+                    {activeTab === 'markets' && <div className="animate-in fade-in duration-200"><MarketSlideMobile /></div>}
+                    {activeTab === 'briefs' && <div className="animate-in fade-in duration-200"><NewsTabMobile /></div>}
+                    {activeTab === 'vision' && <div className="animate-in fade-in duration-200"><VisionPage /></div>}
+                </Suspense>
+                <MobileBottomNav />
+            </div>
+        </section>
     );
 };
 
