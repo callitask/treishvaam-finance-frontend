@@ -1,14 +1,9 @@
 import React from 'react';
-import { Inter, Merriweather } from 'next/font/google';
 import './globals.css';
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
-
-// AI-CONTEXT: FIXED - Imported as a named export instead of default export
 import { Providers } from './providers';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const merriweather = Merriweather({ subsets: ['latin'], weight: ['300', '400', '700', '900'], variable: '--font-merriweather' });
+import GlobalMarketTicker from '../src/components/market/GlobalMarketTicker';
 
 export const metadata = {
     title: 'Treishvaam Finance | Institutional Financial Intelligence',
@@ -22,15 +17,20 @@ export default function RootLayout({
 }) {
     const theme = 'light';
 
+    // AI-CONTEXT: Restored CRA standard DOM structure without Next.js font overrides.
+    // Restored GlobalMarketTicker and top-padding logic exactly as it was in MainLayout.js.
     return (
-        <html lang="en" className={`${inter.variable} ${merriweather.variable} ${theme}`}>
-            <body className="antialiased font-sans">
+        <html lang="en" className={theme}>
+            <body>
                 <Providers>
-                    <Navbar />
-                    <main className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
-                        {children}
-                    </main>
-                    <Footer />
+                    <div className="flex flex-col min-h-screen">
+                        <GlobalMarketTicker />
+                        <Navbar />
+                        <main className="flex-grow pt-[120px] lg:pt-[140px] bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+                            {children}
+                        </main>
+                        <Footer />
+                    </div>
                 </Providers>
             </body>
         </html>

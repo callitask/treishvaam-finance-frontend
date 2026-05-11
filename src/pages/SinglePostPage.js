@@ -3,10 +3,11 @@
  * AI-CONTEXT:
  * Purpose: Legacy CRA page for displaying a single blog/news post.
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED: Added `"use client";` to bypass Next.js Server Component restrictions on hooks.
+ * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { getPostByUrlId, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
 import { Helmet } from 'react-helmet-async';
@@ -16,7 +17,10 @@ import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
 
 const SinglePostPage = () => {
-    const { id } = useParams();
+    // Next.js hook natively pulls the [id] from the folder structure
+    const params = useParams();
+    const id = params?.id;
+
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -24,14 +28,11 @@ const SinglePostPage = () => {
 
     const articleRef = useRef(null);
 
-    // Fetch Post Data
     useEffect(() => {
         let isMounted = true;
         const fetchPost = async () => {
             setLoading(true);
             try {
-                // If it's a number, it might be the DB ID. We try fetching by URL ID first.
-                // The API endpoint getPostByUrlId handles the business logic.
                 const response = await getPostByUrlId(id);
                 if (isMounted) {
                     setPost(response.data);
@@ -51,7 +52,6 @@ const SinglePostPage = () => {
         }
     }, [id]);
 
-    // Sanitize HTML
     const sanitizedContent = useMemo(() => {
         if (!post || !post.content) return '';
         return DOMPurify.sanitize(post.content, {
@@ -75,7 +75,7 @@ const SinglePostPage = () => {
                 <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-8 rounded-2xl max-w-md text-center border border-red-100 dark:border-red-800">
                     <h2 className="text-2xl font-bold mb-3">Article Not Found</h2>
                     <p className="mb-6 opacity-80">{error}</p>
-                    <Link to="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
+                    <Link href="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
                         <ArrowLeft size={16} className="mr-2" /> Back to Feed
                     </Link>
                 </div>
@@ -83,7 +83,6 @@ const SinglePostPage = () => {
         );
     }
 
-    // Prepare data for rendering
     const categoryName = post.category ? post.category.name : 'Uncategorized';
     const categorySlug = post.category ? post.category.slug : 'general';
     const authorName = post.authorName || 'Treishvaam Editorial';
@@ -91,30 +90,23 @@ const SinglePostPage = () => {
         year: 'numeric', month: 'long', day: 'numeric'
     });
 
-    // SEO & Share Metadata
     const postUrl = typeof window !== 'undefined' ? window.location.href : `https://treishvaamfinance.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
     const coverImageUrl = post.thumbnailUrl
         ? `${API_URL}/api/v1/files/download/${post.thumbnailUrl}`
-        : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200'; // Fallback
+        : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             <ReadingProgressBar targetRef={articleRef} />
-
-            {/* --- DYNAMIC SEO HELMET --- */}
             <Helmet>
                 <title>{`${post.title} | Treishvaam Finance`}</title>
                 <meta name="description" content={post.metaDescription || post.excerpt || `Read ${post.title} on Treishvaam Finance.`} />
                 {post.keywords && <meta name="keywords" content={post.keywords} />}
-
-                {/* Open Graph / Facebook */}
                 <meta property="og:type" content="article" />
                 <meta property="og:url" content={postUrl} />
                 <meta property="og:title" content={post.title} />
                 <meta property="og:description" content={post.metaDescription || post.excerpt} />
                 <meta property="og:image" content={coverImageUrl} />
-
-                {/* Twitter */}
                 <meta property="twitter:card" content="summary_large_image" />
                 <meta property="twitter:url" content={postUrl} />
                 <meta property="twitter:title" content={post.title} />
@@ -123,137 +115,61 @@ const SinglePostPage = () => {
             </Helmet>
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-
                 <div className="flex flex-col lg:flex-row gap-12">
-                    {/* LEFT COLUMN: Main Content */}
                     <article className="w-full lg:w-[70%]" ref={articleRef}>
-
-                        {/* Breadcrumbs */}
                         <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
-                            <Link to="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
+                            <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                             <span>/</span>
                             <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
                         </nav>
-
-                        {/* Article Header */}
                         <header className="mb-8">
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
                                 {post.title}
                             </h1>
-
-                            {/* Meta Bar */}
                             <div className="flex flex-wrap items-center justify-between border-y border-slate-200 dark:border-slate-800 py-4 gap-4">
                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                    <div className="flex items-center font-semibold">
-                                        <User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
-                                        {authorName}
-                                    </div>
-                                    <div className="flex items-center">
-                                        <Calendar className="w-4 h-4 mr-2" />
-                                        {publishDate}
-                                    </div>
-                                    <div className="flex items-center">
-                                        <Clock className="w-4 h-4 mr-2" />
-                                        {post.estimatedReadingTime || 5} min read
-                                    </div>
+                                    <div className="flex items-center font-semibold"><User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />{authorName}</div>
+                                    <div className="flex items-center"><Calendar className="w-4 h-4 mr-2" />{publishDate}</div>
+                                    <div className="flex items-center"><Clock className="w-4 h-4 mr-2" />{post.estimatedReadingTime || 5} min read</div>
                                 </div>
-
-                                {/* Actions */}
                                 <div className="flex items-center gap-3">
-                                    <button
-                                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-                                        title="Save to Bookmarks (Coming Soon)"
-                                    >
-                                        <BookmarkPlus className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => setIsShareModalOpen(true)}
-                                        className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"
-                                    >
-                                        <Share2 className="w-4 h-4 mr-2" /> Share
-                                    </button>
+                                    <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Save to Bookmarks"><BookmarkPlus className="w-5 h-5" /></button>
+                                    <button onClick={() => setIsShareModalOpen(true)} className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"><Share2 className="w-4 h-4 mr-2" /> Share</button>
                                 </div>
                             </div>
                         </header>
-
-                        {/* Cover Image */}
                         {post.thumbnailUrl && (
                             <figure className="mb-10">
-                                <img
-                                    src={coverImageUrl}
-                                    alt={post.thumbnailAltText || post.title}
-                                    className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800"
-                                />
-                                {post.thumbnailAltText && (
-                                    <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
-                                        {post.thumbnailAltText}
-                                    </figcaption>
-                                )}
+                                <img src={coverImageUrl} alt={post.thumbnailAltText || post.title} className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800" />
+                                {post.thumbnailAltText && <figcaption className="text-center text-xs text-slate-500 mt-3 italic">{post.thumbnailAltText}</figcaption>}
                             </figure>
                         )}
-
-                        {/* Article Body */}
-                        <div
-                            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed
-                                prose-headings:font-serif prose-headings:font-bold
-                                prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline
-                                prose-img:rounded-xl prose-img:shadow-sm"
-                            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-                        />
-
-                        {/* Tags */}
+                        <div className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
                         {post.tags && post.tags.length > 0 && (
                             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
-                                    <Tag className="w-4 h-4 mr-2" /> Topics
-                                </h3>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center"><Tag className="w-4 h-4 mr-2" /> Topics</h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {post.tags.map((tag, index) => (
-                                        <span key={index} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors">
-                                            #{tag}
-                                        </span>
-                                    ))}
+                                    {post.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors">#{tag}</span>)}
                                 </div>
                             </div>
                         )}
-
                     </article>
-
-                    {/* RIGHT COLUMN: Sidebar (Sticky) */}
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-
-                            {/* Table of Contents Widget */}
                             <TableOfContents content={post.content} />
-
-                            {/* Newsletter/Subscribe Widget */}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>
                                 <div className="flex flex-col gap-2">
-                                    <input
-                                        type="email"
-                                        placeholder="Enter your email"
-                                        className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
-                                    />
-                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                                        Subscribe
-                                    </button>
+                                    <input type="email" placeholder="Enter your email" className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white" />
+                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">Subscribe</button>
                                 </div>
                             </div>
-
                         </div>
                     </aside>
                 </div>
             </main>
-
-            {/* Modals */}
-            <ShareModal
-                isOpen={isShareModalOpen}
-                onClose={() => setIsShareModalOpen(false)}
-                url={postUrl}
-                title={post.title}
-            />
+            <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} url={postUrl} title={post.title} />
         </div>
     );
 };
