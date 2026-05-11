@@ -2,22 +2,21 @@
 /**
  * AI-CONTEXT:
  * Purpose: Legacy CRA page for displaying a single blog/news post.
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
+ * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getPostByUrlId, API_URL } from '../apiConfig';
 import DOMPurify from 'dompurify';
-import { Helmet } from 'react-helmet-async';
 import { Calendar, User, ArrowLeft, Clock, Share2, Tag, Loader2, BookmarkPlus } from 'lucide-react';
 import ShareModal from '../components/ShareModal';
 import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
 
 const SinglePostPage = () => {
-    // Next.js hook natively pulls the [id] from the folder structure
     const params = useParams();
     const id = params?.id;
 
@@ -98,22 +97,6 @@ const SinglePostPage = () => {
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             <ReadingProgressBar targetRef={articleRef} />
-            <Helmet>
-                <title>{`${post.title} | Treishvaam Finance`}</title>
-                <meta name="description" content={post.metaDescription || post.excerpt || `Read ${post.title} on Treishvaam Finance.`} />
-                {post.keywords && <meta name="keywords" content={post.keywords} />}
-                <meta property="og:type" content="article" />
-                <meta property="og:url" content={postUrl} />
-                <meta property="og:title" content={post.title} />
-                <meta property="og:description" content={post.metaDescription || post.excerpt} />
-                <meta property="og:image" content={coverImageUrl} />
-                <meta property="twitter:card" content="summary_large_image" />
-                <meta property="twitter:url" content={postUrl} />
-                <meta property="twitter:title" content={post.title} />
-                <meta property="twitter:description" content={post.metaDescription || post.excerpt} />
-                <meta property="twitter:image" content={coverImageUrl} />
-            </Helmet>
-
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
                     <article className="w-full lg:w-[70%]" ref={articleRef}>

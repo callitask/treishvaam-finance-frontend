@@ -7,6 +7,7 @@
  * - EDITED: Moved GlobalMarketTicker down into the <main> container to fix top-bar overlap.
  * - EDITED: Injected Next.js optimized GA4 tracking script securely using NEXT_PUBLIC_ env variables.
  * - EDITED: Re-added @ts-ignore to globals.css import to fix TS compiler build crash.
+ * - EDITED: Removed artificial pt-24 lg:pt-32 to fix the gap between Navbar, Ticker, and Category Strip.
  */
 import React from 'react';
 import Script from 'next/script';
@@ -64,12 +65,10 @@ export default function RootLayout({
             </head>
             <body>
                 <Providers>
-                    {/* Restored exact wrapper classes from original MainLayout.js */}
                     <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
                         <Navbar />
-                        {/* Restored exact <main> classes from MainLayout.js + Navbar padding */}
-                        <main className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8 min-h-screen pt-24 lg:pt-32">
-                            {/* Ticker placed inside the container so it doesn't break the top layout */}
+                        {/* Gap Fixed: Removed artificial padding-top, relies natively on DOM flow */}
+                        <main className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8 min-h-screen">
                             <GlobalMarketTicker />
                             {children}
                         </main>

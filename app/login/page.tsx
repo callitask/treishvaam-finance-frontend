@@ -1,21 +1,20 @@
-"use client";
 /**
  * AI-CONTEXT:
- * Purpose: Next.js App Router wrapper for Login page.
+ * Purpose: Next.js SSR Component wrapper for Admin Login.
  * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Wrapped in <Suspense> to fix Next.js 14 useSearchParams CSR bailout build error.
+ * - EDITED: Handled 'noindex' robot tags natively via export metadata.
  */
-import React, { Suspense } from 'react';
 import LoginPage from '../../src/pages/LoginPage';
+import { Metadata } from 'next';
+
+export const metadata: Metadata = {
+    title: 'Treishfin · Admin Login',
+    robots: {
+        index: false,
+        follow: false
+    }
+};
 
 export default function Page() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center text-slate-500">
-                Loading secure login...
-            </div>
-        }>
-            <LoginPage />
-        </Suspense>
-    );
+    return <LoginPage />;
 }

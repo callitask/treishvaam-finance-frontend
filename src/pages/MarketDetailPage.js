@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getMarketData, getQuoteData } from '../apiConfig';
-import { Helmet } from 'react-helmet-async';
 
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
@@ -15,10 +14,10 @@ import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
  * Purpose: Market detail page for specific tickers.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
  */
 const MarketDetailPage = () => {
     const params = useParams();
-    // In Next.js, dynamic routes might return encoded values depending on the request path
     const rawTicker = params?.ticker;
     const ticker = rawTicker ? decodeURIComponent(rawTicker) : null;
 
@@ -88,15 +87,8 @@ const MarketDetailPage = () => {
         );
     }
 
-    const title = quoteData?.name || marketData?.name || ticker;
-
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
-            <Helmet>
-                <title>{`${title} (${ticker}) | Treishvaam Finance`}</title>
-                <meta name="description" content={`Live quote, historical chart, and data for ${title} (${ticker}).`} />
-            </Helmet>
-
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
                 <MarketHero ticker={ticker} quoteData={quoteData} marketData={marketData} />
 

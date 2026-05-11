@@ -15,9 +15,8 @@ const CategoryStrip = ({ categories, selectedCategory, setSelectedCategory, load
     }
 
     return (
-        // CHANGED: Removed sticky, top, and z-index. Now just a normal block.
-        // The sticking is handled by the parent wrapper in BlogPage.js
-        <div className="w-full bg-white border-b border-gray-200">
+        // GAP FIX: Added sticky top-[92px] and z-30 to pin directly under the Navbar
+        <div className="w-full bg-white border-b border-gray-200 sticky top-[92px] z-30 transition-colors duration-300 shadow-sm">
             <div className="container mx-auto px-4">
                 <div className="flex items-center h-12 overflow-x-auto no-scrollbar gap-1">
                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4 flex-shrink-0">

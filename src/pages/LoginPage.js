@@ -2,7 +2,6 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
-import { Helmet } from 'react-helmet-async';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
@@ -11,6 +10,7 @@ import { Loader2 } from 'lucide-react';
  * Purpose: Secure login page wrapper for Keycloak SSO.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED: Removed react-helmet-async entirely. SEO/noindex is now handled server-side by wrapper.
  */
 const LoginPage = () => {
     const { login, auth, loading } = useAuth();
@@ -28,11 +28,6 @@ const LoginPage = () => {
 
     return (
         <div className="min-h-screen hero-silver-gradient flex items-center justify-center p-4">
-            <Helmet>
-                <title>Treishfin · Admin Login</title>
-                <meta name="robots" content="noindex" />
-            </Helmet>
-
             <div className="container mx-auto flex items-center justify-center flex-col text-center">
                 <LazyLoadImage alt="Logo" effect="blur" src="/logo.webp" className="h-24 w-auto mb-6" />
                 <h1 className="text-4xl font-bold header-logo-text mb-4">Treishvaam Finance</h1>
