@@ -134,7 +134,7 @@ const BlogEditorPage = () => {
         if (!title.trim() && !content.trim()) return;
         setSaveStatus('Saving...');
         try {
-            // FIX: Use getHTML() explicitly required by Tiptap.
+            // FIX: Explicitly call getHTML() to support Tiptap extension
             const editorContent = editorRef.current && typeof editorRef.current.getHTML === 'function'
                 ? editorRef.current.getHTML()
                 : content;
@@ -261,7 +261,7 @@ const BlogEditorPage = () => {
 
     const handleAddFromPostClick = () => {
         if (!editorRef.current || typeof editorRef.current.getHTML !== 'function') return;
-        // FIX: Replaced getContents(true) with getHTML()
+        // FIX: Extract content via getHTML() instead of legacy getContents
         const editorContent = editorRef.current.getHTML();
         const parser = new DOMParser();
         const doc = parser.parseFromString(editorContent, 'text/html');
@@ -292,7 +292,7 @@ const BlogEditorPage = () => {
         const formData = new FormData();
         formData.append('title', title);
 
-        // FIX: Replaced getContents(true) with getHTML() to prevent Publishing crash.
+        // FIX: Extract raw HTML output explicitly to ensure payload integrity 
         formData.append('content', editorRef.current.getHTML());
 
         if (version !== null && version !== undefined) formData.append('version', version);

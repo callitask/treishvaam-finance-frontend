@@ -6,7 +6,7 @@
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
  * - EDITED: Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
  * - EDITED: Removed DOMPurify; parsed headings natively for TableOfContents.
- * - EDITED: Replaced `<ReadingProgressBar targetRef={...} />` with explicit `headings`, `activeId`, and `progress` props. Added window scroll listener to dynamically calculate reading progress and track the active heading in view. This resolves crashes on legacy posts and restores UI functionality.
+ * - EDITED: Replaced `<ReadingProgressBar targetRef={...} />` with explicit `headings`, `activeId`, and `progress` props. Added window scroll listener to dynamically calculate reading progress and track the active heading in view.
  * - EDITED: Added `extractedHeadings.length === 0` safety catch to the scroll listener to prevent `reading 'id'` crashes on legacy posts that lack H2/H3 tags.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
@@ -58,7 +58,6 @@ const SinglePostPage = () => {
         return () => { isMounted = false; }
     }, [id]);
 
-    // Parse the raw HTML into structured heading objects for TableOfContents
     const extractedHeadings = useMemo(() => {
         if (!post || !post.content) return [];
         const regex = /<h([2-3])([^>]*)>(.*?)<\/h\1>/gi;
@@ -74,18 +73,15 @@ const SinglePostPage = () => {
         return headings;
     }, [post]);
 
-    // Track scroll progress and active heading
     useEffect(() => {
         const handleScroll = () => {
             if (!articleRef.current) return;
 
-            // 1. Calculate overall reading progress percentage
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            // 2. Determine which heading is currently active in the viewport
             // FIX: Safely handle legacy posts that do not have any sub-headings
             if (!extractedHeadings || extractedHeadings.length === 0) {
                 setActiveId('');
@@ -97,11 +93,9 @@ const SinglePostPage = () => {
                 const element = document.getElementById(heading.id);
                 if (element) {
                     const rect = element.getBoundingClientRect();
-                    // If heading is near the top or passed the top, it's the active section
                     if (rect.top <= 150) {
                         currentActiveId = heading.id;
                     } else {
-                        // Once we find a heading below the threshold, break
                         break;
                     }
                 }
@@ -110,7 +104,6 @@ const SinglePostPage = () => {
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        // Run once on mount to initialize
         handleScroll();
 
         return () => window.removeEventListener('scroll', handleScroll);
