@@ -1,3 +1,9 @@
+# /**
+#  * AI-CONTEXT:
+#  * Purpose: Cloudflare Pages configuration for the Finance Frontend.
+#  * IMMUTABLE CHANGE HISTORY:
+#  * - EDITED: Changed pages_build_output_dir from "out" to ".vercel/output/static" to align with @cloudflare/next-on-pages v1.13.16 edge compiler.
+#  */
 name = "treishvaam-finance-frontend"
-pages_build_output_dir = "out"
+pages_build_output_dir = ".vercel/output/static"
 compatibility_date = "2024-11-20"
