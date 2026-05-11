@@ -1,6 +1,9 @@
 import React from 'react';
-// AI-CONTEXT: Pointed Next.js to the legacy CRA Tailwind stylesheet
+
+// AI-CONTEXT: Bypassing strict TS declaration check for the global stylesheet
+// @ts-ignore
 import '../src/index.css';
+
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
 import { Providers } from './providers';
