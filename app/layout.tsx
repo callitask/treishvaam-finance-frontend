@@ -6,10 +6,15 @@
  * - EDITED: Restored original React MainLayout.js structure/classes to fix design breakage.
  * - EDITED: Moved GlobalMarketTicker down into the <main> container to fix top-bar overlap.
  * - EDITED: Injected Next.js optimized GA4 tracking script securely using NEXT_PUBLIC_ env variables.
+ * - EDITED: Re-added @ts-ignore to globals.css import to fix TS compiler build crash.
  */
 import React from 'react';
 import Script from 'next/script';
+
+// AI-CONTEXT: Bypassing strict TS declaration check for the global stylesheet
+// @ts-ignore
 import './globals.css';
+
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
 import { Providers } from './providers';
