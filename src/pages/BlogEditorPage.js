@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 // REMOVED: import imageCompression from 'browser-image-compression'; 

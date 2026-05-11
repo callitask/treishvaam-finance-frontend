@@ -1,10 +1,15 @@
-import React from 'react';
+/**
+ * AI-CONTEXT:
+ * Purpose: Next.js Server Component wrapper for Market Detail page.
+ * IMMUTABLE CHANGE HISTORY:
+ * - ADDED: Server component wrapper to allow generateStaticParams with static export.
+ */
+import MarketDetailPage from '../../../src/pages/MarketDetailPage';
 
-// AI-CONTEXT: Satisfies the Next.js static export compiler for dynamic Client-Side routes
 export function generateStaticParams() {
     return [];
 }
 
-export default function Layout({ children }: { children: React.ReactNode }) {
-    return <>{children}</>;
+export default function Page() {
+    return <MarketDetailPage />;
 }

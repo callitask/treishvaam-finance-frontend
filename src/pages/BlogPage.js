@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from '../utils/react-router-shim';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
