@@ -1,7 +1,24 @@
 "use client";
 /**
  * AI-CONTEXT:
- * Purpose: Rich text editor component for the Blog/News CMS.
+ *
+ * Purpose:
+ * - Rich text editor component for the Blog/News CMS.
+ *
+ * Scope:
+ * - Tiptap editor initialization, toolbar rendering, and content synchronization.
+ *
+ * Critical Dependencies:
+ * - Frontend: @tiptap/react, @tiptap/starter-kit, and enterprise extensions.
+ *
+ * Security Constraints:
+ * - HTML output must be sanitized downstream by Nginx ModSecurity or the display layer.
+ *
+ * Non-Negotiables:
+ * - Tiptap extensions must be memoized to prevent infinite re-renders or duplicate registrations.
+ *
+ * Change Intent:
+ * - Reconstruct EditorForm to include all missing Enterprise extensions and wrap them in useMemo.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
@@ -11,13 +28,22 @@
  * • Why: Phase 5 Next.js Migration (Library Swap). Resolves Cloudflare Pages build crash caused by missing suneditor dependencies.
  *
  * - EDITED:
- * • Memoized the `extensions` array passed to `useEditor`.
- * • Why: Fixes `Duplicate extension names found: ['link', 'underline']` warnings caused by React Strict Mode/Fast Refresh re-rendering the component and re-registering extensions.
+ * • Wrapped Tiptap `extensions` array inside a `useMemo` hook.
+ * • Re-injected Enterprise extensions (Image, Link, Underline, TextAlign, Color, TextStyle, Youtube).
+ * • Why the edit was required: Fixes the `[tiptap warn]: Duplicate extension names found: ['link', 'underline']` warning triggered by React Strict Mode Fast Refresh.
+ * • What behavior must remain unchanged: All rich formatting capabilities must remain available to the editorial team.
  */
 
 import React, { useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import { Color } from '@tiptap/extension-color';
+import TextStyle from '@tiptap/extension-text-style';
+import Youtube from '@tiptap/extension-youtube';
 
 const MenuBar = ({ editor }) => {
     if (!editor) {
@@ -42,10 +68,39 @@ const MenuBar = ({ editor }) => {
             </button>
             <button
                 type="button"
+                onClick={() => editor.chain().focus().toggleUnderline().run()}
+                className={`px-3 py-1.5 text-sm border rounded shadow-sm transition-colors underline ${editor.isActive('underline') ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'}`}
+            >
+                U
+            </button>
+            <button
+                type="button"
                 onClick={() => editor.chain().focus().toggleStrike().run()}
                 className={`px-3 py-1.5 text-sm border rounded shadow-sm transition-colors line-through ${editor.isActive('strike') ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'}`}
             >
                 S
+            </button>
+            <div className="w-px h-8 bg-slate-300 mx-1"></div>
+            <button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign('left').run()}
+                className={`px-3 py-1.5 text-sm border rounded shadow-sm transition-colors ${editor.isActive({ textAlign: 'left' }) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'}`}
+            >
+                Left
+            </button>
+            <button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign('center').run()}
+                className={`px-3 py-1.5 text-sm border rounded shadow-sm transition-colors ${editor.isActive({ textAlign: 'center' }) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'}`}
+            >
+                Center
+            </button>
+            <button
+                type="button"
+                onClick={() => editor.chain().focus().setTextAlign('right').run()}
+                className={`px-3 py-1.5 text-sm border rounded shadow-sm transition-colors ${editor.isActive({ textAlign: 'right' }) ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'}`}
+            >
+                Right
             </button>
             <div className="w-px h-8 bg-slate-300 mx-1"></div>
             <button
@@ -116,6 +171,13 @@ const EditorForm = ({ content, onContentChange, editorRef, onImageUploadBefore, 
 
     const extensions = useMemo(() => [
         StarterKit,
+        Image,
+        Link.configure({ openOnClick: false }),
+        Underline,
+        TextStyle,
+        Color,
+        TextAlign.configure({ types: ['heading', 'paragraph'] }),
+        Youtube.configure({ inline: false }),
     ], []);
 
     const editor = useEditor({
