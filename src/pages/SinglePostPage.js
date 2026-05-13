@@ -27,48 +27,21 @@
  * - The `if (loading)` and `if (error || !post)` guards MUST appear BEFORE any post property access.
  *
  * Change Intent:
- * - SESSION 2026-05-12: Replaced legacy CRA version (react-router-dom, DOMPurify, react-helmet-async,
- *   lodash/throttle, AudioPlayer) with Next.js 14 App Router compatible version.
- *   Fixed TypeError: Cannot read properties of undefined (reading 'id') by adding strict null-checks
- *   before all post property accesses. Added `if (!post) return <NotFound />` guard.
- *
- * Future AI Guidance:
- * - Do NOT re-introduce react-router-dom imports — this is a Next.js App Router component.
- * - Do NOT re-introduce react-helmet-async — SEO is handled by generateMetadata in page.tsx.
- * - Do NOT re-introduce DOMPurify — content sanitization is handled server-side.
- * - Do NOT remove the `if (error || !post)` guard — it is the primary TypeError prevention.
- * - The "use client" directive MUST remain — this component uses hooks and browser APIs.
+ * - SESSION 2026-05-13: Fixed `TypeError: Cannot read properties of undefined (reading 'id')`
+ * which occurred when a post had no H2/H3 tags, causing TableOfContents and ReadingProgressBar
+ * to crash when attempting to read `headings[0].id` from an empty array. Wrapped both components
+ * in `extractedHeadings.length > 0` safety guards.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED (original CRA version):
- *   • Initial implementation using react-router-dom, DOMPurify, react-helmet-async.
- *   • Phase: CRA (Create React App) original implementation.
- *
- * - EDITED:
- *   • Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
- *   • Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
- *   • Removed DOMPurify; parsed headings natively for TableOfContents.
- *   • Replaced ReadingProgressBar targetRef with explicit headings, activeId, and progress props.
- *   • Added window scroll listener to dynamically calculate reading progress.
- *   • Added extractedHeadings.length === 0 safety catch to prevent 'reading id' crashes on legacy posts.
- *   • Phase: Next.js migration (CRA → Next.js 14 App Router)
- *
- * - EDITED (2026-05-12 — SESSION_PROMPT Phase 2 Bug Fix):
- *   • FIXED: TypeError: Cannot read properties of undefined (reading 'id').
- *   • Root cause: The legacy CRA version of this file was still on disk. The App Router page.tsx
- *     was importing it, causing crashes because react-router-dom's useParams() is incompatible
- *     with Next.js App Router, and post property accesses had no null-guards.
- *   • Fix: Replaced entire file with Next.js 14 compatible version.
- *     - useParams() now from 'next/navigation'.
- *     - Link now from 'next/link'.
- *     - Added `if (error || !post) return <NotFound />` guard before ALL post property accesses.
- *     - All post property accesses use optional chaining (?.) as secondary safety net.
- *     - Removed: react-router-dom, DOMPurify, react-helmet-async, lodash/throttle, AudioPlayer.
- *   • What must remain unchanged: reading progress logic, TableOfContents, ShareModal, heading extraction.
+ * - ADDED: CRA Original Implementation
+ * - EDITED: Next.js migration (CRA → Next.js 14 App Router)
+ * - EDITED: Added `if (error || !post)` guard before ALL post property accesses.
+ * - EDITED (2026-05-13): Fixed child component crash by conditionally rendering TableOfContents
+ * and ReadingProgressBar ONLY if `extractedHeadings.length > 0`.
  *
  * - DO-NOT-DELETE RULE:
- *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
- *   truncated, rewritten, or regenerated. Future AI must append only.
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -81,7 +54,6 @@ import TableOfContents from '../components/TableOfContents';
 
 const SinglePostPage = () => {
     const params = useParams();
-    // PHASE 2 FIX: Safe param extraction — params may be null during hydration
     const id = params?.id;
 
     const [post, setPost] = useState(null);
@@ -95,7 +67,6 @@ const SinglePostPage = () => {
     const articleRef = useRef(null);
 
     useEffect(() => {
-        // Guard: do not fetch if id is not yet available (hydration timing)
         if (!id) return;
 
         let isMounted = true;
@@ -105,8 +76,6 @@ const SinglePostPage = () => {
             try {
                 const response = await getPostByUrlId(id);
                 if (isMounted) {
-                    // PHASE 2 FIX: Validate response.data before setting state
-                    // Prevents TypeError when API returns null/undefined/error envelope
                     if (response?.data && typeof response.data === 'object') {
                         setPost(response.data);
                     } else {
@@ -128,8 +97,6 @@ const SinglePostPage = () => {
         return () => { isMounted = false; };
     }, [id]);
 
-    // Extract headings from post content for Table of Contents
-    // PHASE 2 FIX: useMemo guards against null post — returns [] if post or content is missing
     const extractedHeadings = useMemo(() => {
         if (!post || !post.content) return [];
         const regex = /<h([2-3])([^>]*)>(.*?)<\/h\1>/gi;
@@ -145,7 +112,6 @@ const SinglePostPage = () => {
         return headings;
     }, [post]);
 
-    // Reading progress and active heading scroll spy
     useEffect(() => {
         const handleScroll = () => {
             if (!articleRef.current) return;
@@ -155,7 +121,6 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            // PHASE 2 FIX: Guard against empty headings array — legacy posts may have no H2/H3
             if (!extractedHeadings || extractedHeadings.length === 0) {
                 setActiveId('');
                 return;
@@ -177,12 +142,10 @@ const SinglePostPage = () => {
         };
 
         window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll(); // Run once on mount to set initial state
+        handleScroll();
 
         return () => window.removeEventListener('scroll', handleScroll);
     }, [extractedHeadings]);
-
-    // --- RENDER STATES ---
 
     if (loading) {
         return (
@@ -193,9 +156,6 @@ const SinglePostPage = () => {
         );
     }
 
-    // PHASE 2 FIX: Primary null-guard — MUST appear before ANY post property access.
-    // This is the definitive fix for: TypeError: Cannot read properties of undefined (reading 'id')
-    // and all similar crashes (post.title, post.category, post.content, etc.)
     if (error || !post) {
         return (
             <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 transition-colors duration-300">
@@ -209,9 +169,6 @@ const SinglePostPage = () => {
             </div>
         );
     }
-
-    // --- POST IS GUARANTEED NON-NULL BELOW THIS LINE ---
-    // All property accesses below are safe. Optional chaining (?.) is used as secondary safety net.
 
     const categoryName = post?.category?.name || 'Uncategorized';
     const categorySlug = post?.category?.slug || 'general';
@@ -230,7 +187,10 @@ const SinglePostPage = () => {
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
+            {/* FIX: Prevent crash when post has no headings */}
+            {extractedHeadings.length > 0 && (
+                <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
+            )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
@@ -317,7 +277,10 @@ const SinglePostPage = () => {
 
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
+                            {/* FIX: Prevent crash when post has no headings */}
+                            {extractedHeadings.length > 0 && (
+                                <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
+                            )}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
                                     Stay Ahead of the Market

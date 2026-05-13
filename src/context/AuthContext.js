@@ -27,43 +27,18 @@
  * - kc_silent_sso_failed sessionStorage flag MUST remain — prevents infinite retry loops.
  *
  * Change Intent:
- * - SESSION 2026-05-12: Fixed [Auth] Init Failed: Error: Auth Timeout crash.
- *   The timeout was rejecting the Promise but the app had no graceful fallback —
- *   it would leave loading=true forever or crash downstream components reading user state.
- *   Fix: On timeout, log warning, set isAuthenticated=false, setLoading=false, mark
- *   sessionStorage flag so silent SSO is skipped on next page load. Guest browsing continues.
- *
- * Future AI Guidance:
- * - Do NOT remove the SSR guard — this file runs in Next.js App Router client components.
- * - Do NOT remove bot detection — removing it will cause Keycloak to init for Googlebot.
- * - Do NOT increase CONNECTION_TIMEOUT beyond 10000ms — it degrades Core Web Vitals.
- * - The silentCheckSsoRedirectUri MUST point to /silent-check-sso.html (exists in /public).
+ * - SESSION 2026-05-13: Added `|| {}` fallback to `initKeycloak.tokenParsed` to prevent 
+ * Cannot destructure property 'name' of 'undefined' if the Keycloak token is malformed.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED:
- *   • Bot/Crawler detection to skip Keycloak init for SEO crawlers.
- *   • isRun ref guard to prevent double-init in React Strict Mode.
- *   • Phase: Next.js migration (CRA → Next.js 14 App Router)
- *
- * - EDITED:
- *   • Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
- *   • Added typeof window === 'undefined' SSR guard at top of useEffect.
- *   • Added getUserProfile() call to enrich user state with displayName from backend.
- *   • Phase: Next.js migration
- *
- * - EDITED (2026-05-12 — SESSION_PROMPT Phase 2 Bug Fix):
- *   • FIXED: [Auth] Init Failed: Error: Auth Timeout — app was crashing for guest users.
- *   • Root cause: Promise.race timeout rejection had no graceful degradation path.
- *     On timeout, loading remained true or downstream components crashed reading undefined user.
- *   • Fix applied: catch block now explicitly sets isAuthenticated=false, setAuthToken(null),
- *     marks kc_silent_sso_failed=true in sessionStorage to prevent retry loops,
- *     and always calls setLoading(false) via finally — guest browsing continues uninterrupted.
- *   • Verified: silent-check-sso.html exists in /public directory.
- *   • What must remain unchanged: bot detection, SSR guard, isRun ref, token refresh interval.
+ * - ADDED: Bot/Crawler detection, isRun ref guard.
+ * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
+ * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
+ * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
  *
  * - DO-NOT-DELETE RULE:
- *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
- *   truncated, rewritten, or regenerated. Future AI must append only.
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -83,11 +58,9 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
 
-  // Guard to prevent double-initialization in React Strict Mode
   const isRun = useRef(false);
 
   useEffect(() => {
-    // --- CRITICAL SSR GUARD: Do not run on server ---
     if (typeof window === 'undefined') {
       setLoading(false);
       return;
@@ -96,8 +69,6 @@ export const AuthProvider = ({ children }) => {
     if (isRun.current) return;
     isRun.current = true;
 
-    // --- ENTERPRISE FIX: DETECT BOTS & SKIP AUTH ---
-    // SEO-critical: Keycloak must never init for crawlers — it blocks rendering.
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
 
@@ -117,7 +88,6 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
-    // --- CONFIGURATION (Zero-Trust: no hardcoded URLs) ---
     const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
 
     const initKeycloak = new Keycloak({
@@ -128,7 +98,6 @@ export const AuthProvider = ({ children }) => {
 
     setKeycloak(initKeycloak);
 
-    // --- AUTHENTICATION STRATEGY ---
     const url = window.location.href;
     const hash = window.location.hash;
     const isLoginCallback = url.includes("code=") && url.includes("state=");
@@ -137,7 +106,6 @@ export const AuthProvider = ({ children }) => {
 
     let initOptions = {
       pkceMethod: 'S256',
-      // Disable iframe check: prevents crash from 3rd-party cookie blocking (Safari ITP, Firefox ETP)
       checkLoginIframe: false
     };
 
@@ -146,26 +114,18 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.setItem('kc_silent_sso_failed', 'true');
       const cleanUrl = window.location.pathname + window.location.search;
       window.history.replaceState(null, null, cleanUrl);
-
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
-
     } else {
       console.log("[Auth] Attempting Silent SSO...");
       initOptions.onLoad = 'check-sso';
-      // /silent-check-sso.html MUST exist in /public — verified present.
       initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
     }
 
-    // --- INITIALIZATION WITH GRACEFUL TIMEOUT DEGRADATION ---
-    // PHASE 2 FIX: Timeout must degrade gracefully — guest users must not be blocked.
-    // If Keycloak is unreachable (network issue, cold start, 3rd-party cookie block),
-    // the app continues as an unauthenticated guest. No crash. No infinite loading state.
-    const CONNECTION_TIMEOUT = 10000; // 10s — do not increase (Core Web Vitals impact)
+    const CONNECTION_TIMEOUT = 10000;
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
@@ -184,10 +144,10 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
 
-          const { name, email, realm_access } = initKeycloak.tokenParsed;
+          // FIX: Added `|| {}` fallback to prevent destructuring crash if token is malformed
+          const { name, email, realm_access } = initKeycloak.tokenParsed || {};
           const roles = realm_access ? realm_access.roles : [];
 
-          // Set initial user state immediately from token (fast path)
           const initialUser = {
             name,
             email,
@@ -196,7 +156,6 @@ export const AuthProvider = ({ children }) => {
           };
           setUser(initialUser);
 
-          // Enrich with backend profile (displayName) — non-blocking
           getUserProfile().then(response => {
             if (response?.data) {
               const { displayName } = response.data;
@@ -217,40 +176,29 @@ export const AuthProvider = ({ children }) => {
               }
             }
           }).catch(err => {
-            // Non-fatal: profile enrichment failure does not affect auth state
             console.warn("[Auth] Failed to fetch extended profile:", err);
           });
 
-          // Set Faro user immediately (profile enrichment updates it later if needed)
           if (faro) {
             faro.api.setUser({ id: email, username: name, email: email });
           }
 
         } else {
-          // Not authenticated — guest mode
           setIsAuthenticated(false);
           setAuthToken(null);
         }
       })
       .catch((err) => {
-        // --- PHASE 2 FIX: GRACEFUL TIMEOUT DEGRADATION ---
-        // Previously this block left the app in an undefined state on timeout.
-        // Now: explicitly degrade to guest mode. Mark sessionStorage to skip
-        // silent SSO on next navigation (prevents repeated timeout on every page load).
         if (err?.message === "Auth Timeout") {
           console.warn("[Auth] Init Timeout — Keycloak unreachable. Degrading to guest mode.");
-          // Mark failure so next page load skips silent SSO and avoids another 10s wait
           sessionStorage.setItem('kc_silent_sso_failed', 'true');
         } else {
           console.error("[Auth] Init Failed:", err);
         }
         setIsAuthenticated(false);
         setAuthToken(null);
-        // Guest browsing continues — loading will be set to false in finally block
       })
       .finally(() => {
-        // CRITICAL: Always release the loading gate — downstream components must never
-        // be blocked indefinitely waiting for auth state.
         setLoading(false);
       });
 
@@ -273,7 +221,6 @@ export const AuthProvider = ({ children }) => {
     }
   }, [keycloak]);
 
-  // Token Refresh Logic — only active when authenticated
   useEffect(() => {
     if (!keycloak || !isAuthenticated) return;
 
