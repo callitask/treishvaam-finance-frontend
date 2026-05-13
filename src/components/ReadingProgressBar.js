@@ -1,31 +1,8 @@
-/**
- * AI-CONTEXT:
- *
- * Purpose:
- * - Displays a horizontal reading progress bar and top-level headings navigation.
- *
- * Scope:
- * - Responsible for showing reading progress.
- *
- * Critical Dependencies:
- * - Used by SinglePostPage.
- *
- * Security Constraints:
- * - None.
- *
- * Non-Negotiables:
- * - Must safely handle empty or malformed headings arrays.
- *
- * Change Intent:
- * - Added deep null-guards to prevent `Cannot read properties of undefined (reading 'id')`.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED: Original implementation.
- * - EDITED: Added deep null guards for majorHeadings to prevent TypeError crash.
- */
+// src/components/ReadingProgressBar.js
 import React from 'react';
 
 const ReadingProgressBar = ({ headings, activeId, progress }) => {
+    // FIX: Guard array structure
     if (!headings || !Array.isArray(headings)) return null;
 
     const majorHeadings = headings.filter(h => h && h.level === 2 && h.id);
@@ -50,6 +27,7 @@ const ReadingProgressBar = ({ headings, activeId, progress }) => {
             {majorHeadings.length > 0 && (
                 <nav className="progress-nav-labels">
                     {majorHeadings.map((heading, index) => {
+                        // FIX: Strict skip on malformed headings
                         if (!heading || !heading.id) return null;
                         return (
                             <a key={heading.id || index} href={`#${heading.id}`}

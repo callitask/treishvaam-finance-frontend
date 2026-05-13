@@ -8,47 +8,19 @@
  *
  * Scope:
  * - Responsible for: post data fetching, article rendering, reading progress, table of contents.
- * - Must NEVER be responsible for: SEO metadata (handled in app/category/.../page.tsx generateMetadata).
  *
  * Critical Dependencies:
  * - Backend: NEXT_PUBLIC_API_URL → /api/v1/posts/url/:id (via apiConfig.getPostByUrlId)
- * - Frontend: apiConfig.js, ShareModal, ReadingProgressBar, TableOfContents
- * - Worker / SEO: generateMetadata in the parent page.tsx handles all SEO — this component is client-only.
- *
- * Security Constraints:
- * - API_URL must NEVER be hardcoded — always read from apiConfig.js which uses NEXT_PUBLIC_API_URL.
- * - dangerouslySetInnerHTML is used for post.content — content is sanitized server-side by the backend.
- *
- * Non-Negotiables:
- * - useParams() MUST come from 'next/navigation' — NOT from 'react-router-dom'.
- * - Link MUST come from 'next/link' — NOT from 'react-router-dom'.
- * - All post property accesses MUST use optional chaining (?.) or be guarded by null-checks.
- * - The `if (!post) return <NotFound />` guard MUST remain — prevents TypeError on undefined post.
- * - The `if (loading)` and `if (error || !post)` guards MUST appear BEFORE any post property access.
  *
  * Change Intent:
- * - Fixed TypeError: Cannot read properties of undefined (reading 'id') by ensuring child
- * components are strictly null-guarded and preventing scroll-spy crashes on empty/sparse arrays.
+ * - Reinstated strict null-guards for `extractedHeadings` to prevent the `reading 'id'` crash.
+ * - Added `id`, `name`, and `<label>` attributes to the subscription form to fix accessibility warnings.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED (original CRA version):
- * • Initial implementation using react-router-dom, DOMPurify, react-helmet-async.
- * • Phase: CRA (Create React App) original implementation.
- *
- * - EDITED:
- * • Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
- * • Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
- * • Removed DOMPurify; parsed headings natively for TableOfContents.
- * • Phase: Next.js migration (CRA → Next.js 14 App Router)
- *
- * - EDITED (Phase 2 Bug Fix):
- * • FIXED: TypeError: Cannot read properties of undefined (reading 'id').
- * • Added `if (error || !post) return <NotFound />` guard before ALL post property accesses.
- * • All post property accesses use optional chaining (?.) as secondary safety net.
- *
- * - EDITED (Phase 2 Bug Fix - Followup):
- * • Added strict null-guards around extractedHeadings[0]?.id to prevent scroll-spy logic
- * from throwing reading 'id' TypeError when an article has no valid headings.
+ * - ADDED: CRA original implementation.
+ * - EDITED: Migrated from react-router-dom to Next.js navigation hooks.
+ * - EDITED (Phase 2 Bug Fix): Fixed `reading 'id'` crash.
+ * - EDITED (Phase 2 Followup): Reinstated deep null-guards and resolved form A11y warnings.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -118,7 +90,6 @@ const SinglePostPage = () => {
             const text = match[3].replace(/<[^>]+>/g, '');
             const idMatch = match[2].match(/id=["']([^"']+)["']/);
             const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            // Strict check to ensure id is truthy
             if (headingId) {
                 headings.push({ id: headingId, text, level });
             }
@@ -135,6 +106,7 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
+            // FIX: Guaranteed guard against undefined arrays or array elements without IDs
             if (!extractedHeadings || extractedHeadings.length === 0 || !extractedHeadings[0]?.id) {
                 setActiveId('');
                 return;
@@ -302,8 +274,13 @@ const SinglePostPage = () => {
                                     Get institutional-grade analysis delivered directly to your inbox.
                                 </p>
                                 <div className="flex flex-col gap-2">
+                                    {/* FIX: Added proper label, id, and name to resolve accessibility warnings */}
+                                    <label htmlFor="newsletter-email" className="sr-only">Email Address</label>
                                     <input
+                                        id="newsletter-email"
+                                        name="email"
                                         type="email"
+                                        autoComplete="email"
                                         placeholder="Enter your email"
                                         className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                     />

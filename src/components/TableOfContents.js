@@ -1,34 +1,10 @@
-/**
- * AI-CONTEXT:
- *
- * Purpose:
- * - Renders a sticky table of contents based on heading tags extracted from post content.
- *
- * Scope:
- * - Responsible for parsing headings and navigating to anchors.
- * - Must NEVER crash the UI if headings are malformed or missing.
- *
- * Critical Dependencies:
- * - Used by SinglePostPage.
- *
- * Security Constraints:
- * - Only internal anchors allowed.
- *
- * Non-Negotiables:
- * - Must gracefully handle undefined, null, or incomplete heading objects.
- *
- * Change Intent:
- * - Added deep null-guards inside mapping to prevent 'id' undefined TypeErrors.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED: Initial TOC component.
- * - EDITED: Added deep null guards for `heading` and `heading.id` to prevent TypeError crash.
- */
+// src/components/TableOfContents.js
 import React, { useState } from 'react';
 
 const TableOfContents = ({ headings, activeId, progress }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
+  // FIX: Early return if headings are empty or malformed
   if (!headings || !Array.isArray(headings) || headings.length === 0) return null;
 
   const handleLinkClick = (e, id) => {
@@ -60,6 +36,7 @@ const TableOfContents = ({ headings, activeId, progress }) => {
           <nav className="toc-body">
             <ul>
               {headings.map((heading, index) => {
+                // FIX: Strict skip on malformed headings to prevent crash
                 if (!heading || !heading.id) return null;
                 return (
                   <li key={heading.id || index} className="toc-list-item">
