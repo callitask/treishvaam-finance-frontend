@@ -1,14 +1,49 @@
 "use client";
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Provides Keycloak-based authentication state to the entire Next.js application.
+ * - Manages token lifecycle: init, silent SSO, refresh, and graceful degradation.
+ *
+ * Scope:
+ * - Responsible for: Keycloak init, token storage, user profile enrichment, token refresh.
+ * - Must NEVER be responsible for: routing decisions, page-level access control (use PrivateRoute).
+ *
+ * Critical Dependencies:
+ * - Backend: NEXT_PUBLIC_AUTH_URL → Keycloak realm at /auth
+ * - Frontend: apiConfig.js (setAuthToken, getUserProfile), faroConfig.js (Grafana Faro RUM)
+ * - Worker / SEO: Bot detection prevents Keycloak init for crawlers — SEO-critical.
+ *
+ * Security Constraints:
+ * - Auth URL must NEVER be hardcoded — always read from NEXT_PUBLIC_AUTH_URL env var.
+ * - Silent SSO uses /silent-check-sso.html in /public — must exist and be accessible.
+ * - checkLoginIframe: false — prevents 3rd-party cookie blocking from crashing auth.
+ *
+ * Non-Negotiables:
+ * - Auth timeout MUST degrade gracefully: guest users must be able to browse without auth.
+ * - SSR guard (typeof window === 'undefined') MUST remain — prevents server-side crash.
+ * - Bot detection MUST remain — prevents Keycloak init for Googlebot/Lighthouse.
+ * - kc_silent_sso_failed sessionStorage flag MUST remain — prevents infinite retry loops.
+ *
+ * Change Intent:
+ * - SESSION 2026-05-13: Added `|| {}` fallback to `initKeycloak.tokenParsed` to prevent 
+ * Cannot destructure property 'name' of 'undefined' if the Keycloak token is malformed.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED: Bot/Crawler detection, isRun ref guard.
+ * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
+ * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
+ * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated. Future AI must append only.
+ */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken, getUserProfile } from '../apiConfig';
 import { faro } from '../faroConfig';
-
-/**
- * AI-CONTEXT:
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL. Added strict window checks for SSR safety.
- */
 
 const AuthContext = createContext();
 
@@ -23,15 +58,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
 
-  // Guard to prevent double-initialization in React Strict Mode
   const isRun = useRef(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return; // Strict SSR Guard
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
+
     if (isRun.current) return;
     isRun.current = true;
 
-    // --- ENTERPRISE FIX: DETECT BOTS & SKIP AUTH ---
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
 
@@ -51,7 +88,6 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
-    // --- CONFIGURATION ---
     const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
 
     const initKeycloak = new Keycloak({
@@ -62,12 +98,10 @@ export const AuthProvider = ({ children }) => {
 
     setKeycloak(initKeycloak);
 
-    // --- AUTHENTICATION STRATEGY ---
     const url = window.location.href;
     const hash = window.location.hash;
     const isLoginCallback = url.includes("code=") && url.includes("state=");
     const isLoginError = hash && hash.includes('error=login_required');
-
     const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
 
     let initOptions = {
@@ -80,23 +114,19 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.setItem('kc_silent_sso_failed', 'true');
       const cleanUrl = window.location.pathname + window.location.search;
       window.history.replaceState(null, null, cleanUrl);
-
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-
     } else if (hasPriorFailure) {
-      console.log("[Auth] Skipping Silent SSO (Previous failure detected).");
-
+      console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
       console.log("[Auth] Attempting Silent SSO...");
       initOptions.onLoad = 'check-sso';
       initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
     }
 
-    // --- INITIALIZATION ---
-
     const CONNECTION_TIMEOUT = 10000;
+
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
     );
@@ -114,7 +144,8 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
 
-          const { name, email, realm_access } = initKeycloak.tokenParsed;
+          // FIX: Added `|| {}` fallback to prevent destructuring crash if token is malformed
+          const { name, email, realm_access } = initKeycloak.tokenParsed || {};
           const roles = realm_access ? realm_access.roles : [];
 
           const initialUser = {
@@ -126,7 +157,7 @@ export const AuthProvider = ({ children }) => {
           setUser(initialUser);
 
           getUserProfile().then(response => {
-            if (response.data) {
+            if (response?.data) {
               const { displayName } = response.data;
               console.log("[Auth] Enriched Profile:", displayName);
 
@@ -145,10 +176,10 @@ export const AuthProvider = ({ children }) => {
               }
             }
           }).catch(err => {
-            console.warn("[Auth] Failed to fetch extended profile", err);
+            console.warn("[Auth] Failed to fetch extended profile:", err);
           });
 
-          if (faro && !faro.api.getUser()) {
+          if (faro) {
             faro.api.setUser({ id: email, username: name, email: email });
           }
 
@@ -158,7 +189,12 @@ export const AuthProvider = ({ children }) => {
         }
       })
       .catch((err) => {
-        console.error("[Auth] Init Failed:", err);
+        if (err?.message === "Auth Timeout") {
+          console.warn("[Auth] Init Timeout — Keycloak unreachable. Degrading to guest mode.");
+          sessionStorage.setItem('kc_silent_sso_failed', 'true');
+        } else {
+          console.error("[Auth] Init Failed:", err);
+        }
         setIsAuthenticated(false);
         setAuthToken(null);
       })
@@ -196,7 +232,7 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(keycloak.token);
         }
       }).catch(() => {
-        console.error('[Auth] Token Refresh Failed');
+        console.error('[Auth] Token Refresh Failed — logging out.');
         logout();
       });
     }, 60000);

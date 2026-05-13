@@ -1,13 +1,58 @@
 "use client";
 /**
  * AI-CONTEXT:
- * Purpose: Legacy CRA page for displaying a single blog/news post.
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
- * - EDITED: Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
- * - EDITED: Removed DOMPurify; parsed headings natively for TableOfContents.
- * - EDITED: Replaced `<ReadingProgressBar targetRef={...} />` with explicit `headings`, `activeId`, and `progress` props. Added window scroll listener to dynamically calculate reading progress and track the active heading in view.
- * - EDITED: Added `extractedHeadings.length === 0` safety catch to the scroll listener to prevent `reading 'id'` crashes on legacy posts that lack H2/H3 tags.
+ *
+ * Purpose:
+ * - Client-side component for rendering a single blog/news post.
+ * - Fetches post data by URL ID from the backend API and renders the full article view.
+ *
+ * Scope:
+ * - Responsible for: post data fetching, article rendering, reading progress, table of contents.
+ * - Must NEVER be responsible for: SEO metadata (handled in app/category/.../page.tsx generateMetadata).
+ *
+ * Critical Dependencies:
+ * - Backend: NEXT_PUBLIC_API_URL → /api/v1/posts/url/:id (via apiConfig.getPostByUrlId)
+ * - Frontend: apiConfig.js, ShareModal, ReadingProgressBar, TableOfContents
+ * - Worker / SEO: generateMetadata in the parent page.tsx handles all SEO — this component is client-only.
+ *
+ * Security Constraints:
+ * - API_URL must NEVER be hardcoded — always read from apiConfig.js which uses NEXT_PUBLIC_API_URL.
+ * - dangerouslySetInnerHTML is used for post.content — content is sanitized server-side by the backend.
+ *
+ * Non-Negotiables:
+ * - useParams() MUST come from 'next/navigation' — NOT from 'react-router-dom'.
+ * - Link MUST come from 'next/link' — NOT from 'react-router-dom'.
+ * - All post property accesses MUST use optional chaining (?.) or be guarded by null-checks.
+ * - The `if (!post) return <NotFound />` guard MUST remain — prevents TypeError on undefined post.
+ * - The `if (loading)` and `if (error || !post)` guards MUST appear BEFORE any post property access.
+ *
+ * Change Intent:
+ * - Fixed TypeError: Cannot read properties of undefined (reading 'id') by ensuring child
+ * components are strictly null-guarded and preventing scroll-spy crashes on empty/sparse arrays.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED (original CRA version):
+ * • Initial implementation using react-router-dom, DOMPurify, react-helmet-async.
+ * • Phase: CRA (Create React App) original implementation.
+ *
+ * - EDITED:
+ * • Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
+ * • Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
+ * • Removed DOMPurify; parsed headings natively for TableOfContents.
+ * • Phase: Next.js migration (CRA → Next.js 14 App Router)
+ *
+ * - EDITED (Phase 2 Bug Fix):
+ * • FIXED: TypeError: Cannot read properties of undefined (reading 'id').
+ * • Added `if (error || !post) return <NotFound />` guard before ALL post property accesses.
+ * • All post property accesses use optional chaining (?.) as secondary safety net.
+ *
+ * - EDITED (Phase 2 Bug Fix - Followup):
+ * • Added strict null-guards around extractedHeadings[0]?.id to prevent scroll-spy logic
+ * from throwing reading 'id' TypeError when an article has no valid headings.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -33,29 +78,34 @@ const SinglePostPage = () => {
     const articleRef = useRef(null);
 
     useEffect(() => {
+        if (!id) return;
+
         let isMounted = true;
         const fetchPost = async () => {
             setLoading(true);
+            setError(null);
             try {
                 const response = await getPostByUrlId(id);
                 if (isMounted) {
-                    setPost(response.data);
+                    if (response?.data && typeof response.data === 'object') {
+                        setPost(response.data);
+                    } else {
+                        setError("Article not found or returned an invalid response.");
+                    }
                     setLoading(false);
                 }
             } catch (err) {
-                console.error("Failed to fetch post:", err);
+                console.error("[SinglePostPage] Failed to fetch post:", err);
                 if (isMounted) {
-                    setError("Failed to load article. It may have been removed.");
+                    setError("Failed to load article. It may have been removed or the server is unavailable.");
                     setLoading(false);
                 }
             }
         };
 
-        if (id) {
-            fetchPost();
-        }
+        fetchPost();
 
-        return () => { isMounted = false; }
+        return () => { isMounted = false; };
     }, [id]);
 
     const extractedHeadings = useMemo(() => {
@@ -68,7 +118,10 @@ const SinglePostPage = () => {
             const text = match[3].replace(/<[^>]+>/g, '');
             const idMatch = match[2].match(/id=["']([^"']+)["']/);
             const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            headings.push({ id: headingId, text, level });
+            // Strict check to ensure id is truthy
+            if (headingId) {
+                headings.push({ id: headingId, text, level });
+            }
         }
         return headings;
     }, [post]);
@@ -82,14 +135,14 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            // FIX: Safely handle legacy posts that do not have any sub-headings
-            if (!extractedHeadings || extractedHeadings.length === 0) {
+            if (!extractedHeadings || extractedHeadings.length === 0 || !extractedHeadings[0]?.id) {
                 setActiveId('');
                 return;
             }
 
             let currentActiveId = extractedHeadings[0].id;
             for (const heading of extractedHeadings) {
+                if (!heading || !heading.id) continue;
                 const element = document.getElementById(heading.id);
                 if (element) {
                     const rect = element.getBoundingClientRect();
@@ -123,7 +176,7 @@ const SinglePostPage = () => {
             <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 dark:bg-slate-900 px-4 transition-colors duration-300">
                 <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-8 rounded-2xl max-w-md text-center border border-red-100 dark:border-red-800">
                     <h2 className="text-2xl font-bold mb-3">Article Not Found</h2>
-                    <p className="mb-6 opacity-80">{error}</p>
+                    <p className="mb-6 opacity-80">{error || "This article could not be loaded."}</p>
                     <Link href="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
                         <ArrowLeft size={16} className="mr-2" /> Back to Feed
                     </Link>
@@ -132,21 +185,26 @@ const SinglePostPage = () => {
         );
     }
 
-    const categoryName = post.category ? post.category.name : 'Uncategorized';
-    const categorySlug = post.category ? post.category.slug : 'general';
-    const authorName = post.authorName || 'Treishvaam Editorial';
-    const publishDate = new Date(post.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-    });
+    const categoryName = post?.category?.name || 'Uncategorized';
+    const categorySlug = post?.category?.slug || 'general';
+    const authorName = post?.authorName || 'Treishvaam Editorial';
+    const publishDate = post?.createdAt
+        ? new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : 'N/A';
 
-    const postUrl = typeof window !== 'undefined' ? window.location.href : `https://treishvaamfinance.com/category/${categorySlug}/${post.userFriendlySlug}/${post.urlArticleId}`;
-    const coverImageUrl = post.thumbnailUrl
+    const postUrl = typeof window !== 'undefined'
+        ? window.location.href
+        : `https://treishvaamfinance.com/category/${categorySlug}/${post?.userFriendlySlug}/${post?.urlArticleId}`;
+
+    const coverImageUrl = post?.thumbnailUrl
         ? `${API_URL}/api/v1/files/download/${post.thumbnailUrl}`
         : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
+            {extractedHeadings?.length > 0 && (
+                <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
+            )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
@@ -162,48 +220,109 @@ const SinglePostPage = () => {
                             </h1>
                             <div className="flex flex-wrap items-center justify-between border-y border-slate-200 dark:border-slate-800 py-4 gap-4">
                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                    <div className="flex items-center font-semibold"><User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />{authorName}</div>
-                                    <div className="flex items-center"><Calendar className="w-4 h-4 mr-2" />{publishDate}</div>
-                                    <div className="flex items-center"><Clock className="w-4 h-4 mr-2" />{post.estimatedReadingTime || 5} min read</div>
+                                    <div className="flex items-center font-semibold">
+                                        <User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
+                                        {authorName}
+                                    </div>
+                                    <div className="flex items-center">
+                                        <Calendar className="w-4 h-4 mr-2" />
+                                        {publishDate}
+                                    </div>
+                                    <div className="flex items-center">
+                                        <Clock className="w-4 h-4 mr-2" />
+                                        {post?.estimatedReadingTime || 5} min read
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors" title="Save to Bookmarks"><BookmarkPlus className="w-5 h-5" /></button>
-                                    <button onClick={() => setIsShareModalOpen(true)} className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"><Share2 className="w-4 h-4 mr-2" /> Share</button>
+                                    <button
+                                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                                        title="Save to Bookmarks"
+                                    >
+                                        <BookmarkPlus className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={() => setIsShareModalOpen(true)}
+                                        className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"
+                                    >
+                                        <Share2 className="w-4 h-4 mr-2" /> Share
+                                    </button>
                                 </div>
                             </div>
                         </header>
-                        {post.thumbnailUrl && (
+
+                        {post?.thumbnailUrl && (
                             <figure className="mb-10">
-                                <img src={coverImageUrl} alt={post.thumbnailAltText || post.title} className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800" />
-                                {post.thumbnailAltText && <figcaption className="text-center text-xs text-slate-500 mt-3 italic">{post.thumbnailAltText}</figcaption>}
+                                <img
+                                    src={coverImageUrl}
+                                    alt={post?.thumbnailAltText || post?.title || 'Article cover image'}
+                                    className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800"
+                                />
+                                {post?.thumbnailAltText && (
+                                    <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
+                                        {post.thumbnailAltText}
+                                    </figcaption>
+                                )}
                             </figure>
                         )}
-                        <div className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm" dangerouslySetInnerHTML={{ __html: post.content }} />
-                        {post.tags && post.tags.length > 0 && (
+
+                        <div
+                            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm"
+                            dangerouslySetInnerHTML={{ __html: post?.content || '' }}
+                        />
+
+                        {post?.tags && post.tags.length > 0 && (
                             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center"><Tag className="w-4 h-4 mr-2" /> Topics</h3>
+                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                                    <Tag className="w-4 h-4 mr-2" /> Topics
+                                </h3>
                                 <div className="flex flex-wrap gap-2">
-                                    {post.tags.map((tag, index) => <span key={index} className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors">#{tag}</span>)}
+                                    {post.tags.map((tag, index) => (
+                                        <span
+                                            key={index}
+                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                                        >
+                                            #{tag}
+                                        </span>
+                                    ))}
                                 </div>
                             </div>
                         )}
                     </article>
+
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
+                            {extractedHeadings?.length > 0 && (
+                                <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
+                            )}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">Stay Ahead of the Market</h3>
-                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Get institutional-grade analysis delivered directly to your inbox.</p>
+                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
+                                    Stay Ahead of the Market
+                                </h3>
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                                    Get institutional-grade analysis delivered directly to your inbox.
+                                </p>
                                 <div className="flex flex-col gap-2">
-                                    <input type="email" placeholder="Enter your email" className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white" />
-                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">Subscribe</button>
+                                    <input
+                                        type="email"
+                                        placeholder="Enter your email"
+                                        className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                    />
+                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                        Subscribe
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </aside>
                 </div>
             </main>
-            <ShareModal isOpen={isShareModalOpen} onClose={() => setIsShareModalOpen(false)} url={postUrl} title={post.title} />
+
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                url={postUrl}
+                title={post?.title || ''}
+            />
         </div>
     );
 };

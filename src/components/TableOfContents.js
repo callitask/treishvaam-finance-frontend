@@ -1,30 +1,54 @@
-// src/components/TableOfContents.js
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders a sticky table of contents based on heading tags extracted from post content.
+ *
+ * Scope:
+ * - Responsible for parsing headings and navigating to anchors.
+ * - Must NEVER crash the UI if headings are malformed or missing.
+ *
+ * Critical Dependencies:
+ * - Used by SinglePostPage.
+ *
+ * Security Constraints:
+ * - Only internal anchors allowed.
+ *
+ * Non-Negotiables:
+ * - Must gracefully handle undefined, null, or incomplete heading objects.
+ *
+ * Change Intent:
+ * - Added deep null-guards inside mapping to prevent 'id' undefined TypeErrors.
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED: Initial TOC component.
+ * - EDITED: Added deep null guards for `heading` and `heading.id` to prevent TypeError crash.
+ */
 import React, { useState } from 'react';
 
 const TableOfContents = ({ headings, activeId, progress }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  if (!headings || headings.length === 0) return null;
+
+  if (!headings || !Array.isArray(headings) || headings.length === 0) return null;
 
   const handleLinkClick = (e, id) => {
     e.preventDefault();
+    if (!id) return;
     const element = document.getElementById(id);
     if (element) {
-        // Adjust for sticky main navbar height (approx 80px-100px)
-        const yOffset = -90; 
-        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-        window.scrollTo({top: y, behavior: 'smooth'});
+      // Adjust for sticky main navbar height (approx 80px-100px)
+      const yOffset = -90;
+      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+      window.scrollTo({ top: y, behavior: 'smooth' });
     }
   };
 
   return (
-    // UPDATED: Added relative positioning for the progress bar
     <div className="toc-container">
-      {/* NEW: Vertical Progress Bar */}
       <div className="toc-progress-track">
         <div className="toc-progress-fill" style={{ height: `${progress}%` }}></div>
       </div>
 
-      {/* UPDATED: Added left padding to avoid overlapping the progress bar */}
       <div className="pl-5">
         <button onClick={() => setIsExpanded(!isExpanded)} className="toc-header">
           <span>On this page</span>
@@ -35,16 +59,19 @@ const TableOfContents = ({ headings, activeId, progress }) => {
         {isExpanded && (
           <nav className="toc-body">
             <ul>
-              {headings.map((heading) => (
-                <li key={heading.id} className="toc-list-item">
-                  <a href={`#${heading.id}`} 
-                     onClick={(e) => handleLinkClick(e, heading.id)}
-                     className={`toc-link ${activeId === heading.id ? 'active' : ''}`}
-                     style={{ paddingLeft: `${(heading.level - 2) * 0.75 + 0.5}rem` }}>
-                    {heading.text}
-                  </a>
-                </li>
-              ))}
+              {headings.map((heading, index) => {
+                if (!heading || !heading.id) return null;
+                return (
+                  <li key={heading.id || index} className="toc-list-item">
+                    <a href={`#${heading.id}`}
+                      onClick={(e) => handleLinkClick(e, heading.id)}
+                      className={`toc-link ${activeId === heading.id ? 'active' : ''}`}
+                      style={{ paddingLeft: `${(heading.level - 2) * 0.75 + 0.5}rem` }}>
+                      {heading.text || ''}
+                    </a>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
         )}
