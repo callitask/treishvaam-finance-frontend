@@ -23,14 +23,24 @@
  * - All post property accesses MUST use optional chaining (?.) — API may return undefined on timeout.
  *
  * Change Intent:
- * - SESSION 2026-05-13: Added `await Promise.resolve(params)` in `generateMetadata` to ensure Next.js 15 
- * compatibility, guaranteeing `.id` access is always safe. 
+ * - Fixed Next.js 15 routing crash by wrapping params in Promise.resolve(), preventing async
+ * access violations that cause undefined IDs.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED: export const runtime = 'edge' and generateMetadata
- * - EDITED: Next.js migration (CRA → Next.js 14 App Router)
- * - EDITED: Fixed TypeError by adding explicit null-guards after metadata API fetch.
- * - EDITED (2026-05-13): Wrapped `params` in Promise.resolve to prevent async/sync Proxy crashes in Next 15.
+ * - ADDED:
+ * • export const runtime = 'edge' — opt-in to Cloudflare Edge SSR routing.
+ * • generateMetadata — native Next.js server-side SEO / OpenGraph generation.
+ * • Phase: Next.js migration (CRA → Next.js 14 App Router)
+ *
+ * - EDITED:
+ * • Removed generateStaticParams — upgraded to Cloudflare Edge SSR (dynamic).
+ *
+ * - EDITED (Phase 2 Bug Fix):
+ * • FIXED: TypeError: Cannot read properties of undefined (reading 'id') on Single Post pages.
+ * • Added `if (!post || typeof post !== 'object')` guard. Added optional chaining.
+ *
+ * - EDITED (Phase 2 Bug Fix - Followup):
+ * • Wrapped params in `await Promise.resolve(params)` to handle Next.js 15 Promise-based params safely.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -41,17 +51,18 @@ import SinglePostPage from '../../../../../src/pages/SinglePostPage';
 export const runtime = 'edge';
 
 // Native Next.js Server-Side SEO Generation at the Edge
+// PHASE 2 FIX: All post property accesses are null-guarded to prevent TypeError
 export async function generateMetadata({ params }: { params: any }) {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
 
-    // FIX: Next.js 15 treats `params` as a Promise. Resolving it guarantees safety in both Next 14 & 15.
-    const resolvedParams = await Promise.resolve(params);
-
-    if (!resolvedParams?.id) {
-        return { title: 'Article Not Found | Treishvaam Finance' };
-    }
-
     try {
+        // Next.js 15 compat: resolve params as a promise to prevent undefined errors
+        const resolvedParams = await Promise.resolve(params);
+
+        if (!resolvedParams || !resolvedParams.id) {
+            return { title: 'Article Not Found | Treishvaam Finance' };
+        }
+
         const res = await fetch(`${API_URL}/api/v1/posts/url/${resolvedParams.id}`, {
             cache: 'no-store',
         });

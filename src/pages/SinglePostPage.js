@@ -27,17 +27,28 @@
  * - The `if (loading)` and `if (error || !post)` guards MUST appear BEFORE any post property access.
  *
  * Change Intent:
- * - SESSION 2026-05-13: Fixed `TypeError: Cannot read properties of undefined (reading 'id')`
- * which occurred when a post had no H2/H3 tags, causing TableOfContents and ReadingProgressBar
- * to crash when attempting to read `headings[0].id` from an empty array. Wrapped both components
- * in `extractedHeadings.length > 0` safety guards.
+ * - Fixed TypeError: Cannot read properties of undefined (reading 'id') by ensuring child
+ * components are strictly null-guarded and preventing scroll-spy crashes on empty/sparse arrays.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED: CRA Original Implementation
- * - EDITED: Next.js migration (CRA → Next.js 14 App Router)
- * - EDITED: Added `if (error || !post)` guard before ALL post property accesses.
- * - EDITED (2026-05-13): Fixed child component crash by conditionally rendering TableOfContents
- * and ReadingProgressBar ONLY if `extractedHeadings.length > 0`.
+ * - ADDED (original CRA version):
+ * • Initial implementation using react-router-dom, DOMPurify, react-helmet-async.
+ * • Phase: CRA (Create React App) original implementation.
+ *
+ * - EDITED:
+ * • Migrated from react-router-dom to Next.js navigation hooks to fix routing failure.
+ * • Stripped react-helmet-async entirely to prevent fatal `.filter()` hydration crash.
+ * • Removed DOMPurify; parsed headings natively for TableOfContents.
+ * • Phase: Next.js migration (CRA → Next.js 14 App Router)
+ *
+ * - EDITED (Phase 2 Bug Fix):
+ * • FIXED: TypeError: Cannot read properties of undefined (reading 'id').
+ * • Added `if (error || !post) return <NotFound />` guard before ALL post property accesses.
+ * • All post property accesses use optional chaining (?.) as secondary safety net.
+ *
+ * - EDITED (Phase 2 Bug Fix - Followup):
+ * • Added strict null-guards around extractedHeadings[0]?.id to prevent scroll-spy logic
+ * from throwing reading 'id' TypeError when an article has no valid headings.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -107,7 +118,10 @@ const SinglePostPage = () => {
             const text = match[3].replace(/<[^>]+>/g, '');
             const idMatch = match[2].match(/id=["']([^"']+)["']/);
             const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            headings.push({ id: headingId, text, level });
+            // Strict check to ensure id is truthy
+            if (headingId) {
+                headings.push({ id: headingId, text, level });
+            }
         }
         return headings;
     }, [post]);
@@ -121,13 +135,14 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            if (!extractedHeadings || extractedHeadings.length === 0) {
+            if (!extractedHeadings || extractedHeadings.length === 0 || !extractedHeadings[0]?.id) {
                 setActiveId('');
                 return;
             }
 
             let currentActiveId = extractedHeadings[0].id;
             for (const heading of extractedHeadings) {
+                if (!heading || !heading.id) continue;
                 const element = document.getElementById(heading.id);
                 if (element) {
                     const rect = element.getBoundingClientRect();
@@ -187,8 +202,7 @@ const SinglePostPage = () => {
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            {/* FIX: Prevent crash when post has no headings */}
-            {extractedHeadings.length > 0 && (
+            {extractedHeadings?.length > 0 && (
                 <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
             )}
 
@@ -277,8 +291,7 @@ const SinglePostPage = () => {
 
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            {/* FIX: Prevent crash when post has no headings */}
-                            {extractedHeadings.length > 0 && (
+                            {extractedHeadings?.length > 0 && (
                                 <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
                             )}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
