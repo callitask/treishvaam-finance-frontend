@@ -40,7 +40,16 @@
  * • Added `if (!post || typeof post !== 'object')` guard. Added optional chaining.
  *
  * - EDITED (Phase 2 Bug Fix - Followup):
- * • Wrapped params in `await Promise.resolve(params)` to handle Next.js 15 Promise-based params safely.
+ *   • Wrapped params in `await Promise.resolve(params)` to handle Next.js 15 Promise-based params safely.
+ *
+ * - EDITED (2026-05-14 BUG-FINANCE-01 Fix B):
+ *   • Added `headers: { 'X-Tenant-ID': 'finance' }` to the generateMetadata server-side fetch call.
+ *   • Why: This server-side fetch runs at the Edge and bypasses the Cloudflare Worker entirely.
+ *     Without the X-Tenant-ID header, the backend TenantInterceptor falls back to DEFAULT_TENANT="public".
+ *     Posts stored with tenantId="finance" return no data → generateMetadata returns
+ *     { title: 'Article Not Found | Treishvaam Finance' } → page shows "Article Not Found".
+ *   • What behavior must remain unchanged: cache: 'no-store', null-safety guards, optional chaining,
+ *     export const runtime = 'edge', all OpenGraph and Twitter card metadata fields.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -65,6 +74,10 @@ export async function generateMetadata({ params }: { params: any }) {
 
         const res = await fetch(`${API_URL}/api/v1/posts/url/${resolvedParams.id}`, {
             cache: 'no-store',
+            // BUG-FINANCE-01 FIX B: This server-side fetch runs at the Edge and bypasses the
+            // Cloudflare Worker entirely. X-Tenant-ID must be injected here explicitly so the
+            // backend TenantInterceptor resolves to "finance" instead of DEFAULT_TENANT="public".
+            headers: { 'X-Tenant-ID': 'finance' },
         });
 
         if (!res.ok) {

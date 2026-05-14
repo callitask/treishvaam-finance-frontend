@@ -48,8 +48,17 @@
  * • Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
  * • Why: To provide structural hints to search engines for automatic Sitelinks generation below the main search result, following enterprise w3c practices.
  * - EDITED:
- * • Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
- * • Why: To prevent `ERR_QUIC_PROTOCOL_ERROR` crashes during total backend outages. Unhandled Promise Rejections were causing the worker to abruptly drop the edge connection instead of serving the SPA fallback.
+ *   • Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
+ *   • Why: To prevent `ERR_QUIC_PROTOCOL_ERROR` crashes during total backend outages. Unhandled Promise Rejections were causing the worker to abruptly drop the edge connection instead of serving the SPA fallback.
+ * - EDITED (2026-05-14 BUG-FINANCE-01 Fix):
+ *   • Added `enhancedHeaders.set("X-Tenant-ID", "finance")` to the universal header injection block (line ~139).
+ *   • Added `"X-Tenant-ID": "finance"` to the Scenario C blog post SEO fetch headers (line ~521).
+ *   • Why: X-Tenant-ID was completely absent from enhancedHeaders. Backend TenantInterceptor falls back to
+ *     DEFAULT_TENANT="public" when header is missing. Posts stored with tenantId="finance" were invisible,
+ *     causing "Article Not Found" on all blog post pages. The Scenario C direct fetch also bypassed the
+ *     header, causing SEO hydration to fail for the same reason.
+ *   • What behavior must remain unchanged: All geo-location headers, SPA fallback, KV sitemap logic,
+ *     SEO schema injection, API proxy routing.
  */
 
 export default {
@@ -137,6 +146,10 @@ export default {
         enhancedHeaders.set("X-Visitor-Lat", cf.latitude || "0");
         enhancedHeaders.set("X-Visitor-Lon", cf.longitude || "0");
         enhancedHeaders.set("X-Visitor-Device-Colo", cf.colo || "Unknown");
+        // BUG-FINANCE-01 FIX: Inject tenant identity header so backend TenantInterceptor
+        // resolves to "finance" instead of falling back to DEFAULT_TENANT="public".
+        // Without this, all posts stored with tenantId="finance" are invisible to the API.
+        enhancedHeaders.set("X-Tenant-ID", "finance");
 
         const baseEnhancedRequest = new Request(request.url, {
             headers: enhancedHeaders,
@@ -518,7 +531,10 @@ export default {
             // Strategy B: Edge Hydration
             const apiUrl = `${BACKEND_URL}/api/v1/posts/url/${articleId}`;
             try {
-                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
+                // BUG-FINANCE-01 FIX C: X-Tenant-ID must be included in this direct backend fetch.
+                // This fetch bypasses the enhancedHeaders proxy path — without the tenant header,
+                // the backend falls back to DEFAULT_TENANT="public" and returns no post data.
+                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
                 if (!apiResp.ok) return addSecurityHeaders(response);
                 const post = await apiResp.json();
                 const imageUrl = post.coverImageUrl ? `${BACKEND_URL}/api/uploads/${post.coverImageUrl}.webp` : `${FRONTEND_URL}/logo.webp`;

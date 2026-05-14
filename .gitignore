@@ -25,8 +25,17 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
 # Next.js
 .next/
 out/
 
-.next/
+# AI instruction folders & Local Backend — NEVER push to git
+RULES OF ENGAGEMENT & AI INSTRUCTIONS & EDITS/
+BACKEND_CODE_FILES/
+BACKEND CODE FILES/
+HANDOVER_DOCUMENT.md
+HANDOVER_DOCUMENT_TEMPLATE.md
+FINANCE_BUG_ANALYSIS.md
+ARCHITECTURE_QUICKREF.md
+TODO.md
