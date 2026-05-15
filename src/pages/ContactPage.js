@@ -1,3 +1,4 @@
+"use client";
 /**
  * AI-CONTEXT:
  *
@@ -27,6 +28,9 @@
  * - REMOVED (2026-05-15 Next.js Metadata Migration):
  * • Removed `react-helmet-async` and `<Helmet>` block.
  * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/contact/page.tsx`.
+ * * - EDITED (2026-05-15 Next.js Build Fix):
+ * • Added `"use client";` directive at the top of the file.
+ * • Why: `ContactPage` uses React's `useState` hook for form state, which is restricted to Client Components in Next.js 14 App Router.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
