@@ -21,6 +21,13 @@
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks.
  * - EDITED (Phase 2 Bug Fix): Fixed `reading 'id'` crash.
  * - EDITED (Phase 2 Followup): Reinstated deep null-guards and resolved form A11y warnings.
+ * - EDITED (2026-05-15 BUG-SINGLEPOST-01):
+ *   • Root cause: extractedHeadings useMemo was producing objects where `headingId` could be
+ *     an empty string or undefined when heading text was empty or regex group 3 was undefined.
+ *     TableOfContents and ReadingProgressBar then crashed accessing `.id` on undefined elements.
+ *   • Fix: Added triple null-guard: (1) check match[3] exists before processing, (2) only push
+ *     headings where headingId is a non-empty string, (3) added optional chaining throughout.
+ *   • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -80,19 +87,40 @@ const SinglePostPage = () => {
         return () => { isMounted = false; };
     }, [id]);
 
+    // BUG-SINGLEPOST-01 FIX: Triple null-guard on heading extraction
+    // Root cause: match[3] (inner HTML) can be undefined for malformed headings,
+    // and headingId can be empty string after replace() on empty text.
+    // Both cases caused TableOfContents to crash on .id access.
     const extractedHeadings = useMemo(() => {
-        if (!post || !post.content) return [];
+        if (!post || !post.content || typeof post.content !== 'string') return [];
         const regex = /<h([2-3])([^>]*)>(.*?)<\/h\1>/gi;
         let match;
         const headings = [];
-        while ((match = regex.exec(post.content)) !== null) {
-            const level = parseInt(match[1], 10);
-            const text = match[3].replace(/<[^>]+>/g, '');
-            const idMatch = match[2].match(/id=["']([^"']+)["']/);
-            const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-            if (headingId) {
+        try {
+            while ((match = regex.exec(post.content)) !== null) {
+                // Guard 1: match[3] (inner HTML) must exist
+                if (!match[3]) continue;
+
+                const level = parseInt(match[1], 10);
+                const rawInner = match[3];
+                const text = rawInner.replace(/<[^>]+>/g, '').trim();
+
+                // Guard 2: text must be non-empty
+                if (!text) continue;
+
+                const idMatch = match[2] ? match[2].match(/id=["']([^"']+)["']/) : null;
+                const headingId = idMatch
+                    ? idMatch[1]
+                    : text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+                // Guard 3: headingId must be a non-empty string
+                if (!headingId || typeof headingId !== 'string' || headingId.length === 0) continue;
+
                 headings.push({ id: headingId, text, level });
             }
+        } catch (e) {
+            console.error('[SinglePostPage] extractedHeadings error:', e);
+            return [];
         }
         return headings;
     }, [post]);
@@ -274,7 +302,6 @@ const SinglePostPage = () => {
                                     Get institutional-grade analysis delivered directly to your inbox.
                                 </p>
                                 <div className="flex flex-col gap-2">
-                                    {/* FIX: Added proper label, id, and name to resolve accessibility warnings */}
                                     <label htmlFor="newsletter-email" className="sr-only">Email Address</label>
                                     <input
                                         id="newsletter-email"

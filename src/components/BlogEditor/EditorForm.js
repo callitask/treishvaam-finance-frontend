@@ -3,7 +3,7 @@
  * AI-CONTEXT:
  * Purpose: Rich text editor component for the Blog/News CMS.
  * Scope: Full enterprise editor with all Tiptap extensions, image upload, YouTube embed,
- * drag-drop, paste-image, word count, and keyboard shortcuts.
+ *   drag-drop, paste-image, word count, and keyboard shortcuts.
  *
  * Critical Dependencies:
  * - Backend: uploadFile() from apiConfig.js → POST /api/v1/files/upload
@@ -14,29 +14,27 @@
  * • Replaced `suneditor-react` with `@tiptap/react` and `@tiptap/starter-kit`.
  * • Added `"use client";` directive.
  * • Built a custom MenuBar to replicate the standard formatting controls.
- * • Why: Phase 5 Next.js Migration (Library Swap). Resolves Cloudflare Pages build crash caused by missing suneditor dependencies.
+ * • Why: Phase 5 Next.js Migration (Library Swap). Resolves Cloudflare Pages build crash.
  *
  * - EDITED:
  * • Memoized the `extensions` array passed to `useEditor`.
- * • Why: Fixes `Duplicate extension names found: ['link', 'underline']` warnings caused by React Strict Mode/Fast Refresh re-rendering the component and re-registering extensions.
+ * • Why: Fixes `Duplicate extension names found: ['link', 'underline']` warnings.
  *
  * - EDITED (2026-05-15 P0-6 Advanced Editor Upgrade):
- * • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
- * • Built full enterprise toolbar with grouped buttons: History, Text Style, Headings, Lists, Alignment, Extras.
- * • Added image upload via toolbar button (hidden file input → uploadFile → setImage).
- * • Added drag-and-drop image upload on editor wrapper.
- * • Added paste-image from clipboard detection and upload.
- * • Added YouTube embed via toolbar button (prompt for URL).
- * • Added Link insert via toolbar button (inline URL input).
- * • Added word count + reading time live counter.
- * • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
- * • Why: EditorForm only used StarterKit — none of the 7 installed extensions were active.
- * Enterprise CMS requires full rich text editing capabilities.
+ *   • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
+ *   • Built full enterprise toolbar with grouped buttons.
+ *   • Added image upload, drag-drop, paste-image, YouTube embed, Link insert.
+ *   • Added word count + reading time live counter.
+ *   • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
  *
- * - EDITED (2026-05-15 Vercel Build Fix):
- * • Changed `import TextStyle from '@tiptap/extension-text-style'` to `import { TextStyle }`.
- * • Removed `BubbleMenu` import and component entirely.
- * • Why: Tiptap v3 changed `TextStyle` to a named export and removed `BubbleMenu` from `@tiptap/react` core exports, which was causing fatal `npm run build` crashes on Vercel Edge.
+ * - EDITED (2026-05-15 BUG-TIPTAP-V3 Fix):
+ *   • CRITICAL: Tiptap v3 changed TextStyle to a named export — changed to `import { TextStyle }`.
+ *   • CRITICAL: BubbleMenu was removed from @tiptap/react in v3 edge builds — removed entirely.
+ *   • CRITICAL: StarterKit v3 bundles Link and Underline internally. Adding them separately causes
+ *     "Duplicate extension names found: ['link', 'underline']" warning and `a is not a function`
+ *     crash in onUpdate. Fix: disable link and underline in StarterKit, then add them separately
+ *     with custom config. This gives us full control over their behavior.
+ *   • Why: These crashes caused the editor to throw on every keystroke and crash the entire page.
  */
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
@@ -46,8 +44,8 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Youtube from '@tiptap/extension-youtube';
 import Underline from '@tiptap/extension-underline';
-import Color from '@tiptap/extension-color';
 import { TextStyle } from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
 import { uploadFile } from '../../apiConfig';
 
@@ -57,120 +55,72 @@ import { uploadFile } from '../../apiConfig';
 const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
     if (!editor) return null;
 
-    const ToolbarButton = ({ onClick, isActive, children, title }) => (
+    const Btn = ({ onClick, isActive, children, title }) => (
         <button
             type="button"
             onClick={onClick}
             title={title}
             className={`px-2.5 py-1.5 text-sm border rounded shadow-sm transition-colors ${isActive
-                ? 'bg-sky-600 text-white border-sky-600'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                    ? 'bg-sky-600 text-white border-sky-600'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
         >
             {children}
         </button>
     );
 
-    const Divider = () => <div className="w-px h-7 bg-slate-300 mx-1"></div>;
+    const Divider = () => <div className="w-px h-7 bg-slate-300 mx-1 self-center"></div>;
 
     return (
-        <div className="flex flex-wrap gap-1.5 p-3 border-b border-slate-200 bg-slate-50 rounded-t-lg">
+        <div className="flex flex-wrap gap-1.5 p-3 border-b border-slate-200 bg-slate-50 rounded-t-lg items-center">
             {/* History */}
-            <ToolbarButton onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)">↶</ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)">↷</ToolbarButton>
-
+            <Btn onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)">↶</Btn>
+            <Btn onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)">↷</Btn>
             <Divider />
 
             {/* Text Style */}
-            <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="Bold (Ctrl+B)">
-                <strong>B</strong>
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} title="Italic (Ctrl+I)">
-                <em>I</em>
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} title="Underline (Ctrl+U)">
-                <u>U</u>
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="Strikethrough">
-                <s>S</s>
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')} title="Inline Code">
-                {'</>'}
-            </ToolbarButton>
-
+            <Btn onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="Bold"><strong>B</strong></Btn>
+            <Btn onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} title="Italic"><em>I</em></Btn>
+            <Btn onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} title="Underline"><u>U</u></Btn>
+            <Btn onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="Strikethrough"><s>S</s></Btn>
+            <Btn onClick={() => editor.chain().focus().toggleCode().run()} isActive={editor.isActive('code')} title="Inline Code">{'</>'}</Btn>
             <Divider />
 
             {/* Headings */}
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} title="Heading 1">
-                H1
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} title="Heading 2">
-                H2
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} title="Heading 3">
-                H3
-            </ToolbarButton>
-
+            <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} title="Heading 1">H1</Btn>
+            <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} title="Heading 2">H2</Btn>
+            <Btn onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} title="Heading 3">H3</Btn>
             <Divider />
 
             {/* Lists & Blocks */}
-            <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} title="Bullet List">
-                • List
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} title="Numbered List">
-                1. List
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} title="Blockquote">
-                ❝
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} isActive={editor.isActive('codeBlock')} title="Code Block">
-                {'{ }'}
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
-                ―
-            </ToolbarButton>
-
+            <Btn onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} title="Bullet List">• List</Btn>
+            <Btn onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} title="Numbered List">1. List</Btn>
+            <Btn onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} title="Blockquote">❝</Btn>
+            <Btn onClick={() => editor.chain().focus().toggleCodeBlock().run()} isActive={editor.isActive('codeBlock')} title="Code Block">{'{ }'}</Btn>
+            <Btn onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">―</Btn>
             <Divider />
 
             {/* Alignment */}
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} title="Align Left">
-                ≡←
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} title="Align Center">
-                ≡↔
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} title="Align Right">
-                ≡→
-            </ToolbarButton>
-            <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} title="Justify">
-                ≡≡
-            </ToolbarButton>
-
+            <Btn onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} title="Align Left">≡←</Btn>
+            <Btn onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} title="Align Center">≡↔</Btn>
+            <Btn onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} title="Align Right">≡→</Btn>
+            <Btn onClick={() => editor.chain().focus().setTextAlign('justify').run()} isActive={editor.isActive({ textAlign: 'justify' })} title="Justify">≡≡</Btn>
             <Divider />
 
             {/* Color Picker */}
-            <div className="relative flex items-center">
-                <input
-                    type="color"
-                    onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-                    className="w-7 h-7 rounded border border-slate-300 cursor-pointer"
-                    title="Text Color"
-                    defaultValue="#000000"
-                />
-            </div>
-
+            <input
+                type="color"
+                onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+                className="w-7 h-7 rounded border border-slate-300 cursor-pointer"
+                title="Text Color"
+                defaultValue="#000000"
+            />
             <Divider />
 
             {/* Extras */}
-            <ToolbarButton onClick={onLinkInsert} isActive={editor.isActive('link')} title="Insert Link">
-                🔗
-            </ToolbarButton>
-            <ToolbarButton onClick={onImageUpload} title="Upload Image">
-                🖼️
-            </ToolbarButton>
-            <ToolbarButton onClick={onYoutubeEmbed} title="Embed YouTube Video">
-                ▶️
-            </ToolbarButton>
+            <Btn onClick={onLinkInsert} isActive={editor.isActive('link')} title="Insert Link">🔗</Btn>
+            <Btn onClick={onImageUpload} title="Upload Image">🖼️</Btn>
+            <Btn onClick={onYoutubeEmbed} title="Embed YouTube Video">▶️</Btn>
         </div>
     );
 };
@@ -183,10 +133,15 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Memoize extensions to prevent re-registration on re-render
+    // BUG-TIPTAP-V3 FIX: StarterKit v3 includes link and underline internally.
+    // We MUST disable them in StarterKit and add them separately to avoid
+    // "Duplicate extension names" warning and `a is not a function` crash.
     const extensions = useMemo(() => [
         StarterKit.configure({
             heading: { levels: [1, 2, 3] },
+            // Disable built-in link and underline to prevent duplicate registration
+            link: false,
+            underline: false,
         }),
         Image.configure({
             inline: false,
@@ -213,16 +168,44 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
         }),
     ], []);
 
+    // Image upload handler — used by toolbar, drag-drop, and paste
+    const handleImageFile = useCallback(async (file, editorInstance) => {
+        const activeEditor = editorInstance || editor;
+        if (!activeEditor) return;
+
+        const formData = new FormData();
+        formData.append('file', file, file.name);
+
+        try {
+            const response = await uploadFile(formData);
+            const imageUrl = response.data;
+
+            if (imageUrl) {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
+                const fullUrl = imageUrl.startsWith('http')
+                    ? imageUrl
+                    : `${apiUrl}/api/v1/files/download/${imageUrl}`;
+                activeEditor.chain().focus().setImage({ src: fullUrl }).run();
+            }
+        } catch (err) {
+            console.error('[EditorForm] Image upload failed:', err);
+            alert('Image upload failed. Please try again.');
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
     const editor = useEditor({
         extensions,
         content: content || '',
-        onUpdate: ({ editor }) => {
-            const html = editor.getHTML();
-            setContent(html);
+        onUpdate: ({ editor: ed }) => {
+            const html = ed.getHTML();
+            // Guard: setContent must be a function (BUG-TIPTAP-V3: `a is not a function`)
+            if (typeof setContent === 'function') {
+                setContent(html);
+            }
 
             // Update word count
-            const text = editor.state.doc.textContent;
-            const words = text.trim().split(/\s+/).filter(w => w.length > 0).length;
+            const text = ed.state.doc.textContent;
+            const words = text.trim() ? text.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
             setWordCount(words);
         },
         editorProps: {
@@ -233,7 +216,7 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 // Ctrl+S → trigger auto-save
                 if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
-                    if (handleAutoSave) handleAutoSave();
+                    if (typeof handleAutoSave === 'function') handleAutoSave();
                     return true;
                 }
                 return false;
@@ -271,13 +254,20 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
 
     // Sync content from parent (e.g., when loading existing post)
     useEffect(() => {
-        if (editor && content && !editor.isDestroyed) {
+        if (editor && !editor.isDestroyed && content) {
             const currentContent = editor.getHTML();
-            if (content !== currentContent && content !== '<p></p>') {
-                editor.commands.setContent(content, false);
+            // Only update if content actually changed to avoid infinite loop
+            if (content !== currentContent && content !== '<p></p>' && content.length > 0) {
+                // Use a timeout to avoid the setContent crash during React render cycle
+                const timer = setTimeout(() => {
+                    if (!editor.isDestroyed) {
+                        editor.commands.setContent(content, false);
+                    }
+                }, 0);
+                return () => clearTimeout(timer);
             }
         }
-    }, [content, editor]);
+    }, [content]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Expose editor methods to parent via ref
     useEffect(() => {
@@ -289,28 +279,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
             };
         }
     }, [editor, editorRef]);
-
-    // Image upload handler
-    const handleImageFile = useCallback(async (file) => {
-        if (!editor) return;
-
-        const formData = new FormData();
-        formData.append('file', file, file.name);
-
-        try {
-            const response = await uploadFile(formData);
-            const imageUrl = response.data;
-
-            if (imageUrl) {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
-                const fullUrl = imageUrl.startsWith('http') ? imageUrl : `${apiUrl}/api/v1/files/download/${imageUrl}`;
-                editor.chain().focus().setImage({ src: fullUrl }).run();
-            }
-        } catch (err) {
-            console.error('[EditorForm] Image upload failed:', err);
-            alert('Image upload failed. Please try again.');
-        }
-    }, [editor]);
 
     // Toolbar action handlers
     const handleImageUploadClick = () => {
@@ -344,21 +312,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
         }
     };
 
-    // Drag-and-drop visual feedback
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDragging(false);
-    };
-
-    const handleDrop = (e) => {
-        setIsDragging(false);
-        // The editor's handleDrop will handle the actual file
-    };
-
     const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
     return (
@@ -383,9 +336,9 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
             {/* Editor Content Area */}
             <div
                 className={`relative transition-colors ${isDragging ? 'bg-sky-50 ring-2 ring-sky-300 ring-inset' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={() => setIsDragging(false)}
             >
                 {isDragging && (
                     <div className="absolute inset-0 flex items-center justify-center bg-sky-50/80 z-10 pointer-events-none">

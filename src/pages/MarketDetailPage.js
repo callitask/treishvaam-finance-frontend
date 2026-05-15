@@ -88,7 +88,8 @@ const MarketDetailPage = () => {
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
-                <MarketHero ticker={ticker} quoteData={quoteData} marketData={marketData} />
+                {/* BUG-MARKET-DETAIL FIX: MarketHero expects `quote` prop, not `quoteData` */}
+                <MarketHero ticker={ticker} quote={quoteData} marketData={marketData} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <div className="lg:col-span-2 space-y-6">

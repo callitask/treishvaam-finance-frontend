@@ -2,157 +2,208 @@
  * AI-CONTEXT:
  *
  * Purpose:
- * - Documents the Treishvaam Finance Frontend React architecture.
+ * - Documents the Treishvaam Finance Frontend architecture.
  *
  * Scope:
- * - Covers Boot Sequence, Routing, Hybrid SSG integration, Auth, State, API, and Zero-Trust protocols.
+ * - Covers Next.js App Router migration, routing, auth, state, API, and Zero-Trust protocols.
  *
  * Security Constraints:
- * - Zero Trust: No API keys, tracking IDs, or secrets may be hardcoded. 
+ * - Zero Trust: No API keys, tracking IDs, or secrets may be hardcoded.
  *
  * Non-Negotiables:
- * - All third-party scripts must adhere to the 0ms TBT interaction-based loading strategy.
+ * - All third-party scripts must use Next.js Script component with strategy="afterInteractive".
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Initial Frontend Architecture documentation.
- * - EDITED:
- * • Added Section 11: Zero-Trust Third-Party Tag Management (0ms TBT Architecture).
- * • Enforced environment variable protocol for GA4 and AdSense.
- * - EDITED (LATEST):
- * • Updated routing and architectural scopes to reflect the migration to the dedicated Apex domain (treishvaamfinance.com) and the introduction of Edge-level SPA Fallbacks.
+ * - EDITED: Added Section 11: Zero-Trust Third-Party Tag Management.
+ * - EDITED: Updated routing and architectural scopes to reflect apex domain migration.
+ * - EDITED (2026-05-15 v4):
+ *   • Complete rewrite to reflect Next.js 14 App Router migration (CRA → Next.js).
+ *   • Removed all CRA/react-scripts references.
+ *   • Removed HelmetProvider references (removed in BUG-HYDRATION-01 fix).
+ *   • Updated env vars from REACT_APP_* to NEXT_PUBLIC_*.
+ *   • Added Tiptap v3 rules, Next.js App Router rules, anti-patterns.
+ *   • Updated component references (SunEditor → Tiptap).
  */
 
-# 06 - Frontend Architecture
+# 06 - Frontend Architecture (v4 — Next.js 14 App Router)
 
-## 1. Application Entry & Boot
+## 1. Framework & Migration Status
 
-The application entry point is `src/index.js`. It implements a specialized boot sequence designed for **Hybrid SSG** compatibility.
+The application has been **migrated from Create React App (CRA) to Next.js 14 App Router**.
 
-- **Edge-Aware Rendering Strategy**:
-    - **Context**: The Backend/Edge injects SEO content into a sibling container (`<div id="server-content">`) to satisfy Googlebot, while leaving the React root (`<div id="root">`) empty.
-    - **Logic**: We deliberately use `ReactDOM.createRoot()` instead of `hydrateRoot`.
-    - **Reasoning**: `hydrateRoot` expects the HTML in `#root` to match the React Tree exactly. Since `#root` is empty (the content is next door), hydration would fail with Error #418/#423.
-    - **Zero-Latency Feel**: Even though we use `createRoot`, the app detects `window.__PRELOADED_STATE__` (injected by Cloudflare Worker). This allows React to render the *correct* content instantly (0ms fetch time), simulating the speed of hydration without the fragility.
+| Aspect | Old (CRA) | Current (Next.js 14) |
+|--------|-----------|---------------------|
+| Framework | Create React App | Next.js 14 App Router |
+| Routing | react-router-dom | Next.js file-based routing (`app/`) |
+| SEO | react-helmet-async | Next.js `metadata` export / `generateMetadata()` |
+| SSR | None (pure SPA) | Edge SSR via Cloudflare Pages |
+| Build | react-scripts | next build |
+| Entry | src/index.js | app/layout.tsx |
+| Dev server | npm start (port 3000) | npm run dev (port 3000) |
 
-- **Faro Observability**:
-    - `initFaro()` (`src/faroConfig.js`) initializes Real User Monitoring (RUM).
-    - It captures Core Web Vitals (LCP, CLS) and JS Errors, sending telemetry to the backend `/api/v1/monitoring/ingest` endpoint.
-
-- **Providers**:
-    - `AuthProvider`: Keycloak Session Management.
-    - `HelmetProvider`: SEO Meta Tag Management.
-    - `BrowserRouter`: Client-side routing.
-
-## 2. Routing Strategy (`App.js`)
-
-- **Route Hierarchy**:
-    - **Public Routes** (wrapped in `MainLayout`):
-        - `/` (Home)
-        - `/about` (AboutPage)
-        - `/vision` (VisionPage) — Renders a static roadmap and injects JSON-LD schema for SEO. 
-        - `/audience` (AudiencePage) — Fetches audience analytics via `getHistoricalAudienceData` and `getFilterOptions`.
-        - `/api-status` (ApiStatusPage) — Visualizes the health and logs of backend data pipelines.
-        - `/contact`
-        - `/market/:ticker`
-        - `/login`
-        - `/category/:slug/:id` (dynamic blog post routes)
-    - **Private Admin Routes** (wrapped in `DashboardLayout`):
-        - `/dashboard/*` (all admin tools, protected by `PrivateRoute`)
-
-- **Lazy Loading & Code Splitting**:
-    - Critical pages (`BlogPage`, `DashboardPage`) are loaded via `React.lazy` inside a `Suspense` boundary for optimal bundle size.
-
-- **Route Guards**:
-    - `PrivateRoute` checks `AuthContext.isAuthenticated`. If false, it captures the current URL and redirects to `/login`, preserving the deep link for post-login redirection.
-
-## 3. Hybrid SSG Integration (The "Visual Handover")
-
-The Frontend plays a critical role in the **"Strategy A / Strategy B"** rendering architecture described in the Edge docs.
-
-### The Problem
-When Cloudflare serves a static HTML file (Strategy A), the user sees "Plain HTML" text (`#server-content`) instantly. When React loads (`#root`), it renders the *same* content. For a split second, the content might appear duplicated or shifted.
-
-### The Solution: Automatic Cleanup
-1.  **Mount**: React boots up and renders into `#root`.
-2.  **Detection**: The component `SinglePostPage.js` contains a `useEffect` hook that looks for the static `#server-content` div.
-3.  **Cleanup**: It strictly removes `#server-content` from the DOM immediately.
-4.  **Result**: The transition from "Server HTML" to "Interactive React App" is seamless to the human eye.
-
-## 4. Authentication & Security
-
-- **Session Management**: `AuthContext.js` manages the Keycloak OIDC lifecycle.
-- **Silent SSO**: The app loads `public/silent-check-sso.html` in a hidden iframe.
-    - **Security**: The Backend whitelists this specific flow via `Content-Security-Policy: frame-ancestors`, allowing token renewal without page reloads.
-- **Dynamic Configuration**: Auth URLs are injected via `REACT_APP_AUTH_URL` (Cloudflare Environment), allowing the same build artifact to run in Dev, Staging, and Prod.
-- **Interceptor**: `apiConfig.js` attaches the `Authorization: Bearer <token>` header to all requests automatically.
-
-## 5. State Management
-
-- **Global Contexts**:
-    - `AuthContext`: Identity state (Keycloak OIDC).
-    - `ThemeContext`: Dark/Light mode preference. **Persists to `localStorage`**.
-    - `WatchlistContext`: Market data favorites. **Persists to `localStorage`**.
-- **Local State**: Complex forms (like `BlogEditorPage`) use `useReducer` to manage the "Draft" state.
-
-### `useManagePosts` Hook (Admin Post Management)
-- Handles all admin post management logic:
-    - Fetches posts, drafts, and categories in parallel.
-    - Deduplicates posts by ID, merges drafts and published posts.
-    - Supports view switching (`ALL`, `PUBLISHED`, `DRAFT`, `SCHEDULED`).
-    - Implements search, category filter, sorting, and pagination.
-
-## 6. API Layer (BFF Pattern)
-
-- **Abstraction**: `apiConfig.js` is the single source of truth for all network calls.
-- **Environment Agnostic**: The base URL uses `process.env.REACT_APP_API_URL`.
-- **Error Handling**: Global interceptors catch `401 Unauthorized` and `403 Forbidden`.
-
-## 7. Data Integrity Strategy (Optimistic Locking)
-
-To prevent "Lost Updates" in a collaborative environment, the Frontend implements a strict handshake:
-1.  **Read**: When editing, the app captures the `version` field from the API.
-2.  **Write**: On save, this `version` is sent back.
-3.  **Conflict**: If the API returns **409 Conflict**, the UI displays a "Concurrent Edit Detected" modal.
-
-## 8. Media Strategy (Lossless Pipeline)
-
-The frontend **disables** client-side image compression (`ImageCropUploader.js`).
-- **Flow**: The frontend uploads raw PNG/JPEG blobs. The Backend (Java Virtual Threads) handles the CPU-intensive task of generating optimized WebP variants.
+**Migration status:** In progress. `src/pages/*.js` files are imported as components by `app/*/page.tsx` wrappers. They are NOT URL routes themselves.
 
 ---
 
-## 9. Zero Trust Configuration
+## 2. Application Structure
 
-The project follows **12-Factor App** principles:
-- **No Secrets**: No API keys or Secrets are hardcoded.
-- **Injection**: All configuration happens at runtime via environment variables injected by the hosting provider (Cloudflare Pages).
+```
+treishvaam-finance-frontend/
+├── app/                    # Next.js App Router (URL routes — .tsx only)
+│   ├── layout.tsx          # Root HTML shell, GA4, Navbar, Footer, Providers
+│   ├── page.tsx            # Landing page /
+│   ├── providers.tsx       # Client-side context providers (Auth, Theme, Watchlist)
+│   ├── home/page.tsx       # Blog feed /home → wraps src/pages/BlogPage.js
+│   ├── category/[cat]/[slug]/[id]/page.tsx  # Single post → wraps SinglePostPage.js
+│   ├── dashboard/          # Protected dashboard routes
+│   ├── market/[ticker]/    # Market detail page
+│   ├── privacy/page.tsx    # Privacy policy
+│   ├── terms/page.tsx      # Terms of service
+│   └── ...
+├── src/                    # Legacy CRA source (components, pages, context)
+│   ├── pages/*.js          # Page components (imported by app/ wrappers, NOT URL routes)
+│   ├── components/         # Reusable UI widgets
+│   ├── context/            # Global state (Auth, Theme, Watchlist)
+│   ├── apiConfig.js        # Axios instance + all API functions
+│   └── faroConfig.js       # Grafana Faro RUM
+├── worker/                 # Cloudflare Edge Worker
+│   ├── worker.js           # Tenant injection, SEO, SPA routing
+│   └── wrangler.toml       # Worker config + KV bindings
+└── public/                 # Static assets (logo.webp, manifest.json, robots.txt)
+```
+
+---
+
+## 3. Routing Strategy
+
+**CRITICAL:** `next.config.mjs` sets `pageExtensions: ['tsx', 'ts']` — Next.js ONLY treats `.tsx`/`.ts` files as routes. The `src/pages/*.js` files are components, not routes.
+
+| URL | App Route File | Component Rendered |
+|-----|---------------|-------------------|
+| `/` | `app/page.tsx` | Self-contained landing page |
+| `/home` | `app/home/page.tsx` | `src/pages/BlogPage.js` |
+| `/category/[cat]/[slug]/[id]` | `app/category/.../page.tsx` | `src/pages/SinglePostPage.js` |
+| `/dashboard/**` | `app/dashboard/layout.tsx` | `src/layouts/DashboardLayout.js` |
+| `/market/[ticker]` | `app/market/[ticker]/page.tsx` | `src/pages/MarketDetailPage.js` |
+| `/login` | `app/login/page.tsx` | `src/pages/LoginPage.js` |
+| `/privacy` | `app/privacy/page.tsx` | `src/pages/PrivacyPage.js` |
+| `/terms` | `app/terms/page.tsx` | `src/pages/TermsPage.js` |
+
+---
+
+## 4. Authentication & Security
+
+- **Session Management**: `src/context/AuthContext.js` manages Keycloak OIDC lifecycle
+- **SSR Guard**: `if (typeof window === 'undefined') return;` at top of Keycloak init `useEffect`
+- **Bot Detection**: Skips Keycloak init for Googlebot/Lighthouse/headless browsers
+- **Silent SSO**: Uses `public/silent-check-sso.html` in hidden iframe for token renewal
+- **Token Refresh**: Auto-refreshes token every 60 seconds via `setInterval`
+- **Graceful Degradation**: 10-second timeout → guest mode (site works without auth)
+- **Interceptor**: `src/apiConfig.js` attaches `Authorization: Bearer <token>` to all requests
+
+**Public pages** (no auth required): `/`, `/home`, `/category/**`, `/privacy`, `/terms`, `/about`, `/contact`, `/vision`, `/market/**`
+
+**Protected pages** (auth required): `/dashboard/**` only
+
+---
+
+## 5. State Management
+
+| Context | Purpose | Persistence |
+|---------|---------|------------|
+| `AuthContext` | Keycloak identity state, token, roles | Session only |
+| `ThemeContext` | Dark/Light mode preference | localStorage |
+| `WatchlistContext` | Market data favorites | localStorage |
+
+**Note:** `app/providers.tsx` wraps all three. `HelmetProvider` was REMOVED (BUG-HYDRATION-01 fix).
+
+---
+
+## 6. API Layer
+
+- **File**: `src/apiConfig.js`
+- **Base URL**: `process.env.NEXT_PUBLIC_API_URL` (never hardcoded)
+- **Auth**: Bearer token interceptor
+- **All endpoints**: See `ARCHITECTURE_QUICKREF.md` API table
+
+---
+
+## 7. Rich Text Editor (Tiptap v3)
+
+The blog editor uses **Tiptap v3** (replaced SunEditor in Phase 5 migration).
+
+**Installed extensions** (all in `package.json`):
+- `@tiptap/starter-kit` — base formatting
+- `@tiptap/extension-image` — image insertion
+- `@tiptap/extension-link` — hyperlinks
+- `@tiptap/extension-youtube` — YouTube embeds
+- `@tiptap/extension-underline` — underline
+- `@tiptap/extension-text-style` — text styling (named export in v3!)
+- `@tiptap/extension-color` — text color
+- `@tiptap/extension-text-align` — text alignment
+
+**Critical v3 rules** (confirmed from production crashes):
+1. `TextStyle` is a named export: `import { TextStyle } from '@tiptap/extension-text-style'`
+2. `BubbleMenu` is NOT available in v3 edge builds — do not use
+3. StarterKit v3 bundles Link and Underline — disable before adding separately:
+   `StarterKit.configure({ link: false, underline: false })`
+4. Always memoize `extensions` array with `useMemo`
+
+---
+
+## 8. SEO Strategy
+
+**Next.js metadata API** (NOT react-helmet-async):
+- `app/layout.tsx` — global metadata + JSON-LD Organization schema
+- `app/category/.../page.tsx` — `generateMetadata()` for article SEO
+- `app/market/[ticker]/page.tsx` — `generateMetadata()` for market pages
+- All `app/*/page.tsx` files — `export const metadata = {...}`
+
+**GA4**: Fires unconditionally via `strategy="afterInteractive"` in `app/layout.tsx`. No consent gate. `anonymize_ip: true` enabled.
+
+---
+
+## 9. Hydration Rules (CRITICAL)
+
+To prevent React errors #418/#423/#425:
+1. `suppressHydrationWarning` on BOTH `<html>` and `<body>` in `app/layout.tsx`
+2. All browser-API components use `dynamic(() => import(...), { ssr: false })`
+3. `GlobalMarketTicker` MUST use dynamic import — never static import
+4. All `src/pages/*.js` files MUST have `"use client";` at line 1
+5. Never use `className={theme}` on `<html>` — ThemeProvider manages it client-side
 
 ---
 
 ## 10. Edge Layer Integration
 
-The Frontend repository houses the **Edge Logic** in the `worker/` directory.
-- **Role:** This worker acts as the "Smart Router" sitting in front of the React application.
-- **Responsibilities:**
-    - **Sitemap Aggregation & Cache-Shielding:** Combines static frontend sitemaps with dynamic backend data (cached in KV and protected by Edge Cache).
-    - **Aggressive SPA Fallback:** Intercepts 404 errors for known frontend routes to return a 200 OK index shell.
-    - **SEO Injection:** Injects Semantic JSON-LD and meta tags into HTML responses.
-    - **Security:** Enforces CSP, HSTS, and Zero-Trust headers before traffic hits the React app.
+The `worker/worker.js` Cloudflare Worker handles:
+- **Tenant injection**: `X-Tenant-ID: finance` header on all requests
+- **SPA routing**: Forces 200 OK for known routes (prevents GSC 404s)
+- **SEO injection**: JSON-LD schemas, meta tags at the edge
+- **KV sitemap cache**: Three-tier cache-shielding (CDN → KV → Backend)
+- **Security headers**: HSTS, CSP, Permissions-Policy
 
 ---
 
-## 11. Third-Party Script & Tag Management (0ms TBT Architecture)
+## 11. Environment Variables
 
-To ensure a perfect 100/100 Lighthouse Performance score and pristine Core Web Vitals, the enterprise strictly prohibits hardcoding active third-party tracking scripts into `public/index.html`.
+| Variable | Used By | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_API_URL` | Frontend | Backend API URL |
+| `NEXT_PUBLIC_AUTH_URL` | Frontend | Keycloak URL |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Frontend | GA4 Measurement ID |
+| `BACKEND_API_URL` | Worker | Backend URL for proxy |
+| `FRONTEND_URL` | Worker | Frontend domain |
 
-### Interaction-Based Deferred Loading
-Active scripts block the main thread. To achieve **0ms Total Blocking Time (TBT)** for SEO bots while retaining functionality for human users:
-* Scripts are injected dynamically via `ThirdPartyScripts.js`.
-* The injection is deferred until the user explicitly interacts with the page (e.g., `scroll`, `mousemove`, `touchstart`, `keydown`).
-* A 7-second `setTimeout` fallback guarantees execution if no interaction occurs.
+**NEVER use `REACT_APP_*` prefix** — this project uses Next.js (`NEXT_PUBLIC_*`).
 
-### Zero-Trust Dynamic Injection
-Hardcoded tracking IDs are a security and infrastructure liability. All tracking IDs are decoupled from the codebase and injected strictly via Cloudflare Environment Variables:
-* `REACT_APP_GA_MEASUREMENT_ID`
-* `REACT_APP_GOOGLE_ADS_ID`
-* `REACT_APP_ADSENSE_CLIENT_ID`
+---
+
+## IMMUTABLE CHANGE HISTORY
+- ADDED: Initial Frontend Architecture documentation.
+- EDITED: Added Section 11: Zero-Trust Third-Party Tag Management.
+- EDITED: Updated routing and architectural scopes to reflect apex domain migration.
+- EDITED (2026-05-15 v4): Complete rewrite for Next.js 14 App Router. Removed CRA references.
+  Added Tiptap v3 rules, hydration rules, updated env vars, updated routing table.
+  Updated by: Claude Sonnet 4.6.

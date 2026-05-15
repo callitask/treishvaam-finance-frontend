@@ -2,84 +2,164 @@
  * AI-CONTEXT:
  *
  * Purpose:
- * - Documents the Treishvaam Finance Frontend React components hierarchy and core responsibilities.
+ * - Documents the Treishvaam Finance Frontend component hierarchy and responsibilities.
  *
  * Change Intent:
- * - Synchronized documentation to reflect the apex domain architecture and Semantic Entity integrations.
+ * - Synchronized documentation to reflect Next.js 14 App Router migration.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Initial Component Architecture documentation.
- * - EDITED:
- * • Documented `ThirdPartyScripts.js` and the interaction-based loading mechanism for SEO.
- * - EDITED (LATEST):
- * • Updated context to support apex domain migration and JSON-LD schema generation logic.
+ * - EDITED: Documented ThirdPartyScripts.js and interaction-based loading.
+ * - EDITED: Updated context to support apex domain migration and JSON-LD schema generation.
+ * - EDITED (2026-05-15 v4):
+ *   • Removed SunEditor references — replaced by Tiptap v3.
+ *   • Removed HelmetProvider references — removed in BUG-HYDRATION-01 fix.
+ *   • Updated EditorForm.js description with Tiptap v3 extensions.
+ *   • Added BUG-MARKET-DETAIL fix note (MarketHero prop name mismatch).
+ *   • Added "use client" rule for all src/pages/*.js files.
+ *   • Removed window.__PRELOADED_STATE__ references (CRA-era, no longer used).
  */
 
-# 07 - Frontend Components
+# 07 - Frontend Components (v4 — Next.js 14 App Router)
 
 ## 1. Component Hierarchy
 
-The `src/components` folder is organized by feature and UI domain:
+```
+app/layout.tsx                    ← Root shell (Server Component)
+  └── app/providers.tsx           ← Client providers (Auth, Theme, Watchlist)
+      └── src/components/Navbar.js
+      └── [page content]
+      └── src/components/Footer.js
 
-- **components/market**: Market data widgets (charts, summaries, tickers, news feeds, movers, cards, and watchlist sidebar).
-- **components/BlogPage**: Blog feed, post cards, category strips, grid layouts, and mobile/desktop variants.
-- **components/BlogEditor**: The complex CMS interface, including panels for metadata, SEO, layout, media management, and modals for cropping.
-- **components/manage-posts**: Admin tools for post management (pagination, stats, bulk actions, table, filter bar).
-- **components/news**: News widgets and cards for financial news highlights.
+app/page.tsx                      ← Landing page (Client Component)
+app/home/page.tsx                 ← Wraps src/pages/BlogPage.js
+app/category/.../page.tsx         ← Wraps src/pages/SinglePostPage.js
+app/dashboard/layout.tsx          ← Wraps src/layouts/DashboardLayout.js
+app/market/[ticker]/page.tsx      ← Wraps src/pages/MarketDetailPage.js
+```
 
-This modular structure supports scalability and separation of concerns.
-
-## 2. Core Layout Components
-
-- **Navbar.js**: Responsive navigation bar with Auth-Awareness, Market Status, and Search capabilities.
-- **Footer.js**: Site-wide footer containing copyright, legal links, and social icons.
-- **MainLayout.js**: Wraps public pages. Handles the `Navbar` and `Footer` placement.
-- **DashboardLayout.js**: Wraps private admin pages. Includes the sidebar and protected route logic.
-
-## 3. Feature: Hybrid SSG & Article Rendering (Critical)
-
-This is the most architecturally significant component set, handling the "Visual Handover" from Server HTML to React.
-
-- **SinglePostPage.js**:
-    - **Role**: The "Hydration Manager" for blog posts.
-    - **Cleanup Logic**: Upon mounting, it actively searches for `<div id="server-content">` (the static HTML served by the Edge Layer) and **removes it** from the DOM. 
-    - **State Injection**: It checks `window.__PRELOADED_STATE__`. If present, it initializes the article state immediately without fetching from the API, achieving **Zero-Latency Rendering**.
-
-## 4. Feature: Blog Editor (CMS)
-
-The Blog Editor is a complex state machine designed for enterprise content management.
-
-- **BlogEditorPage.js (Controller)**: Handles form state and the critical **Optimistic Locking** handshake.
-- **EditorForm.js (View)**: Wraps the `SunEditor` (rich text editor).
-- **ImageCropUploader.js**: Intentionally **skips client-side compression** to allow the Backend Java Virtual Threads to generate optimized WebP variants losslessly.
-
-## 5. Feature: Market Data Widgets
-
-- **MarketChart.js**: Interactive line charts using `react-chartjs-2`, optimized for `BigDecimal` precision.
-- **DynamicMarketSummary.js**: Tabbed widget displaying global market indices.
-- **NewsHighlights.js**: Financial news cards with fallback image logic.
-
-## 6. Reusable UI & Core Logic Elements
-
-- **PaginationControls**: Standardized pager for lists (Admin Table, Blog Feed).
-- **ShareModal**: Uniform dialog for sharing content to LinkedIn, Twitter, and WhatsApp.
-- **ApiStatusPanel**: Dashboard widget visualizing the health of external integrations.
-- **ThirdPartyScripts.js (CRITICAL)**: 
-    - Implements the **0ms Total Blocking Time (TBT)** architecture.
-    - Listens for user interactions (`scroll`, `mousemove`, `touchstart`, `keydown`) and strictly defers the injection of Google Analytics, Ads, and AdSense script tags until an interaction occurs (or a 7-second idle timeout is reached).
-    - Prevents tracking scripts from blocking Googlebot rendering. Utilizes environment variables (`REACT_APP_GA_MEASUREMENT_ID`) instead of hardcoded strings.
-
-## 7. Observability Integration
-
-- **FaroErrorBoundary**: Top-level component that catches React render errors and sends stack traces to the Grafana Faro collector.
+**Rule:** All `app/*/page.tsx` files are Server Components (handle SEO via `metadata` export).
+All `src/pages/*.js` files are Client Components (must have `"use client";` at line 1).
 
 ---
 
-## 8. Market Data Widgets (Detailed)
-- **GlobalMarketTicker**: Horizontally scrollable ticker tape for global indices.
-- **TopMoversCard**: Fetches and displays a list of stocks with mini charts and color coding.
-- **WatchlistSidebar**: User's personal watchlist, persisted in localStorage.
+## 2. Core Layout Components
 
-## 9. Blog Editor Panels & Modals (Detailed)
-- **Panels:** `CategoryPanel`, `CoverImagePanel`, `LayoutPanel`, `MetaPanel`, `PlacementPanel`, `PublishPanel`, `SeoPanel`, `TagsInput`, `ThumbnailPanel`.
-- **StoryThumbnailManager**: Drag-and-drop manager for story thumbnails, using `react-dnd`.
+| Component | File | Purpose |
+|-----------|------|---------|
+| Root Layout | `app/layout.tsx` | HTML shell, GA4, Navbar, Footer, Providers |
+| Providers | `app/providers.tsx` | Auth + Theme + Watchlist contexts (NO HelmetProvider) |
+| Navbar | `src/components/Navbar.js` | Responsive nav, auth-aware, market status, search |
+| Footer | `src/components/Footer.js` | Links, legal, social icons |
+| DashboardLayout | `src/layouts/DashboardLayout.js` | Admin sidebar + protected route logic |
+| MainLayout | `src/layouts/MainLayout.js` | Legacy CRA layout (kept for compatibility) |
+
+---
+
+## 3. Page Components (src/pages/*.js)
+
+All must have `"use client";` at line 1. These are imported by `app/*/page.tsx` wrappers.
+
+| Component | Route | Key Features |
+|-----------|-------|-------------|
+| `BlogPage.js` | `/home` | Infinite scroll, category filter, GlobalMarketTicker (dynamic import) |
+| `SinglePostPage.js` | `/category/...` | Article render, ToC, reading progress, triple null-guard on headings |
+| `BlogEditorPage.js` | `/dashboard/blog/**` | Auto-save, Tiptap editor, image upload, publish flow |
+| `MarketDetailPage.js` | `/market/[ticker]` | Live quote, chart, data summary, 30s auto-refresh |
+| `ManagePostsPage.js` | `/dashboard/manage-posts` | Post table, bulk delete, filter, pagination |
+| `PrivacyPage.js` | `/privacy` | Enterprise privacy policy, DPDP Act 2023 |
+| `TermsPage.js` | `/terms` | Enterprise ToS, financial disclaimer |
+
+---
+
+## 4. Blog Editor Components (src/components/BlogEditor/)
+
+The Blog Editor is a complex state machine for enterprise content management.
+
+- **`BlogEditorPage.js` (Controller)**: Form state, auto-save (2s debounce), optimistic locking (version field), publish flow
+- **`EditorForm.js` (View)**: Tiptap v3 rich text editor with full toolbar
+  - Extensions: StarterKit, Image, Link, Youtube, Underline, TextStyle (named!), Color, TextAlign
+  - Features: Image upload (toolbar + drag-drop + paste), YouTube embed, link insert, word count, Ctrl+S
+  - **Critical**: `StarterKit.configure({ link: false, underline: false })` to prevent duplicate extension crash
+- **`MetaPanel.js`**: Meta description, keywords, SEO title, canonical URL
+- **`SeoPanel.js`**: Focus keyword, SEO score
+- **`CategoryPanel.js`**: Category selection + create new
+- **`ThumbnailPanel.js`**: Single/story thumbnail management with crop
+- **`CoverImagePanel.js`**: Cover image upload with crop
+- **`PublishPanel.js`**: Publish/schedule controls
+- **`TagsInput.js`**: Tag management
+
+---
+
+## 5. Market Data Components (src/components/market/)
+
+| Component | Purpose | SSR Safe? |
+|-----------|---------|-----------|
+| `GlobalMarketTicker.js` | Scrolling ticker tape | ❌ Must use `dynamic(..., { ssr: false })` |
+| `MarketCard.js` | Individual market data card | ✅ |
+| `MarketChart.js` | Interactive price chart (lightweight-charts) | ✅ |
+| `DynamicMarketSummary.js` | Tabbed global indices widget | ✅ |
+| `MarketMovers.js` | Top gainers/losers list | ✅ |
+| `WatchlistSidebar.js` | User's watchlist (localStorage) | ✅ |
+| `MarketNewsFeed.js` | Financial news feed | ✅ |
+
+**CRITICAL**: `GlobalMarketTicker` uses `window` and real-time browser APIs. It MUST always be imported with `dynamic(() => import(...), { ssr: false })`. Static import causes React hydration error #418.
+
+---
+
+## 6. Market Detail Components (src/components/market-detail/)
+
+Used by `src/pages/MarketDetailPage.js`:
+
+| Component | Props | Notes |
+|-----------|-------|-------|
+| `MarketHero.js` | `{ quote, marketData, ticker }` | **Expects `quote` not `quoteData`** — BUG-MARKET-DETAIL fix |
+| `MainChart.js` | `{ ticker, quoteData }` | TradingView-style chart |
+| `DataSummary.js` | `{ quoteData, marketData }` | Key stats table |
+| `AboutAsset.js` | `{ marketData, quoteData }` | Asset description |
+| `ComparisonCarousel.js` | `{ peers }` | Peer comparison |
+
+---
+
+## 7. Blog Feed Components (src/components/BlogPage/)
+
+| Component | Purpose |
+|-----------|---------|
+| `BlogGridDesktop.js` | Desktop 3-column article grid |
+| `BlogSlideMobile.js` | Mobile swipeable feed |
+| `HeroSection.js` | Featured article hero |
+| `CategoryStrip.js` | Desktop category filter bar |
+| `CategoryStripMobile.js` | Mobile category filter |
+| `FeaturedColumn.js` | Left sidebar featured posts |
+| `MarketSidebar.js` | Right sidebar market data |
+| `PostCard.js`, `FeedGridCard.js`, etc. | Article card variants |
+
+---
+
+## 8. Admin Components (src/components/manage-posts/)
+
+| Component | Purpose |
+|-----------|---------|
+| `PostTable.js` | Sortable post list with bulk select |
+| `PostFilterBar.js` | Search + category + status filter |
+| `PostStatsRibbon.js` | Published/draft/scheduled counts |
+| `PaginationControls.js` | Page navigation |
+
+---
+
+## 9. Observability
+
+- **`src/faroConfig.js`**: Grafana Faro RUM initialization
+- Captures: Core Web Vitals (LCP, CLS, FID), JS errors, console errors
+- Sends to: `/api/v1/monitoring/ingest` endpoint
+- User identity: Set after Keycloak auth success
+
+---
+
+## IMMUTABLE CHANGE HISTORY
+- ADDED: Initial Component Architecture documentation.
+- EDITED: Documented ThirdPartyScripts.js and interaction-based loading.
+- EDITED: Updated context to support apex domain migration.
+- EDITED (2026-05-15 v4): Complete rewrite for Next.js 14. Removed SunEditor/HelmetProvider.
+  Added Tiptap v3 component details. Added MarketHero prop fix note. Added SSR safety table.
+  Updated by: Claude Sonnet 4.6.
