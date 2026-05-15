@@ -1,3 +1,4 @@
+"use client";
 /**
  * AI-CONTEXT:
  *
@@ -26,6 +27,9 @@
  * • Removed `react-helmet-async` and `<Helmet>` block.
  * • Migrated LD+JSON Schema script generation to avoid hydration failures.
  * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/vision/page.tsx`.
+ *
+ * - EDITED (2026-05-15 Next.js Build Fix):
+ * • Added `"use client";` directive at the top of the file to force Client Component rendering.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,

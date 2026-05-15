@@ -1,3 +1,4 @@
+"use client";
 /**
  * AI-CONTEXT:
  *
@@ -27,6 +28,10 @@
  * - REMOVED (2026-05-15 Next.js Metadata Migration):
  * • Removed `react-helmet-async` and `<Helmet>` block.
  * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/about/page.tsx`.
+ *
+ * - EDITED (2026-05-15 Next.js Build Fix):
+ * • Added `"use client";` directive at the top of the file.
+ * • Why: `react-lazy-load-image-component` uses legacy lifecycle methods that crash the Next.js Server Component compiler (`TypeError: Super expression must either be null or a function`).
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
