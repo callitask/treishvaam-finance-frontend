@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from '../utils/react-router-shim';
 import { getCategories, getPaginatedPosts } from '../apiConfig';
 import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-icons/fi';
@@ -8,7 +9,12 @@ import { FiHome, FiTrendingUp, FiLayers, FiTarget, FiAlertCircle } from 'react-i
 import BlogGridDesktop from '../components/BlogPage/BlogGridDesktop';
 import CategoryStrip from '../components/BlogPage/CategoryStrip';
 import HeroSection from '../components/BlogPage/HeroSection';
-import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
+
+// SSR-safe dynamic import — GlobalMarketTicker uses browser APIs
+const GlobalMarketTicker = dynamic(
+    () => import('../components/market/GlobalMarketTicker'),
+    { ssr: false }
+);
 
 // Utils
 import { distributeContent } from '../utils/editorialDistributor';

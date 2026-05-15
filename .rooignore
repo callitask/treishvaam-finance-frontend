@@ -1,0 +1,11 @@
+# Roo Code IGNORE list — overrides .gitignore for AI reading purposes
+# These are heavy/unnecessary files Roo should skip to save tokens:
+node_modules/
+.next/
+target/
+*.lock
+public/images/
+
+# NOTE: BACKEND_CODE_FILES/ is intentionally NOT listed here
+# Roo Code MUST read it for backend analysis
+# It is kept out of git via .gitignore but Claude needs to read it
