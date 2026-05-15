@@ -8,7 +8,7 @@
  * - Static legal page.
  *
  * Critical Dependencies:
- * - Frontend: React Router, react-helmet-async for SEO.
+ * - Frontend: React Router.
  * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
  *
  * Security Constraints:
@@ -23,13 +23,17 @@
  * • Added AI-CONTEXT block.
  * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
  *
+ * - REMOVED (2026-05-15 Next.js Metadata Migration):
+ * • Removed `react-helmet-async` and `<Helmet>` block.
+ * • Migrated LD+JSON Schema script generation to avoid hydration failures.
+ * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/terms/page.tsx`.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
  * Future AI must append only.
  */
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
 
 const TermsPage = () => {
     const pageTitle = "Terms of Service | Treishvaam Finance";
@@ -55,28 +59,8 @@ const TermsPage = () => {
 
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <Helmet>
-                <title>{pageTitle}</title>
-                <meta name="description" content={pageDescription} />
-                <link rel="canonical" href={pageUrl} />
-
-                {/* Open Graph */}
-                <meta property="og:type" content="website" />
-                <meta property="og:url" content={pageUrl} />
-                <meta property="og:title" content={pageTitle} />
-                <meta property="og:description" content={pageDescription} />
-                <meta property="og:image" content={imageUrl} />
-
-                {/* Twitter */}
-                <meta name="twitter:card" content="summary" />
-                <meta name="twitter:url" content={pageUrl} />
-                <meta name="twitter:title" content={pageTitle} />
-                <meta name="twitter:description" content={pageDescription} />
-                <meta name="twitter:image" content={imageUrl} />
-
-                {/* Schema */}
-                <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
-            </Helmet>
+            {/* Schema */}
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }} />
 
             <div className="bg-white rounded-lg shadow-sm p-8 md:p-12">
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">Terms of Service</h1>

@@ -3,7 +3,7 @@
  * AI-CONTEXT:
  * Purpose: Rich text editor component for the Blog/News CMS.
  * Scope: Full enterprise editor with all Tiptap extensions, image upload, YouTube embed,
- *   drag-drop, paste-image, BubbleMenu, word count, and keyboard shortcuts.
+ * drag-drop, paste-image, word count, and keyboard shortcuts.
  *
  * Critical Dependencies:
  * - Backend: uploadFile() from apiConfig.js → POST /api/v1/files/upload
@@ -21,29 +21,33 @@
  * • Why: Fixes `Duplicate extension names found: ['link', 'underline']` warnings caused by React Strict Mode/Fast Refresh re-rendering the component and re-registering extensions.
  *
  * - EDITED (2026-05-15 P0-6 Advanced Editor Upgrade):
- *   • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
- *   • Built full enterprise toolbar with grouped buttons: History, Text Style, Headings, Lists, Alignment, Extras.
- *   • Added BubbleMenu for floating toolbar on text selection.
- *   • Added image upload via toolbar button (hidden file input → uploadFile → setImage).
- *   • Added drag-and-drop image upload on editor wrapper.
- *   • Added paste-image from clipboard detection and upload.
- *   • Added YouTube embed via toolbar button (prompt for URL).
- *   • Added Link insert via toolbar button (inline URL input).
- *   • Added word count + reading time live counter.
- *   • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
- *   • Why: EditorForm only used StarterKit — none of the 7 installed extensions were active.
- *     Enterprise CMS requires full rich text editing capabilities.
+ * • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
+ * • Built full enterprise toolbar with grouped buttons: History, Text Style, Headings, Lists, Alignment, Extras.
+ * • Added image upload via toolbar button (hidden file input → uploadFile → setImage).
+ * • Added drag-and-drop image upload on editor wrapper.
+ * • Added paste-image from clipboard detection and upload.
+ * • Added YouTube embed via toolbar button (prompt for URL).
+ * • Added Link insert via toolbar button (inline URL input).
+ * • Added word count + reading time live counter.
+ * • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
+ * • Why: EditorForm only used StarterKit — none of the 7 installed extensions were active.
+ * Enterprise CMS requires full rich text editing capabilities.
+ *
+ * - EDITED (2026-05-15 Vercel Build Fix):
+ * • Changed `import TextStyle from '@tiptap/extension-text-style'` to `import { TextStyle }`.
+ * • Removed `BubbleMenu` import and component entirely.
+ * • Why: Tiptap v3 changed `TextStyle` to a named export and removed `BubbleMenu` from `@tiptap/react` core exports, which was causing fatal `npm run build` crashes on Vercel Edge.
  */
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
+import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import Youtube from '@tiptap/extension-youtube';
 import Underline from '@tiptap/extension-underline';
 import Color from '@tiptap/extension-color';
-import TextStyle from '@tiptap/extension-text-style';
+import { TextStyle } from '@tiptap/extension-text-style';
 import TextAlign from '@tiptap/extension-text-align';
 import { uploadFile } from '../../apiConfig';
 
@@ -59,8 +63,8 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
             onClick={onClick}
             title={title}
             className={`px-2.5 py-1.5 text-sm border rounded shadow-sm transition-colors ${isActive
-                    ? 'bg-sky-600 text-white border-sky-600'
-                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                ? 'bg-sky-600 text-white border-sky-600'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
         >
             {children}
@@ -375,45 +379,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 onChange={handleFileInputChange}
                 className="hidden"
             />
-
-            {/* Bubble Menu (floating toolbar on text selection) */}
-            {editor && (
-                <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-                    <div className="flex gap-1 bg-slate-900 text-white rounded-lg shadow-xl px-2 py-1.5">
-                        <button
-                            type="button"
-                            onClick={() => editor.chain().focus().toggleBold().run()}
-                            className={`px-2 py-0.5 text-xs rounded ${editor.isActive('bold') ? 'bg-sky-600' : 'hover:bg-slate-700'}`}
-                        >
-                            <strong>B</strong>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => editor.chain().focus().toggleItalic().run()}
-                            className={`px-2 py-0.5 text-xs rounded ${editor.isActive('italic') ? 'bg-sky-600' : 'hover:bg-slate-700'}`}
-                        >
-                            <em>I</em>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => editor.chain().focus().toggleUnderline().run()}
-                            className={`px-2 py-0.5 text-xs rounded ${editor.isActive('underline') ? 'bg-sky-600' : 'hover:bg-slate-700'}`}
-                        >
-                            <u>U</u>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => {
-                                const url = prompt('Enter URL:');
-                                if (url) editor.chain().focus().setLink({ href: url, target: '_blank' }).run();
-                            }}
-                            className={`px-2 py-0.5 text-xs rounded ${editor.isActive('link') ? 'bg-sky-600' : 'hover:bg-slate-700'}`}
-                        >
-                            🔗
-                        </button>
-                    </div>
-                </BubbleMenu>
-            )}
 
             {/* Editor Content Area */}
             <div

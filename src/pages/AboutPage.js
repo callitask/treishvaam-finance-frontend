@@ -9,7 +9,7 @@
  * - Static informative page.
  *
  * Critical Dependencies:
- * - Frontend: React Router, react-helmet-async for SEO.
+ * - Frontend: React Router.
  * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
  *
  * Security Constraints:
@@ -24,6 +24,10 @@
  * • Added AI-CONTEXT block.
  * • Why the edit was required: To fix Google Search Console "Discovered - currently not indexed" loop caused by mismatched cross-domain canonicals.
  *
+ * - REMOVED (2026-05-15 Next.js Metadata Migration):
+ * • Removed `react-helmet-async` and `<Helmet>` block.
+ * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/about/page.tsx`.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -32,30 +36,11 @@
 import React from 'react';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
-import { Helmet } from 'react-helmet-async';
 import { ShieldCheck, Users, TrendingUp, Lightbulb, Linkedin } from 'lucide-react';
 
 const AboutPage = () => {
     return (
         <>
-            <Helmet>
-                <title>About Us | Treishvaam Finance</title>
-                <meta name="description" content="Treishvaam Finance is democratizing financial literacy through expert market analysis and education. Meet our founder, Amitsagar Kandpal, and discover our mission." />
-                <link rel="canonical" href="https://treishvaamfinance.com/about" />
-
-                {/* Open Graph / Facebook */}
-                <meta property="og:type" content="website" />
-                <meta property="og:url" content="https://treishvaamfinance.com/about" />
-                <meta property="og:title" content="About Treishvaam Finance" />
-                <meta property="og:description" content="Empowering your financial journey with clarity, integrity, and data-driven expertise." />
-                <meta property="og:image" content="https://treishvaamfinance.com/logo.webp" />
-
-                {/* Twitter */}
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:title" content="About Treishvaam Finance" />
-                <meta name="twitter:description" content="Meet the team bridging the gap between complex markets and financial freedom." />
-            </Helmet>
-
             {/* --- Hero Section --- */}
             <section className="relative bg-slate-900 py-24 overflow-hidden">
                 <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>

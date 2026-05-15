@@ -1,5 +1,38 @@
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Renders the Vision page for Treishvaam Finance.
+ * - Showcases the upcoming features, roadmap, and core philosophy.
+ *
+ * Scope:
+ * - Static informative page.
+ *
+ * Critical Dependencies:
+ * - Frontend: React Router.
+ * - Worker / SEO / Sitemap: Edge relies on correct canonical tags.
+ *
+ * Security Constraints:
+ * - No sensitive data.
+ *
+ * Non-Negotiables:
+ * - Canonical URLs must point to apex domain.
+ *
+ * IMMUTABLE CHANGE HISTORY:
+ * - ADDED:
+ * • Initial creation of Vision page.
+ *
+ * - REMOVED (2026-05-15 Next.js Metadata Migration):
+ * • Removed `react-helmet-async` and `<Helmet>` block.
+ * • Migrated LD+JSON Schema script generation to avoid hydration failures.
+ * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/vision/page.tsx`.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
+ */
 import React from 'react';
-import { Helmet } from 'react-helmet-async';
 import { Target, Cpu, Globe, TrendingUp } from 'lucide-react';
 
 const VisionPage = () => {
@@ -40,12 +73,8 @@ const VisionPage = () => {
 
     return (
         <>
-            <Helmet>
-                <title>Our Vision | Treishvaam Finance</title>
-                <meta name="description" content="We envision a world where financial literacy is universal. Explore our roadmap to interactive education and global mentorship." />
-                <link rel="canonical" href="https://treishfin.treishvaamgroup.com/vision" />
-                <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
-            </Helmet>
+            {/* Schema */}
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaData) }} />
 
             {/* --- Hero Section --- */}
             <section className="bg-gradient-to-b from-slate-900 to-slate-800 py-24 text-center px-6">
