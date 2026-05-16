@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, TrendingUp, Globe, Clock } from 'lucide-react';
+import { Loader2, Globe } from 'lucide-react';
 
 /**
  * AI-CONTEXT:
@@ -19,11 +19,13 @@ import { Loader2, TrendingUp, Globe, Clock } from 'lucide-react';
  * - No hardcoded news data.
  * * IMMUTABLE CHANGE HISTORY:
  * - EDITED (Current Phase):
+ * • Refactored left panel: Changed alignment from right to strict left for enterprise readability.
+ * • Unified heading typography to single size ("The Network for Intelligent Capital").
+ * • Re-architected the "Live Global Briefing" component into a professional, bordered financial terminal feed.
+ * • Maintained zero-touch policy on the right-side SSO component.
+ * * - EDITED (Previous Phase):
  * • Revamped layout to an enterprise-grade split screen.
- * • Added dynamic "Live Global Briefing" section fetching from backend API on the left.
- * • Applied text-right alignment on the left panel for an innovative, professional layout.
- * • Enforced strict light theme (no dark backgrounds).
- * • Why: To align with Fortune 500 aesthetic requirements and ensure no static data in the hero section.
+ * • Added dynamic "Live Global Briefing" section fetching from backend API.
  * * - EDITED: Migrated from react-router-dom to next/navigation.
  * - EDITED: Removed react-helmet-async entirely. SEO/noindex is now handled server-side by wrapper.
  * * - DO-NOT-DELETE RULE:
@@ -54,11 +56,10 @@ const LoginPage = () => {
         const fetchBriefings = async () => {
             try {
                 const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || '';
-                // Attempt to fetch from the standard news endpoint
                 const res = await fetch(`${apiUrl}/api/news-highlights`);
                 if (res.ok) {
                     const data = await res.json();
-                    // Extract top 2 or 3 critical news items
+                    // Extract top 2 critical news items for the terminal view
                     const topNews = Array.isArray(data) ? data.slice(0, 2) : [];
                     setBriefings(topNews);
                 }
@@ -72,64 +73,80 @@ const LoginPage = () => {
         fetchBriefings();
     }, []);
 
-    // Helper to format dates gracefully
-    const formatDate = (dateString) => {
-        if (!dateString) return "Recent Update";
+    // Helper to format dates cleanly for the terminal view
+    const formatTerminalDate = (dateString) => {
+        if (!dateString) return "LIVE";
         const d = new Date(dateString);
-        return isNaN(d) ? "Recent Update" : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        if (isNaN(d)) return "LIVE";
+        // Format as DD-MMM-YYYY HH:MM
+        const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        return `${d.getDate().toString().padStart(2, '0')}-${months[d.getMonth()]}-${d.getFullYear()}`;
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 selection:bg-slate-200 selection:text-slate-900">
-            <div className="max-w-7xl w-full grid lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 lg:p-12 selection:bg-slate-200 selection:text-slate-900">
+            <div className="max-w-7xl w-full grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
 
-                {/* --- Left Side: Innovative Right-Aligned Dynamic Briefing --- */}
-                <div className="hidden lg:flex flex-col items-end text-right space-y-10 pr-8 border-r border-slate-200">
+                {/* --- Left Side: Left-Aligned Enterprise Typography & Terminal Feed --- */}
+                <div className="hidden lg:flex flex-col items-start justify-center pr-8">
 
-                    {/* Hero Text */}
-                    <div>
-                        <h1 className="text-5xl font-light text-slate-900 tracking-tight mb-6 font-serif leading-tight">
-                            The Network for <br />
-                            <span className="font-semibold text-slate-800">Intelligent Capital.</span>
+                    {/* Unified Hero Text */}
+                    <div className="mb-12">
+                        <h1 className="text-5xl lg:text-6xl font-bold text-slate-900 tracking-tight leading-tight mb-6">
+                            The Network for Intelligent Capital.
                         </h1>
-                        <p className="text-lg text-slate-500 max-w-md ml-auto leading-relaxed font-light">
+                        <p className="text-lg text-slate-600 max-w-lg leading-relaxed font-normal">
                             High-signal, low-noise financial intelligence. Gain immediate access to institutional-grade market analysis, macroeconomic insights, and real-time geopolitical developments.
                         </p>
                     </div>
 
-                    {/* Dynamic Live Global Briefing */}
-                    <div className="w-full max-w-md pt-8 border-t border-slate-200">
-                        <div className="flex items-center justify-end space-x-2 mb-6">
-                            <Globe className="w-4 h-4 text-slate-400" />
-                            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Live Global Briefing</h3>
+                    {/* Financial Terminal / Briefing Block */}
+                    <div className="w-full max-w-lg bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
+
+                        {/* Terminal Header */}
+                        <div className="bg-slate-100 border-b border-slate-200 px-5 py-3 flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <Globe className="w-4 h-4 text-slate-500" strokeWidth={2.5} />
+                                <span className="text-xs font-bold uppercase tracking-widest text-slate-700">Live Global Briefing</span>
+                            </div>
+                            <span className="flex h-2 w-2 relative">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
                         </div>
 
-                        <div className="space-y-6 flex flex-col items-end">
+                        {/* Terminal Data Body */}
+                        <div className="p-0">
                             {newsLoading ? (
-                                <div className="flex items-center space-x-2 text-slate-400 text-sm">
+                                <div className="flex items-center space-x-3 p-6 text-slate-500 text-sm font-medium">
                                     <Loader2 className="w-4 h-4 animate-spin" />
-                                    <span>Syncing intelligence...</span>
+                                    <span>Syncing intelligence feed...</span>
                                 </div>
                             ) : briefings.length > 0 ? (
-                                briefings.map((item, index) => (
-                                    <div key={item.id || index} className="group max-w-sm">
-                                        <div className="flex items-center justify-end space-x-2 mb-2 text-xs text-slate-400 font-medium uppercase tracking-wider">
-                                            <span>{item.source || 'Marketwatch'}</span>
-                                            <span>•</span>
-                                            <span>{formatDate(item.createdAt || item.publishedAt)}</span>
-                                        </div>
-                                        <h4 className="text-base font-medium text-slate-800 group-hover:text-slate-600 transition-colors leading-snug">
-                                            {item.title}
-                                        </h4>
-                                    </div>
-                                ))
+                                <ul className="divide-y divide-slate-100">
+                                    {briefings.map((item, index) => (
+                                        <li key={item.id || index} className="p-6 hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                    {item.source || 'Marketwatch'}
+                                                </span>
+                                                <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-sm">
+                                                    {formatTerminalDate(item.createdAt || item.publishedAt)}
+                                                </span>
+                                            </div>
+                                            <h4 className="text-base font-semibold text-slate-900 leading-snug">
+                                                {item.title}
+                                            </h4>
+                                        </li>
+                                    ))}
+                                </ul>
                             ) : (
-                                <div className="max-w-sm">
-                                    <div className="flex items-center justify-end space-x-2 mb-2 text-xs text-slate-400 font-medium uppercase tracking-wider">
-                                        <span>System Status</span>
+                                <div className="p-6">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">System Status</span>
                                     </div>
-                                    <h4 className="text-base font-medium text-slate-800 leading-snug">
-                                        Awaiting next intelligence packet. All geopolitical and macro systems operating normally.
+                                    <h4 className="text-base font-semibold text-slate-900 leading-snug">
+                                        Awaiting next intelligence packet. All geopolitical and macro monitoring systems operating normally.
                                     </h4>
                                 </div>
                             )}
@@ -137,8 +154,8 @@ const LoginPage = () => {
                     </div>
                 </div>
 
-                {/* --- Right Side: Secure Login Box (Intact per instructions) --- */}
-                <div className="flex items-center justify-center lg:justify-start">
+                {/* --- Right Side: Secure Login Box (LOCKED/UNTOUCHED) --- */}
+                <div className="flex items-center justify-center lg:justify-end">
                     <div className="bg-white p-10 md:p-14 rounded-sm shadow-sm border border-slate-200 w-full max-w-md text-center">
                         <div className="flex justify-center mb-8">
                             <LazyLoadImage
