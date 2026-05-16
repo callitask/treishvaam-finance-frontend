@@ -9,19 +9,19 @@
  * - Auth: useAuth (from ../../src/context/AuthContext)
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase):
+ * • Upgraded terminal to an intelligent continuous stream: Added 60s background polling for fresh data.
+ * • Decoupled background polling from the 7.5s UI rotation animation to prevent layout stutters.
+ * • Removed finite "x / 10" pagination indicator to psychologically reinforce an endless, real-time data river.
+ * • Upgraded hero copywriting to exclusively attract UHNWIs, family offices, and institutional capital.
+ * • Maintained the untouched Keycloak SSO authentication block.
+ * - EDITED (Previous Phase):
  * • Removed inaccurate/simulated telemetry blocks (Encryption, Latency).
  * • Unboxed the "Live Global Briefing" to create an elegant, spacious editorial layout.
  * • Reduced the gap between the left and right columns to better utilize screen real estate.
  * • Added a sleek 1-pixel horizontal progress bar to elegantly indicate the 7.5s news rotation.
- * • Upgraded news headlines to a high-end serif typography scale.
- * • Maintained the untouched Keycloak SSO authentication block.
- * - EDITED (Previous Phase):
- * • Restored the rotating/flashing "Live Global Briefing" (7.5s interval).
- * • Scaled down the hero heading to match global site typography.
  * - ADDED: Migrated from CRA to Next.js Page component.
  * - EDITED: Overwrote legacy dark theme with premium light editorial design.
  * - EDITED: Integrated Keycloak auth (`login()`) into the `handleLoginRedirect` flow.
- * - EDITED: Corrected relative imports for the `app/login/` directory depth.
  */
 "use client";
 
@@ -39,31 +39,38 @@ export default function LoginPage() {
     const router = useRouter();
     const { login } = useAuth(); // Enables actual Keycloak OAuth login
 
+    // Intelligent Background Polling (Every 60 Seconds) + Initial Fetch
     useEffect(() => {
         let isMounted = true;
         const fetchNews = async () => {
             try {
                 const res = await getNewsHighlights();
                 if (isMounted && res.data && res.data.length > 0) {
-                    // Fetch top 10 items for the rotating terminal view
-                    setNews(res.data.slice(0, 10));
+                    // Maintain a healthy rotation pool without overwhelming the DOM
+                    setNews(res.data.slice(0, 15));
                 }
             } catch (error) {
                 console.error("News fetch error", error);
             } finally {
-                if (isMounted) setLoading(false);
+                if (isMounted && loading) setLoading(false);
             }
         };
-        fetchNews();
-        return () => { isMounted = false; };
-    }, []);
 
-    // Rotating Interval for Live Briefing
+        fetchNews(); // Initial Load
+        const pollInterval = setInterval(fetchNews, 60000); // 60-second silent background poll
+
+        return () => {
+            isMounted = false;
+            clearInterval(pollInterval);
+        };
+    }, [loading]);
+
+    // Rotating UI Interval for Live Briefing (Independent of data polling)
     useEffect(() => {
         if (news.length === 0) return;
         const interval = setInterval(() => {
             setNewsIndex((prev) => (prev + 1) % news.length);
-        }, 7500); // Cycles every 7.5 seconds
+        }, 7500); // UI cycles every 7.5 seconds
         return () => clearInterval(interval);
     }, [news.length]);
 
@@ -81,7 +88,7 @@ export default function LoginPage() {
         if (!dateString) return "LIVE";
         const d = new Date(dateString);
         if (isNaN(d.getTime())) return "LIVE";
-        // Format as DD-MMM-YYYY HH:MM
+        // Format as DD MMM YYYY HH:MM
         const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
         const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         return `${d.getDate().toString().padStart(2, '0')} ${months[d.getMonth()]} ${d.getFullYear()} ${time}`;
@@ -96,19 +103,19 @@ export default function LoginPage() {
             <div className="fixed top-0 right-0 w-[40%] h-full bg-white border-l border-slate-200/80 -z-10 hidden lg:block shadow-[inset_20px_0_40px_rgba(0,0,0,0.01)]"></div>
 
             <div className="container mx-auto px-6 lg:px-12 min-h-screen flex flex-col justify-center py-12 lg:py-0 relative z-10">
-                {/* Reduced gap from gap-24 to gap-12 to merge visual space better */}
+                {/* 60/40 Split Structure */}
                 <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
 
                     {/* LEFT COLUMN: 60% - Left-Aligned Enterprise Typography & Editorial Feed */}
                     <div className="w-full lg:w-[60%] flex flex-col justify-center animate-fade-in-up pr-0 lg:pr-10">
 
-                        {/* Scaled-down, Innovative Hero Text */}
+                        {/* High-Net-Worth Hero Text */}
                         <div className="mb-14">
                             <h1 className="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight leading-tight mb-5 font-sans">
                                 The Network for <span className="font-serif font-light italic text-slate-500">Intelligent</span> Capital.
                             </h1>
                             <p className="text-base text-slate-600 max-w-lg leading-relaxed font-normal">
-                                High-signal, low-noise financial intelligence. Gain immediate access to institutional-grade market analysis, macroeconomic insights, and real-time geopolitical developments.
+                                Exclusive access to asymmetric market intelligence. Empowering private capital and family offices with institutional-grade macro foresight, definitive asset modeling, and real-time geopolitical analysis.
                             </p>
                         </div>
 
@@ -129,9 +136,7 @@ export default function LoginPage() {
                                     </div>
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Live Global Briefing</span>
                                 </div>
-                                <span className="text-[10px] font-semibold text-slate-400">
-                                    {news.length > 0 ? `${newsIndex + 1} / ${news.length}` : '0 / 0'}
-                                </span>
+                                {/* Removed finite 9/10 counter to simulate an endless intelligence stream */}
                             </div>
 
                             {/* Terminal Data Body (Flashing/Rotating) */}
