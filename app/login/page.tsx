@@ -9,9 +9,9 @@
  * - Auth: useAuth (from ../../src/context/AuthContext)
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase):
- * • Rewrote hero paragraph to eliminate AI jargon ("asymmetric intelligence"). 
- * • Replaced with direct, human-readable, and authoritative copy targeting family offices and private capital.
+ * • Replaced metaphorical hero copy with literal, professional text emphasizing journalism, analysis, views, network, and community.
  * - EDITED (Previous Phase):
+ * • Rewrote hero paragraph to eliminate AI jargon ("asymmetric intelligence"). 
  * • Upgraded terminal to an intelligent continuous stream: Added 60s background polling for fresh data.
  * • Decoupled background polling from the 7.5s UI rotation animation to prevent layout stutters.
  * • Removed finite "x / 10" pagination indicator to psychologically reinforce an endless, real-time data river.
@@ -111,7 +111,7 @@ export default function LoginPage() {
                                 The Network for <span className="font-serif font-light italic text-slate-500">Intelligent</span> Capital.
                             </h1>
                             <p className="text-base text-slate-600 max-w-lg leading-relaxed font-normal">
-                                Cut through the noise. We equip family offices and private capital with the clear, real-time geopolitical and financial insights needed to navigate complex markets and deploy wealth with confidence.
+                                Access independent financial journalism, institutional market analysis, and expert geopolitical views. We operate a private intelligence network and community, connecting family offices and institutional capital with the real-time data required for strategic wealth management.
                             </p>
                         </div>
 
