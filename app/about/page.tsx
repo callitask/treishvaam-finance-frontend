@@ -9,6 +9,9 @@
  * - Frontend: Next.js native routing and image optimization (`next/image`).
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase):
+ * • Converted static chairman portrait to an environment-driven variable (`NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL`).
+ * • Why: To allow instant photo updates via Cloudflare Pages Env Vars (using free-tier MinIO/R2) without requiring a full Git commit and 3-minute CI/CD pipeline build.
+ * - EDITED (Previous Phase):
  * • Removed redundant giant masthead to prevent visual collision with the global navbar.
  * • Promoted "Navigating the Complexities..." to <h1> for semantic SEO compliance.
  * • Adjusted top padding (pt-24 lg:pt-32) to seamlessly integrate the broadsheet grid under the navigation menu.
@@ -30,6 +33,9 @@ import React from 'react';
 import Image from 'next/image';
 
 export default function AboutPage() {
+    // Dynamic asset loading with a fallback to the local file
+    const portraitUrl = process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL || "/amitsagar-kandpal-photo.png";
+
     return (
         <main className="min-h-screen bg-[#FCFBF8] text-slate-900 font-serif selection:bg-slate-300 selection:text-slate-900 pb-24 pt-24 lg:pt-32">
 
@@ -47,7 +53,7 @@ export default function AboutPage() {
                             </div>
                             <figure className="relative w-full aspect-[3/4] bg-slate-200 mb-4 border border-slate-300 p-1">
                                 <Image
-                                    src="/amitsagar-kandpal-photo.png"
+                                    src={portraitUrl}
                                     alt="Amitsagar Kandpal, Founder and Chairperson"
                                     fill
                                     className="object-cover grayscale"
