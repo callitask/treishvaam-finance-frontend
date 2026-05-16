@@ -35,6 +35,7 @@
  * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
  * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
+ * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-authentication.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -208,7 +209,8 @@ export const AuthProvider = ({ children }) => {
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      keycloak.login();
+      // Enforce post-authentication redirect directly to the dashboard
+      keycloak.login({ redirectUri: window.location.origin + '/dashboard' });
     }
   }, [keycloak]);
 

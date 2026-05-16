@@ -1,3 +1,4 @@
+"use client";
 /**
  * AI-CONTEXT:
  * Component: Footer
@@ -9,10 +10,13 @@
  * • Why: Phase 3 Next.js Migration. Maintains valid internal routing under SSR.
  * - EDITED:
  * • Added 'Publisher Access' strictly to the footer to obscure admin/development login paths from general retail users as part of the Zero-Trust initiative.
+ * - EDITED:
+ * • Added "use client" directive and wired "Publisher Access" directly to Keycloak `login()` via AuthContext, completely bypassing the user-facing `/login` view.
  */
 
 import React from 'react';
 import Link from 'next/link';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * [AI-OPTIMIZED CONTEXT]
@@ -30,6 +34,7 @@ import Link from 'next/link';
 
 const Footer = ({ className }) => {
   const currentYear = new Date().getFullYear();
+  const { login } = useAuth() || {};
 
   // Modern Instagram SVG
   const InstagramIcon = ({ width = 24, height = 24 }) => (
@@ -83,7 +88,14 @@ const Footer = ({ className }) => {
             <ul className="space-y-2 text-sm">
               <li><Link href="/privacy" className="hover:text-sky-400 transition duration-300">Privacy Policy</Link></li>
               <li><Link href="/terms" className="hover:text-sky-400 transition duration-300">Terms of Service</Link></li>
-              <li><Link href="/login?mode=admin" className="hover:text-sky-400 transition duration-300">Publisher Access</Link></li>
+              <li>
+                <button
+                  onClick={() => login && login()}
+                  className="hover:text-sky-400 transition duration-300 text-left w-full"
+                >
+                  Publisher Access
+                </button>
+              </li>
               <li className="pt-2">Email: <a href="mailto:treishvaam@gmail.com" className="hover:text-sky-400 transition duration-300 font-medium">treishvaam@gmail.com</a></li>
             </ul>
           </div>
