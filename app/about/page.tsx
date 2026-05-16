@@ -9,6 +9,10 @@
  * - Frontend: Next.js native routing and image optimization (`next/image`).
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase):
+ * • Removed redundant giant masthead to prevent visual collision with the global navbar.
+ * • Promoted "Navigating the Complexities..." to <h1> for semantic SEO compliance.
+ * • Adjusted top padding (pt-24 lg:pt-32) to seamlessly integrate the broadsheet grid under the navigation menu.
+ * - EDITED (Previous Phase):
  * • Executed clean overwrite to fix fatal build errors (duplicate exports, misplaced directives).
  * • Ensured "use client" sits at line 1. Purged duplicate React and Image imports.
  * - EDITED (Previous Phase):
@@ -27,19 +31,7 @@ import Image from 'next/image';
 
 export default function AboutPage() {
     return (
-        <main className="min-h-screen bg-[#FCFBF8] text-slate-900 font-serif selection:bg-slate-300 selection:text-slate-900 pb-24">
-
-            {/* --- THE MASTHEAD --- */}
-            <header className="container mx-auto px-4 lg:px-8 pt-16 pb-6 border-b-[6px] border-double border-slate-900 mb-8 text-center">
-                <h1 className="text-5xl md:text-7xl lg:text-[6rem] font-black tracking-tighter uppercase mb-4 leading-none text-slate-900">
-                    Treishvaam Finance
-                </h1>
-                <div className="flex flex-col md:flex-row justify-between items-center border-t border-b border-slate-900 py-2 text-xs font-bold tracking-widest uppercase mt-6 px-4">
-                    <span className="mb-2 md:mb-0">The Global Intelligence Broadsheet</span>
-                    <span className="mb-2 md:mb-0">Bengaluru, India Edition</span>
-                    <span>Private & Confidential</span>
-                </div>
-            </header>
+        <main className="min-h-screen bg-[#FCFBF8] text-slate-900 font-serif selection:bg-slate-300 selection:text-slate-900 pb-24 pt-24 lg:pt-32">
 
             {/* --- BROADSHEET GRID LAYOUT --- */}
             <div className="container mx-auto px-4 lg:px-8">
@@ -90,9 +82,9 @@ export default function AboutPage() {
                         {/* Lead Story: The Firm */}
                         <article>
                             <div className="text-center mb-8">
-                                <h2 className="text-3xl md:text-5xl font-black leading-[1.1] mb-4 text-slate-900">
+                                <h1 className="text-3xl md:text-5xl font-black leading-[1.1] mb-4 text-slate-900">
                                     Navigating the Complexities of Global Capital Markets
-                                </h2>
+                                </h1>
                                 <p className="text-lg md:text-xl italic text-slate-600 font-light">
                                     Equipping family offices with asymmetric intelligence and institutional foresight in an era of unprecedented volatility.
                                 </p>
