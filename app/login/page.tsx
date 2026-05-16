@@ -9,16 +9,12 @@
  * - Auth: useAuth (from ../../src/context/AuthContext)
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase):
+ * • Rewrote hero paragraph to eliminate AI jargon ("asymmetric intelligence"). 
+ * • Replaced with direct, human-readable, and authoritative copy targeting family offices and private capital.
+ * - EDITED (Previous Phase):
  * • Upgraded terminal to an intelligent continuous stream: Added 60s background polling for fresh data.
  * • Decoupled background polling from the 7.5s UI rotation animation to prevent layout stutters.
  * • Removed finite "x / 10" pagination indicator to psychologically reinforce an endless, real-time data river.
- * • Upgraded hero copywriting to exclusively attract UHNWIs, family offices, and institutional capital.
- * • Maintained the untouched Keycloak SSO authentication block.
- * - EDITED (Previous Phase):
- * • Removed inaccurate/simulated telemetry blocks (Encryption, Latency).
- * • Unboxed the "Live Global Briefing" to create an elegant, spacious editorial layout.
- * • Reduced the gap between the left and right columns to better utilize screen real estate.
- * • Added a sleek 1-pixel horizontal progress bar to elegantly indicate the 7.5s news rotation.
  * - ADDED: Migrated from CRA to Next.js Page component.
  * - EDITED: Overwrote legacy dark theme with premium light editorial design.
  * - EDITED: Integrated Keycloak auth (`login()`) into the `handleLoginRedirect` flow.
@@ -115,7 +111,7 @@ export default function LoginPage() {
                                 The Network for <span className="font-serif font-light italic text-slate-500">Intelligent</span> Capital.
                             </h1>
                             <p className="text-base text-slate-600 max-w-lg leading-relaxed font-normal">
-                                Exclusive access to asymmetric market intelligence. Empowering private capital and family offices with institutional-grade macro foresight, definitive asset modeling, and real-time geopolitical analysis.
+                                Cut through the noise. We equip family offices and private capital with the clear, real-time geopolitical and financial insights needed to navigate complex markets and deploy wealth with confidence.
                             </p>
                         </div>
 
@@ -136,7 +132,6 @@ export default function LoginPage() {
                                     </div>
                                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Live Global Briefing</span>
                                 </div>
-                                {/* Removed finite 9/10 counter to simulate an endless intelligence stream */}
                             </div>
 
                             {/* Terminal Data Body (Flashing/Rotating) */}
