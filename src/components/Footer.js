@@ -7,6 +7,8 @@
  * - EDITED:
  * • Migrated routing from `react-router-dom` to Next.js App Router (`next/link`).
  * • Why: Phase 3 Next.js Migration. Maintains valid internal routing under SSR.
+ * - EDITED:
+ * • Added 'Publisher Access' strictly to the footer to obscure admin/development login paths from general retail users as part of the Zero-Trust initiative.
  */
 
 import React from 'react';
@@ -81,6 +83,7 @@ const Footer = ({ className }) => {
             <ul className="space-y-2 text-sm">
               <li><Link href="/privacy" className="hover:text-sky-400 transition duration-300">Privacy Policy</Link></li>
               <li><Link href="/terms" className="hover:text-sky-400 transition duration-300">Terms of Service</Link></li>
+              <li><Link href="/login?mode=admin" className="hover:text-sky-400 transition duration-300">Publisher Access</Link></li>
               <li className="pt-2">Email: <a href="mailto:treishvaam@gmail.com" className="hover:text-sky-400 transition duration-300 font-medium">treishvaam@gmail.com</a></li>
             </ul>
           </div>

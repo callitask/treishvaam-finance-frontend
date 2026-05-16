@@ -4,6 +4,8 @@
  * Purpose: Main navigation and header controller.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Fixed legacy `to=` props on Next.js `<Link>` components, changing them to `href=` to prevent silent navigation failures.
+ * - EDITED: Removed 'Admin Login' from public-facing navbar dropdowns and mobile menus.
+ * - EDITED: Wired universal 'Sign In' buttons to directly route to the new `/login` portal.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -16,7 +18,6 @@ import SearchAutocomplete from './SearchAutocomplete';
 
 const Navbar = () => {
     const [isMobileMenuOpen, setMobileMenuOpen] = useState(false);
-    const [isLoginDropdownOpen, setLoginDropdownOpen] = useState(false);
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
     const [marketStatus, setMarketStatus] = useState({ isOpen: false, color: 'text-slate-400' });
@@ -156,7 +157,7 @@ const Navbar = () => {
                                         <button onClick={() => { logout(); setMobileMenuOpen(false); }} className="block text-center w-full py-2 text-red-600 font-semibold text-sm">Sign Out</button>
                                     </div>
                                 ) : (
-                                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Admin Login</Link>
+                                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center w-full py-3 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold shadow-md active:scale-95 transition-transform">Sign In</Link>
                                 )}
                             </div>
                         </div>
@@ -192,18 +193,9 @@ const Navbar = () => {
                                 <button onClick={handleLogout} className="text-slate-400 hover:text-red-600" title="Logout" aria-label="Logout"><FaSignOutAlt /></button>
                             </div>
                         ) : (
-                            <div className="relative" onMouseEnter={() => setLoginDropdownOpen(true)} onMouseLeave={() => setLoginDropdownOpen(false)}>
-                                <button className="flex items-center font-bold text-slate-700 dark:text-slate-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
-                                    <FaUserCircle className="mr-1.5 text-sm text-slate-400" /> Sign In
-                                </button>
-                                {isLoginDropdownOpen && (
-                                    <div className="absolute right-0 top-full pt-2 z-50">
-                                        <div className="bg-white dark:bg-slate-800 rounded shadow-xl border border-slate-100 dark:border-slate-700 py-1 w-32">
-                                            <Link href="/login" className="block px-4 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">Admin Login</Link>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                            <button onClick={() => router.push('/login')} className="flex items-center font-bold text-slate-700 dark:text-slate-300 hover:text-sky-700 dark:hover:text-sky-400 transition uppercase tracking-wider text-[10px]">
+                                <FaUserCircle className="mr-1.5 text-sm text-slate-400" /> Sign In
+                            </button>
                         )}
                     </div>
                 </div>
