@@ -39,11 +39,10 @@
  * - EDITED: Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
  * - EDITED: Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
  * - EDITED: Added `enhancedHeaders.set("X-Tenant-ID", "finance")` for backend API multitenancy resolution.
- * - EDITED (CSP Fix Phase):
- * • Rewrote `addSecurityHeaders` to inject a comprehensive, Zero-Trust Content Security Policy (CSP).
- * • Whitelisted `self`, GA4 (`googletagmanager.com`, `google-analytics.com`), Cloudflare Analytics (`cloudflareinsights.com`), and Backend API.
- * • Added `newHeaders.delete("Content-Security-Policy-Report-Only")` to strip rogue conflicting policies.
- * • Why: The previous CSP only defined `frame-ancestors`, causing the browser to block Next.js chunk loading (`_rsc`) and backend API fetches under strict fallback rules.
+ * - EDITED: Rewrote `addSecurityHeaders` to inject a comprehensive, Zero-Trust Content Security Policy (CSP).
+ * - EDITED (CSP Fix 2):
+ * • Appended `https://static.cloudflareinsights.com` to `script-src`.
+ * • Why: The previous CSP allowed `cloudflareinsights.com` (for connect-src beacon), but blocked the actual script fetching from the `static.` subdomain, triggering `script-src-elem` console errors.
  */
 
 export default {
@@ -131,7 +130,6 @@ export default {
         enhancedHeaders.set("X-Visitor-Lat", cf.latitude || "0");
         enhancedHeaders.set("X-Visitor-Lon", cf.longitude || "0");
         enhancedHeaders.set("X-Visitor-Device-Colo", cf.colo || "Unknown");
-        // BUG-FINANCE-01 FIX: Inject tenant identity header
         enhancedHeaders.set("X-Tenant-ID", "finance");
 
         const baseEnhancedRequest = new Request(request.url, {
@@ -155,7 +153,7 @@ export default {
             // Enforce Enterprise Zero-Trust CSP
             const csp = [
                 "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' data: https://fonts.gstatic.com",
                 "img-src 'self' data: blob: https:",
