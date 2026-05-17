@@ -4,8 +4,12 @@ import React, { useState } from 'react';
 const TableOfContents = ({ headings, activeId, progress }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // FIX: Early return if headings are empty or malformed
+  // FIX: Early return and defensive type check
   if (!headings || !Array.isArray(headings) || headings.length === 0) return null;
+
+  const validHeadings = headings.filter(h => h && typeof h === 'object' && h.id && typeof h.id === 'string');
+  
+  if (validHeadings.length === 0) return null;
 
   const handleLinkClick = (e, id) => {
     e.preventDefault();
@@ -35,11 +39,11 @@ const TableOfContents = ({ headings, activeId, progress }) => {
         {isExpanded && (
           <nav className="toc-body">
             <ul>
-              {headings.map((heading, index) => {
+              {validHeadings.map((heading, index) => {
                 // FIX: Strict skip on malformed headings to prevent crash
                 if (!heading || !heading.id) return null;
                 return (
-                  <li key={heading.id || index} className="toc-list-item">
+                  <li key={heading.id || `toc-${index}`} className="toc-list-item">
                     <a href={`#${heading.id}`}
                       onClick={(e) => handleLinkClick(e, heading.id)}
                       className={`toc-link ${activeId === heading.id ? 'active' : ''}`}
