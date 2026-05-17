@@ -4,6 +4,7 @@
  * Purpose: Renders the historical price chart for the asset.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Fixed prop name from `history` to `historicalData` to correctly receive the API payload from MarketDetailPage.
+ * - EDITED: Added Zero-Trust data mapping for chart payload. Scans for variations of date (`priceDate`, `date`, `time`) and close values (`closePrice`, `close`, `value`) to prevent silent empty-chart failures caused by JSON flattening.
  */
 import React, { useState, useMemo } from 'react';
 import TradingViewChart from '../market/TradingViewChart';
@@ -19,19 +20,28 @@ const timeframes = [
     { label: 'Max', days: 99999 },
 ];
 
-const MainChart = ({ historicalData, quote }) => {
+const MainChart = ({ historicalData, marketData }) => {
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
 
-    // 1. Transform Data for TradingView
+    // 1. Transform Data for TradingView (Defensive extraction)
     const fullChartData = useMemo(() => {
-        if (!historicalData || historicalData.length === 0) return [];
-        return [...historicalData]
-            .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
-            .map(item => ({
-                time: item.priceDate,
-                value: parseFloat(item.closePrice)
-            }));
-    }, [historicalData]);
+        const activeData = historicalData || marketData?.historicalData || [];
+        if (!activeData || activeData.length === 0) return [];
+        
+        return [...activeData]
+            .map(item => {
+                // Defensively scan for date and price keys
+                const rawTime = item.priceDate || item.date || item.timestamp || item.time;
+                const rawValue = item.closePrice ?? item.close ?? item.value;
+                
+                return {
+                    time: rawTime,
+                    value: parseFloat(rawValue)
+                };
+            })
+            .filter(item => item.time && !isNaN(item.value)) // Safely drop unparseable nodes
+            .sort((a, b) => new Date(a.time) - new Date(b.time));
+    }, [historicalData, marketData]);
 
     // 2. Filter Data based on Timeframe
     const filteredData = useMemo(() => {
