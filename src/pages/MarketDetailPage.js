@@ -112,9 +112,7 @@ const MarketDetailPage = () => {
                     <div className="lg:col-span-2 space-y-6">
                         <MainChart ticker={ticker} historicalData={marketData?.historicalData || []} quoteData={quoteData} />
                         
-                        {/* BUG-FIX: If backend flattened the profile attributes onto the root QuoteData entity, 
-                          passing quoteData directly allows AboutAsset to find description/summary keys. 
-                        */}
+                        {/* BUG-FIX: Passed quoteData as the profile fallback */}
                         <AboutAsset profile={marketData?.profile || quoteData?.profile || quoteData || null} />
                     </div>
 
