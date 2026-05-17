@@ -22,12 +22,14 @@
  * - EDITED (Phase 2 Bug Fix): Fixed `reading 'id'` crash.
  * - EDITED (Phase 2 Followup): Reinstated deep null-guards and resolved form A11y warnings.
  * - EDITED (2026-05-15 BUG-SINGLEPOST-01):
- *   • Root cause: extractedHeadings useMemo was producing objects where `headingId` could be
- *     an empty string or undefined when heading text was empty or regex group 3 was undefined.
- *     TableOfContents and ReadingProgressBar then crashed accessing `.id` on undefined elements.
- *   • Fix: Added triple null-guard: (1) check match[3] exists before processing, (2) only push
- *     headings where headingId is a non-empty string, (3) added optional chaining throughout.
- *   • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
+ * • Root cause: extractedHeadings useMemo was producing objects where `headingId` could be
+ * an empty string or undefined when heading text was empty or regex group 3 was undefined.
+ * TableOfContents and ReadingProgressBar then crashed accessing `.id` on undefined elements.
+ * • Fix: Added triple null-guard: (1) check match[3] exists before processing, (2) only push
+ * headings where headingId is a non-empty string, (3) added optional chaining throughout.
+ * • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
+ * * - EDITED (HOTFIX - HYDRATION CRASH):
+ * • Completely secured `.id` access inside the scroll listener to prevent Next.js client-side exceptions.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -87,10 +89,6 @@ const SinglePostPage = () => {
         return () => { isMounted = false; };
     }, [id]);
 
-    // BUG-SINGLEPOST-01 FIX: Triple null-guard on heading extraction
-    // Root cause: match[3] (inner HTML) can be undefined for malformed headings,
-    // and headingId can be empty string after replace() on empty text.
-    // Both cases caused TableOfContents to crash on .id access.
     const extractedHeadings = useMemo(() => {
         if (!post || !post.content || typeof post.content !== 'string') return [];
         const regex = /<h([2-3])([^>]*)>(.*?)<\/h\1>/gi;
@@ -98,14 +96,12 @@ const SinglePostPage = () => {
         const headings = [];
         try {
             while ((match = regex.exec(post.content)) !== null) {
-                // Guard 1: match[3] (inner HTML) must exist
                 if (!match[3]) continue;
 
                 const level = parseInt(match[1], 10);
                 const rawInner = match[3];
                 const text = rawInner.replace(/<[^>]+>/g, '').trim();
 
-                // Guard 2: text must be non-empty
                 if (!text) continue;
 
                 const idMatch = match[2] ? match[2].match(/id=["']([^"']+)["']/) : null;
@@ -113,7 +109,6 @@ const SinglePostPage = () => {
                     ? idMatch[1]
                     : text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-                // Guard 3: headingId must be a non-empty string
                 if (!headingId || typeof headingId !== 'string' || headingId.length === 0) continue;
 
                 headings.push({ id: headingId, text, level });
@@ -134,15 +129,22 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            // FIX: Guaranteed guard against undefined arrays or array elements without IDs
-            if (!extractedHeadings || extractedHeadings.length === 0 || !extractedHeadings[0]?.id) {
+            // FIX: Guaranteed, fail-safe guard against undefined arrays or array elements without IDs
+            if (!extractedHeadings || !Array.isArray(extractedHeadings) || extractedHeadings.length === 0) {
                 setActiveId('');
                 return;
             }
 
-            let currentActiveId = extractedHeadings[0].id;
+            const firstHeading = extractedHeadings[0];
+            if (!firstHeading || typeof firstHeading.id === 'undefined') {
+                setActiveId('');
+                return;
+            }
+
+            let currentActiveId = firstHeading.id;
             for (const heading of extractedHeadings) {
-                if (!heading || !heading.id) continue;
+                if (!heading || typeof heading.id === 'undefined') continue;
+                
                 const element = document.getElementById(heading.id);
                 if (element) {
                     const rect = element.getBoundingClientRect();

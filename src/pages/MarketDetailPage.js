@@ -15,9 +15,9 @@ import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
  * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
- * - EDITED: Refactored `fetchData` to correctly parse `WidgetDataDto` structure.
- * - Why: Resolved BUG-01 missing endpoints and JSON response shape mismatch.
- * - Date: 2026-05-17 (Phase 1 Fixes)
+ * - EDITED (Hotfix): Fixed prop drilling. Extracted `historicalData` and `profile` directly 
+ * from the `WidgetDataDto` structure and passed them directly to `MainChart` and `AboutAsset`.
+ * Resolves "No chart data available" and blank summary sections.
  */
 const MarketDetailPage = () => {
     const params = useParams();
@@ -41,21 +41,12 @@ const MarketDetailPage = () => {
                     getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
                 ]);
 
-                // FIX: Parse WidgetDataDto structure returned from backend
-                const resolvedMarketData = marketRes.data?.quoteData
-                    ? marketRes.data
-                    : marketRes.data;
-
-                const resolvedQuoteData = quoteRes.data?.ticker
-                    ? quoteRes.data
-                    : marketRes.data?.quoteData ?? null;
-
-                if (!resolvedMarketData && !resolvedQuoteData) {
+                if (!marketRes.data && !quoteRes.data) {
                     throw new Error("Asset not found or no data available.");
                 }
 
-                setMarketData(resolvedMarketData);
-                setQuoteData(resolvedQuoteData);
+                setMarketData(marketRes.data);
+                setQuoteData(quoteRes.data);
 
             } catch (err) {
                 console.error("Failed to load market details", err);
@@ -104,8 +95,10 @@ const MarketDetailPage = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <div className="lg:col-span-2 space-y-6">
-                        <MainChart ticker={ticker} quoteData={quoteData} />
-                        <AboutAsset marketData={marketData} quoteData={quoteData} />
+                        {/* BUG-MARKET-DETAIL FIX: Extract historicalData explicitly */}
+                        <MainChart ticker={ticker} historicalData={marketData?.historicalData || []} quoteData={quoteData} />
+                        {/* BUG-MARKET-DETAIL FIX: Extract profile explicitly */}
+                        <AboutAsset profile={marketData?.profile || quoteData?.profile || null} />
                     </div>
 
                     <div className="lg:col-span-1 space-y-6">
