@@ -33,32 +33,17 @@
  * - BUGFIX: Added missing helper functions to prevent Error 1101.
  * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
  * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
- * - EDITED:
- * • Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
- * • Why the edit was required: Domain migration to dedicated apex domain.
- * • What behavior must remain unchanged: Edge SEO hydration, sitemap serving, and backend proxying.
- * - EDITED:
- * • Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
- * • Fused "Trishvam" and "Treishvaam" directly into the Amitsagar Kandpal Person entity.
- * • Why: To force LLM entity resolution between the person and the brand.
- * - EDITED:
- * • Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
- * • Why: To protect Cloudflare Free Tier limits. Checks Cache API (0 quota) before hitting KV Storage. Ensures system survives heavy crawl loads and total backend failure.
- * - EDITED:
- * • Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
- * • Why: To provide structural hints to search engines for automatic Sitelinks generation below the main search result, following enterprise w3c practices.
- * - EDITED:
- *   • Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
- *   • Why: To prevent `ERR_QUIC_PROTOCOL_ERROR` crashes during total backend outages. Unhandled Promise Rejections were causing the worker to abruptly drop the edge connection instead of serving the SPA fallback.
- * - EDITED (2026-05-14 BUG-FINANCE-01 Fix):
- *   • Added `enhancedHeaders.set("X-Tenant-ID", "finance")` to the universal header injection block (line ~139).
- *   • Added `"X-Tenant-ID": "finance"` to the Scenario C blog post SEO fetch headers (line ~521).
- *   • Why: X-Tenant-ID was completely absent from enhancedHeaders. Backend TenantInterceptor falls back to
- *     DEFAULT_TENANT="public" when header is missing. Posts stored with tenantId="finance" were invisible,
- *     causing "Article Not Found" on all blog post pages. The Scenario C direct fetch also bypassed the
- *     header, causing SEO hydration to fail for the same reason.
- *   • What behavior must remain unchanged: All geo-location headers, SPA fallback, KV sitemap logic,
- *     SEO schema injection, API proxy routing.
+ * - EDITED: Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
+ * - EDITED: Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
+ * - EDITED: Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
+ * - EDITED: Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
+ * - EDITED: Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
+ * - EDITED: Added `enhancedHeaders.set("X-Tenant-ID", "finance")` for backend API multitenancy resolution.
+ * - EDITED (CSP Fix Phase):
+ * • Rewrote `addSecurityHeaders` to inject a comprehensive, Zero-Trust Content Security Policy (CSP).
+ * • Whitelisted `self`, GA4 (`googletagmanager.com`, `google-analytics.com`), Cloudflare Analytics (`cloudflareinsights.com`), and Backend API.
+ * • Added `newHeaders.delete("Content-Security-Policy-Report-Only")` to strip rogue conflicting policies.
+ * • Why: The previous CSP only defined `frame-ancestors`, causing the browser to block Next.js chunk loading (`_rsc`) and backend API fetches under strict fallback rules.
  */
 
 export default {
@@ -146,9 +131,7 @@ export default {
         enhancedHeaders.set("X-Visitor-Lat", cf.latitude || "0");
         enhancedHeaders.set("X-Visitor-Lon", cf.longitude || "0");
         enhancedHeaders.set("X-Visitor-Device-Colo", cf.colo || "Unknown");
-        // BUG-FINANCE-01 FIX: Inject tenant identity header so backend TenantInterceptor
-        // resolves to "finance" instead of falling back to DEFAULT_TENANT="public".
-        // Without this, all posts stored with tenantId="finance" are invisible to the API.
+        // BUG-FINANCE-01 FIX: Inject tenant identity header
         enhancedHeaders.set("X-Tenant-ID", "finance");
 
         const baseEnhancedRequest = new Request(request.url, {
@@ -162,12 +145,32 @@ export default {
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
+            
             newHeaders.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
             newHeaders.set("X-Content-Type-Options", "nosniff");
-            newHeaders.set("Content-Security-Policy", "frame-ancestors 'self';");
             newHeaders.set("X-XSS-Protection", "1; mode=block");
             newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+
+            // Enforce Enterprise Zero-Trust CSP
+            const csp = [
+                "default-src 'self'",
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "font-src 'self' data: https://fonts.gstatic.com",
+                "img-src 'self' data: blob: https:",
+                "connect-src 'self' https://backend.treishvaamgroup.com https://www.google-analytics.com https://cloudflareinsights.com",
+                "media-src 'self' https:",
+                "frame-ancestors 'self' https://treishfin.treishvaamgroup.com",
+                "object-src 'none'",
+                "upgrade-insecure-requests"
+            ].join("; ");
+
+            newHeaders.set("Content-Security-Policy", csp);
+            
+            // Delete rogue injected Report-Only headers from hosting providers or analytics frameworks
+            newHeaders.delete("Content-Security-Policy-Report-Only");
+
             // Force 200 OK if we triggered a fallback
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
                 return new Response(response.body, { status: 200, headers: newHeaders });
@@ -532,8 +535,6 @@ export default {
             const apiUrl = `${BACKEND_URL}/api/v1/posts/url/${articleId}`;
             try {
                 // BUG-FINANCE-01 FIX C: X-Tenant-ID must be included in this direct backend fetch.
-                // This fetch bypasses the enhancedHeaders proxy path — without the tenant header,
-                // the backend falls back to DEFAULT_TENANT="public" and returns no post data.
                 const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
                 if (!apiResp.ok) return addSecurityHeaders(response);
                 const post = await apiResp.json();
