@@ -15,6 +15,9 @@ import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
  * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
+ * - EDITED: Refactored `fetchData` to correctly parse `WidgetDataDto` structure.
+ * - Why: Resolved BUG-01 missing endpoints and JSON response shape mismatch.
+ * - Date: 2026-05-17 (Phase 1 Fixes)
  */
 const MarketDetailPage = () => {
     const params = useParams();
@@ -38,12 +41,21 @@ const MarketDetailPage = () => {
                     getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
                 ]);
 
-                if (!marketRes.data && !quoteRes.data) {
+                // FIX: Parse WidgetDataDto structure returned from backend
+                const resolvedMarketData = marketRes.data?.quoteData
+                    ? marketRes.data
+                    : marketRes.data;
+
+                const resolvedQuoteData = quoteRes.data?.ticker
+                    ? quoteRes.data
+                    : marketRes.data?.quoteData ?? null;
+
+                if (!resolvedMarketData && !resolvedQuoteData) {
                     throw new Error("Asset not found or no data available.");
                 }
 
-                setMarketData(marketRes.data);
-                setQuoteData(quoteRes.data);
+                setMarketData(resolvedMarketData);
+                setQuoteData(resolvedQuoteData);
 
             } catch (err) {
                 console.error("Failed to load market details", err);
@@ -88,7 +100,6 @@ const MarketDetailPage = () => {
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
-                {/* BUG-MARKET-DETAIL FIX: MarketHero expects `quote` prop, not `quoteData` */}
                 <MarketHero ticker={ticker} quote={quoteData} marketData={marketData} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
