@@ -3,7 +3,7 @@
  * AI-CONTEXT:
  * Purpose: Rich text editor component for the Blog/News CMS.
  * Scope: Full enterprise editor with all Tiptap extensions, image upload, YouTube embed,
- *   drag-drop, paste-image, word count, and keyboard shortcuts.
+ * drag-drop, paste-image, word count, and keyboard shortcuts.
  *
  * Critical Dependencies:
  * - Backend: uploadFile() from apiConfig.js → POST /api/v1/files/upload
@@ -21,20 +21,25 @@
  * • Why: Fixes `Duplicate extension names found: ['link', 'underline']` warnings.
  *
  * - EDITED (2026-05-15 P0-6 Advanced Editor Upgrade):
- *   • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
- *   • Built full enterprise toolbar with grouped buttons.
- *   • Added image upload, drag-drop, paste-image, YouTube embed, Link insert.
- *   • Added word count + reading time live counter.
- *   • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
+ * • Added all installed Tiptap extensions: Image, Link, Youtube, Underline, Color, TextStyle, TextAlign.
+ * • Built full enterprise toolbar with grouped buttons.
+ * • Added image upload, drag-drop, paste-image, YouTube embed, Link insert.
+ * • Added word count + reading time live counter.
+ * • Added Ctrl+S keyboard shortcut to trigger parent handleAutoSave.
  *
  * - EDITED (2026-05-15 BUG-TIPTAP-V3 Fix):
- *   • CRITICAL: Tiptap v3 changed TextStyle to a named export — changed to `import { TextStyle }`.
- *   • CRITICAL: BubbleMenu was removed from @tiptap/react in v3 edge builds — removed entirely.
- *   • CRITICAL: StarterKit v3 bundles Link and Underline internally. Adding them separately causes
- *     "Duplicate extension names found: ['link', 'underline']" warning and `a is not a function`
- *     crash in onUpdate. Fix: disable link and underline in StarterKit, then add them separately
- *     with custom config. This gives us full control over their behavior.
- *   • Why: These crashes caused the editor to throw on every keystroke and crash the entire page.
+ * • CRITICAL: Tiptap v3 changed TextStyle to a named export — changed to `import { TextStyle }`.
+ * • CRITICAL: BubbleMenu was removed from @tiptap/react in v3 edge builds — removed entirely.
+ * • CRITICAL: StarterKit v3 bundles Link and Underline internally. Adding them separately causes
+ * "Duplicate extension names found: ['link', 'underline']" warning and `a is not a function`
+ * crash in onUpdate. Fix: disable link and underline in StarterKit, then add them separately
+ * with custom config. This gives us full control over their behavior.
+ * • Why: These crashes caused the editor to throw on every keystroke and crash the entire page.
+ *
+ * - EDITED:
+ * • Added `isMounted` state tracking within the rendering flow.
+ * • Why: Guard initialization against server-side rendering execution cycle (BUG-04 React Hydration Mismatch).
+ * • Date: 2026-05-17 (Phase 1 Fixes)
  */
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
@@ -128,18 +133,19 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
 // ═══════════════════════════════════════════════════════════════
 // MAIN EDITOR COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
+const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUploadBefore, onLoad }) => {
+    const [isMounted, setIsMounted] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
-    // BUG-TIPTAP-V3 FIX: StarterKit v3 includes link and underline internally.
-    // We MUST disable them in StarterKit and add them separately to avoid
-    // "Duplicate extension names" warning and `a is not a function` crash.
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
     const extensions = useMemo(() => [
         StarterKit.configure({
             heading: { levels: [1, 2, 3] },
-            // Disable built-in link and underline to prevent duplicate registration
             link: false,
             underline: false,
         }),
@@ -168,7 +174,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
         }),
     ], []);
 
-    // Image upload handler — used by toolbar, drag-drop, and paste
     const handleImageFile = useCallback(async (file, editorInstance) => {
         const activeEditor = editorInstance || editor;
         if (!activeEditor) return;
@@ -195,15 +200,13 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
 
     const editor = useEditor({
         extensions,
-        content: content || '',
+        content: isMounted ? content : '',
         onUpdate: ({ editor: ed }) => {
             const html = ed.getHTML();
-            // Guard: setContent must be a function (BUG-TIPTAP-V3: `a is not a function`)
             if (typeof setContent === 'function') {
                 setContent(html);
             }
 
-            // Update word count
             const text = ed.state.doc.textContent;
             const words = text.trim() ? text.trim().split(/\s+/).filter(w => w.length > 0).length : 0;
             setWordCount(words);
@@ -213,7 +216,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] px-6 py-4',
             },
             handleKeyDown: (view, event) => {
-                // Ctrl+S → trigger auto-save
                 if ((event.ctrlKey || event.metaKey) && event.key === 's') {
                     event.preventDefault();
                     if (typeof handleAutoSave === 'function') handleAutoSave();
@@ -222,7 +224,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 return false;
             },
             handlePaste: (view, event) => {
-                // Handle paste-image from clipboard
                 const items = event.clipboardData?.items;
                 if (!items) return false;
 
@@ -237,7 +238,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 return false;
             },
             handleDrop: (view, event) => {
-                // Handle drag-and-drop image
                 const files = event.dataTransfer?.files;
                 if (!files || files.length === 0) return false;
 
@@ -250,15 +250,12 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 return false;
             },
         },
-    });
+    }, [isMounted]);
 
-    // Sync content from parent (e.g., when loading existing post)
     useEffect(() => {
         if (editor && !editor.isDestroyed && content) {
             const currentContent = editor.getHTML();
-            // Only update if content actually changed to avoid infinite loop
             if (content !== currentContent && content !== '<p></p>' && content.length > 0) {
-                // Use a timeout to avoid the setContent crash during React render cycle
                 const timer = setTimeout(() => {
                     if (!editor.isDestroyed) {
                         editor.commands.setContent(content, false);
@@ -269,21 +266,22 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
         }
     }, [content]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Expose editor methods to parent via ref
     useEffect(() => {
         if (editor && editorRef) {
-            editorRef.current = {
-                getHTML: () => editor.getHTML(),
-                getJSON: () => editor.getJSON(),
-                getText: () => editor.state.doc.textContent,
-            };
+            editorRef.current = editor;
+            if (typeof onLoad === 'function') onLoad();
         }
-    }, [editor, editorRef]);
+    }, [editor, editorRef, onLoad]);
 
-    // Toolbar action handlers
-    const handleImageUploadClick = () => {
-        fileInputRef.current?.click();
-    };
+    if (!isMounted) {
+        return (
+            <div className="h-full flex items-center justify-center min-h-[400px]">
+                <div className="w-8 h-8 border-4 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    const handleImageUploadClick = () => fileInputRef.current?.click();
 
     const handleFileInputChange = (e) => {
         const file = e.target.files?.[0];
@@ -316,7 +314,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
 
     return (
         <div className="border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden">
-            {/* Toolbar */}
             <MenuBar
                 editor={editor}
                 onImageUpload={handleImageUploadClick}
@@ -324,7 +321,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 onLinkInsert={handleLinkInsert}
             />
 
-            {/* Hidden file input for image upload */}
             <input
                 ref={fileInputRef}
                 type="file"
@@ -333,7 +329,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 className="hidden"
             />
 
-            {/* Editor Content Area */}
             <div
                 className={`relative transition-colors ${isDragging ? 'bg-sky-50 ring-2 ring-sky-300 ring-inset' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -348,7 +343,6 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave }) => {
                 <EditorContent editor={editor} />
             </div>
 
-            {/* Status Bar */}
             <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
                 <span>{wordCount} words · ~{readingTime} min read</span>
                 <span className="text-slate-400">Ctrl+S to save · Drag images to upload</span>
