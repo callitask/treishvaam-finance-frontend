@@ -28,8 +28,8 @@
  * • Fix: Added triple null-guard: (1) check match[3] exists before processing, (2) only push
  * headings where headingId is a non-empty string, (3) added optional chaining throughout.
  * • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
- * * - EDITED (HOTFIX - HYDRATION CRASH):
- * • Completely secured `.id` access inside the scroll listener to prevent Next.js client-side exceptions.
+ * - EDITED (HOTFIX - HYDRATION CRASH BATCH 3):
+ * • Created strict `validHeadings` filter inside render cycle to strip ghost elements.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -120,6 +120,12 @@ const SinglePostPage = () => {
         return headings;
     }, [post]);
 
+    // BATCH 3 FIX: Strictly typed array filter. Drops any ghosts before iteration.
+    const validHeadings = useMemo(() => {
+        if (!extractedHeadings || !Array.isArray(extractedHeadings)) return [];
+        return extractedHeadings.filter(h => h && typeof h === 'object' && typeof h.id === 'string' && h.id.trim() !== '');
+    }, [extractedHeadings]);
+
     useEffect(() => {
         const handleScroll = () => {
             if (!articleRef.current) return;
@@ -129,22 +135,13 @@ const SinglePostPage = () => {
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
             setProgress(Math.min(100, Math.max(0, scrolled)));
 
-            // FIX: Guaranteed, fail-safe guard against undefined arrays or array elements without IDs
-            if (!extractedHeadings || !Array.isArray(extractedHeadings) || extractedHeadings.length === 0) {
+            if (!validHeadings || validHeadings.length === 0) {
                 setActiveId('');
                 return;
             }
 
-            const firstHeading = extractedHeadings[0];
-            if (!firstHeading || typeof firstHeading.id === 'undefined') {
-                setActiveId('');
-                return;
-            }
-
-            let currentActiveId = firstHeading.id;
-            for (const heading of extractedHeadings) {
-                if (!heading || typeof heading.id === 'undefined') continue;
-                
+            let currentActiveId = validHeadings[0].id;
+            for (const heading of validHeadings) {
                 const element = document.getElementById(heading.id);
                 if (element) {
                     const rect = element.getBoundingClientRect();
@@ -162,7 +159,7 @@ const SinglePostPage = () => {
         handleScroll();
 
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [extractedHeadings]);
+    }, [validHeadings]);
 
     if (loading) {
         return (
@@ -204,8 +201,8 @@ const SinglePostPage = () => {
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
-            {extractedHeadings?.length > 0 && (
-                <ReadingProgressBar headings={extractedHeadings} activeId={activeId} progress={progress} />
+            {validHeadings.length > 0 && (
+                <ReadingProgressBar headings={validHeadings} activeId={activeId} progress={progress} />
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
@@ -293,8 +290,8 @@ const SinglePostPage = () => {
 
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
-                            {extractedHeadings?.length > 0 && (
-                                <TableOfContents headings={extractedHeadings} activeId={activeId} progress={progress} />
+                            {validHeadings.length > 0 && (
+                                <TableOfContents headings={validHeadings} activeId={activeId} progress={progress} />
                             )}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">

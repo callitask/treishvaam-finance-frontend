@@ -36,6 +36,7 @@
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
  * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
  * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-authentication.
+ * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks to prevent internal SDK crash on undefined profile fields.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -145,7 +146,6 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
 
-          // FIX: Added `|| {}` fallback to prevent destructuring crash if token is malformed
           const { name, email, realm_access } = initKeycloak.tokenParsed || {};
           const roles = realm_access ? realm_access.roles : [];
 
@@ -169,10 +169,13 @@ export const AuthProvider = ({ children }) => {
               }));
 
               if (faro) {
+                // BUG-FIX: Safe fallback strings for Faro SDK
+                const safeEmail = email || 'anonymous@treishvaam.com';
+                const safeName = displayName || name || 'Anonymous User';
                 faro.api.setUser({
-                  id: email,
-                  username: displayName || name,
-                  email: email
+                  id: safeEmail,
+                  username: safeName,
+                  email: safeEmail
                 });
               }
             }
@@ -181,7 +184,10 @@ export const AuthProvider = ({ children }) => {
           });
 
           if (faro) {
-            faro.api.setUser({ id: email, username: name, email: email });
+            // BUG-FIX: Safe fallback strings for Faro SDK
+            const safeEmail = email || 'anonymous@treishvaam.com';
+            const safeName = name || 'Anonymous User';
+            faro.api.setUser({ id: safeEmail, username: safeName, email: safeEmail });
           }
 
         } else {
@@ -209,7 +215,6 @@ export const AuthProvider = ({ children }) => {
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      // Enforce post-authentication redirect directly to the dashboard
       keycloak.login({ redirectUri: window.location.origin + '/dashboard' });
     }
   }, [keycloak]);

@@ -2,10 +2,10 @@
 import React from 'react';
 
 const ReadingProgressBar = ({ headings, activeId, progress }) => {
-    // FIX: Guard array structure
+    // FIX: Guard array structure defensively at component level
     if (!headings || !Array.isArray(headings)) return null;
 
-    const majorHeadings = headings.filter(h => h && h.level === 2 && h.id);
+    const majorHeadings = headings.filter(h => h && typeof h === 'object' && h.level === 2 && h.id && typeof h.id === 'string');
 
     const handleLinkClick = (e, id) => {
         e.preventDefault();
@@ -20,7 +20,7 @@ const ReadingProgressBar = ({ headings, activeId, progress }) => {
     };
 
     return (
-        <div className="progress-nav-container sticky top-0">
+        <div className="progress-nav-container sticky top-0 z-40">
             <div className="progress-bar-track">
                 <div className="progress-bar-fill" style={{ width: `${progress}%` }}></div>
             </div>
@@ -30,7 +30,7 @@ const ReadingProgressBar = ({ headings, activeId, progress }) => {
                         // FIX: Strict skip on malformed headings
                         if (!heading || !heading.id) return null;
                         return (
-                            <a key={heading.id || index} href={`#${heading.id}`}
+                            <a key={heading.id || `heading-${index}`} href={`#${heading.id}`}
                                 onClick={(e) => handleLinkClick(e, heading.id)}
                                 className={`progress-nav-label ${activeId === heading.id ? 'active' : ''}`}>
                                 {heading.text || ''}
