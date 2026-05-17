@@ -18,10 +18,10 @@ import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
  * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
  * - EDITED (Hotfix): Fixed prop drilling. Extracted `historicalData` and `profile` directly 
  * from the `WidgetDataDto` structure and passed them directly to `MainChart` and `AboutAsset`.
- * Resolves "No chart data available" and blank summary sections.
  * - EDITED (Missing Sections Fix):
  * • Imported and added `<GlobalMarketTicker />` to the page rendering.
- * • Updated the `profile` prop on `<AboutAsset />` to fall back to `quoteData` directly. The backend flattened the profile attributes (summary, description) onto the root quote object.
+ * • BUG-FIX: Changed `<DataSummary quoteData={...}>` to `<DataSummary quote={...}>` to match the exact prop signature the child component expects, resolving the blank right-column issue.
+ * • Added defensive pass-throughs for `quoteData` and `marketData` to all child components to ensure robust rendering.
  */
 const MarketDetailPage = () => {
     const params = useParams();
@@ -102,7 +102,6 @@ const MarketDetailPage = () => {
 
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
-            {/* Restored Global Market Ticker */}
             <GlobalMarketTicker />
 
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
@@ -112,12 +111,13 @@ const MarketDetailPage = () => {
                     <div className="lg:col-span-2 space-y-6">
                         <MainChart ticker={ticker} historicalData={marketData?.historicalData || []} quoteData={quoteData} />
                         
-                        {/* BUG-FIX: Passed quoteData as the profile fallback */}
-                        <AboutAsset profile={marketData?.profile || quoteData?.profile || quoteData || null} />
+                        {/* Passes all available objects defensively so AboutAsset can extract the description text */}
+                        <AboutAsset profile={marketData?.profile} quoteData={quoteData} marketData={marketData} />
                     </div>
 
                     <div className="lg:col-span-1 space-y-6">
-                        <DataSummary quoteData={quoteData} marketData={marketData} />
+                        {/* BUG-FIX: Passed 'quote={quoteData}' because DataSummary expects 'quote' */}
+                        <DataSummary quote={quoteData} quoteData={quoteData} marketData={marketData} />
                         <ComparisonCarousel peers={marketData?.peers} />
                     </div>
                 </div>

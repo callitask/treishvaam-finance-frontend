@@ -4,12 +4,16 @@
  * Purpose: Displays key market statistics (Volume, Ranges, P/E) for a specific asset.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Stripped hardcoded 'USD' logic and implemented `formatSmartPrice` for correct index/currency handling.
+ * - EDITED: Added robust prop destructing (`quote`, `quoteData`, `marketData`) to prevent null-returns when parent prop names vary. 
  */
 import React from 'react';
 import { formatSmartPrice, formatCompactNumber } from '../../utils/marketFormatter';
 
-const DataSummary = ({ quote }) => {
-    if (!quote) return null;
+const DataSummary = ({ quote, quoteData, marketData }) => {
+    // Defensively select whichever object has the actual data
+    const activeQuote = quote || quoteData || marketData;
+    
+    if (!activeQuote) return null;
 
     const formatRange = (low, high, currency, ticker) => {
         if (!low || !high) return 'N/A';
@@ -17,14 +21,14 @@ const DataSummary = ({ quote }) => {
     };
 
     const stats = [
-        { label: 'Previous Close', value: formatSmartPrice(quote.previousClose, quote.currency, quote.ticker) },
-        { label: 'Open', value: formatSmartPrice(quote.openPrice || quote.open, quote.currency, quote.ticker) },
-        { label: 'Day\'s Range', value: formatRange(quote.dayLow, quote.dayHigh, quote.currency, quote.ticker) },
-        { label: '52 Week Range', value: formatRange(quote.fiftyTwoWeekLow, quote.fiftyTwoWeekHigh, quote.currency, quote.ticker) },
-        { label: 'Volume', value: formatCompactNumber(quote.volume) },
-        { label: 'Market Cap', value: formatCompactNumber(quote.marketCap) },
-        { label: 'P/E Ratio (TTM)', value: quote.peRatio ? quote.peRatio.toFixed(2) : 'N/A' },
-        { label: 'Dividend Yield', value: quote.dividendYield ? `${(quote.dividendYield * 100).toFixed(2)}%` : 'N/A' },
+        { label: 'Previous Close', value: formatSmartPrice(activeQuote.previousClose, activeQuote.currency, activeQuote.ticker) },
+        { label: 'Open', value: formatSmartPrice(activeQuote.openPrice || activeQuote.open, activeQuote.currency, activeQuote.ticker) },
+        { label: 'Day\'s Range', value: formatRange(activeQuote.dayLow, activeQuote.dayHigh, activeQuote.currency, activeQuote.ticker) },
+        { label: '52 Week Range', value: formatRange(activeQuote.fiftyTwoWeekLow, activeQuote.fiftyTwoWeekHigh, activeQuote.currency, activeQuote.ticker) },
+        { label: 'Volume', value: formatCompactNumber(activeQuote.volume) },
+        { label: 'Market Cap', value: formatCompactNumber(activeQuote.marketCap) },
+        { label: 'P/E Ratio (TTM)', value: activeQuote.peRatio ? activeQuote.peRatio.toFixed(2) : 'N/A' },
+        { label: 'Dividend Yield', value: activeQuote.dividendYield ? `${(activeQuote.dividendYield * 100).toFixed(2)}%` : 'N/A' },
     ];
 
     return (

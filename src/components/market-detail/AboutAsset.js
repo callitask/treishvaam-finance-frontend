@@ -5,18 +5,28 @@
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Added "use client" directive.
  * - EDITED: Fixed prop mismatch (receives `profile` instead of `quote`) resolving the fatal white-screen crash.
+ * - EDITED: Added deep-scan fallback logic for `description/summary` keys to handle variations in Spring Boot `QuoteData` and `WidgetDataDto` flattening.
  */
 import React, { useState } from 'react';
 
-const AboutAsset = ({ profile }) => {
+const AboutAsset = ({ profile, quoteData, marketData }) => {
     const [showFullDesc, setShowFullDesc] = useState(false);
 
-    // Defensive return if backend didn't provide a profile payload
-    if (!profile) return null;
+    // Scan across all provided props for the data
+    const activeProfile = profile || quoteData?.profile || marketData?.profile || quoteData || marketData;
 
-    // Safely map variations of the summary payload
-    const description = profile.description || profile.longBusinessSummary || profile.summary || '';
-    const name = profile.name || profile.shortName || 'this asset';
+    if (!activeProfile) return null;
+
+    // Deep scan for the summary text across known backend data model variations
+    const description = 
+        activeProfile.description || 
+        activeProfile.longBusinessSummary || 
+        activeProfile.summary || 
+        activeProfile.assetProfile?.summary || 
+        activeProfile.assetProfile?.description || 
+        '';
+        
+    const name = activeProfile.name || activeProfile.shortName || activeProfile.assetProfile?.name || 'this asset';
 
     if (!description) return null;
 
