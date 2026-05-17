@@ -1,46 +1,131 @@
+"use client";
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getMarketData, getQuoteData } from '../apiConfig';
+
+import MarketHero from '../components/market-detail/MarketHero';
+import MainChart from '../components/market-detail/MainChart';
+import DataSummary from '../components/market-detail/DataSummary';
+import AboutAsset from '../components/market-detail/AboutAsset';
+import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
+import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
+
 /**
  * AI-CONTEXT:
- * Purpose: Next.js SSR Component wrapper for Market Detail page.
+ * Purpose: Market detail page for specific tickers.
  * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Removed generateStaticParams. Upgraded to Cloudflare Edge SSR.
- * - EDITED: Added `export const runtime = 'edge';` to explicitly opt-in to Cloudflare Edge SSR routing.
- * - EDITED: Implemented native generateMetadata for SEO rendering at the Edge.
+ * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED: Removed react-helmet-async entirely. SEO is now handled server-side by layout wrapper.
+ * - EDITED (Hotfix): Fixed prop drilling. Extracted `historicalData` and `profile` directly 
+ * from the `WidgetDataDto` structure and passed them directly to `MainChart` and `AboutAsset`.
+ * Resolves "No chart data available" and blank summary sections.
+ * - EDITED (Missing Sections Fix):
+ * • Imported and added `<GlobalMarketTicker />` to the page rendering.
+ * • Updated the `profile` prop on `<AboutAsset />` to fall back to `quoteData` directly. The backend flattened the profile attributes (summary, description) onto the root quote object.
  */
-import MarketDetailPage from '../../../src/pages/MarketDetailPage';
+const MarketDetailPage = () => {
+    const params = useParams();
+    const rawTicker = params?.ticker;
+    const ticker = rawTicker ? decodeURIComponent(rawTicker) : null;
 
-export const runtime = 'edge';
+    const [marketData, setMarketData] = useState(null);
+    const [quoteData, setQuoteData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-export async function generateMetadata({ params }: { params: { ticker: string } }) {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
-    try {
-        const ticker = decodeURIComponent(params.ticker);
-        const res = await fetch(`${API_URL}/api/v1/market/quote/${encodeURIComponent(ticker)}`);
+    useEffect(() => {
+        if (!ticker) return;
 
-        let titleName = ticker;
-        if (res.ok) {
-            const quote = await res.json();
-            if (quote && quote.name) titleName = quote.name;
-        }
+        const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const [marketRes, quoteRes] = await Promise.all([
+                    getMarketData(ticker).catch(e => { console.warn("Market static data fetch failed", e); return { data: null }; }),
+                    getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
+                ]);
 
-        return {
-            title: `${titleName} (${ticker}) | Treishvaam Finance`,
-            description: `Live quote, historical chart, and data for ${titleName} (${ticker}).`,
-            openGraph: {
-                title: `${titleName} (${ticker}) | Treishvaam Finance`,
-                description: `Live quote, historical chart, and data for ${titleName} (${ticker}).`,
-                type: 'website'
-            },
-            twitter: {
-                card: 'summary',
-                title: `${titleName} (${ticker}) | Treishvaam Finance`,
-                description: `Live quote, historical chart, and data for ${titleName} (${ticker}).`,
+                const resolvedMarketData = marketRes.data?.quoteData
+                    ? marketRes.data  
+                    : marketRes.data;
+
+                const resolvedQuoteData = quoteRes.data?.ticker
+                    ? quoteRes.data  
+                    : marketRes.data?.quoteData ?? null;
+
+                if (!resolvedMarketData && !resolvedQuoteData) {
+                    throw new Error("Asset not found or no data available.");
+                }
+
+                setMarketData(resolvedMarketData);
+                setQuoteData(resolvedQuoteData);
+
+            } catch (err) {
+                console.error("Failed to load market details", err);
+                setError(err.message || "Failed to load market data.");
+            } finally {
+                setLoading(false);
             }
         };
-    } catch (e) {
-        return { title: `${decodeURIComponent(params.ticker)} | Treishvaam Finance` };
-    }
-}
 
-export default function Page() {
-    return <MarketDetailPage />;
-}
+        fetchData();
+        const intervalId = setInterval(async () => {
+            try {
+                const res = await getQuoteData(ticker);
+                if (res.data) setQuoteData(res.data);
+            } catch (e) { }
+        }, 30000);
+
+        return () => clearInterval(intervalId);
+    }, [ticker]);
+
+    if (loading) {
+        return (
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-sky-600 rounded-full animate-spin mb-4"></div>
+                <p className="text-sm font-medium text-slate-500 uppercase tracking-widest">Loading Market Data...</p>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex flex-col h-[70vh] items-center justify-center bg-slate-50 px-4 text-center">
+                <h2 className="text-2xl font-bold text-red-600 mb-3">Asset Not Found</h2>
+                <p className="mb-6 text-slate-600">{error}</p>
+                <button onClick={() => window.history.back()} className="text-sky-600 font-bold hover:underline">
+                    &larr; Go Back
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-slate-50 min-h-screen pb-12">
+            {/* Restored Global Market Ticker */}
+            <GlobalMarketTicker />
+
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
+                <MarketHero ticker={ticker} quote={quoteData} marketData={marketData} />
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        <MainChart ticker={ticker} historicalData={marketData?.historicalData || []} quoteData={quoteData} />
+                        
+                        {/* BUG-FIX: If backend flattened the profile attributes onto the root QuoteData entity, 
+                          passing quoteData directly allows AboutAsset to find description/summary keys. 
+                        */}
+                        <AboutAsset profile={marketData?.profile || quoteData?.profile || quoteData || null} />
+                    </div>
+
+                    <div className="lg:col-span-1 space-y-6">
+                        <DataSummary quoteData={quoteData} marketData={marketData} />
+                        <ComparisonCarousel peers={marketData?.peers} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default MarketDetailPage;

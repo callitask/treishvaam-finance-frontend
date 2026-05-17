@@ -8,6 +8,7 @@ import MainChart from '../components/market-detail/MainChart';
 import DataSummary from '../components/market-detail/DataSummary';
 import AboutAsset from '../components/market-detail/AboutAsset';
 import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
+import GlobalMarketTicker from '../components/market/GlobalMarketTicker';
 
 /**
  * AI-CONTEXT:
@@ -18,6 +19,9 @@ import ComparisonCarousel from '../components/market-detail/ComparisonCarousel';
  * - EDITED (Hotfix): Fixed prop drilling. Extracted `historicalData` and `profile` directly 
  * from the `WidgetDataDto` structure and passed them directly to `MainChart` and `AboutAsset`.
  * Resolves "No chart data available" and blank summary sections.
+ * - EDITED (Missing Sections Fix):
+ * • Imported and added `<GlobalMarketTicker />` to the page rendering.
+ * • Updated the `profile` prop on `<AboutAsset />` to fall back to `quoteData` directly. The backend flattened the profile attributes (summary, description) onto the root quote object.
  */
 const MarketDetailPage = () => {
     const params = useParams();
@@ -41,12 +45,20 @@ const MarketDetailPage = () => {
                     getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
                 ]);
 
-                if (!marketRes.data && !quoteRes.data) {
+                const resolvedMarketData = marketRes.data?.quoteData
+                    ? marketRes.data  
+                    : marketRes.data;
+
+                const resolvedQuoteData = quoteRes.data?.ticker
+                    ? quoteRes.data  
+                    : marketRes.data?.quoteData ?? null;
+
+                if (!resolvedMarketData && !resolvedQuoteData) {
                     throw new Error("Asset not found or no data available.");
                 }
 
-                setMarketData(marketRes.data);
-                setQuoteData(quoteRes.data);
+                setMarketData(resolvedMarketData);
+                setQuoteData(resolvedQuoteData);
 
             } catch (err) {
                 console.error("Failed to load market details", err);
@@ -90,15 +102,20 @@ const MarketDetailPage = () => {
 
     return (
         <div className="bg-slate-50 min-h-screen pb-12">
+            {/* Restored Global Market Ticker */}
+            <GlobalMarketTicker />
+
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 mt-6 max-w-[1400px]">
                 <MarketHero ticker={ticker} quote={quoteData} marketData={marketData} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
                     <div className="lg:col-span-2 space-y-6">
-                        {/* BUG-MARKET-DETAIL FIX: Extract historicalData explicitly */}
                         <MainChart ticker={ticker} historicalData={marketData?.historicalData || []} quoteData={quoteData} />
-                        {/* BUG-MARKET-DETAIL FIX: Extract profile explicitly */}
-                        <AboutAsset profile={marketData?.profile || quoteData?.profile || null} />
+                        
+                        {/* BUG-FIX: If backend flattened the profile attributes onto the root QuoteData entity, 
+                          passing quoteData directly allows AboutAsset to find description/summary keys. 
+                        */}
+                        <AboutAsset profile={marketData?.profile || quoteData?.profile || quoteData || null} />
                     </div>
 
                     <div className="lg:col-span-1 space-y-6">
