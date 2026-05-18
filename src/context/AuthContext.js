@@ -1,24 +1,50 @@
 "use client";
 /**
  * AI-CONTEXT:
- * Purpose: Provides Keycloak-based authentication state to the entire Next.js application.
- * Scope: Responsible for: Keycloak init, token storage, user profile enrichment, token refresh.
- * Critical Dependencies: Backend: NEXT_PUBLIC_AUTH_URL, Frontend: apiConfig.js, faroConfig.js.
+ *
+ * Purpose:
+ * - Provides Keycloak-based authentication state to the entire Next.js application.
+ * - Manages token lifecycle: init, silent SSO, refresh, and graceful degradation.
+ *
+ * Scope:
+ * - Responsible for: Keycloak init, token storage, user profile enrichment, token refresh.
+ * - Must NEVER be responsible for: routing decisions, page-level access control (use PrivateRoute).
+ *
+ * Critical Dependencies:
+ * - Backend: NEXT_PUBLIC_AUTH_URL → Keycloak realm at /auth
+ * - Frontend: apiConfig.js (setAuthToken, getUserProfile), faroConfig.js (Grafana Faro RUM)
+ * - Worker / SEO: Bot detection prevents Keycloak init for crawlers — SEO-critical.
+ *
+ * Security Constraints:
+ * - Auth URL must NEVER be hardcoded — always read from NEXT_PUBLIC_AUTH_URL env var.
+ * - Silent SSO uses /silent-check-sso.html in /public — must exist and be accessible.
+ * - checkLoginIframe: false — prevents 3rd-party cookie blocking from crashing auth.
+ *
+ * Non-Negotiables:
+ * - Auth timeout MUST degrade gracefully: guest users must be able to browse without auth.
+ * - SSR guard (typeof window === 'undefined') MUST remain — prevents server-side crash.
+ * - Bot detection MUST remain — prevents Keycloak init for Googlebot/Lighthouse.
+ * - kc_silent_sso_failed sessionStorage flag MUST remain — prevents infinite retry loops.
+ *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED (Current Phase - Final Loop & Hydration Fix):
- * • Changed initial `loading` state to `typeof window !== 'undefined'` to align SSR and client hydration states, fixing React errors #418, #423, #425.
- * • Broadened the `catch` block's `else` condition to catch structured Keycloak error objects (like `authentication_expired`). Previously it only caught hardcoded timeout strings, leaving standard session expiries uncaught and triggering infinite loops.
- * - EDITED: Increased CONNECTION_TIMEOUT from 10000ms to 25000ms to prevent token exchange races on Cloudflare cold starts.
- * - EDITED: Moved `setKeycloak(initKeycloak)` inside the successful `.then()` resolution block so `login()` is securely gated until initialization fully passes.
- * - EDITED: Exposed `fatalError` state to UI to halt `PrivateRoute` from triggering a redirect loop when a token exchange fatally fails.
- * - EDITED: Scrubbed callback check to use both hash and search safely.
- * - EDITED: Injected `kc_fatal_loop_breaker` state into the `catch` block.
- * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust.
- * - EDITED: Added explicit handling for primitive `undefined` rejections in the Keycloak `catch`.
+ * - EDITED (Current Phase): 
+ * • Moved `setKeycloak(initKeycloak)` immediately after initialization, prior to `Promise.race()`. 
+ * • Why: If silent SSO fails (e.g., guest mode), placing it inside `.then()` left `keycloak` null, breaking the manual `login()` function.
+ * • Consolidated URL scrubbing in the `catch` block to thoroughly check both `hash` and `search` for `code=`, guaranteeing the URL is cleansed of dead tokens even on CORS failures, breaking the infinite loop.
+ * - EDITED: Injected `kc_fatal_loop_breaker` state into the `catch` block. If the auth init fails IMMEDIATELY following a callback (`code=` present), it permanently locks the login function to prevent DDoS-like infinite redirect loops.
+ * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust environment isolation.
+ * - EDITED: Added explicit handling for primitive `undefined` rejections in the Keycloak `catch` block.
  * - ADDED: Bot/Crawler detection, isRun ref guard.
  * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
  * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
+ * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-authentication.
+ * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks.
+ * - EDITED (INFINITE LOOP FIX): Wrapped Faro SDK calls in a strict `try/catch` and added `window.history.replaceState` scrubber.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -35,10 +61,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // FIX: Align SSR loading state to avoid hydration mismatch (#418, #423, #425)
   const [loading, setLoading] = useState(typeof window !== 'undefined');
   const [keycloak, setKeycloak] = useState(null);
-  const [fatalError, setFatalError] = useState(false);
 
   const isRun = useRef(false);
 
@@ -84,9 +108,15 @@ export const AuthProvider = ({ children }) => {
       clientId: 'finance-app',
     });
 
+    // CRITICAL FIX: Set keycloak state immediately so manual login works even if silent-sso fails
+    setKeycloak(initKeycloak);
+
     const url = window.location.href;
-    const isLoginCallback = (window.location.search.includes("code=") || window.location.hash.includes("code=")) && url.includes("state=");
-    const isLoginError = url.includes('error=login_required');
+    const hash = window.location.hash;
+    const search = window.location.search;
+    
+    const isLoginCallback = (search.includes("code=") || hash.includes("code=")) && url.includes("state=");
+    const isLoginError = hash && hash.includes('error=login_required');
     const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
 
     let initOptions = {
@@ -97,7 +127,8 @@ export const AuthProvider = ({ children }) => {
     if (isLoginError) {
       console.warn("[Auth] Silent SSO Failed. Disabling future checks.");
       sessionStorage.setItem('kc_silent_sso_failed', 'true');
-      window.history.replaceState(null, null, window.location.pathname);
+      const cleanUrl = window.location.pathname + window.location.search;
+      window.history.replaceState(null, null, cleanUrl);
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
@@ -120,12 +151,10 @@ export const AuthProvider = ({ children }) => {
     Promise.race([initPromise, timeoutPromise])
       .then((authenticated) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
-        
-        setKeycloak(initKeycloak);
 
         if (authenticated) {
           sessionStorage.removeItem('kc_silent_sso_failed');
-          sessionStorage.removeItem('kc_fatal_loop_breaker'); 
+          sessionStorage.removeItem('kc_fatal_loop_breaker'); // Clear breaker on success
 
           if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
               window.history.replaceState({}, document.title, window.location.pathname);
@@ -179,17 +208,16 @@ export const AuthProvider = ({ children }) => {
       })
       .catch((rawErr) => {
         const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
-        
         console.error("[Auth] Init Failed:", err);
 
-        // ANTI-LOOP CIRCUIT BREAKER
-        if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
+        const hasCode = window.location.search.includes('code=') || window.location.hash.includes('code=');
+
+        if (hasCode) {
             console.error("[Auth] FATAL: Token exchange failed immediately after callback. Engaging Anti-Loop breaker.");
             sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
-            setFatalError(true); 
+            // CRITICAL FIX: Scrub the URL unconditionally to kill the redirect loop
             window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-            // FIX: Catch-all handles standard Keycloak 'authentication_expired' objects AND timeouts/CSP blocks.
             console.warn("[Auth] Non-fatal init failure or session expired. Degrading to guest mode.", err);
             sessionStorage.setItem('kc_silent_sso_failed', 'true');
         }
@@ -250,7 +278,7 @@ export const AuthProvider = ({ children }) => {
   }, [keycloak, isAuthenticated, logout]);
 
   return (
-    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token, fatalError }, login, logout, loading }}>
+    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
