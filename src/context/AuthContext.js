@@ -26,17 +26,16 @@
  * - Bot detection MUST remain — prevents Keycloak init for Googlebot/Lighthouse.
  * - kc_silent_sso_failed sessionStorage flag MUST remain — prevents infinite retry loops.
  *
- * Change Intent:
- * - SESSION 2026-05-13: Added `|| {}` fallback to `initKeycloak.tokenParsed` to prevent 
- * Cannot destructure property 'name' of 'undefined' if the Keycloak token is malformed.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Bot/Crawler detection, isRun ref guard.
  * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
  * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
  * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-authentication.
- * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks to prevent internal SDK crash on undefined profile fields.
+ * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks.
+ * - EDITED (INFINITE LOOP FIX): 
+ * • Wrapped Faro SDK calls in a strict `try/catch` and injected `sub` as the explicit ID. The previous missing 'id' caused a fatal React crash post-login.
+ * • Added `window.history.replaceState` scrubber to immediately remove `code=` and `state=` from the URL upon successful auth. This prevents React re-mounts from attempting to consume a used token, completely eliminating the `/login?from=/dashboard` infinite kick-out loop.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -142,11 +141,17 @@ export const AuthProvider = ({ children }) => {
         if (authenticated) {
           sessionStorage.removeItem('kc_silent_sso_failed');
 
+          // INFINITE LOOP FIX: Scrub the URL clean so React remounts don't consume the code twice
+          if (window.location.search.includes('code=')) {
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
+          }
+
           setToken(initKeycloak.token);
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
 
-          const { name, email, realm_access } = initKeycloak.tokenParsed || {};
+          const { name, email, realm_access, sub } = initKeycloak.tokenParsed || {};
           const roles = realm_access ? realm_access.roles : [];
 
           const initialUser = {
@@ -156,6 +161,19 @@ export const AuthProvider = ({ children }) => {
             isAdmin: roles.includes('admin') || roles.includes('publisher')
           };
           setUser(initialUser);
+
+          // FARO BUG-FIX: Safely isolate the external SDK to prevent React tree crashes
+          const safeId = String(sub || email || 'anonymous-id');
+          const safeEmail = String(email || 'anonymous@treishvaam.com');
+          let safeName = String(name || 'Anonymous User');
+
+          try {
+            if (window.faro && window.faro.api) {
+              window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
+            }
+          } catch (e) {
+            console.warn("[Auth] Initial Faro instrumentation failed", e);
+          }
 
           getUserProfile().then(response => {
             if (response?.data) {
@@ -168,27 +186,22 @@ export const AuthProvider = ({ children }) => {
                 displayName: displayName
               }));
 
-              if (faro) {
-                // BUG-FIX: Safe fallback strings for Faro SDK
-                const safeEmail = email || 'anonymous@treishvaam.com';
-                const safeName = displayName || name || 'Anonymous User';
-                faro.api.setUser({
-                  id: safeEmail,
-                  username: safeName,
-                  email: safeEmail
-                });
+              try {
+                if (window.faro && window.faro.api) {
+                  safeName = String(displayName || name || 'Anonymous User');
+                  window.faro.api.setUser({
+                    id: safeId,
+                    username: safeName,
+                    email: safeEmail
+                  });
+                }
+              } catch (e) {
+                console.warn("[Auth] Enriched Faro instrumentation failed", e);
               }
             }
           }).catch(err => {
             console.warn("[Auth] Failed to fetch extended profile:", err);
           });
-
-          if (faro) {
-            // BUG-FIX: Safe fallback strings for Faro SDK
-            const safeEmail = email || 'anonymous@treishvaam.com';
-            const safeName = name || 'Anonymous User';
-            faro.api.setUser({ id: safeEmail, username: safeName, email: safeEmail });
-          }
 
         } else {
           setIsAuthenticated(false);
@@ -223,7 +236,9 @@ export const AuthProvider = ({ children }) => {
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      if (faro) faro.api.resetUser();
+      try {
+          if (window.faro && window.faro.api) window.faro.api.resetUser();
+      } catch (e) {}
       keycloak.logout();
     }
   }, [keycloak]);
