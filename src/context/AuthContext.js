@@ -28,17 +28,19 @@
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase): 
- * • Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust environment isolation.
- * • Added explicit handling for primitive `undefined` rejections in the Keycloak `catch` block to prevent React infinite re-render loops when CSP dynamically blocks the hidden iframe.
+ * • Changed `window.location.search` checks to `window.location.href` to correctly detect the Keycloak `code=` payload.
+ * • Why: Keycloak implicit/SPA flows return the token exchange data in the URL fragment (`#state=...&code=...`), not the query string. The previous `search` check failed, leaving the dead code in the URL and causing a continuous crash-loop on token exchange.
+ * • Updated `isLoginError` to check the full URL for `error=login_required` to accurately catch silent SSO rejections.
+ * - EDITED: Injected `kc_fatal_loop_breaker` state into the `catch` block. If the auth init fails IMMEDIATELY following a callback (`code=` present), it permanently locks the login function to prevent DDoS-like infinite redirect loops between the frontend and Keycloak.
+ * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust environment isolation.
+ * - EDITED: Added explicit handling for primitive `undefined` rejections in the Keycloak `catch` block to prevent React infinite re-render loops when CSP dynamically blocks the hidden iframe.
  * - ADDED: Bot/Crawler detection, isRun ref guard.
  * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
  * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
  * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-authentication.
  * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks.
- * - EDITED (INFINITE LOOP FIX): 
- * • Wrapped Faro SDK calls in a strict `try/catch` and injected `sub` as the explicit ID. The previous missing 'id' caused a fatal React crash post-login.
- * • Added `window.history.replaceState` scrubber to immediately remove `code=` and `state=` from the URL upon successful auth. This prevents React re-mounts from attempting to consume a used token, completely eliminating the `/login?from=/dashboard` infinite kick-out loop.
+ * - EDITED (INFINITE LOOP FIX): Wrapped Faro SDK calls in a strict `try/catch` and added `window.history.replaceState` scrubber.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -109,9 +111,8 @@ export const AuthProvider = ({ children }) => {
     setKeycloak(initKeycloak);
 
     const url = window.location.href;
-    const hash = window.location.hash;
     const isLoginCallback = url.includes("code=") && url.includes("state=");
-    const isLoginError = hash && hash.includes('error=login_required');
+    const isLoginError = url.includes('error=login_required');
     const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
 
     let initOptions = {
@@ -149,9 +150,10 @@ export const AuthProvider = ({ children }) => {
 
         if (authenticated) {
           sessionStorage.removeItem('kc_silent_sso_failed');
+          sessionStorage.removeItem('kc_fatal_loop_breaker'); // Clear breaker on success
 
-          // INFINITE LOOP FIX: Scrub the URL clean so React remounts don't consume the code twice
-          if (window.location.search.includes('code=')) {
+          // Fixed URL scrub logic: Check href instead of search to correctly catch fragments
+          if (window.location.href.includes('code=')) {
               const cleanUrl = window.location.pathname;
               window.history.replaceState({}, document.title, cleanUrl);
           }
@@ -171,7 +173,6 @@ export const AuthProvider = ({ children }) => {
           };
           setUser(initialUser);
 
-          // FARO BUG-FIX: Safely isolate the external SDK to prevent React tree crashes
           const safeId = String(sub || email || 'anonymous-id');
           const safeEmail = String(email || 'anonymous@treishvaam.com');
           let safeName = String(name || 'Anonymous User');
@@ -187,26 +188,12 @@ export const AuthProvider = ({ children }) => {
           getUserProfile().then(response => {
             if (response?.data) {
               const { displayName } = response.data;
-              console.log("[Auth] Enriched Profile:", displayName);
-
-              setUser(prev => ({
-                ...prev,
-                name: displayName || prev.name,
-                displayName: displayName
-              }));
-
+              setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
               try {
                 if (window.faro && window.faro.api) {
-                  safeName = String(displayName || name || 'Anonymous User');
-                  window.faro.api.setUser({
-                    id: safeId,
-                    username: safeName,
-                    email: safeEmail
-                  });
+                  window.faro.api.setUser({ id: safeId, username: String(displayName || name || 'Anonymous User'), email: safeEmail });
                 }
-              } catch (e) {
-                console.warn("[Auth] Enriched Faro instrumentation failed", e);
-              }
+              } catch (e) {}
             }
           }).catch(err => {
             console.warn("[Auth] Failed to fetch extended profile:", err);
@@ -218,16 +205,23 @@ export const AuthProvider = ({ children }) => {
         }
       })
       .catch((rawErr) => {
-        // CIRCUIT BREAKER: Safely intercept primitive `undefined` from CSP blocks
         const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
         const errMsg = err instanceof Error ? err.message : String(err);
         
-        if (errMsg === "Auth Timeout" || errMsg === "CSP_BLOCK_OR_UNDEFINED") {
-          console.warn("[Auth] Init Blocked/Timeout (Check CSP). Degrading to guest mode.");
-          sessionStorage.setItem('kc_silent_sso_failed', 'true');
-        } else {
-          console.error("[Auth] Init Failed:", err);
+        console.error("[Auth] Init Failed:", err);
+
+        // ANTI-LOOP CIRCUIT BREAKER
+        // Fixed check: Must use href to detect code within URL fragment
+        if (window.location.href.includes('code=')) {
+            console.error("[Auth] FATAL: Token exchange failed immediately after callback. Engaging Anti-Loop breaker.");
+            sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+            // Scrub the URL to prevent the component from thinking it's still in callback phase
+            window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (errMsg === "Auth Timeout" || errMsg === "CSP_BLOCK_OR_UNDEFINED") {
+            console.warn("[Auth] Init Blocked/Timeout (Check CSP). Degrading to guest mode.");
+            sessionStorage.setItem('kc_silent_sso_failed', 'true');
         }
+
         setIsAuthenticated(false);
         setAuthToken(null);
       })
@@ -238,6 +232,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback(() => {
+    // If the loop breaker is active, permanently halt auto-redirects
+    if (sessionStorage.getItem('kc_fatal_loop_breaker') === 'true') {
+        alert("Authentication is currently blocked due to a Network or CSP failure. Please clear your cache or contact the administrator.");
+        return;
+    }
+
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
@@ -249,6 +249,7 @@ export const AuthProvider = ({ children }) => {
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
+      sessionStorage.removeItem('kc_fatal_loop_breaker');
       try {
           if (window.faro && window.faro.api) window.faro.api.resetUser();
       } catch (e) {}

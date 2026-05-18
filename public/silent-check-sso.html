@@ -2,7 +2,8 @@
 <body>
     <script>
         // Send the authorization state back to the React app parent window
-        parent.postMessage(location.hash, window.location.origin);
+        // MUST be location.href for Keycloak 20+ to parse state correctly
+        parent.postMessage(location.href, window.location.origin);
     </script>
 </body>
 </html>
