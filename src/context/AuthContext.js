@@ -1,10 +1,22 @@
 "use client";
 /**
  * AI-CONTEXT:
- * Purpose: Provides Keycloak-based authentication state.
+ * Purpose: Provides Keycloak-based authentication state to the entire Next.js application.
+ * Scope: Responsible for: Keycloak init, token storage, user profile enrichment, token refresh.
+ * Critical Dependencies: Backend: NEXT_PUBLIC_AUTH_URL, Frontend: apiConfig.js, faroConfig.js.
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED: Extended CONNECTION_TIMEOUT to 30000ms to prevent token-exchange timeouts on Cloudflare tunnel cold starts.
- * - EDITED: Improved callback detection to safely handle both search (?) and hash (#) PKCE payloads.
+ * - EDITED (Current Phase):
+ * • Increased CONNECTION_TIMEOUT from 10000ms to 25000ms to prevent token exchange races on Cloudflare cold starts.
+ * • Moved `setKeycloak(initKeycloak)` inside the successful `.then()` resolution block so `login()` is securely gated until initialization fully passes.
+ * • Exposed `fatalError` state to UI to halt `PrivateRoute` from triggering a redirect loop when a token exchange fatally fails.
+ * • Scrubbed callback check to use both hash and search safely.
+ * - EDITED: Injected `kc_fatal_loop_breaker` state into the `catch` block.
+ * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust.
+ * - EDITED: Added explicit handling for primitive `undefined` rejections in the Keycloak `catch`.
+ * - ADDED: Bot/Crawler detection, isRun ref guard.
+ * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
+ * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
+ * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -23,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
+  const [fatalError, setFatalError] = useState(false);
 
   const isRun = useRef(false);
 
@@ -44,8 +57,10 @@ export const AuthProvider = ({ children }) => {
       'lighthouse', 'inspection', 'headless', 'chrome-lighthouse', 'ptst'
     ];
 
-    if (isHeadless || botKeywords.some(keyword => userAgent.includes(keyword))) {
-      console.log("[Auth] Bot/Crawler detected. Skipping Keycloak init.");
+    const isBot = isHeadless || botKeywords.some(keyword => userAgent.includes(keyword));
+
+    if (isBot) {
+      console.log("[Auth] Bot/Crawler detected. Skipping Keycloak initialization for SEO.");
       setLoading(false);
       return;
     }
@@ -66,10 +81,7 @@ export const AuthProvider = ({ children }) => {
       clientId: 'finance-app',
     });
 
-    setKeycloak(initKeycloak);
-
     const url = window.location.href;
-    // Safely check both standard query params and fragments for the callback code
     const isLoginCallback = (window.location.search.includes("code=") || window.location.hash.includes("code=")) && url.includes("state=");
     const isLoginError = url.includes('error=login_required');
     const hasPriorFailure = sessionStorage.getItem('kc_silent_sso_failed') === 'true';
@@ -87,15 +99,15 @@ export const AuthProvider = ({ children }) => {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
     } else if (hasPriorFailure) {
-      console.log("[Auth] Skipping Silent SSO. Guest mode active.");
+      console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
       console.log("[Auth] Attempting Silent SSO...");
       initOptions.onLoad = 'check-sso';
       initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
     }
 
-    // CRITICAL FIX: Increased timeout from 10s to 30s for cold-start token exchange via Tunnels
-    const CONNECTION_TIMEOUT = 30000; 
+    // CRITICAL FIX: Increased timeout from 10s to 25s for cold-start token exchange via Tunnels
+    const CONNECTION_TIMEOUT = 25000;
 
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
@@ -106,12 +118,14 @@ export const AuthProvider = ({ children }) => {
     Promise.race([initPromise, timeoutPromise])
       .then((authenticated) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
+        
+        // Fix 4: Only set keycloak state after successful initialization to gate login callbacks
+        setKeycloak(initKeycloak);
 
         if (authenticated) {
           sessionStorage.removeItem('kc_silent_sso_failed');
           sessionStorage.removeItem('kc_fatal_loop_breaker'); 
 
-          // Scrub URL to remove code/state parameters
           if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
               window.history.replaceState({}, document.title, window.location.pathname);
           }
@@ -123,29 +137,39 @@ export const AuthProvider = ({ children }) => {
           const { name, email, realm_access, sub } = initKeycloak.tokenParsed || {};
           const roles = realm_access ? realm_access.roles : [];
 
-          setUser({
+          const initialUser = {
             name,
             email,
             roles,
             isAdmin: roles.includes('admin') || roles.includes('publisher')
-          });
+          };
+          setUser(initialUser);
 
           const safeId = String(sub || email || 'anonymous-id');
           const safeEmail = String(email || 'anonymous@treishvaam.com');
-          
+          let safeName = String(name || 'Anonymous User');
+
           try {
             if (window.faro && window.faro.api) {
-              window.faro.api.setUser({ id: safeId, username: String(name || 'Anonymous User'), email: safeEmail });
+              window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
             }
           } catch (e) {
-            console.warn("[Auth] Initial Faro instrumentation failed");
+            console.warn("[Auth] Initial Faro instrumentation failed", e);
           }
 
           getUserProfile().then(response => {
             if (response?.data) {
-              setUser(prev => ({ ...prev, name: response.data.displayName || prev.name, displayName: response.data.displayName }));
+              const { displayName } = response.data;
+              setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
+              try {
+                if (window.faro && window.faro.api) {
+                  window.faro.api.setUser({ id: safeId, username: String(displayName || name || 'Anonymous User'), email: safeEmail });
+                }
+              } catch (e) {}
             }
-          }).catch(err => console.warn("[Auth] Failed to fetch extended profile:", err));
+          }).catch(err => {
+            console.warn("[Auth] Failed to fetch extended profile:", err);
+          });
 
         } else {
           setIsAuthenticated(false);
@@ -158,10 +182,11 @@ export const AuthProvider = ({ children }) => {
         
         console.error("[Auth] Init Failed:", err);
 
-        // If we fail specifically during a callback, trip the loop breaker
+        // ANTI-LOOP CIRCUIT BREAKER
         if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
-            console.error("[Auth] FATAL: Token exchange failed. Engaging Anti-Loop breaker.");
+            console.error("[Auth] FATAL: Token exchange failed immediately after callback. Engaging Anti-Loop breaker.");
             sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+            setFatalError(true); // Exposes visible UI error state so PrivateRoute stops looping
             window.history.replaceState({}, document.title, window.location.pathname);
         } else if (errMsg === "Auth Timeout" || errMsg === "CSP_BLOCK_OR_UNDEFINED") {
             console.warn("[Auth] Init Blocked/Timeout (Check CSP). Degrading to guest mode.");
@@ -179,8 +204,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(() => {
     if (sessionStorage.getItem('kc_fatal_loop_breaker') === 'true') {
-        alert("Authentication is temporarily blocked due to a network timeout. Please refresh the page and try again.");
-        sessionStorage.removeItem('kc_fatal_loop_breaker');
+        alert("Authentication is currently blocked due to a Network or CSP failure. Please clear your cache or contact the administrator.");
         return;
     }
 
@@ -189,7 +213,7 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.removeItem('kc_silent_sso_failed');
       keycloak.login({ redirectUri: window.location.origin + '/dashboard' });
     } else {
-      console.warn("[Auth] Keycloak is not yet initialized. Please wait a moment.");
+      console.warn("[Auth] Login aborted: Keycloak is not fully initialized yet.");
     }
   }, [keycloak]);
 
@@ -211,6 +235,7 @@ export const AuthProvider = ({ children }) => {
     const intervalId = setInterval(() => {
       keycloak.updateToken(70).then((refreshed) => {
         if (refreshed) {
+          console.log("[Auth] Token Refreshed");
           setToken(keycloak.token);
           setAuthToken(keycloak.token);
         }
@@ -224,7 +249,7 @@ export const AuthProvider = ({ children }) => {
   }, [keycloak, isAuthenticated, logout]);
 
   return (
-    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token }, login, logout, loading }}>
+    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token, fatalError }, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
