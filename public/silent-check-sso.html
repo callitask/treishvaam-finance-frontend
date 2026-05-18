@@ -1,10 +1,8 @@
-<!DOCTYPE html>
 <html>
-
 <body>
     <script>
-        parent.postMessage(location.href, location.origin);
+        // Send the authorization state back to the React app parent window
+        parent.postMessage(location.hash, window.location.origin);
     </script>
 </body>
-
 </html>
