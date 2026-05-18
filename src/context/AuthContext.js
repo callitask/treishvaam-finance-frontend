@@ -5,11 +5,13 @@
  * Scope: Responsible for: Keycloak init, token storage, user profile enrichment, token refresh.
  * Critical Dependencies: Backend: NEXT_PUBLIC_AUTH_URL, Frontend: apiConfig.js, faroConfig.js.
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED (Current Phase):
- * • Increased CONNECTION_TIMEOUT from 10000ms to 25000ms to prevent token exchange races on Cloudflare cold starts.
- * • Moved `setKeycloak(initKeycloak)` inside the successful `.then()` resolution block so `login()` is securely gated until initialization fully passes.
- * • Exposed `fatalError` state to UI to halt `PrivateRoute` from triggering a redirect loop when a token exchange fatally fails.
- * • Scrubbed callback check to use both hash and search safely.
+ * - EDITED (Current Phase - Final Loop & Hydration Fix):
+ * • Changed initial `loading` state to `typeof window !== 'undefined'` to align SSR and client hydration states, fixing React errors #418, #423, #425.
+ * • Broadened the `catch` block's `else` condition to catch structured Keycloak error objects (like `authentication_expired`). Previously it only caught hardcoded timeout strings, leaving standard session expiries uncaught and triggering infinite loops.
+ * - EDITED: Increased CONNECTION_TIMEOUT from 10000ms to 25000ms to prevent token exchange races on Cloudflare cold starts.
+ * - EDITED: Moved `setKeycloak(initKeycloak)` inside the successful `.then()` resolution block so `login()` is securely gated until initialization fully passes.
+ * - EDITED: Exposed `fatalError` state to UI to halt `PrivateRoute` from triggering a redirect loop when a token exchange fatally fails.
+ * - EDITED: Scrubbed callback check to use both hash and search safely.
  * - EDITED: Injected `kc_fatal_loop_breaker` state into the `catch` block.
  * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust.
  * - EDITED: Added explicit handling for primitive `undefined` rejections in the Keycloak `catch`.
@@ -33,7 +35,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // FIX: Align SSR loading state to avoid hydration mismatch (#418, #423, #425)
+  const [loading, setLoading] = useState(typeof window !== 'undefined');
   const [keycloak, setKeycloak] = useState(null);
   const [fatalError, setFatalError] = useState(false);
 
@@ -106,7 +109,6 @@ export const AuthProvider = ({ children }) => {
       initOptions.silentCheckSsoRedirectUri = window.location.origin + '/silent-check-sso.html';
     }
 
-    // CRITICAL FIX: Increased timeout from 10s to 25s for cold-start token exchange via Tunnels
     const CONNECTION_TIMEOUT = 25000;
 
     const timeoutPromise = new Promise((_, reject) =>
@@ -119,7 +121,6 @@ export const AuthProvider = ({ children }) => {
       .then((authenticated) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
         
-        // Fix 4: Only set keycloak state after successful initialization to gate login callbacks
         setKeycloak(initKeycloak);
 
         if (authenticated) {
@@ -178,7 +179,6 @@ export const AuthProvider = ({ children }) => {
       })
       .catch((rawErr) => {
         const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
-        const errMsg = err instanceof Error ? err.message : String(err);
         
         console.error("[Auth] Init Failed:", err);
 
@@ -186,10 +186,11 @@ export const AuthProvider = ({ children }) => {
         if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
             console.error("[Auth] FATAL: Token exchange failed immediately after callback. Engaging Anti-Loop breaker.");
             sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
-            setFatalError(true); // Exposes visible UI error state so PrivateRoute stops looping
+            setFatalError(true); 
             window.history.replaceState({}, document.title, window.location.pathname);
-        } else if (errMsg === "Auth Timeout" || errMsg === "CSP_BLOCK_OR_UNDEFINED") {
-            console.warn("[Auth] Init Blocked/Timeout (Check CSP). Degrading to guest mode.");
+        } else {
+            // FIX: Catch-all handles standard Keycloak 'authentication_expired' objects AND timeouts/CSP blocks.
+            console.warn("[Auth] Non-fatal init failure or session expired. Degrading to guest mode.", err);
             sessionStorage.setItem('kc_silent_sso_failed', 'true');
         }
 
