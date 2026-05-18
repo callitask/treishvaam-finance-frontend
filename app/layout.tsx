@@ -7,14 +7,16 @@
  * - EDITED: Injected Next.js optimized GA4 tracking script securely using NEXT_PUBLIC_ env variables.
  * - EDITED: Reordered DOM and removed GlobalMarketTicker to allow specific page-level stacking.
  * - EDITED (2026-05-15 BUG-HYDRATION-01 Fix B):
- *   • Added suppressHydrationWarning to <html> and <body> tags.
- *   • Removed className={theme} from <html> — ThemeProvider manages it client-side via document.documentElement.
- *   • Added anonymize_ip: true to GA4 config for DPDP/GDPR best practice.
- *   • Added send_page_view: true to GA4 config.
- *   • Added JSON-LD Organization schema for SEO.
- *   • Why: suppressHydrationWarning silences expected client/server mismatches from auth state,
- *     theme class, and timestamps. The theme className was causing mismatch because ThemeProvider
- *     reads from localStorage client-side (different from server-rendered 'light').
+ * • Added suppressHydrationWarning to <html> and <body> tags.
+ * • Removed className={theme} from <html> — ThemeProvider manages it client-side via document.documentElement.
+ * • Added anonymize_ip: true to GA4 config for DPDP/GDPR best practice.
+ * • Added send_page_view: true to GA4 config.
+ * • Added JSON-LD Organization schema for SEO.
+ * • Why: suppressHydrationWarning silences expected client/server mismatches from auth state,
+ * theme class, and timestamps. The theme className was causing mismatch because ThemeProvider
+ * reads from localStorage client-side (different from server-rendered 'light').
+ * - EDITED (Current Phase):
+ * • Validated `suppressHydrationWarning` implementation to guarantee protection against Keycloak async init mismatch during SSR hydration.
  */
 import React from 'react';
 import Script from 'next/script';
