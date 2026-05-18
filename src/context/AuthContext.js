@@ -27,6 +27,9 @@
  * - kc_silent_sso_failed sessionStorage flag MUST remain — prevents infinite retry loops.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED (Current Phase): 
+ * • Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust environment isolation.
+ * • Added explicit handling for primitive `undefined` rejections in the Keycloak `catch` block to prevent React infinite re-render loops when CSP dynamically blocks the hidden iframe.
  * - ADDED: Bot/Crawler detection, isRun ref guard.
  * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
  * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
@@ -89,7 +92,13 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
-    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL || 'https://backend.treishvaamgroup.com/auth';
+    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL;
+    
+    if (!authUrl) {
+      console.error("[Auth] FATAL: NEXT_PUBLIC_AUTH_URL is missing. Halting Keycloak init to enforce zero-trust.");
+      setLoading(false);
+      return;
+    }
 
     const initKeycloak = new Keycloak({
       url: authUrl,
@@ -208,9 +217,13 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(null);
         }
       })
-      .catch((err) => {
-        if (err?.message === "Auth Timeout") {
-          console.warn("[Auth] Init Timeout — Keycloak unreachable. Degrading to guest mode.");
+      .catch((rawErr) => {
+        // CIRCUIT BREAKER: Safely intercept primitive `undefined` from CSP blocks
+        const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
+        const errMsg = err instanceof Error ? err.message : String(err);
+        
+        if (errMsg === "Auth Timeout" || errMsg === "CSP_BLOCK_OR_UNDEFINED") {
+          console.warn("[Auth] Init Blocked/Timeout (Check CSP). Degrading to guest mode.");
           sessionStorage.setItem('kc_silent_sso_failed', 'true');
         } else {
           console.error("[Auth] Init Failed:", err);
