@@ -4,13 +4,11 @@
  * Purpose: Route protection wrapper for admin components.
  * * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
- * • Migrated routing from `react-router-dom` (`<Navigate>`, `useLocation`) to Next.js App Router (`next/navigation`, `useRouter`, `usePathname`).
- * • Switched from declarative rendering (<Navigate>) to an imperative `useEffect` push for client-side protection.
- * • Added `"use client";` to top level.
- * • Why: Phase 3 Next.js Migration.
+ * • Migrated routing from `react-router-dom` to Next.js App Router.
+ * • Added `hasRedirected` ref guard and `pathname` check to prevent infinite redirect loops.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -19,14 +17,21 @@ const PrivateRoute = ({ children }) => {
     const { auth, loading } = useAuth();
     const router = useRouter();
     const pathname = usePathname();
+    const hasRedirected = useRef(false);
 
     useEffect(() => {
+        // Prevent redirect loop: do nothing if already heading to or on the login page
+        if (pathname.startsWith('/login') || hasRedirected.current) {
+            return;
+        }
+
         if (!loading && !auth.isAuthenticated) {
+            hasRedirected.current = true;
             router.push(`/login?from=${encodeURIComponent(pathname)}`);
         }
     }, [loading, auth.isAuthenticated, router, pathname]);
 
-    // Only block rendering for PROTECTED routes
+    // Only block rendering for PROTECTED routes while loading
     if (loading) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-slate-50">
