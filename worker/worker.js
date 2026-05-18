@@ -43,6 +43,11 @@
  * - EDITED (CSP Fix 2):
  * • Appended `https://static.cloudflareinsights.com` to `script-src`.
  * • Why: The previous CSP allowed `cloudflareinsights.com` (for connect-src beacon), but blocked the actual script fetching from the `static.` subdomain, triggering `script-src-elem` console errors.
+ * - EDITED (CSP Auth Fix - Current Phase):
+ * • Added `frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com` to CSP.
+ * • Added wildcard `https://*.treishvaamgroup.com` to `connect-src`.
+ * • Reverted `frame-ancestors` to `'self'` (removed legacy subdomain).
+ * • Why: The Worker CSP was aggressively overriding the Pages `_headers` CSP and completely lacking a `frame-src`. This caused `default-src 'self'` to block Keycloak's `silent-check-sso` iframe and PKCE validations, resulting in `CSP_BLOCK_OR_UNDEFINED` infinite login loops.
  */
 
 export default {
@@ -151,15 +156,17 @@ export default {
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
 
             // Enforce Enterprise Zero-Trust CSP
+            // CRITICAL: Added frame-src and expanded connect-src to unblock Keycloak Auth loop
             const csp = [
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' data: https://fonts.gstatic.com",
                 "img-src 'self' data: blob: https:",
-                "connect-src 'self' https://backend.treishvaamgroup.com https://www.google-analytics.com https://cloudflareinsights.com",
+                "connect-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com https://www.google-analytics.com https://cloudflareinsights.com",
+                "frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com",
                 "media-src 'self' https:",
-                "frame-ancestors 'self' https://treishfin.treishvaamgroup.com",
+                "frame-ancestors 'self'",
                 "object-src 'none'",
                 "upgrade-insecure-requests"
             ].join("; ");
