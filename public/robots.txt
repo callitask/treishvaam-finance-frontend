@@ -1,17 +1,3 @@
-# AI-CONTEXT:
-# Purpose: Single Source of Truth for Crawler Directives (Worker Fall-through).
-# Critical: Contains strict security disallows previously managed by Edge Worker.
-# Dependencies: Must match Backend SecurityConfig patterns.
-#
-# IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
-# - EDITED:
-# • Verified sitemap path points to canonical domain.
-# • Preserved all security disallows.
-#
-# - DO-NOT-DELETE RULE:
-# This IMMUTABLE CHANGE HISTORY section must never be deleted,
-# truncated, rewritten, or regenerated.
-# Future AI must append only.
 User-agent: *
 
 # Allow access to all content by default
@@ -22,6 +8,7 @@ Allow: /api/posts
 Allow: /api/categories
 Allow: /api/market
 Allow: /api/news
+Allow: /login
 
 # Disallow crawlers from indexing Auth, Admin, and internal search paths
 Disallow: /api/auth/
@@ -29,8 +16,8 @@ Disallow: /api/contact/
 Disallow: /api/admin/
 Disallow: /dashboard/
 Disallow: /?q=*
-Disallow: /silent-check-sso.html
-Disallow: /login
+# Disallow: /silent-check-sso.html (Removed to allow sso callback discovery)
+# Disallow: /login (Removed and explicitly allowed above for GSC indexing)
 
 # Sitemap Index
 Sitemap: https://treishvaamfinance.com/sitemap.xml

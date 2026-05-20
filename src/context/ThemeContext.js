@@ -7,24 +7,26 @@ const ThemeContext = createContext();
 export const useTheme = () => useContext(ThemeContext);
 
 export const ThemeProvider = ({ children }) => {
-    // Check localStorage or system preference on initial load
-    const getInitialTheme = () => {
-        if (typeof window !== 'undefined' && window.localStorage) {
-            const storedPrefs = window.localStorage.getItem('color-theme');
-            if (typeof storedPrefs === 'string') {
-                return storedPrefs;
-            }
-            const userMedia = window.matchMedia('(prefers-color-scheme: dark)');
-            if (userMedia.matches) {
-                return 'dark';
-            }
-        }
-        return 'light'; // Default to light if no preference
-    };
-
-    const [theme, setTheme] = useState(getInitialTheme);
+    // Deterministic initial state to prevent Next.js hydration mismatch
+    const [theme, setTheme] = useState('light');
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
+        // Check localStorage or system preference only on client mount
+        const storedPrefs = window.localStorage.getItem('color-theme');
+        if (typeof storedPrefs === 'string') {
+            setTheme(storedPrefs);
+        } else {
+            const userMedia = window.matchMedia('(prefers-color-scheme: dark)');
+            if (userMedia.matches) {
+                setTheme('dark');
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
         const root = window.document.documentElement;
         const isDark = theme === 'dark';
 
@@ -33,7 +35,7 @@ export const ThemeProvider = ({ children }) => {
 
         // Save preference
         localStorage.setItem('color-theme', theme);
-    }, [theme]);
+    }, [theme, mounted]);
 
     const toggleTheme = () => {
         setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));

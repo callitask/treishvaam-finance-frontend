@@ -7,26 +7,30 @@ const WatchlistContext = createContext();
 export const useWatchlist = () => useContext(WatchlistContext);
 
 export const WatchlistProvider = ({ children }) => {
-    // 1. Initialize from LocalStorage
-    const [watchlist, setWatchlist] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('user-watchlist');
-            try {
-                return saved ? JSON.parse(saved) : [];
-            } catch (e) {
-                console.error("Failed to parse watchlist", e);
-                return [];
-            }
-        }
-        return [];
-    });
+    // 1. Deterministic initial state for Next.js hydration safety
+    const [watchlist, setWatchlist] = useState([]);
+    const [mounted, setMounted] = useState(false);
 
-    // 2. Persist to LocalStorage whenever it changes
+    // 2. Initialize from LocalStorage post-hydration
     useEffect(() => {
-        localStorage.setItem('user-watchlist', JSON.stringify(watchlist));
-    }, [watchlist]);
+        setMounted(true);
+        const saved = localStorage.getItem('user-watchlist');
+        try {
+            if (saved) {
+                setWatchlist(JSON.parse(saved));
+            }
+        } catch (e) {
+            console.error("Failed to parse watchlist", e);
+        }
+    }, []);
 
-    // 3. Actions
+    // 3. Persist to LocalStorage whenever it changes
+    useEffect(() => {
+        if (!mounted) return;
+        localStorage.setItem('user-watchlist', JSON.stringify(watchlist));
+    }, [watchlist, mounted]);
+
+    // Actions
     const addToWatchlist = (ticker) => {
         setWatchlist((prev) => {
             if (!prev.includes(ticker)) return [...prev, ticker];
