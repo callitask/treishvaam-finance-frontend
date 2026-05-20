@@ -23,6 +23,10 @@
  * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED (Current Phase): 
+ * • Intercepted `/robots.txt` at the Edge to bypass Cloudflare Pages' automatic "Managed Content" 
+ * bot-blocking injection. This ensures our explicit ALLOW rules for Googlebot and AI crawlers 
+ * remain intact, authoritative, and solve the GSC /login index block.
  * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
  * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
  * - RESTORED: Dynamic Robots.txt serving.
@@ -148,7 +152,7 @@ export default {
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
-            
+
             newHeaders.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
             newHeaders.set("X-Content-Type-Options", "nosniff");
             newHeaders.set("X-XSS-Protection", "1; mode=block");
@@ -156,7 +160,6 @@ export default {
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
 
             // Enforce Enterprise Zero-Trust CSP
-            // CRITICAL: Added frame-src and expanded connect-src to unblock Keycloak Auth loop
             const csp = [
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
@@ -172,11 +175,8 @@ export default {
             ].join("; ");
 
             newHeaders.set("Content-Security-Policy", csp);
-            
-            // Delete rogue injected Report-Only headers from hosting providers or analytics frameworks
             newHeaders.delete("Content-Security-Policy-Report-Only");
 
-            // Force 200 OK if we triggered a fallback
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
                 return new Response(response.body, { status: 200, headers: newHeaders });
             }
@@ -189,10 +189,43 @@ export default {
         };
 
         // ----------------------------------------------
-        // 2. DYNAMIC SITEMAPS (KV CACHE + CDN SHIELD)
+        // 2. DYNAMIC SITEMAPS & EDGE SEO ASSETS
         // ----------------------------------------------
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(request, url, env, ctx, BACKEND_URL);
+        }
+
+        // CRITICAL: Intercept robots.txt at the Edge to bypass Cloudflare Pages Managed Content injections
+        if (url.pathname === '/robots.txt') {
+            const robotsTxt = `User-agent: *
+
+# Allow access to all content by default
+Allow: /
+
+# --- ENTERPRISE SEO: Allow Googlebot to fetch content for rendering ---
+Allow: /api/posts
+Allow: /api/categories
+Allow: /api/market
+Allow: /api/news
+Allow: /login
+
+# Disallow crawlers from indexing Auth, Admin, and internal search paths
+Disallow: /api/auth/
+Disallow: /api/contact/
+Disallow: /api/admin/
+Disallow: /dashboard/
+Disallow: /?q=*
+
+# Sitemap Index
+Sitemap: ${FRONTEND_URL}/sitemap.xml`;
+
+            return new Response(robotsTxt, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "Cache-Control": "public, max-age=3600"
+                }
+            });
         }
 
         // ----------------------------------------------
@@ -233,7 +266,6 @@ export default {
                 }
                 return await fetch(proxyReq);
             } catch (e) {
-                // Graceful fallback to prevent QUIC crash if backend connection is entirely refused
                 return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), {
                     status: 503,
                     headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
@@ -244,8 +276,6 @@ export default {
         // ----------------------------------------------
         // 4. STATIC ASSETS
         // ----------------------------------------------
-        // Strictly serve files with extensions from Pages natively
-        // This includes robots.txt, sitemap.xml, and sitemap-static.xml
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
             try {
                 const assetResp = await fetch(baseEnhancedRequest);
@@ -263,10 +293,8 @@ export default {
         const cache = caches.default;
 
         try {
-            // A. Attempt to fetch the actual URL from Cloudflare Pages
             response = await fetch(baseEnhancedRequest);
 
-            // B. AGGRESSIVE SPA FALLBACK (CRITICAL FOR GSC)
             const isKnownSpaRoute = KNOWN_SPA_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + "/"));
             const hasNoExtension = !url.pathname.includes(".");
             const isNotApi = !url.pathname.startsWith("/api");
@@ -297,18 +325,16 @@ export default {
                 }
             }
 
-            // C. Cache Successful HTML Responses
             if (response && response.ok) {
                 const clone = response.clone();
                 const cacheHeaders = new Headers(clone.headers);
-                cacheHeaders.set("Cache-Control", "public, max-age=600"); // 10 mins cache for HTML
+                cacheHeaders.set("Cache-Control", "public, max-age=600");
                 ctx.waitUntil(cache.put(cacheKey, new Response(clone.body, { status: clone.status, headers: cacheHeaders })));
             }
         } catch (e) {
             response = null;
         }
 
-        // D. Cache Fallback
         if (!response || response.status >= 500) {
             const cachedResponse = await cache.match(cacheKey);
             if (cachedResponse) {
@@ -323,7 +349,6 @@ export default {
         // 6. SEO INTELLIGENCE & EDGE HYDRATION
         // =================================================================================
 
-        // SCENARIO A: HOMEPAGE
         if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
             const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
             const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
@@ -447,7 +472,6 @@ export default {
             return addSecurityHeaders(rewritten);
         }
 
-        // SCENARIO B: STATIC PAGES
         const staticPages = {
             "/about": {
                 title: "About Us | Treishvaam Finance",
@@ -508,7 +532,6 @@ export default {
             return addSecurityHeaders(rewritten);
         }
 
-        // SCENARIO C: BLOG POSTS
         if (url.pathname.includes("/category/")) {
             const parts = url.pathname.split("/");
             const articleId = parts[parts.length - 1];
@@ -516,7 +539,6 @@ export default {
 
             if (!articleId) return addSecurityHeaders(response);
 
-            // Strategy A: Materialized HTML
             if (postSlug) {
                 try {
                     const materializedUrl = `${BACKEND_URL}/api/uploads/posts/${postSlug}.html`;
@@ -536,10 +558,8 @@ export default {
                 } catch (e) { }
             }
 
-            // Strategy B: Edge Hydration
             const apiUrl = `${BACKEND_URL}/api/v1/posts/url/${articleId}`;
             try {
-                // BUG-FINANCE-01 FIX C: X-Tenant-ID must be included in this direct backend fetch.
                 const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
                 if (!apiResp.ok) return addSecurityHeaders(response);
                 const post = await apiResp.json();
@@ -573,7 +593,6 @@ export default {
             } catch (e) { return addSecurityHeaders(response); }
         }
 
-        // SCENARIO D: MARKET DATA
         if (url.pathname.startsWith("/market/")) {
             const rawTicker = url.pathname.split("/market/")[1];
             if (!rawTicker) return addSecurityHeaders(response);
@@ -631,15 +650,10 @@ export default {
 // 7. HELPER FUNCTIONS (Sitemap Engine with Cache Shielding)
 // =================================================================================
 
-/**
- * SERVES DYNAMIC SITEMAP FROM KV (CACHE-SHIELDED)
- * Shielding KV reads behind the CDN Cache to protect Free Tier limits (100k reads/day).
- */
 async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
 
-    // Tier 1: Check Edge Cache (Cost: 0 KV Reads)
     let cachedResponse = await cache.match(cacheRequest);
     if (cachedResponse) {
         const response = new Response(cachedResponse.body, cachedResponse);
@@ -647,7 +661,6 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
         return response;
     }
 
-    // Tier 2: Check KV Store (Cost: 1 KV Read)
     const key = `sitemap:finance:${url.pathname}`;
     const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
 
@@ -660,12 +673,10 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
             }
         });
 
-        // Asynchronously populate Tier 1 Cache
         ctx.waitUntil(cache.put(cacheRequest, kvResponse.clone()));
         return kvResponse;
     }
 
-    // Tier 3: Fallback to Backend API
     try {
         const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
         const backendResp = await fetch(`${backendUrl}${apiPath}`);
@@ -676,7 +687,6 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
 
-            // Asynchronously populate Tier 1 Cache
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
             return newResp;
         }
