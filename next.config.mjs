@@ -10,6 +10,9 @@
  * - EDITED: Added `remotePatterns` to `images` configuration to securely whitelist external HTTPS domains.
  * - EDITED: Removed `output: 'export'` to upgrade to Cloudflare Next.js Edge SSR.
  * - EDITED: Added pageExtensions to force Next.js to ignore the legacy src/pages folder for routing.
+ * - EDITED (Phase 3 — CSP Nonce):
+ * • Removed static Content-Security-Policy header (now handled dynamically by middleware.ts for nonces).
+ * • Added Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies.
  */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -24,27 +27,13 @@ const nextConfig = {
         ],
     },
     async headers() {
-        // Deterministic Enterprise Boundary CSP. 
-        // Eliminates build-time dependency on Cloudflare environment variable availability.
-        const cspHeader = `
-            default-src 'self';
-            script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com;
-            style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-            font-src 'self' data: https://fonts.gstatic.com;
-            img-src 'self' data: blob: https:;
-            connect-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com https://www.google-analytics.com https://cloudflareinsights.com;
-            frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com;
-            media-src 'self' https:;
-            frame-ancestors 'self';
-            object-src 'none';
-            upgrade-insecure-requests;
-        `.replace(/\s{2,}/g, ' ').trim();
-
         return [
             {
                 source: '/(.*)',
                 headers: [
-                    { key: 'Content-Security-Policy', value: cspHeader }
+                    { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+                    { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
+                    { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
                 ],
             }
         ];

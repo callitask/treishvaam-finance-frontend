@@ -52,6 +52,10 @@
  * • Added wildcard `https://*.treishvaamgroup.com` to `connect-src`.
  * • Reverted `frame-ancestors` to `'self'` (removed legacy subdomain).
  * • Why: The Worker CSP was aggressively overriding the Pages `_headers` CSP and completely lacking a `frame-src`. This caused `default-src 'self'` to block Keycloak's `silent-check-sso` iframe and PKCE validations, resulting in `CSP_BLOCK_OR_UNDEFINED` infinite login loops.
+ * - EDITED (Phase 3 — CSP Nonce):
+ * • Removed static Content-Security-Policy header from addSecurityHeaders.
+ * • Added Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies.
+ * • Why: CSP is now generated dynamically by Next.js middleware.ts to support per-request cryptographic nonces for React hydration scripts. Edge worker must not override the nonce CSP with a static one.
  */
 
 export default {
@@ -158,23 +162,11 @@ export default {
             newHeaders.set("X-XSS-Protection", "1; mode=block");
             newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+            newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+            newHeaders.set("Cross-Origin-Resource-Policy", "same-site");
+            newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
 
-            // Enforce Enterprise Zero-Trust CSP
-            const csp = [
-                "default-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com",
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-                "font-src 'self' data: https://fonts.gstatic.com",
-                "img-src 'self' data: blob: https:",
-                "connect-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com https://www.google-analytics.com https://cloudflareinsights.com",
-                "frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com",
-                "media-src 'self' https:",
-                "frame-ancestors 'self'",
-                "object-src 'none'",
-                "upgrade-insecure-requests"
-            ].join("; ");
-
-            newHeaders.set("Content-Security-Policy", csp);
+            // Static CSP removed. Now handled by Next.js middleware (Nonce-based)
             newHeaders.delete("Content-Security-Policy-Report-Only");
 
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {

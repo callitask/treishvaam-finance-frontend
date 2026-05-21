@@ -28,9 +28,12 @@
  * - REMOVED (2026-05-15 Next.js Metadata Migration):
  * • Removed `react-helmet-async` and `<Helmet>` block.
  * • Why: Causing SSR hydration crash on Next.js Edge. Metadata now handled in `app/contact/page.tsx`.
- * * - EDITED (2026-05-15 Next.js Build Fix):
+ * - EDITED (2026-05-15 Next.js Build Fix):
  * • Added `"use client";` directive at the top of the file.
  * • Why: `ContactPage` uses React's `useState` hook for form state, which is restricted to Client Components in Next.js 14 App Router.
+ * - EDITED (Phase 3 — Form Security):
+ * • Added hidden honeypot field (`_website` mapped to `honeypot` state) to trap bot submissions.
+ * • Why: Contact form had zero client-side bot deterrence, enabling spam/abuse.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -42,7 +45,7 @@ import axios from 'axios';
 import { API_URL } from '../apiConfig';
 
 const ContactPage = () => {
-    const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+    const [formData, setFormData] = useState({ name: '', email: '', message: '', honeypot: '' });
     const [status, setStatus] = useState({ type: '', msg: '' });
 
     const handleChange = (e) => {
@@ -56,7 +59,7 @@ const ContactPage = () => {
         try {
             await axios.post(`${API_URL}/api/v1/contact`, formData);
             setStatus({ type: 'success', msg: 'Message sent successfully!' });
-            setFormData({ name: '', email: '', message: '' });
+            setFormData({ name: '', email: '', message: '', honeypot: '' });
         } catch (error) {
             setStatus({ type: 'error', msg: 'Failed to send message. Please try again.' });
         }
@@ -79,6 +82,21 @@ const ContactPage = () => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Phase 3: Bot honeypot — hidden from humans, filled by bots */}
+                    <div style={{ position: 'absolute', left: '-9999px', opacity: 0, height: 0, overflow: 'hidden' }}
+                        aria-hidden="true" tabIndex={-1}>
+                        <label htmlFor="_website">Leave this blank</label>
+                        <input
+                            type="text"
+                            id="_website"
+                            name="honeypot"
+                            value={formData.honeypot || ''}
+                            onChange={handleChange}
+                            tabIndex={-1}
+                            autoComplete="off"
+                        />
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Name</label>

@@ -17,9 +17,15 @@
  * reads from localStorage client-side (different from server-rendered 'light').
  * - EDITED (Current Phase):
  * • Validated `suppressHydrationWarning` implementation to guarantee protection against Keycloak async init mismatch during SSR hydration.
+ * - EDITED (Phase 3 — CSP Nonce):
+ * • Added `import { headers } from 'next/headers'` to read x-nonce from middleware.
+ * • Applied nonce prop to all Script components with dangerouslySetInnerHTML.
+ * • Why: The middleware generates a per-request nonce and passes it via x-nonce header.
+ * Without applying it to Script tags, the CSP blocks inline script execution.
  */
 import React from 'react';
 import Script from 'next/script';
+import { headers } from 'next/headers';
 
 // AI-CONTEXT: Bypassing strict TS declaration check for the global stylesheet
 // @ts-ignore
@@ -63,6 +69,10 @@ export default function RootLayout({
 }) {
     const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
+    // Phase 3: Read per-request CSP nonce from middleware
+    const headersList = headers();
+    const nonce = headersList.get('x-nonce') ?? '';
+
     const organizationSchema = {
         "@context": "https://schema.org",
         "@type": "Organization",
@@ -83,6 +93,7 @@ export default function RootLayout({
                     id="organization-schema"
                     type="application/ld+json"
                     strategy="beforeInteractive"
+                    nonce={nonce}
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
                 />
                 {GA_MEASUREMENT_ID && (
@@ -94,6 +105,7 @@ export default function RootLayout({
                         <Script
                             id="google-analytics"
                             strategy="afterInteractive"
+                            nonce={nonce}
                             dangerouslySetInnerHTML={{
                                 __html: `
                                     window.dataLayer = window.dataLayer || [];

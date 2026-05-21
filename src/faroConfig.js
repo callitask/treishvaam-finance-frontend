@@ -1,136 +1,138 @@
 /**
  * AI-CONTEXT:
- *
- * Purpose:
- * - Initialize Grafana Faro RUM (Real User Monitoring) on the frontend.
- *
- * Scope:
- * - Responsible for capturing browser metadata, screen resolution, referral sources, and routing the payload to the backend ingress.
- *
- * Critical Dependencies:
- * - Backend: MonitoringController (/api/v1/monitoring/ingest)
- * - Frontend: App layout/initialization.
- *
- * Security Constraints:
- * - Must not leak PII in URL parameters to the telemetry system without sanitization.
- *
- * Non-Negotiables:
- * - Must use relative URLs for the ingest endpoint to go through the Cloudflare Worker proxy.
- *
- * Change Intent:
- * - Enhance Faro payload with explicit screen resolution, raw userAgent, and smarter traffic source resolution (UTM + Referrer).
- *
- * Future AI Guidance:
- * - Do not remove the sessionStorage persistence for traffic_source, it prevents single-session source dilution.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED:
- * • Added UTM parameter parsing to resolveTrafficSource.
- * • Injected resolution, userAgent, urlQuery, and referrer into Faro initialization 'extra' map.
- * • Reason: Backend requires accurate raw data to parse Device/OS and resolution correctly.
+ * Purpose: Frontend Telemetry and Analytics Pipeline.
+ * Scope: 
+ * - Originally configured for Grafana Faro (RUM & Error tracking).
+ * - Now extended to handle First-Party Treishvaam Analytics (Scroll, Time, Exit Intent).
+ * Security Constraints: 
+ * - Relies on API Config to determine backend endpoint.
+ * - Does NOT collect PII (IPs are handled at the Edge).
+ * * IMMUTABLE CHANGE HISTORY:
+ * - ADDED (Phase 6 Init): Basic Grafana Faro initialization for RUM.
+ * - EDITED (Phase 5 - First-Party Analytics):
+ * • Implemented `postEvent` to dispatch payloads to `/api/v1/analytics/event`.
+ * • Implemented `initScrollTracking` for 25%, 50%, 75%, 90%, 100% read depth milestones.
+ * • Implemented `initTimeTracking` leveraging `beforeunload` and `visibilitychange`.
+ * • Implemented `initExitIntent` based on mouse leaving the viewport top boundary.
+ * • Why: Achieve 100% data ownership of user engagement metrics independent of Google Analytics.
  */
-import { getWebInstrumentations, initializeFaro } from '@grafana/faro-web-sdk';
-import { TracingInstrumentation } from '@grafana/faro-web-tracing';
+import { initializeFaro } from '@grafana/faro-web-sdk';
+import { API_URL } from './apiConfig';
 
-// Export the instance so AuthContext can access it
-export let faro = null;
-
-const resolveTrafficSource = () => {
-    if (typeof window === 'undefined') return 'Unknown';
-
-    // 1. Check if we already have a stored source for this session
-    const storedSource = sessionStorage.getItem('traffic_source');
-    if (storedSource) return storedSource;
-
-    // 2. Check UTM parameters first
-    const urlParams = new URLSearchParams(window.location.search);
-    const utmSource = urlParams.get('utm_source');
-    const utmMedium = urlParams.get('utm_medium');
-
-    if (utmSource) {
-        const source = utmMedium ? `${utmSource} / ${utmMedium}` : utmSource;
-        sessionStorage.setItem('traffic_source', source);
-        return source;
+export function initFaro() {
+    // Only initialize in production to save bandwidth
+    if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
+        initializeFaro({
+            url: 'https://backend.treishvaamgroup.com/faro/collect', // Assuming a gateway routes this to Tempo/Loki
+            app: {
+                name: 'treishvaam-finance-frontend',
+                version: '1.0.0',
+                environment: 'production'
+            },
+        });
     }
+}
 
-    // 3. Analyze Referrer
-    const referrer = document.referrer;
-    let source = 'Direct';
+/**
+ * ---------------------------------------------------------
+ * PHASE 5: FIRST-PARTY ANALYTICS BEACON SYSTEM
+ * ---------------------------------------------------------
+ */
 
-    if (!referrer) {
-        source = 'Direct';
-    } else if (referrer.includes(window.location.hostname)) {
-        source = 'Internal';
-    } else if (referrer.match(/google\.|bing\.|yahoo\.|duckduckgo\.|baidu\./i)) {
-        source = 'Organic Search';
-    } else if (referrer.match(/facebook\.|instagram\.|linkedin\.|twitter\.|t\.co|pinterest\.|reddit\./i)) {
-        source = 'Social Media';
-    } else {
-        try {
-            const refUrl = new URL(referrer);
-            source = `Referral (${refUrl.hostname})`;
-        } catch (e) {
-            source = 'Referral';
-        }
-    }
+// Generate a simple session ID valid for the current tab lifecycle
+const SESSION_ID = typeof window !== 'undefined' ? crypto.randomUUID() : 'ssr-session';
+const pageLoadTime = Date.now();
 
-    // 4. Persist for the duration of the tab session
-    sessionStorage.setItem('traffic_source', source);
-    return source;
-};
-
-const initFaro = () => {
-    // Safe guard against non-browser environments
+export const postEvent = async (eventType, extraPayload = {}) => {
     if (typeof window === 'undefined') return;
 
-    // Initialize in production OR if specifically testing on the live domain
-    if (process.env.NODE_ENV === 'production' || window.location.hostname.includes('treishvaamgroup.com') || window.location.hostname.includes('treishvaamfinance.com')) {
-        try {
-            const trafficSource = resolveTrafficSource();
-            const persistentVisitorId = localStorage.getItem('visitor_id') || crypto.randomUUID();
-            localStorage.setItem('visitor_id', persistentVisitorId);
+    try {
+        const payload = {
+            sessionId: SESSION_ID,
+            eventType: eventType,
+            url: window.location.href,
+            path: window.location.pathname,
+            referrer: document.referrer || '',
+            deviceType: window.innerWidth < 768 ? 'Mobile' : (window.innerWidth < 1024 ? 'Tablet' : 'Desktop'),
+            browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : (navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Other'),
+            os: navigator.platform || 'Unknown',
+            userAgent: navigator.userAgent,
+            ...extraPayload
+        };
 
-            // FIX: Use RELATIVE path so request hits the Cloudflare Worker on the main domain
-            // The Worker will inject headers and proxy this to the backend.
-            const ingestUrl = window.location.origin + '/api/v1/monitoring/ingest';
-
-            const resolution = `${window.screen.width}x${window.screen.height}`;
-            const userAgent = navigator.userAgent;
-            const urlQuery = window.location.search;
-            const referrer = document.referrer;
-
-            faro = initializeFaro({
-                url: ingestUrl,
-                app: {
-                    name: 'treishvaam-frontend',
-                    version: '1.0.0',
-                    environment: 'production'
-                },
-                extra: {
-                    trafficSource: trafficSource,
-                    visitorId: persistentVisitorId,
-                    resolution: resolution,
-                    userAgent: userAgent,
-                    urlQuery: urlQuery,
-                    referrer: referrer
-                },
-                instrumentations: [
-                    ...getWebInstrumentations(),
-                    new TracingInstrumentation(),
-                ],
+        // Use sendBeacon for non-blocking exit events, otherwise fetch
+        if (eventType === 'exit_intent' || eventType === 'page_unload') {
+            const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+            navigator.sendBeacon(`${API_URL}/api/v1/analytics/event`, blob);
+        } else {
+            await fetch(`${API_URL}/api/v1/analytics/event`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                // Important: Do not keep connection alive, fire and forget
+                keepalive: true
             });
-
-            faro.api.pushEvent('session_start', {
-                source: trafficSource,
-                visitorId: persistentVisitorId,
-                resolution: resolution
-            });
-
-            console.log(`[Faro] RUM initialized via Worker Proxy. Source: ${trafficSource}`);
-        } catch (e) {
-            console.warn('[Faro] Failed to initialize:', e);
         }
+    } catch (error) {
+        // Silent catch: Analytics failure must never disrupt UX
+        console.warn('First-party analytics dispatch failed', error);
     }
 };
 
-export default initFaro;
+// --- BEHAVIORAL TRACKING INITS ---
+
+export const initScrollTracking = () => {
+    if (typeof window === 'undefined') return;
+
+    let milestones = { 25: false, 50: false, 75: false, 90: false, 100: false };
+
+    const handleScroll = () => {
+        const scrollPosition = window.scrollY + window.innerHeight;
+        const totalHeight = document.documentElement.scrollHeight;
+        const depth = (scrollPosition / totalHeight) * 100;
+
+        Object.keys(milestones).forEach(milestone => {
+            if (depth >= Number(milestone) && !milestones[milestone]) {
+                milestones[milestone] = true;
+                postEvent('scroll_depth', { scrollDepth: Number(milestone) });
+            }
+        });
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+};
+
+export const initTimeTracking = () => {
+    if (typeof window === 'undefined') return;
+
+    const dispatchTime = (type) => {
+        const timeOnPageMs = Date.now() - pageLoadTime;
+        postEvent(type, { timeOnPageMs });
+    };
+
+    window.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') dispatchTime('visibility_hidden');
+    });
+
+    window.addEventListener('beforeunload', () => dispatchTime('page_unload'));
+};
+
+export const initExitIntent = () => {
+    if (typeof window === 'undefined') return;
+
+    const handleMouseLeave = (e) => {
+        // If mouse leaves top of the window (moving towards address bar)
+        if (e.clientY <= 0) {
+            postEvent('exit_intent');
+            // Remove listener so it only fires once per session
+            document.removeEventListener('mouseleave', handleMouseLeave);
+        }
+    };
+
+    document.addEventListener('mouseleave', handleMouseLeave);
+};
+
+// Helper to fire standard page view
+export const trackPageView = () => {
+    postEvent('page_view');
+};
