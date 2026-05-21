@@ -7,11 +7,10 @@
  * - Reports to postEvent() (first-party) NOT to GA4 (we want raw unprocessed values).
  * * IMMUTABLE CHANGE HISTORY:
  * - ADDED (Phase 6): Web Vitals tracking via web-vitals library.
- * - EDITED:
- * • Changed API from v3 (onCLS/onINP) to v2 (getCLS/getFID).
- * • Why: The project has web-vitals v2.1.4 installed. Using the v3 API caused a fatal TypeScript 
- * compilation error during the Next.js @cloudflare/next-on-pages build.
- * • What behavior must remain unchanged: Asynchronous loading to prevent main-thread blocking.
+ * - EDITED: Changed API from v3 (onCLS/onINP) to v2 (getCLS/getFID) to fix TS compilation error.
+ * - EDITED (Phase 6 Fix):
+ * • Renamed payload properties (e.g., `id` -> `metricId`, `name` -> `metricName`).
+ * • Why: Prevented namespace pollution and a fatal 500 Internal Server Error caused by sending an `id` string that collided with the backend's `Long` primary key.
  */
 'use client';
 
@@ -25,11 +24,11 @@ export default function WebVitalsTracker() {
                 // Import postEvent dynamically to avoid circular dep
                 import('../faroConfig').then(({ postEvent }) => {
                     postEvent('web_vital', {
-                        name: metric.name,        // e.g. "LCP", "CLS", "FID"
-                        value: metric.value,      // The actual metric value
-                        rating: metric.rating,    // "good" | "needs-improvement" | "poor"
-                        delta: metric.delta,      // Change since last report
-                        id: metric.id,            // Unique ID for this metric instance
+                        metricName: metric.name,        // e.g. "LCP", "CLS", "FID"
+                        metricValue: metric.value,      // The actual metric value
+                        metricRating: metric.rating,    // "good" | "needs-improvement" | "poor"
+                        metricDelta: metric.delta,      // Change since last report
+                        metricId: metric.id,            // Renamed from 'id' to prevent Database PK collision
                     });
                 });
             };
