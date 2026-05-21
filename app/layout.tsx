@@ -27,10 +27,16 @@
  * the Node.js runtime, which fails to compile under `@cloudflare/next-on-pages`. This forces Edge compilation globally.
  * - EDITED (Phase 6): 
  * • Injected `<WebVitalsTracker />` inside `<Providers>` to activate Core Web Vitals telemetry.
+ * * - EDITED (Phase 8):
+ * • Imported `@fontsource-variable/inter` to self-host fonts instead of using Google CDN.
+ * • Why: Enhances page load speeds, removes a network jump, and protects user privacy from Google Font API IP scraping.
  */
 import React from 'react';
 import Script from 'next/script';
 import { headers } from 'next/headers';
+
+// Phase 8: Privacy & Performance Local Fonts
+import '@fontsource-variable/inter';
 
 // AI-CONTEXT: Bypassing strict TS declaration check for the global stylesheet
 // @ts-ignore

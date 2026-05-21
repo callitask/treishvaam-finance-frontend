@@ -13,12 +13,25 @@
  * - EDITED (Phase 3 — CSP Nonce):
  * • Removed static Content-Security-Policy header (now handled dynamically by middleware.ts for nonces).
  * • Added Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies.
+ * * - EDITED (Phase 7 & 8):
+ * • Wrapped next config with `withSerwist` for PWA offline-fallback capability.
+ * • Removed `unoptimized: true` and replaced it with a Cloudflare custom Image Loader.
+ * • Why: Restores Image optimization without breaking Cloudflare Pages Edge Server constraints.
  */
+import withSerwistInit from '@serwist/next';
+
+const withSerwist = withSerwistInit({
+    swSrc: 'src/sw.ts',
+    swDest: 'public/sw.js',
+    disable: process.env.NODE_ENV === 'development',
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     pageExtensions: ['tsx', 'ts'],
     images: {
-        unoptimized: true,
+        loader: 'custom',
+        loaderFile: './src/utils/cloudflareImageLoader.ts',
         remotePatterns: [
             {
                 protocol: 'https',
@@ -43,4 +56,4 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

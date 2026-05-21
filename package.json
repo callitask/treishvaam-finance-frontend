@@ -4,8 +4,10 @@
   "private": true,
   "homepage": "https://treishfin.treishvaamgroup.com",
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
     "@grafana/faro-web-sdk": "^2.0.2",
     "@grafana/faro-web-tracing": "^2.0.2",
+    "@serwist/next": "^9.5.11",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
@@ -38,6 +40,7 @@
     "react-share": "^5.1.0",
     "react-slick": "^0.30.2",
     "recharts": "^3.8.1",
+    "serwist": "^9.5.11",
     "slick-carousel": "^1.8.1",
     "web-vitals": "^2.1.4"
   },
