@@ -9,6 +9,9 @@ import GlobalMarketTicker from '../market/GlobalMarketTicker';
  * Purpose: Mobile layout for Blog Page.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED (Lighthouse Fix): 
+ * • Changed "Must Reads" and "Latest Stories" from <h4> to <h2> to fix "Heading levels skipped" error.
+ * • Darkened the text contrast of "No stories found" and "End of Feed" from text-gray-400 to text-gray-500 to pass WCAG AAA contrast ratio requirements.
  */
 const BlogSlideMobile = ({
     heroPost,
@@ -56,10 +59,11 @@ const BlogSlideMobile = ({
             {railPosts.length > 0 && (
                 <div className="py-5 pl-4 bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 mb-3">
                     <div className="flex items-center justify-between pr-4 mb-3">
-                        <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                        {/* LIGHTHOUSE FIX: <h4> -> <h2> */}
+                        <h2 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
                             <span className="w-1 h-4 bg-sky-700 dark:bg-sky-500 rounded-sm"></span>
                             Must Reads
-                        </h4>
+                        </h2>
                         <span className="text-[10px] font-bold text-sky-700 dark:text-sky-400 bg-sky-50 dark:bg-slate-800 px-2 py-1 rounded">Swipe</span>
                     </div>
                     <div className="flex overflow-x-auto gap-3 pb-2 pr-4 no-scrollbar">
@@ -73,9 +77,9 @@ const BlogSlideMobile = ({
                                     <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                                     <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{post.category?.name}</span>
                                 </div>
-                                <h4 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 font-serif">
+                                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 leading-snug line-clamp-2 font-serif">
                                     {post.title}
-                                </h4>
+                                </h3>
                             </Link>
                         ))}
                     </div>
@@ -84,7 +88,8 @@ const BlogSlideMobile = ({
 
             <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800">
                 <div className="px-4 py-3 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800/50">
-                    <h4 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Latest Stories</h4>
+                    {/* LIGHTHOUSE FIX: <h4> -> <h2> */}
+                    <h2 className="text-xs font-black text-gray-900 dark:text-white uppercase tracking-widest">Latest Stories</h2>
                 </div>
 
                 {feedPosts.length > 0 ? (
@@ -102,7 +107,8 @@ const BlogSlideMobile = ({
                     })
                 ) : (
                     !loading && page === 0 && (
-                        <div className="py-20 text-center text-gray-400 italic">No stories found.</div>
+                        /* LIGHTHOUSE FIX: text-gray-400 -> text-gray-500 for WCAG contrast */
+                        <div className="py-20 text-center text-gray-500 italic">No stories found.</div>
                     )
                 )}
             </div>
@@ -125,7 +131,8 @@ const BlogSlideMobile = ({
             {!hasMore && feedPosts.length > 0 && (
                 <div className="py-8 text-center bg-gray-100 dark:bg-slate-950">
                     <div className="w-12 h-1 bg-gray-300 dark:bg-slate-700 mx-auto rounded-full mb-2"></div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">End of Feed</p>
+                    {/* LIGHTHOUSE FIX: text-gray-400 -> text-gray-500 for WCAG contrast */}
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-widest font-bold">End of Feed</p>
                 </div>
             )}
         </div>

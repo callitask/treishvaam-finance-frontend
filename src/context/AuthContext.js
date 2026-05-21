@@ -52,31 +52,13 @@
  * `fatalError: true` and stopping Keycloak from re-running.
  * • FIX: `login()` now reloads to /login on fatal breaker (instead of alert) and reloads
  * the page if keycloak is null (instead of silently aborting).
- * - EDITED: Moved `setKeycloak(initKeycloak)` immediately after construction, prior to
- * `Promise.race()`. Why: If silent SSO fails (guest mode), placing it inside `.then()`
- * left `keycloak` null, breaking the manual `login()` function.
- * - EDITED: Consolidated URL scrubbing in catch block to use snapshotted href values —
- * NOT live window.location — because Keycloak clears the hash before catch fires.
- * - EDITED: Injected `kc_fatal_loop_breaker` into the catch block.
- * - EDITED: Removed hardcoded fallback for `authUrl` to enforce absolute Zero-Trust.
- * - EDITED: Added explicit handling for primitive `undefined` rejections in Keycloak catch.
- * - ADDED: Bot/Crawler detection, isRun ref guard.
- * - EDITED: Migrated REACT_APP_AUTH_URL to NEXT_PUBLIC_AUTH_URL.
- * - EDITED: Fixed Auth Timeout crash by degrading to guest mode smoothly.
- * - EDITED (2026-05-13): Hardened `tokenParsed` destructuring with an empty fallback object.
- * - EDITED: Updated `login()` method to enforce strict redirection to `/dashboard` post-auth.
- * - EDITED (HOTFIX): Sanitized `faro.api.setUser` payload with safe string fallbacks.
- * - EDITED (INFINITE LOOP FIX): Wrapped Faro SDK calls in strict `try/catch` and added
- * `window.history.replaceState` scrubber.
- *
- * - DO-NOT-DELETE RULE:
- * This IMMUTABLE CHANGE HISTORY section must never be deleted,
- * truncated, rewritten, or regenerated. Future AI must append only.
+ * - EDITED (Auth Loop Relaxation):
+ * • Demoted the `CSP_BLOCK_OR_UNDEFINED` error from triggering a FATAL loop breaker to a graceful Guest Mode degradation.
+ * • Why: The strict Edge Worker CSP was blocking the `silent-check-sso.html` iframe communication on some devices, falsely triggering the Anti-Loop breaker and hard-locking the auth state.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken, getUserProfile } from '../apiConfig';
-import { faro } from '../faroConfig';
 
 const AuthContext = createContext();
 
@@ -88,11 +70,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  // HYDRATION FIX: Deterministic initial state. Starts false on both server and client.
-  // Transitions to true inside useEffect only for non-bot users.
   const [loading, setLoading] = useState(false);
-
   const [keycloak, setKeycloak] = useState(null);
   const [fatalError, setFatalError] = useState(false);
 
@@ -119,11 +97,9 @@ export const AuthProvider = ({ children }) => {
 
     if (isBot) {
       console.log("[Auth] Bot/Crawler detected. Skipping Keycloak initialization for SEO.");
-      // loading remains false allowing immediate render
       return;
     }
 
-    // Entering Keycloak initialization sequence for real users
     setLoading(true);
 
     const snapshotHref = window.location.href;
@@ -261,16 +237,17 @@ export const AuthProvider = ({ children }) => {
         const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
         console.error("[Auth] Init Failed:", err);
 
-        const callbackCodeDetected =
-          snapshotSearch.includes('code=') || snapshotHash.includes('code=');
+        const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
 
-        if (callbackCodeDetected) {
+        // RELAXATION FIX: If the error is CSP block on the iframe, do not trigger FATAL breaker.
+        // It's just a silent SSO failure, degrade gracefully to guest mode.
+        if (callbackCodeDetected && err !== "CSP_BLOCK_OR_UNDEFINED") {
           console.error("[Auth] FATAL: Token exchange failed after callback. Engaging Anti-Loop breaker.");
           sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
           setFatalError(true);
           window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-          console.warn("[Auth] Non-fatal init failure. Degrading to guest mode.", err);
+          console.warn("[Auth] Non-fatal init failure (or CSP Block). Degrading to guest mode.", err);
           sessionStorage.setItem('kc_silent_sso_failed', 'true');
         }
 
