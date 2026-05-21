@@ -25,6 +25,8 @@
  * • Added `export const runtime = 'edge';`.
  * • Why: Reading `headers()` forces dynamic rendering. Without this declaration, Next.js defaults to 
  * the Node.js runtime, which fails to compile under `@cloudflare/next-on-pages`. This forces Edge compilation globally.
+ * - EDITED (Phase 6): 
+ * • Injected `<WebVitalsTracker />` inside `<Providers>` to activate Core Web Vitals telemetry.
  */
 import React from 'react';
 import Script from 'next/script';
@@ -36,6 +38,7 @@ import '../src/index.css';
 
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
+import WebVitalsTracker from '../src/components/WebVitalsTracker';
 import { Providers } from './providers';
 
 // ENFORCE CLOUDFLARE EDGE RUNTIME
@@ -130,6 +133,7 @@ export default function RootLayout({
             </head>
             <body suppressHydrationWarning>
                 <Providers>
+                    <WebVitalsTracker />
                     <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
                         {/* 1. Menu Bar pinned natively to the top */}
                         <Navbar />

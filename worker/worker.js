@@ -23,6 +23,11 @@
  * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED (Emergency Architecture Fix - RSC Support): 
+ * • Refactored the SPA Fallback and Caching strategy to respect Next.js App Router.
+ * • Why: The legacy CRA fallback hardcoded the cache key to `url.origin + "/"` and forced HTML on all requests, which poisoned the Next.js RSC (React Server Components) data stream, causing "White Page" payload leaks.
+ * • Fix applied: Added `isRscRequest` detection. Cache keys are now path-specific and RSC-segmented. HTML SPA fallback is explicitly blocked from intercepting background Next.js data fetches.
+ * • What is preserved: The GSC 404 fix for known SPA routes remains 100% active for actual document requests.
  * - EDITED (Current Phase): 
  * • Intercepted `/robots.txt` at the Edge to bypass Cloudflare Pages' automatic "Managed Content" 
  * bot-blocking injection. This ensures our explicit ALLOW rules for Googlebot and AI crawlers 
@@ -281,7 +286,17 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
         // 5. FETCH HTML SHELL WITH AGGRESSIVE SPA FALLBACK
         // ----------------------------------------------
         let response;
-        const cacheKey = new Request(url.origin + "/", request);
+
+        // SMART RSC BYPASS & CACHE SEGMENTATION (Fixes Next.js JSON Leakage)
+        const isRscRequest = request.headers.get("RSC") === "1" || request.headers.has("Next-Router-Prefetch") || request.headers.has("Next-Url") || request.headers.get("Accept")?.includes("text/x-component");
+        const cacheUrl = new URL(request.url);
+
+        if (isRscRequest) {
+            cacheUrl.searchParams.set("_rsc_cache", "1");
+        }
+
+        // Cache against specific URL, preventing root cache poisoning
+        const cacheKey = new Request(cacheUrl.toString(), request);
         const cache = caches.default;
 
         try {
@@ -291,7 +306,8 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             const hasNoExtension = !url.pathname.includes(".");
             const isNotApi = !url.pathname.startsWith("/api");
 
-            if ((response.status === 404 || response.status === 403) && (isKnownSpaRoute || (hasNoExtension && isNotApi))) {
+            // Only execute HTML SPA Fallback if it is an actual document request (NOT a Next.js background data fetch)
+            if (!isRscRequest && (response.status === 404 || response.status === 403) && (isKnownSpaRoute || (hasNoExtension && isNotApi))) {
 
                 const indexReq = new Request(new URL("/index.html", request.url), {
                     headers: enhancedHeaders,
