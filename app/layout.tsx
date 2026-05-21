@@ -15,13 +15,16 @@
  * • Why: suppressHydrationWarning silences expected client/server mismatches from auth state,
  * theme class, and timestamps. The theme className was causing mismatch because ThemeProvider
  * reads from localStorage client-side (different from server-rendered 'light').
- * - EDITED (Current Phase):
- * • Validated `suppressHydrationWarning` implementation to guarantee protection against Keycloak async init mismatch during SSR hydration.
+ * - EDITED: Validated `suppressHydrationWarning` implementation to guarantee protection against Keycloak async init mismatch during SSR hydration.
  * - EDITED (Phase 3 — CSP Nonce):
  * • Added `import { headers } from 'next/headers'` to read x-nonce from middleware.
  * • Applied nonce prop to all Script components with dangerouslySetInnerHTML.
  * • Why: The middleware generates a per-request nonce and passes it via x-nonce header.
  * Without applying it to Script tags, the CSP blocks inline script execution.
+ * - EDITED (Cloudflare Edge Fix):
+ * • Added `export const runtime = 'edge';`.
+ * • Why: Reading `headers()` forces dynamic rendering. Without this declaration, Next.js defaults to 
+ * the Node.js runtime, which fails to compile under `@cloudflare/next-on-pages`. This forces Edge compilation globally.
  */
 import React from 'react';
 import Script from 'next/script';
@@ -34,6 +37,9 @@ import '../src/index.css';
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
 import { Providers } from './providers';
+
+// ENFORCE CLOUDFLARE EDGE RUNTIME
+export const runtime = 'edge';
 
 export const metadata = {
     title: 'Treishvaam Finance | Institutional Financial Intelligence',

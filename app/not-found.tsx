@@ -6,8 +6,13 @@
  * SEO: Returns HTTP 404 status automatically (Next.js App Router behavior).
  * IMMUTABLE CHANGE HISTORY:
  * - ADDED (Phase 3): Custom 404 page to prevent default Next.js info disclosure.
+ * - EDITED (Cloudflare Edge Fix):
+ * • Added `export const runtime = 'edge';` to resolve Cloudflare Pages compiler crash.
  */
 import Link from 'next/link';
+
+// ENFORCE CLOUDFLARE EDGE RUNTIME
+export const runtime = 'edge';
 
 export default function NotFound() {
     return (
