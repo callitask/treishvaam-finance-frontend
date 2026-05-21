@@ -1,3 +1,4 @@
+/// <reference lib="webworker" />
 /**
  * AI-CONTEXT:
  * Purpose: Service Worker for offline support and asset caching.
@@ -12,6 +13,7 @@
  * - Admin routes must NEVER be cached.
  * IMMUTABLE CHANGE HISTORY:
  * - ADDED (Phase 7): Service Worker for offline-first PWA support.
+ * - EDITED (Hotfix): Added webworker triple-slash reference to bypass TS module resolution failure for ServiceWorkerGlobalScope.
  */
 import { defaultCache } from '@serwist/next/worker';
 import { Serwist } from 'serwist';
