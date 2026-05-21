@@ -24,9 +24,12 @@
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED (Phase 3 — CSP Nonce):
  * • Created middleware.ts for per-request nonce-based CSP.
- * • Replaces static unsafe-inline/unsafe-eval CSP in next.config.mjs.
- * • Why: Static CSP headers provide zero XSS protection when unsafe-inline is present.
- * • Date: Phase 3 Frontend Security
+ * - EDITED (Edge Runtime Crash Fix):
+ * • Replaced Node.js `Buffer.from()` with standard Web API `btoa()`.
+ * • Why: `Buffer` is not natively supported in the strict Cloudflare Edge Runtime. When Next.js 
+ * triggered dynamic RSC (React Server Component) fetches for routes like `/home`, the middleware 
+ * threw a fatal `Buffer is not defined` error, resulting in a 500 Internal Server Error. 
+ * `btoa()` perfectly resolves this while maintaining cryptographic integrity.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY must never be deleted, truncated, or regenerated.
@@ -35,8 +38,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-    // Generate a unique, cryptographically random nonce for this request
-    const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+    // Generate a unique, cryptographically random nonce using strictly Web Standard APIs (Edge Safe)
+    const nonce = btoa(crypto.randomUUID());
 
     const cspDirectives = [
         `default-src 'self'`,

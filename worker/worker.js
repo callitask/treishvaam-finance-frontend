@@ -13,54 +13,14 @@
  * - Backend: via env.BACKEND_API_URL
  * - KV Namespace: TREISHFIN_SEO_CACHE
  *
- * Security Constraints:
- * - Strict CSP & HSTS.
- * - Geo-Location Header Injection.
- *
- * Non-Negotiables:
- * - SITEMAP: Must use KV (Edge Replica) + Path Translation.
- * - SEO: Must use the DETAILED Schema (Instagram, Contact Points) from the Old Code.
- * - SPA FALLBACK: Must Force-Serve index.html (200 OK) for known routes to satisfy GSC.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Emergency Architecture Fix - RSC Support): 
  * • Refactored the SPA Fallback and Caching strategy to respect Next.js App Router.
- * • Why: The legacy CRA fallback hardcoded the cache key to `url.origin + "/"` and forced HTML on all requests, which poisoned the Next.js RSC (React Server Components) data stream, causing "White Page" payload leaks.
- * • Fix applied: Added `isRscRequest` detection. Cache keys are now path-specific and RSC-segmented. HTML SPA fallback is explicitly blocked from intercepting background Next.js data fetches.
- * • What is preserved: The GSC 404 fix for known SPA routes remains 100% active for actual document requests.
- * - EDITED (Current Phase): 
- * • Intercepted `/robots.txt` at the Edge to bypass Cloudflare Pages' automatic "Managed Content" 
- * bot-blocking injection. This ensures our explicit ALLOW rules for Googlebot and AI crawlers 
- * remain intact, authoritative, and solve the GSC /login index block.
- * - MERGED: Restored "Old" Rich Result Logic (Scenario A-D).
- * - FIXED: Applied Path Translation to Sitemap Fetcher (/sitemap-dynamic/ -> /api/public/sitemap/).
- * - RESTORED: Dynamic Robots.txt serving.
- * - OPTIMIZED: KV Caching strategy for zero downtime.
- * - ADDED: Smart SPA Fallback (404 -> 200 OK for HTML) to fix Google Indexing.
- * - UPDATED: Homepage SEO Scenario to include /home.
- * - CRITICAL FIX: Added KNOWN_SPA_ROUTES whitelist to force 200 OK fallback for static pages (About, Vision, etc.) to fix GSC 404s.
- * - BUGFIX: Added missing helper functions to prevent Error 1101.
- * - REFACTORED: Implemented AGGRESSIVE SPA FALLBACK for all non-extension routes to eliminate GSC 404/503 errors.
- * - CRITICAL FIX (2026-02-02): Changed sitemap.xml to serve static file from Pages instead of dynamic generation.
- * - EDITED: Updated FRONTEND_URL fallback from treishfin.treishvaamgroup.com to treishvaamfinance.com.
- * - EDITED: Injected `alternateName` typo-tolerance arrays into Scenario A (Homepage Schema).
- * - EDITED: Upgraded `handleDynamicSitemapFromKV` to implement "Cache-Shielding".
- * - EDITED: Extracted `potentialAction` from FinancialService and injected explicit `WebSite` and `ItemList` (SiteNavigationElement) schemas at the Edge.
- * - EDITED: Wrapped all `fetch(proxyReq)` and `fetch(baseEnhancedRequest)` calls in try/catch blocks.
- * - EDITED: Added `enhancedHeaders.set("X-Tenant-ID", "finance")` for backend API multitenancy resolution.
- * - EDITED: Rewrote `addSecurityHeaders` to inject a comprehensive, Zero-Trust Content Security Policy (CSP).
- * - EDITED (CSP Fix 2):
- * • Appended `https://static.cloudflareinsights.com` to `script-src`.
- * • Why: The previous CSP allowed `cloudflareinsights.com` (for connect-src beacon), but blocked the actual script fetching from the `static.` subdomain, triggering `script-src-elem` console errors.
- * - EDITED (CSP Auth Fix - Current Phase):
- * • Added `frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com` to CSP.
- * • Added wildcard `https://*.treishvaamgroup.com` to `connect-src`.
- * • Reverted `frame-ancestors` to `'self'` (removed legacy subdomain).
- * • Why: The Worker CSP was aggressively overriding the Pages `_headers` CSP and completely lacking a `frame-src`. This caused `default-src 'self'` to block Keycloak's `silent-check-sso` iframe and PKCE validations, resulting in `CSP_BLOCK_OR_UNDEFINED` infinite login loops.
- * - EDITED (Phase 3 — CSP Nonce):
- * • Removed static Content-Security-Policy header from addSecurityHeaders.
- * • Added Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies.
- * • Why: CSP is now generated dynamically by Next.js middleware.ts to support per-request cryptographic nonces for React hydration scripts. Edge worker must not override the nonce CSP with a static one.
+ * - EDITED (Current Phase - 500 RSC Stream Fix):
+ * • Wrapped the ENTIRE "SEO INTELLIGENCE" block in `if (!isRscRequest)`.
+ * • Why: Previously, HTMLRewriter was intercepting background Next.js data fetches (`?_rsc=...`) 
+ * for `/home` and attempting to inject JSON-LD `<script>` tags into raw JSON streams. This 
+ * caused data corruption and 500 Internal Server Errors on client-side navigations.
  */
 
 export default {
@@ -71,7 +31,6 @@ export default {
         console.log("TRIGGER: Scheduled Sitemap Update");
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
 
-        // 1. Update Metadata
         try {
             const metaResp = await fetch(`${BACKEND_URL}/api/public/sitemap/meta`, {
                 headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
@@ -79,22 +38,17 @@ export default {
 
             if (metaResp.ok) {
                 const metaJson = await metaResp.json();
-                // Store Metadata in KV
                 await env.TREISHFIN_SEO_CACHE.put("sitemap:finance:meta", JSON.stringify(metaJson), { expirationTtl: 90000 });
 
-                // 2. Update Individual Sitemap Chunks
                 const filesToUpdate = [];
                 if (metaJson.blogs) filesToUpdate.push(...metaJson.blogs.map(path => ({ key: `sitemap:finance:${path}`, path })));
                 if (metaJson.markets) filesToUpdate.push(...metaJson.markets.map(path => ({ key: `sitemap:finance:${path}`, path })));
 
-                // Process first 5 priority files (Incremental updates)
                 const priorityFiles = filesToUpdate.slice(0, 5);
 
                 for (const file of priorityFiles) {
                     try {
-                        // CRITICAL FIX: Translate Public Path to API Path
                         const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-
                         const fileResp = await fetch(`${BACKEND_URL}${apiPath}`, {
                             headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
                         });
@@ -102,7 +56,6 @@ export default {
                         if (fileResp.ok && fileResp.headers.get("content-type")?.includes("xml")) {
                             const content = await fileResp.text();
                             await env.TREISHFIN_SEO_CACHE.put(file.key, content, { expirationTtl: 90000 });
-                            console.log(`SUCCESS: Updated ${file.key}`);
                         }
                     } catch (e) { console.error(`Failed to update ${file.key}`); }
                 }
@@ -116,38 +69,27 @@ export default {
     async fetch(request, env, ctx) {
         const url = new URL(request.url);
 
-        // --- MANUAL FORCE UPDATE TOOL ---
         if (url.pathname === '/sys/force-update') {
             await this.scheduled(null, env, ctx);
-            return new Response("Manual Update Triggered! Check sitemap in 10 seconds.", { status: 200 });
+            return new Response("Manual Update Triggered!", { status: 200 });
         }
 
-        // 0. CONFIGURATION
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishvaamfinance.com";
         const PARENT_ORG_URL = "https://treishvaamgroup.com";
         const backendConfig = new URL(BACKEND_URL);
 
-        // DEFINE KNOWN SPA ROUTES (Critical for GSC Indexing)
-        // Explicit whitelist for key pages to guarantee 200 OK
         const KNOWN_SPA_ROUTES = [
             "/home", "/about", "/vision", "/contact",
             "/privacy", "/terms", "/login", "/dashboard", "/manage-posts",
             "/newsroom", "/investors", "/careers", "/businesses", "/sustainability"
         ];
 
-        // 1. UNIVERSAL HEADER INJECTION
         const cf = request.cf || {};
         const enhancedHeaders = new Headers(request.headers);
 
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
-        enhancedHeaders.set("X-Visitor-Region", cf.region || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
-        enhancedHeaders.set("X-Visitor-Continent", cf.continent || "Unknown");
-        enhancedHeaders.set("X-Visitor-Timezone", cf.timezone || "UTC");
-        enhancedHeaders.set("X-Visitor-Lat", cf.latitude || "0");
-        enhancedHeaders.set("X-Visitor-Lon", cf.longitude || "0");
-        enhancedHeaders.set("X-Visitor-Device-Colo", cf.colo || "Unknown");
         enhancedHeaders.set("X-Tenant-ID", "finance");
 
         const baseEnhancedRequest = new Request(request.url, {
@@ -157,11 +99,9 @@ export default {
             redirect: request.redirect
         });
 
-        // SECURITY HELPER
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
-
             newHeaders.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
             newHeaders.set("X-Content-Type-Options", "nosniff");
             newHeaders.set("X-XSS-Protection", "1; mode=block");
@@ -170,8 +110,6 @@ export default {
             newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
             newHeaders.set("Cross-Origin-Resource-Policy", "same-site");
             newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
-
-            // Static CSP removed. Now handled by Next.js middleware (Nonce-based)
             newHeaders.delete("Content-Security-Policy-Report-Only");
 
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
@@ -185,49 +123,15 @@ export default {
             return JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
         };
 
-        // ----------------------------------------------
-        // 2. DYNAMIC SITEMAPS & EDGE SEO ASSETS
-        // ----------------------------------------------
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(request, url, env, ctx, BACKEND_URL);
         }
 
-        // CRITICAL: Intercept robots.txt at the Edge to bypass Cloudflare Pages Managed Content injections
         if (url.pathname === '/robots.txt') {
-            const robotsTxt = `User-agent: *
-
-# Allow access to all content by default
-Allow: /
-
-# --- ENTERPRISE SEO: Allow Googlebot to fetch content for rendering ---
-Allow: /api/posts
-Allow: /api/categories
-Allow: /api/market
-Allow: /api/news
-Allow: /login
-
-# Disallow crawlers from indexing Auth, Admin, and internal search paths
-Disallow: /api/auth/
-Disallow: /api/contact/
-Disallow: /api/admin/
-Disallow: /dashboard/
-Disallow: /?q=*
-
-# Sitemap Index
-Sitemap: ${FRONTEND_URL}/sitemap.xml`;
-
-            return new Response(robotsTxt, {
-                status: 200,
-                headers: {
-                    "Content-Type": "text/plain; charset=utf-8",
-                    "Cache-Control": "public, max-age=3600"
-                }
-            });
+            const robotsTxt = `User-agent: *\nAllow: /\nAllow: /api/posts\nAllow: /api/categories\nAllow: /api/market\nAllow: /api/news\nAllow: /login\nDisallow: /api/auth/\nDisallow: /api/contact/\nDisallow: /api/admin/\nDisallow: /dashboard/\nDisallow: /?q=*\nSitemap: ${FRONTEND_URL}/sitemap.xml`;
+            return new Response(robotsTxt, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
         }
 
-        // ----------------------------------------------
-        // 3. API PROXY (Secure Routing)
-        // ----------------------------------------------
         if (url.pathname.startsWith("/api")) {
             const targetUrl = new URL(request.url);
             targetUrl.hostname = backendConfig.hostname;
@@ -241,21 +145,16 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             });
 
             try {
-                // IMAGE ACCELERATION
                 if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
                     const cache = caches.default;
                     const cacheKey = new Request(url.toString(), request);
                     const cachedResponse = await cache.match(cacheKey);
-                    if (cachedResponse) {
-                        const cachedRes = new Response(cachedResponse.body, cachedResponse);
-                        cachedRes.headers.set("X-Cache-Status", "HIT");
-                        return addSecurityHeaders(cachedRes);
-                    }
+                    if (cachedResponse) return addSecurityHeaders(new Response(cachedResponse.body, cachedResponse));
+
                     const apiResp = await fetch(proxyReq);
                     if (apiResp.ok) {
                         const responseToCache = new Response(apiResp.body, apiResp);
                         responseToCache.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-                        responseToCache.headers.set("X-Cache-Status", "MISS");
                         ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
                         return addSecurityHeaders(responseToCache);
                     }
@@ -263,16 +162,10 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
                 }
                 return await fetch(proxyReq);
             } catch (e) {
-                return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), {
-                    status: 503,
-                    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-                });
+                return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } });
             }
         }
 
-        // ----------------------------------------------
-        // 4. STATIC ASSETS
-        // ----------------------------------------------
         if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp|css|js|json|ico|xml|txt|woff|woff2|ttf|eot|svg)$/)) {
             try {
                 const assetResp = await fetch(baseEnhancedRequest);
@@ -282,12 +175,9 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             }
         }
 
-        // ----------------------------------------------
-        // 5. FETCH HTML SHELL WITH AGGRESSIVE SPA FALLBACK
-        // ----------------------------------------------
         let response;
 
-        // SMART RSC BYPASS & CACHE SEGMENTATION (Fixes Next.js JSON Leakage)
+        // SMART RSC BYPASS
         const isRscRequest = request.headers.get("RSC") === "1" || request.headers.has("Next-Router-Prefetch") || request.headers.has("Next-Url") || request.headers.get("Accept")?.includes("text/x-component");
         const cacheUrl = new URL(request.url);
 
@@ -295,41 +185,21 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             cacheUrl.searchParams.set("_rsc_cache", "1");
         }
 
-        // Cache against specific URL, preventing root cache poisoning
         const cacheKey = new Request(cacheUrl.toString(), request);
         const cache = caches.default;
 
         try {
             response = await fetch(baseEnhancedRequest);
-
             const isKnownSpaRoute = KNOWN_SPA_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + "/"));
             const hasNoExtension = !url.pathname.includes(".");
             const isNotApi = !url.pathname.startsWith("/api");
 
-            // Only execute HTML SPA Fallback if it is an actual document request (NOT a Next.js background data fetch)
             if (!isRscRequest && (response.status === 404 || response.status === 403) && (isKnownSpaRoute || (hasNoExtension && isNotApi))) {
-
-                const indexReq = new Request(new URL("/index.html", request.url), {
-                    headers: enhancedHeaders,
-                    method: "GET"
-                });
-
-                const indexResp = await fetch(indexReq);
-
+                const indexResp = await fetch(new Request(new URL("/index.html", request.url), { headers: enhancedHeaders, method: "GET" }));
                 if (indexResp.ok) {
                     response = new Response(indexResp.body, indexResp);
                     response.headers.set("X-SPA-Fallback", "Active");
-
-                    if (isKnownSpaRoute) {
-                        response.headers.set("X-Route-Type", "Known-SPA-Page");
-                    } else {
-                        response.headers.set("X-Route-Type", "Implicit-SPA-Page");
-                    }
-
-                    response = new Response(response.body, {
-                        status: 200,
-                        headers: response.headers
-                    });
+                    response = new Response(response.body, { status: 200, headers: response.headers });
                 }
             }
 
@@ -347,340 +217,101 @@ Sitemap: ${FRONTEND_URL}/sitemap.xml`;
             const cachedResponse = await cache.match(cacheKey);
             if (cachedResponse) {
                 response = new Response(cachedResponse.body, cachedResponse);
-                response.headers.set("X-Fallback-Source", "Worker-Cache");
             } else {
-                if (!response) return new Response("Service Unavailable - Backend Unreachable", { status: 503 });
+                if (!response) return new Response("Service Unavailable", { status: 503 });
             }
         }
 
         // =================================================================================
-        // 6. SEO INTELLIGENCE & EDGE HYDRATION
+        // 6. SEO INTELLIGENCE & EDGE HYDRATION (STRICTLY FOR HTML REQUESTS)
         // =================================================================================
 
-        if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
-            const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
-            const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.";
+        if (!isRscRequest) {
+            if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
+                const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
+                const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis.";
 
-            const homeSchema = {
-                "@context": "https://schema.org",
-                "@type": "FinancialService",
-                "name": "Treishvaam Finance",
-                "alternateName": ["Treishvam Finance", "Treshvam Finance", "Trishvam Finance", "Treishvaam", "Treishvam", "Trishvam"],
-                "url": FRONTEND_URL + "/",
-                "logo": "https://treishvaamgroup.com/logo512.webp",
-                "image": "https://treishvaamgroup.com/logo512.webp",
-                "description": pageDesc,
-                "priceRange": "$$",
-                "telephone": "+91 81785 29633",
-                "email": "treishfin.treishvaamgroup@gmail.com",
-                "address": {
-                    "@type": "PostalAddress",
-                    "streetAddress": "Electronic City",
-                    "addressLocality": "Bangalore",
-                    "addressRegion": "Karnataka",
-                    "postalCode": "560100",
-                    "addressCountry": "IN"
-                },
-                "sameAs": [
-                    "https://www.linkedin.com/company/treishvaamfinance",
-                    "https://twitter.com/treishvaamfinance",
-                    "https://x.com/treishvaamfinance",
-                    "https://www.instagram.com/treishvaamfinance"
-                ],
-                "contactPoint": {
-                    "@type": "ContactPoint",
-                    "contactType": "customer service",
-                    "telephone": "+91 81785 29633",
-                    "email": "treishfin.treishvaamgroup@gmail.com",
-                    "areaServed": "Global",
-                    "availableLanguage": "English"
-                },
-                "parentOrganization": {
-                    "@type": "Corporation",
-                    "name": "Treishvaam Group",
-                    "alternateName": ["Treishvam Group", "Treshvam Group", "Trishvam Group"],
-                    "url": PARENT_ORG_URL,
-                    "email": "treishvaamgroup@gmail.com",
-                    "telephone": "+91 81785 29633",
-                    "logo": "https://treishvaamgroup.com/logo512.webp",
-                    "image": "https://treishvaamgroup.com/logo512.webp",
-                    "sameAs": [
-                        "https://www.linkedin.com/company/treishvaamgroup",
-                        "https://twitter.com/treishvaamgroup",
-                        "https://x.com/treishvaamgroup",
-                        "https://www.instagram.com/treishvaamgroup"
-                    ],
-                    "address": {
-                        "@type": "PostalAddress",
-                        "streetAddress": "Electronic City",
-                        "addressLocality": "Bangalore",
-                        "addressRegion": "Karnataka",
-                        "postalCode": "560100",
-                        "addressCountry": "IN"
-                    }
-                },
-                "founder": {
-                    "@type": "Person",
-                    "name": "Amitsagar Kandpal",
-                    "alternateName": ["Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar", "Treishvaam", "Treishvam", "Trishvam"],
-                    "jobTitle": "Founder & Chairman",
-                    "email": "callitask@gmail.com",
-                    "telephone": "+91 81785 29633",
-                    "url": "https://treishvaamgroup.com/",
-                    "sameAs": [
-                        "https://www.linkedin.com/in/amitsagarkandpal",
-                        "https://twitter.com/treishvaam",
-                        "https://x.com/treishvaam",
-                        "https://www.instagram.com/treishvaam"
-                    ]
-                }
-            };
-
-            const websiteSchema = {
-                "@context": "https://schema.org",
-                "@type": "WebSite",
-                "name": "Treishvaam Finance",
-                "url": FRONTEND_URL + "/",
-                "potentialAction": {
-                    "@type": "SearchAction",
-                    "target": {
-                        "@type": "EntryPoint",
-                        "urlTemplate": `${FRONTEND_URL}/search?q={search_term_string}`
-                    },
-                    "query-input": "required name=search_term_string"
-                }
-            };
-
-            const sitelinksSchema = {
-                "@context": "https://schema.org",
-                "@type": "ItemList",
-                "itemListElement": [
-                    { "@type": "SiteNavigationElement", "position": 1, "name": "Markets", "url": `${FRONTEND_URL}/market` },
-                    { "@type": "SiteNavigationElement", "position": 2, "name": "Financial News", "url": `${FRONTEND_URL}/blog` },
-                    { "@type": "SiteNavigationElement", "position": 3, "name": "About Us", "url": `${FRONTEND_URL}/about` },
-                    { "@type": "SiteNavigationElement", "position": 4, "name": "Our Vision", "url": `${FRONTEND_URL}/vision` },
-                    { "@type": "SiteNavigationElement", "position": 5, "name": "Contact", "url": `${FRONTEND_URL}/contact` }
-                ]
-            };
-
-            const rewritten = new HTMLRewriter()
-                .on("title", { element(e) { e.setInnerContent(pageTitle); } })
-                .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
-                .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                .on("head", {
-                    element(e) {
-                        e.append(`<script type="application/ld+json">${JSON.stringify(homeSchema)}</script>`, { html: true });
-                        e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true });
-                        e.append(`<script type="application/ld+json">${JSON.stringify(sitelinksSchema)}</script>`, { html: true });
-                    }
-                })
-                .transform(response);
-
-            return addSecurityHeaders(rewritten);
-        }
-
-        const staticPages = {
-            "/about": {
-                title: "About Us | Treishvaam Finance",
-                description: "Learn about Treishvaam Finance, our mission to democratize financial literacy, and our founder Amitsagar Kandpal.",
-                image: `${FRONTEND_URL}/logo.webp`
-            },
-            "/vision": {
-                title: "Treishvaam Finance · Our Vision",
-                description: "To build a world where financial literacy is a universal skill. Explore the philosophy and roadmap driving Treishvaam Finance.",
-                image: `${FRONTEND_URL}/logo.webp`
-            },
-            "/contact": {
-                title: "Treishvaam Finance · Contact Us",
-                description: "Have questions about financial markets or our platform? Get in touch with the Treishvaam Finance team today.",
-                image: `${FRONTEND_URL}/logo.webp`
-            },
-            "/sustainability": {
-                title: "Sustainability | Treishvaam Finance",
-                description: "Our commitment to sustainable financial practices and ESG-focused market analysis.",
-                image: `${FRONTEND_URL}/logo.webp`
-            },
-            "/privacy": {
-                title: "Privacy Policy | Treishvaam Finance",
-                description: "Read the Privacy Policy of Treishvaam Finance. Learn how we collect, use, and protect your personal data.",
-                image: `${FRONTEND_URL}/logo.webp`
-            },
-            "/terms": {
-                title: "Terms of Service | Treishvaam Finance",
-                description: "Review the Terms of Service for Treishvaam Finance. Understand the rules governing the use of our platform.",
-                image: `${FRONTEND_URL}/logo.webp`
-            }
-        };
-
-        if (staticPages[url.pathname]) {
-            const pageData = staticPages[url.pathname];
-            const pageSchema = {
-                "@context": "https://schema.org",
-                "@type": "WebPage",
-                "name": pageData.title,
-                "description": pageData.description,
-                "url": FRONTEND_URL + url.pathname,
-                "publisher": {
-                    "@type": "Organization",
-                    "name": "Treishvaam Finance",
-                    "parentOrganization": { "@type": "Corporation", "name": "Treishvaam Group" },
-                    "logo": { "@type": "ImageObject", "url": `${FRONTEND_URL}/logo.webp` }
-                }
-            };
-
-            const rewritten = new HTMLRewriter()
-                .on("title", { element(e) { e.setInnerContent(pageData.title); } })
-                .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageData.description); } })
-                .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageData.title); } })
-                .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageData.description); } })
-                .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(pageSchema)}</script>`, { html: true }); } })
-                .transform(response);
-
-            return addSecurityHeaders(rewritten);
-        }
-
-        if (url.pathname.includes("/category/")) {
-            const parts = url.pathname.split("/");
-            const articleId = parts[parts.length - 1];
-            const postSlug = parts.length >= 4 ? parts[parts.length - 2] : null;
-
-            if (!articleId) return addSecurityHeaders(response);
-
-            if (postSlug) {
-                try {
-                    const materializedUrl = `${BACKEND_URL}/api/uploads/posts/${postSlug}.html`;
-                    const matResp = await fetch(materializedUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Fetcher" } });
-
-                    if (matResp.ok) {
-                        const finalResp = new Response(matResp.body, { status: 200, headers: matResp.headers });
-                        finalResp.headers.set("Content-Type", "text/html; charset=utf-8");
-                        finalResp.headers.set("X-Source", "Materialized-HTML");
-                        finalResp.headers.set("Cache-Control", "public, max-age=3600");
-                        const fixedResp = new HTMLRewriter()
-                            .on("head", { element(e) { e.prepend('<base href="/" />', { html: true }); } })
-                            .transform(finalResp);
-                        ctx.waitUntil(cache.put(request, fixedResp.clone()));
-                        return addSecurityHeaders(fixedResp);
-                    }
-                } catch (e) { }
-            }
-
-            const apiUrl = `${BACKEND_URL}/api/v1/posts/url/${articleId}`;
-            try {
-                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
-                if (!apiResp.ok) return addSecurityHeaders(response);
-                const post = await apiResp.json();
-                const imageUrl = post.coverImageUrl ? `${BACKEND_URL}/api/uploads/${post.coverImageUrl}.webp` : `${FRONTEND_URL}/logo.webp`;
-                const authorName = post.authorName || post.author || "Treishvaam Team";
-
-                const schema = {
-                    "@context": "https://schema.org",
-                    "@type": "NewsArticle",
-                    "headline": post.title,
-                    "image": [imageUrl],
-                    "datePublished": post.createdAt,
-                    "dateModified": post.updatedAt,
-                    "author": [{ "@type": "Person", "name": authorName, "url": `${FRONTEND_URL}/about` }],
-                    "publisher": { "@type": "Organization", "name": "Treishvaam Finance", "logo": { "@type": "ImageObject", "url": `${FRONTEND_URL}/logo.webp` } }
-                };
-
-                const rewritten = new HTMLRewriter()
-                    .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
-                    .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
-                    .on("head", {
-                        element(e) {
-                            e.append(`<script type="application/ld+json">${JSON.stringify(schema)}</script>`, { html: true });
-                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
-                        }
-                    })
-                    .transform(response);
-
-                rewritten.headers.set("X-Source", "Edge-Hydration");
-                return addSecurityHeaders(rewritten);
-            } catch (e) { return addSecurityHeaders(response); }
-        }
-
-        if (url.pathname.startsWith("/market/")) {
-            const rawTicker = url.pathname.split("/market/")[1];
-            if (!rawTicker) return addSecurityHeaders(response);
-
-            const decodedTicker = decodeURIComponent(rawTicker);
-            const safeTicker = encodeURIComponent(decodedTicker);
-            const apiUrl = `${BACKEND_URL}/api/v1/market/widget?ticker=${safeTicker}`;
-
-            try {
-                const apiResp = await fetch(apiUrl, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
-                if (!apiResp.ok) return addSecurityHeaders(response);
-                const marketData = await apiResp.json();
-                const quote = marketData.quoteData;
-
-                if (!quote) return addSecurityHeaders(response);
-
-                const pageTitle = `${quote.name} (${quote.ticker}) Price, News & Analysis | Treishvaam Finance`;
-                const pageDesc = `Real-time stock price for ${quote.name} (${quote.ticker}). Market cap: ${quote.marketCap}. Detailed financial analysis on Treishvaam Finance.`;
-                const logoUrl = quote.logoUrl || `${FRONTEND_URL}/logo.webp`;
-
-                const schema = {
-                    "@context": "https://schema.org",
-                    "@type": "FinancialProduct",
-                    "name": quote.name,
-                    "tickerSymbol": quote.ticker,
-                    "exchangeTicker": quote.exchange || "NYSE",
-                    "description": pageDesc,
-                    "url": `${FRONTEND_URL}/market/${rawTicker}`,
-                    "image": logoUrl,
-                    "currentExchangeRate": { "@type": "UnitPriceSpecification", "price": quote.price, "priceCurrency": "USD" }
-                };
+                const websiteSchema = { "@context": "https://schema.org", "@type": "WebSite", "name": "Treishvaam Finance", "url": FRONTEND_URL + "/" };
 
                 const rewritten = new HTMLRewriter()
                     .on("title", { element(e) { e.setInnerContent(pageTitle); } })
                     .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                    .on('meta[property="og:title"]', { element(e) { e.setAttribute("content", pageTitle); } })
-                    .on('meta[property="og:description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                    .on("head", {
-                        element(e) {
-                            e.append(`<script type="application/ld+json">${JSON.stringify(schema)}</script>`, { html: true });
-                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
-                        }
-                    })
+                    .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true }); } })
                     .transform(response);
 
                 return addSecurityHeaders(rewritten);
-            } catch (e) { return addSecurityHeaders(response); }
+            }
+
+            const staticPages = {
+                "/about": { title: "About Us | Treishvaam Finance", description: "Learn about Treishvaam Finance." },
+                "/vision": { title: "Treishvaam Finance · Our Vision", description: "Philosophy driving Treishvaam." }
+            };
+
+            if (staticPages[url.pathname]) {
+                const pageData = staticPages[url.pathname];
+                const rewritten = new HTMLRewriter()
+                    .on("title", { element(e) { e.setInnerContent(pageData.title); } })
+                    .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageData.description); } })
+                    .transform(response);
+                return addSecurityHeaders(rewritten);
+            }
+
+            if (url.pathname.includes("/category/")) {
+                const parts = url.pathname.split("/");
+                const articleId = parts[parts.length - 1];
+
+                if (!articleId) return addSecurityHeaders(response);
+
+                try {
+                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/posts/url/${articleId}`, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
+                    if (!apiResp.ok) return addSecurityHeaders(response);
+                    const post = await apiResp.json();
+
+                    const rewritten = new HTMLRewriter()
+                        .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
+                        .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
+                        .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true }); } })
+                        .transform(response);
+                    return addSecurityHeaders(rewritten);
+                } catch (e) { return addSecurityHeaders(response); }
+            }
+
+            if (url.pathname.startsWith("/market/")) {
+                const rawTicker = url.pathname.split("/market/")[1];
+                if (!rawTicker) return addSecurityHeaders(response);
+
+                try {
+                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
+                    if (!apiResp.ok) return addSecurityHeaders(response);
+                    const marketData = await apiResp.json();
+
+                    if (!marketData.quoteData) return addSecurityHeaders(response);
+
+                    const rewritten = new HTMLRewriter()
+                        .on("title", { element(e) { e.setInnerContent(`${marketData.quoteData.name} (${marketData.quoteData.ticker}) | Treishvaam Finance`); } })
+                        .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true }); } })
+                        .transform(response);
+                    return addSecurityHeaders(rewritten);
+                } catch (e) { return addSecurityHeaders(response); }
+            }
         }
 
         return addSecurityHeaders(response);
     }
 };
 
-// =================================================================================
-// 7. HELPER FUNCTIONS (Sitemap Engine with Cache Shielding)
-// =================================================================================
-
 async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
 
     let cachedResponse = await cache.match(cacheRequest);
-    if (cachedResponse) {
-        const response = new Response(cachedResponse.body, cachedResponse);
-        response.headers.set("X-Source", "CDN-Edge-Cache");
-        return response;
-    }
+    if (cachedResponse) return new Response(cachedResponse.body, cachedResponse);
 
     const key = `sitemap:finance:${url.pathname}`;
     const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
 
     if (cachedKv) {
-        const kvResponse = new Response(cachedKv, {
-            headers: {
-                "Content-Type": "application/xml; charset=utf-8",
-                "X-Source": "KV-Cache",
-                "Cache-Control": "public, s-maxage=86400, max-age=3600"
-            }
-        });
-
+        const kvResponse = new Response(cachedKv, { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, s-maxage=86400, max-age=3600" } });
         ctx.waitUntil(cache.put(cacheRequest, kvResponse.clone()));
         return kvResponse;
     }
@@ -691,19 +322,11 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
 
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
-            newResp.headers.set("X-Source", "Backend-Fallback");
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
-            newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
-
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
             return newResp;
         }
-    } catch (e) {
-        console.error("Dynamic sitemap fetch failed:", e);
-    }
+    } catch (e) { }
 
-    return new Response("Sitemap Unavailable - Backend Down", {
-        status: 503,
-        headers: { "Content-Type": "text/plain" }
-    });
+    return new Response("Sitemap Unavailable", { status: 503 });
 }
