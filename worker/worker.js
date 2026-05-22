@@ -21,6 +21,10 @@
  * • Why: Previously, HTMLRewriter was intercepting background Next.js data fetches (`?_rsc=...`) 
  * for `/home` and attempting to inject JSON-LD `<script>` tags into raw JSON streams. This 
  * caused data corruption and 500 Internal Server Errors on client-side navigations.
+ * - EDITED (Phase 6 - AEGIS Edge Integration):
+ * • Added L4-ADA Edge Deception interception at the start of the fetch handler.
+ * • Worker now consults KV (`aegis:block:[IP]`) to drop known malicious actors instantly 
+ * before they reach the origin.
  */
 
 export default {
@@ -74,9 +78,27 @@ export default {
             return new Response("Manual Update Triggered!", { status: 200 });
         }
 
+        // =================================================================================
+        // 2.5 AEGIS EDGE DECEPTION (L4-ADA)
+        // =================================================================================
+        const clientIp = request.headers.get("CF-Connecting-IP");
+        if (clientIp) {
+            try {
+                const attackerBlock = await env.TREISHFIN_SEO_CACHE.get(`aegis:block:${clientIp}`);
+                if (attackerBlock) {
+                    // If marked as attacker by L8-BCSM backend consensus, serve deception immediately
+                    return new Response(JSON.stringify({
+                        error: "Internal Server Error",
+                        _aegis_integrity: "blocked-by-edge-consensus"
+                    }), { status: 500, headers: { "Content-Type": "application/json" } });
+                }
+            } catch (e) {
+                // Fail open if KV read fails to prevent accidental widespread block
+            }
+        }
+
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishvaamfinance.com";
-        const PARENT_ORG_URL = "https://treishvaamgroup.com";
         const backendConfig = new URL(BACKEND_URL);
 
         const KNOWN_SPA_ROUTES = [
