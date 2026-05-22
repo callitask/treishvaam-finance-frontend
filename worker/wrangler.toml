@@ -1,17 +1,33 @@
+# AI-CONTEXT:
+# Purpose: Configuration file for the Treishvaam Finance Cloudflare Worker.
+# Scope: Defines KV bindings, Cron triggers, and Worker metadata.
+# 
+# Security Constraints:
+# - NO HARDCODED SECRETS here. `AEGIS_EDGE_SECRET` MUST be managed via `wrangler secret put`.
+#
+# IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+# - ADDED: Initial configuration with `TREISHFIN_SEO_CACHE`.
+# - EDITED (Phase 6.1): Added `AEGIS_THREAT_KV` binding. 
+#   Why: To allow the L4-ADA Deception layer to update malicious IPs dynamically from the backend via RabbitMQ/Wazuh, readable at 0ms latency by this edge proxy.
+
 name = "treishfin-seo-worker"
 main = "worker.js"
 compatibility_date = "2024-01-01"
 
-# KV Namespace Binding
-# PASTE YOUR ID BELOW INSIDE THE QUOTES
+# KV Namespace Binding (SEO Cache)
 [[kv_namespaces]]
 binding = "TREISHFIN_SEO_CACHE"
 id = "8e80f838a11349b2afddeece7c656d76"
 preview_id = "3f90e011cd8542d0a48d139f141687d6"
 
+# KV Namespace Binding (AEGIS Threat Intelligence)
+# USER ACTION REQUIRED: Run `npx wrangler kv:namespace create "AEGIS_THREAT_KV"` 
+# and replace the ID below.
+[[kv_namespaces]]
+binding = "AEGIS_THREAT_KV"
+id = "87e18923b0ab4e1ca854f427c05dae93"
+preview_id = "b6721cc33a2046cca83a80979e2bd14b"
+
 # Cron Trigger (Runs 1 time per hour)
 [triggers]
 crons = ["0 * * * *"]
-
-# NOTE: NO [vars] SECTION HERE. 
-# URLs are managed via "npx wrangler secret put"

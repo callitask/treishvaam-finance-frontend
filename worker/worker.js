@@ -12,6 +12,11 @@
  * Critical Dependencies:
  * - Backend: via env.BACKEND_API_URL
  * - KV Namespace: TREISHFIN_SEO_CACHE
+ * - KV Namespace: AEGIS_THREAT_KV (Added Phase 6.1)
+ *
+ * Security Constraints:
+ * - Edge Signature must use HMAC-SHA-512 via `crypto.subtle`.
+ * - SEO/AI Crawlers must explicitly bypass AEGIS threat evaluation to preserve indexability.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Emergency Architecture Fix - RSC Support): 
@@ -21,10 +26,10 @@
  * • Why: Previously, HTMLRewriter was intercepting background Next.js data fetches (`?_rsc=...`) 
  * for `/home` and attempting to inject JSON-LD `<script>` tags into raw JSON streams. This 
  * caused data corruption and 500 Internal Server Errors on client-side navigations.
- * - EDITED (Phase 6 - AEGIS Edge Integration):
- * • Added L4-ADA Edge Deception interception at the start of the fetch handler.
- * • Worker now consults KV (`aegis:block:[IP]`) to drop known malicious actors instantly 
- * before they reach the origin.
+ * - EDITED (Phase 6.1 - AEGIS Edge Integration):
+ * • Added L4-ADA Edge Deception interception at the start of the fetch handler utilizing `AEGIS_THREAT_KV`.
+ * • Added explicit Regex bypass for verified SEO/AI crawlers to protect organic discovery.
+ * • Implemented `crypto.subtle` HMAC-SHA-512 signing, appending `X-Aegis-Edge-Signature` to all backend proxy requests to enforce Zero-Trust Origin policies.
  */
 
 export default {
@@ -79,21 +84,27 @@ export default {
         }
 
         // =================================================================================
-        // 2.5 AEGIS EDGE DECEPTION (L4-ADA)
+        // 2.5 AEGIS EDGE DECEPTION (L4-ADA) & CRAWLER PROTECTION
         // =================================================================================
+        const userAgent = request.headers.get("User-Agent") || "";
+        const isVerifiedCrawler = /Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|GPTBot|ChatGPT-User|ClaudeBot|Treishvaam-Worker-Crawler/i.test(userAgent);
         const clientIp = request.headers.get("CF-Connecting-IP");
-        if (clientIp) {
+
+        if (!isVerifiedCrawler && clientIp) {
             try {
-                const attackerBlock = await env.TREISHFIN_SEO_CACHE.get(`aegis:block:${clientIp}`);
+                // Prioritize AEGIS_THREAT_KV, fallback to SEO cache if deployment is pending
+                const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
+                const attackerBlock = await threatKv.get(`aegis:block:${clientIp}`);
+
                 if (attackerBlock) {
-                    // If marked as attacker by L8-BCSM backend consensus, serve deception immediately
+                    // Instantly drop malicious traffic at the Edge (Offloading Backend)
                     return new Response(JSON.stringify({
-                        error: "Internal Server Error",
+                        error: "Access Denied",
                         _aegis_integrity: "blocked-by-edge-consensus"
-                    }), { status: 500, headers: { "Content-Type": "application/json" } });
+                    }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
                 }
             } catch (e) {
-                // Fail open if KV read fails to prevent accidental widespread block
+                // Fail open if KV read fails to prevent accidental widespread downtime
             }
         }
 
@@ -113,6 +124,39 @@ export default {
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
         enhancedHeaders.set("X-Tenant-ID", "finance");
+
+        // =================================================================================
+        // 2.6 AEGIS ZERO-TRUST HMAC SIGNING (CRYPTO.SUBTLE)
+        // =================================================================================
+        let edgeSignature = "";
+        let edgeTimestamp = Date.now().toString();
+
+        if (env.AEGIS_EDGE_SECRET) {
+            try {
+                const encoder = new TextEncoder();
+                const key = await crypto.subtle.importKey(
+                    "raw",
+                    encoder.encode(env.AEGIS_EDGE_SECRET),
+                    { name: "HMAC", hash: "SHA-512" },
+                    false,
+                    ["sign"]
+                );
+                // Sign: Path + Timestamp
+                const data = encoder.encode(url.pathname + ":" + edgeTimestamp);
+                const signatureBuf = await crypto.subtle.sign("HMAC", key, data);
+
+                edgeSignature = Array.from(new Uint8Array(signatureBuf))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+
+                enhancedHeaders.set("X-Aegis-Edge-Signature", edgeSignature);
+                enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
+            } catch (e) {
+                // Fail open to ensure site runs if secret is misconfigured, 
+                // but Backend will drop it if backend requires strict auth.
+                console.error("AEGIS Signing Failed", e);
+            }
+        }
 
         const baseEnhancedRequest = new Request(request.url, {
             headers: enhancedHeaders,
@@ -146,7 +190,7 @@ export default {
         };
 
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
-            return handleDynamicSitemapFromKV(request, url, env, ctx, BACKEND_URL);
+            return handleDynamicSitemapFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
         }
 
         if (url.pathname === '/robots.txt') {
@@ -285,7 +329,7 @@ export default {
                 if (!articleId) return addSecurityHeaders(response);
 
                 try {
-                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/posts/url/${articleId}`, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot", "X-Tenant-ID": "finance" } });
+                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/posts/url/${articleId}`, { headers: enhancedHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const post = await apiResp.json();
 
@@ -303,7 +347,7 @@ export default {
                 if (!rawTicker) return addSecurityHeaders(response);
 
                 try {
-                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`, { headers: { "User-Agent": "Cloudflare-Worker-SEO-Bot" } });
+                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`, { headers: enhancedHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const marketData = await apiResp.json();
 
@@ -340,7 +384,8 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
 
     try {
         const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-        const backendResp = await fetch(`${backendUrl}${apiPath}`);
+        // Use the authenticated base request for secure backend fetch
+        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, request));
 
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
