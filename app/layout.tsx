@@ -40,6 +40,9 @@
  * • Removed `anonymize_ip: true` from the GA4 config block.
  * • Injected `<AegisTelemetry />` client component for Layer 5 Behavioral Intelligence Engine tracking.
  * • Why: Business requirements mandate complete data collection; Indian jurisdiction compliance allows for full IP retention. AEGIS tracking successfully merged into the CSP-compliant Edge layout.
+ * - EDITED (Phase 6 - Dynamic Privacy Toggle Integration):
+ * • Conditionally injected `anonymize_ip: true` into the GA4 snippet based on `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY`.
+ * • Why: Maintains 100% data fidelity by default (for Indian users) but allows instant One-Click reversion to strict GDPR/DPDP anonymization if policies change.
  * * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -144,7 +147,7 @@ export default function RootLayout({
                                     gtag('js', new Date());
                                     gtag('config', '${GA_MEASUREMENT_ID}', {
                                         page_path: window.location.pathname,
-                                        send_page_view: true
+                                        send_page_view: true${process.env.NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY === 'true' ? ",\n                                        anonymize_ip: true" : ""}
                                     });
                                 `,
                             }}

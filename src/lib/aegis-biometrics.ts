@@ -29,6 +29,10 @@
  * • Implemented passive mousemove/keydown listeners.
  * • Implemented WebCrypto SHA-256 local hashing.
  *
+ * - EDITED (Phase 6 - Dynamic Privacy Sync):
+ * • Wrapped the telemetry payload in a `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY` check.
+ * • Conditionally appends the raw behavioral vector (`X-Aegis-Biometric-Raw` and `biometricRaw`) if the toggle is false, fulfilling the absolute data fidelity mandate for the Indian jurisdiction while preserving instant GDPR switchability.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -73,14 +77,25 @@ export const initializeAegisTelemetry = () => {
             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
             const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
+            const isStrictPrivacy = process.env.NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY === 'true';
+
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+                'X-Aegis-Biometric-Hash': hashHex
+            };
+
+            const bodyPayload: any = { biometricHash: hashHex };
+
+            // Conditionally append full data fidelity payload based on Enterprise privacy toggle
+            if (!isStrictPrivacy) {
+                headers['X-Aegis-Biometric-Raw'] = vector;
+                bodyPayload.biometricRaw = vector;
+            }
 
             await fetch(`${backendUrl}/api/v1/aegis/telemetry`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Aegis-Biometric-Hash': hashHex
-                },
-                body: JSON.stringify({ biometricHash: hashHex }),
+                headers,
+                body: JSON.stringify(bodyPayload),
                 keepalive: true // Guaranteed delivery even on tab close
             });
         } catch (err) {
@@ -96,7 +111,7 @@ export const initializeAegisTelemetry = () => {
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
     window.addEventListener('keydown', handleKeyDown, { passive: true });
 
-    // Broadcast the hashed vector every 15 seconds
+    // Broadcast the hashed (and potentially raw) vector every 15 seconds
     const interval = setInterval(reportTelemetry, 15000);
 
     return () => {

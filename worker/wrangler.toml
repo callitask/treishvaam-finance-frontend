@@ -9,6 +9,8 @@
 # - ADDED: Initial configuration with `TREISHFIN_SEO_CACHE`.
 # - EDITED (Phase 6.1): Added `AEGIS_THREAT_KV` binding. 
 #   Why: To allow the L4-ADA Deception layer to update malicious IPs dynamically from the backend via RabbitMQ/Wazuh, readable at 0ms latency by this edge proxy.
+# - EDITED (Phase 6.2): Added [vars] block for IaC environment variable management.
+#   Why: Cloudflare Pages dashboard locks plaintext variables when wrangler.toml is present. This injects the dynamic privacy toggle at the infrastructure level.
 
 name = "treishfin-seo-worker"
 main = "worker.js"
@@ -31,3 +33,7 @@ preview_id = "b6721cc33a2046cca83a80979e2bd14b"
 # Cron Trigger (Runs 1 time per hour)
 [triggers]
 crons = ["0 * * * *"]
+
+# Environment Variables (IaC Enforced)
+[vars]
+NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY = "false"
