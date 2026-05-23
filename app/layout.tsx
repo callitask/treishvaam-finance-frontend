@@ -2,7 +2,12 @@
  * AI-CONTEXT:
  * Purpose: Next.js Root Layout wrapper.
  * Scope: Defines the global HTML shell, providers, and shared UI components.
- * IMMUTABLE CHANGE HISTORY:
+ * * Security & Data Constraints:
+ * - DATA COLLECTION MANDATE: Full GA4 data fidelity is required. Do NOT add `anonymize_ip: true` or 
+ * restrict data collection payloads. The primary audience/jurisdiction (India) does not currently 
+ * mandate anonymization for this usecase, and business requirements dictate complete data capture.
+ * - CSP Nonces: All inline scripts must consume the `nonce={nonce}` extracted from Next.js headers.
+ * * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Restored original React MainLayout.js structure/classes to fix design breakage.
  * - EDITED: Injected Next.js optimized GA4 tracking script securely using NEXT_PUBLIC_ env variables.
  * - EDITED: Reordered DOM and removed GlobalMarketTicker to allow specific page-level stacking.
@@ -31,6 +36,14 @@
  * • Imported `@fontsource-variable/inter` to self-host fonts instead of using Google CDN.
  * • Added `@ts-ignore` to bypass strict TS module resolution on the CSS side-effect import.
  * • Why: Enhances page load speeds, removes a network jump, and protects user privacy from Google Font API IP scraping.
+ * - EDITED (AEGIS Phase 6.2 & Analytics Data Sync):
+ * • Removed `anonymize_ip: true` from the GA4 config block.
+ * • Injected `<AegisTelemetry />` client component for Layer 5 Behavioral Intelligence Engine tracking.
+ * • Why: Business requirements mandate complete data collection; Indian jurisdiction compliance allows for full IP retention. AEGIS tracking successfully merged into the CSP-compliant Edge layout.
+ * * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ * truncated, rewritten, or regenerated.
+ * Future AI must append only.
  */
 import React from 'react';
 import Script from 'next/script';
@@ -47,6 +60,7 @@ import '../src/index.css';
 import Navbar from '../src/components/Navbar';
 import Footer from '../src/components/Footer';
 import WebVitalsTracker from '../src/components/WebVitalsTracker';
+import AegisTelemetry from '../src/components/AegisTelemetry';
 import { Providers } from './providers';
 
 // ENFORCE CLOUDFLARE EDGE RUNTIME
@@ -130,7 +144,6 @@ export default function RootLayout({
                                     gtag('js', new Date());
                                     gtag('config', '${GA_MEASUREMENT_ID}', {
                                         page_path: window.location.pathname,
-                                        anonymize_ip: true,
                                         send_page_view: true
                                     });
                                 `,
@@ -142,6 +155,9 @@ export default function RootLayout({
             <body suppressHydrationWarning>
                 <Providers>
                     <WebVitalsTracker />
+                    {/* AEGIS L5-BIE: Global passive behavioral tracking */}
+                    <AegisTelemetry />
+
                     <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
                         {/* 1. Menu Bar pinned natively to the top */}
                         <Navbar />
