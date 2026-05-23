@@ -4,19 +4,22 @@
  * Purpose:
  * - Enterprise Edge Controller for Treishvaam Finance.
  * - Handles: Zero-Trust Security, Rich Result SEO Injection, KV-Backed Sitemap (Edge Replica).
+ * - Serves as the L4-ADA (Active Deception Architecture) Edge Gateway.
  *
  * Scope:
  * - Intercepts all traffic to treishvaamfinance.com
  * - Manages routing between Static Frontend, Dynamic Backend, and KV Store.
+ * - Enforces Global Crawler Matrix to protect digital footprints while dropping botnets.
  *
  * Critical Dependencies:
  * - Backend: via env.BACKEND_API_URL
  * - KV Namespace: TREISHFIN_SEO_CACHE
- * - KV Namespace: AEGIS_THREAT_KV (Added Phase 6.1)
+ * - KV Namespace: AEGIS_THREAT_KV (Phase 6.1)
  *
  * Security Constraints:
  * - Edge Signature must use HMAC-SHA-512 via `crypto.subtle`.
  * - SEO/AI Crawlers must explicitly bypass AEGIS threat evaluation to preserve indexability.
+ * - Must never hardcode fallback URLs.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Emergency Architecture Fix - RSC Support): 
@@ -26,11 +29,24 @@
  * • Why: Previously, HTMLRewriter was intercepting background Next.js data fetches (`?_rsc=...`) 
  * for `/home` and attempting to inject JSON-LD `<script>` tags into raw JSON streams. This 
  * caused data corruption and 500 Internal Server Errors on client-side navigations.
- * - EDITED (Phase 6.1 - AEGIS Edge Integration):
- * • Added L4-ADA Edge Deception interception at the start of the fetch handler utilizing `AEGIS_THREAT_KV`.
- * • Added explicit Regex bypass for verified SEO/AI crawlers to protect organic discovery.
+ * - EDITED (Phase 6.1 - AEGIS Edge Integration & Global Crawler Matrix):
+ * • Added L4-ADA Edge Deception interception utilizing `AEGIS_THREAT_KV`.
+ * • Replaced the narrow crawler regex with a compiled Enterprise Global Crawler Matrix. This encompasses Google Ecosystem (News, Extended, APIs), major LLMs (OpenAI, Meta, Amazon, DeepSeek, Qwen, Mistral), Social Unfurlers, and News Aggregators to ensure 100% digital footprint retention.
  * • Implemented `crypto.subtle` HMAC-SHA-512 signing, appending `X-Aegis-Edge-Signature` to all backend proxy requests to enforce Zero-Trust Origin policies.
  */
+
+// =================================================================================
+// GLOBAL ENTERPRISE CRAWLER MATRIX (Compiled once per V8 Isolate for 0ms execution)
+// =================================================================================
+const searchEngines = "Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|SeznamBot";
+const googleEcosystem = "Google-Extended|Googlebot-News|Googlebot-Image|Googlebot-Video|Google-Read-Aloud|Storebot-Google|APIs-Google|AdsBot-Google|Mediapartners-Google";
+const aiAndLlms = "GPTBot|ChatGPT-User|OAI-SearchBot|ClaudeBot|anthropic-ai|MetaExternalAgent|Amazonbot|Applebot|Applebot-Extended|PerplexityBot|DeepSeek|Bytespider|Qwen|Mistral|YouBot|Cohere-training|Diffbot";
+const socialAndUnfurl = "Twitterbot|facebookexternalhit|LinkedInBot|Slackbot|Discordbot|TelegramBot|WhatsApp|Pinterestbot|Redditbot";
+const newsAndFeeds = "flipboard|feedly|NewsBlur|Inoreader|PocketParser|PaperLiBot|WordPress|Tumblr";
+const archiversAndAcademic = "ia_archiver|archive\\.org_bot|Wikipedia|SemanticScholarBot";
+const internal = "Treishvaam-Worker-Crawler";
+
+const GLOBAL_CRAWLER_MATRIX = new RegExp(`(${searchEngines}|${googleEcosystem}|${aiAndLlms}|${socialAndUnfurl}|${newsAndFeeds}|${archiversAndAcademic}|${internal})`, "i");
 
 export default {
     // =================================================================================
@@ -87,12 +103,12 @@ export default {
         // 2.5 AEGIS EDGE DECEPTION (L4-ADA) & CRAWLER PROTECTION
         // =================================================================================
         const userAgent = request.headers.get("User-Agent") || "";
-        const isVerifiedCrawler = /Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|GPTBot|ChatGPT-User|ClaudeBot|Treishvaam-Worker-Crawler/i.test(userAgent);
+        const isVerifiedCrawler = GLOBAL_CRAWLER_MATRIX.test(userAgent);
         const clientIp = request.headers.get("CF-Connecting-IP");
 
+        // Only enforce Active Deception if it's NOT a verified ecosystem crawler
         if (!isVerifiedCrawler && clientIp) {
             try {
-                // Prioritize AEGIS_THREAT_KV, fallback to SEO cache if deployment is pending
                 const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
                 const attackerBlock = await threatKv.get(`aegis:block:${clientIp}`);
 
@@ -141,8 +157,8 @@ export default {
                     false,
                     ["sign"]
                 );
-                // Sign: Path + Timestamp
-                const data = encoder.encode(url.pathname + ":" + edgeTimestamp);
+                // Sign: Path + Timestamp + IP (to prevent replay attacks from different nodes)
+                const data = encoder.encode(url.pathname + ":" + edgeTimestamp + ":" + (clientIp || "no-ip"));
                 const signatureBuf = await crypto.subtle.sign("HMAC", key, data);
 
                 edgeSignature = Array.from(new Uint8Array(signatureBuf))
@@ -152,8 +168,7 @@ export default {
                 enhancedHeaders.set("X-Aegis-Edge-Signature", edgeSignature);
                 enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
             } catch (e) {
-                // Fail open to ensure site runs if secret is misconfigured, 
-                // but Backend will drop it if backend requires strict auth.
+                // Fail open to ensure site runs if secret is misconfigured
                 console.error("AEGIS Signing Failed", e);
             }
         }
@@ -384,7 +399,6 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
 
     try {
         const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-        // Use the authenticated base request for secure backend fetch
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, request));
 
         if (backendResp.ok) {
