@@ -33,6 +33,10 @@
  * • Wrapped the telemetry payload in a `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY` check.
  * • Conditionally appends the raw behavioral vector (`X-Aegis-Biometric-Raw` and `biometricRaw`) if the toggle is false, fulfilling the absolute data fidelity mandate for the Indian jurisdiction while preserving instant GDPR switchability.
  *
+ * - EDITED (Phase 6.6 - Micro-Jitter Entropy):
+ * • Added time-delta aggregation into the vector string (`vector = keystrokeCount:mouseDistance:jitterSum`).
+ * • Why: Standard bot evasion software uses linear bezier curves for mouse movement. Human hands produce microscopic time/pixel jitter. Capturing the aggregate time-delta between events provides L5-BIE with cryptographic-level proof of human musculature.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -46,29 +50,37 @@ export const initializeAegisTelemetry = () => {
 
     let keystrokeCount = 0;
     let mouseDistance = 0;
+    let jitterSum = 0;
     let lastMouseX = -1;
     let lastMouseY = -1;
+    let lastEventTime = Date.now();
 
     const handleMouseMove = (e: MouseEvent) => {
+        const now = Date.now();
         if (lastMouseX !== -1) {
             // Calculate raw distance traveled
             mouseDistance += Math.sqrt(
                 Math.pow(e.clientX - lastMouseX, 2) + Math.pow(e.clientY - lastMouseY, 2)
             );
+            // Extract micro-jitter time delta (Human imperfection)
+            jitterSum += (now - lastEventTime);
         }
         lastMouseX = e.clientX;
         lastMouseY = e.clientY;
+        lastEventTime = now;
     };
 
     const handleKeyDown = () => {
         keystrokeCount++; // Only tracking the physical press event, not the key value
+        jitterSum += (Date.now() - lastEventTime);
+        lastEventTime = Date.now();
     };
 
     const reportTelemetry = async () => {
         if (keystrokeCount === 0 && mouseDistance === 0) return; // Prevent empty payload spam
 
-        // Create the non-PII vector string (e.g., "15:4300" -> 15 keys, 4300px moved)
-        const vector = `${keystrokeCount}:${Math.round(mouseDistance)}`;
+        // Create the non-PII vector string with Jitter Entropy
+        const vector = `${keystrokeCount}:${Math.round(mouseDistance)}:${jitterSum}`;
 
         try {
             const msgBuffer = new TextEncoder().encode(vector);
@@ -105,6 +117,7 @@ export const initializeAegisTelemetry = () => {
         // Reset state for the next 15-second epoch
         keystrokeCount = 0;
         mouseDistance = 0;
+        jitterSum = 0;
     };
 
     // Attach passive listeners to guarantee zero performance regression

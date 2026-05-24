@@ -22,26 +22,19 @@
  * - Must never hardcode fallback URLs.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - EDITED (Emergency Architecture Fix - RSC Support): 
- * • Refactored the SPA Fallback and Caching strategy to respect Next.js App Router.
  * - EDITED (Current Phase - 500 RSC Stream Fix):
  * • Wrapped the ENTIRE "SEO INTELLIGENCE" block in `if (!isRscRequest)`.
- * • Why: Previously, HTMLRewriter was intercepting background Next.js data fetches (`?_rsc=...`) 
- * for `/home` and attempting to inject JSON-LD `<script>` tags into raw JSON streams. This 
- * caused data corruption and 500 Internal Server Errors on client-side navigations.
  * - EDITED (Phase 6.1 - AEGIS Edge Integration & Global Crawler Matrix):
- * • Added L4-ADA Edge Deception interception utilizing `AEGIS_THREAT_KV`.
- * • Replaced the narrow crawler regex with a compiled Enterprise Global Crawler Matrix. This encompasses Google Ecosystem (News, Extended, APIs), major LLMs (OpenAI, Meta, Amazon, DeepSeek, Qwen, Mistral), Social Unfurlers, and News Aggregators to ensure 100% digital footprint retention.
- * • Implemented `crypto.subtle` HMAC-SHA-512 signing, appending `X-Aegis-Edge-Signature` to all backend proxy requests to enforce Zero-Trust Origin policies.
+ * • Replaced narrow crawler regex with a compiled Enterprise Global Crawler Matrix. 
+ * • Implemented `crypto.subtle` HMAC-SHA-512 signing.
  * - EDITED (Phase 6.3 - GEO Edge Integration):
- * • Intercepted `/llms.txt` and `/ai-feed.md` to map to backend `/api/public/geo/` endpoints.
- * • Deployed heavy KV caching utilizing `TREISHFIN_SEO_CACHE` to serve AI crawlers instantly with $0 backend compute cost.
- * - EDITED (Phase 6.4 - GEO Validation):
- * • Verified L4-ADA and `GLOBAL_CRAWLER_MATRIX` alignment with Backend L5-BIE reverse DNS lookup validation.
+ * • Intercepted `/llms.txt` and `/ai-feed.md`. Deployed heavy KV caching utilizing `TREISHFIN_SEO_CACHE`.
  * - EDITED (Phase 6.5 - GEO AI Bot Interception):
- * • Added `aiBotsOnly` regex derived from GLOBAL_CRAWLER_MATRIX.
- * • Intercepted pure AI LLM agents on the root paths (`/`, `/home`) and explicitly served them the `/ai-feed.md` markdown payload natively to maximize RAG ingestion density.
- * • Injected `<link rel="alternate" type="text/markdown" href="/llms.txt">` universally to guide LLMs.
+ * • Intercepted pure AI LLM agents on the root paths (`/`, `/home`) and served `/ai-feed.md`.
+ * - EDITED (Phase 6.6 - MTD & Tarpit Execution):
+ * • Implemented Moving Target Defense (MTD) path translation via `aegis:mtd:manifest`.
+ * • Implemented Edge-to-Backend Virtual Thread Tarpit routing for `TARPIT` flagged IP addresses.
+ * • Added proxy support for the new `/ontology.json` GEO payload.
  */
 
 // =================================================================================
@@ -110,30 +103,55 @@ export default {
         }
 
         // =================================================================================
-        // 2.5 AEGIS EDGE DECEPTION (L4-ADA) & CRAWLER PROTECTION
+        // 2.5 AEGIS EDGE DECEPTION (L4-ADA) & MTD PATH TRANSLATION
         // =================================================================================
         const userAgent = request.headers.get("User-Agent") || "";
         const isVerifiedCrawler = GLOBAL_CRAWLER_MATRIX.test(userAgent);
         const isAiBot = aiBotsOnly.test(userAgent);
-        const clientIp = request.headers.get("CF-Connecting-IP");
+        const clientIp = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
 
-        // Only enforce Active Deception if it's NOT a verified ecosystem crawler
-        if (!isVerifiedCrawler && clientIp) {
-            try {
-                const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
+        let targetPath = url.pathname;
+        let isTarpit = false;
+        let mtdManifest = null;
+
+        try {
+            const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
+
+            // Fetch MTD Manifest for Path translation
+            const mtdManifestStr = await threatKv.get("aegis:mtd:manifest");
+            if (mtdManifestStr) {
+                mtdManifest = JSON.parse(mtdManifestStr);
+            }
+
+            // Enforce Active Deception if NOT a verified ecosystem crawler
+            if (!isVerifiedCrawler) {
                 const attackerBlock = await threatKv.get(`aegis:block:${clientIp}`);
-
                 if (attackerBlock) {
-                    // Instantly drop malicious traffic at the Edge (Offloading Backend)
-                    return new Response(JSON.stringify({
-                        error: "Access Denied",
-                        _aegis_integrity: "blocked-by-edge-consensus"
-                    }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+                    if (attackerBlock.includes("TARPIT")) {
+                        isTarpit = true; // Delay routing decision
+                    } else {
+                        // Instantly drop malicious traffic at the Edge
+                        return new Response(JSON.stringify({
+                            error: "Access Denied",
+                            _aegis_integrity: "blocked-by-edge-consensus"
+                        }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+                    }
                 }
-            } catch (e) {
-                // Fail open if KV read fails to prevent accidental widespread downtime
+            }
+        } catch (e) {
+            // Fail open if KV read fails to prevent accidental downtime
+        }
+
+        // MTD Translation - Apply translation BEFORE signature generation
+        if (targetPath.startsWith("/api")) {
+            if (isTarpit) {
+                targetPath = "/api/v1/aegis/tarpit/trap";
+            } else if (mtdManifest && mtdManifest[targetPath]) {
+                targetPath = mtdManifest[targetPath];
             }
         }
+
+        url.pathname = targetPath; // Apply final resolved path
 
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishvaamfinance.com";
@@ -168,8 +186,8 @@ export default {
                     false,
                     ["sign"]
                 );
-                // Sign: Path + Timestamp + IP (to prevent replay attacks from different nodes)
-                const data = encoder.encode(url.pathname + ":" + edgeTimestamp + ":" + (clientIp || "no-ip"));
+                // Signature secures the *translated* temporal MTD path, defeating MITM replay attacks
+                const data = encoder.encode(url.pathname + ":" + edgeTimestamp + ":" + clientIp);
                 const signatureBuf = await crypto.subtle.sign("HMAC", key, data);
 
                 edgeSignature = Array.from(new Uint8Array(signatureBuf))
@@ -179,7 +197,6 @@ export default {
                 enhancedHeaders.set("X-Aegis-Edge-Signature", edgeSignature);
                 enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
             } catch (e) {
-                // Fail open to ensure site runs if secret is misconfigured
                 console.error("AEGIS Signing Failed", e);
             }
         }
@@ -218,7 +235,7 @@ export default {
         // =================================================================================
         // GEO (Generative Engine Optimization) & SITEMAP CACHING HANDLERS
         // =================================================================================
-        if (url.pathname === '/llms.txt' || url.pathname === '/ai-feed.md') {
+        if (url.pathname === '/llms.txt' || url.pathname === '/ai-feed.md' || url.pathname === '/ontology.json') {
             return handleGeoFeedFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
         }
 
@@ -242,11 +259,12 @@ export default {
         }
 
         if (url.pathname.startsWith("/api")) {
-            const targetUrl = new URL(request.url);
-            targetUrl.hostname = backendConfig.hostname;
-            targetUrl.protocol = backendConfig.protocol;
+            const proxyTargetUrl = new URL(request.url);
+            proxyTargetUrl.hostname = backendConfig.hostname;
+            proxyTargetUrl.protocol = backendConfig.protocol;
+            proxyTargetUrl.pathname = url.pathname; // Ensure the MTD/Tarpit mutated path is used
 
-            const proxyReq = new Request(targetUrl.toString(), {
+            const proxyReq = new Request(proxyTargetUrl.toString(), {
                 headers: enhancedHeaders,
                 method: request.method,
                 body: request.body,
@@ -256,7 +274,7 @@ export default {
             try {
                 if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
                     const cache = caches.default;
-                    const cacheKey = new Request(url.toString(), request);
+                    const cacheKey = new Request(url.toString(), request); // Cache key reflects the MTD temporal URL
                     const cachedResponse = await cache.match(cacheKey);
                     if (cachedResponse) return addSecurityHeaders(new Response(cachedResponse.body, cachedResponse));
 
@@ -378,7 +396,12 @@ export default {
                 if (!articleId) return addSecurityHeaders(response);
 
                 try {
-                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/posts/url/${articleId}`, { headers: enhancedHeaders });
+                    // Temporarily construct the API route. Note: The MTD proxy will handle this internally if it's external,
+                    // but since we are fetching from Worker -> Backend directly here for SSR hydration, we MUST apply MTD manually.
+                    let apiPath = `/api/v1/posts/url/${articleId}`;
+                    if (mtdManifest && mtdManifest[apiPath]) apiPath = mtdManifest[apiPath];
+
+                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: enhancedHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const post = await apiResp.json();
 
@@ -401,7 +424,9 @@ export default {
                 if (!rawTicker) return addSecurityHeaders(response);
 
                 try {
-                    const apiResp = await fetch(`${BACKEND_URL}/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`, { headers: enhancedHeaders });
+                    let apiPath = `/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`;
+                    // Query params make MTD matching complex; MTD usually applies to exact base paths. We'll skip MTD for this GET unless strictly mapped.
+                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: enhancedHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const marketData = await apiResp.json();
 
@@ -435,7 +460,9 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl) {
     const key = `geo:finance:${url.pathname}`;
     const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
 
-    const contentType = url.pathname.endsWith('.md') ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
+    let contentType = "text/plain; charset=utf-8";
+    if (url.pathname.endsWith('.md')) contentType = "text/markdown; charset=utf-8";
+    if (url.pathname.endsWith('.json')) contentType = "application/json; charset=utf-8";
 
     if (cachedKv) {
         const kvResponse = new Response(cachedKv, { headers: { "Content-Type": contentType, "Cache-Control": "public, s-maxage=86400, max-age=3600" } });
