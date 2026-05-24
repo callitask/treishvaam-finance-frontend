@@ -38,6 +38,10 @@
  * • Deployed heavy KV caching utilizing `TREISHFIN_SEO_CACHE` to serve AI crawlers instantly with $0 backend compute cost.
  * - EDITED (Phase 6.4 - GEO Validation):
  * • Verified L4-ADA and `GLOBAL_CRAWLER_MATRIX` alignment with Backend L5-BIE reverse DNS lookup validation.
+ * - EDITED (Phase 6.5 - GEO AI Bot Interception):
+ * • Added `aiBotsOnly` regex derived from GLOBAL_CRAWLER_MATRIX.
+ * • Intercepted pure AI LLM agents on the root paths (`/`, `/home`) and explicitly served them the `/ai-feed.md` markdown payload natively to maximize RAG ingestion density.
+ * • Injected `<link rel="alternate" type="text/markdown" href="/llms.txt">` universally to guide LLMs.
  */
 
 // =================================================================================
@@ -52,6 +56,7 @@ const archiversAndAcademic = "ia_archiver|archive\\.org_bot|Wikipedia|SemanticSc
 const internal = "Treishvaam-Worker-Crawler";
 
 const GLOBAL_CRAWLER_MATRIX = new RegExp(`(${searchEngines}|${googleEcosystem}|${aiAndLlms}|${socialAndUnfurl}|${newsAndFeeds}|${archiversAndAcademic}|${internal})`, "i");
+const aiBotsOnly = new RegExp(`(${aiAndLlms})`, "i");
 
 export default {
     // =================================================================================
@@ -109,6 +114,7 @@ export default {
         // =================================================================================
         const userAgent = request.headers.get("User-Agent") || "";
         const isVerifiedCrawler = GLOBAL_CRAWLER_MATRIX.test(userAgent);
+        const isAiBot = aiBotsOnly.test(userAgent);
         const clientIp = request.headers.get("CF-Connecting-IP");
 
         // Only enforce Active Deception if it's NOT a verified ecosystem crawler
@@ -216,14 +222,17 @@ export default {
             return handleGeoFeedFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
         }
 
+        // AGGRESSIVE GEO AI-BOT INTERCEPT (Force Serve Markdown for LLMs on Root)
+        if (isAiBot && request.method === "GET" && (url.pathname === "/" || url.pathname === "/home" || url.pathname === "")) {
+            const geoUrl = new URL('/ai-feed.md', request.url);
+            return handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL);
+        }
+
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
         }
 
         if (url.pathname === '/robots.txt') {
-            // Note: Handled statically by Next.js app/public directory unless overridden, 
-            // but we ensure it resolves fast natively if caught here.
-            // Delegate back to Next.js or edge fetch
             try {
                 const assetResp = await fetch(baseEnhancedRequest);
                 return addSecurityHeaders(assetResp);
@@ -336,7 +345,12 @@ export default {
                 const rewritten = new HTMLRewriter()
                     .on("title", { element(e) { e.setInnerContent(pageTitle); } })
                     .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageDesc); } })
-                    .on("head", { element(e) { e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true }); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true });
+                            e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                        }
+                    })
                     .transform(response);
 
                 return addSecurityHeaders(rewritten);
@@ -352,6 +366,7 @@ export default {
                 const rewritten = new HTMLRewriter()
                     .on("title", { element(e) { e.setInnerContent(pageData.title); } })
                     .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageData.description); } })
+                    .on("head", { element(e) { e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true }); } })
                     .transform(response);
                 return addSecurityHeaders(rewritten);
             }
@@ -370,7 +385,12 @@ export default {
                     const rewritten = new HTMLRewriter()
                         .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
                         .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
-                        .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true }); } })
+                        .on("head", {
+                            element(e) {
+                                e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
+                                e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            }
+                        })
                         .transform(response);
                     return addSecurityHeaders(rewritten);
                 } catch (e) { return addSecurityHeaders(response); }
@@ -389,7 +409,12 @@ export default {
 
                     const rewritten = new HTMLRewriter()
                         .on("title", { element(e) { e.setInnerContent(`${marketData.quoteData.name} (${marketData.quoteData.ticker}) | Treishvaam Finance`); } })
-                        .on("head", { element(e) { e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true }); } })
+                        .on("head", {
+                            element(e) {
+                                e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
+                                e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            }
+                        })
                         .transform(response);
                     return addSecurityHeaders(rewritten);
                 } catch (e) { return addSecurityHeaders(response); }
