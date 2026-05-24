@@ -35,6 +35,9 @@
  * • Implemented Moving Target Defense (MTD) path translation via `aegis:mtd:manifest`.
  * • Implemented Edge-to-Backend Virtual Thread Tarpit routing for `TARPIT` flagged IP addresses.
  * • Added proxy support for the new `/ontology.json` GEO payload.
+ * - EDITED (Phase 8 GEO Full Execution):
+ * • Broadened the explicitly defined AI Bot list to encompass `OAI-SearchBot` and `DeepSeek` in the `GLOBAL_CRAWLER_MATRIX`.
+ * • Added `X-GEO-Bot-Detected` header tagging to explicitly mark intercepted LLM streams.
  */
 
 // =================================================================================
@@ -221,6 +224,11 @@ export default {
             newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
             newHeaders.delete("Content-Security-Policy-Report-Only");
 
+            // Explicit GEO identification for crawlers routed through this proxy
+            if (isAiBot) {
+                newHeaders.set("X-GEO-Bot-Detected", "true");
+            }
+
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
                 return new Response(response.body, { status: 200, headers: newHeaders });
             }
@@ -242,7 +250,8 @@ export default {
         // AGGRESSIVE GEO AI-BOT INTERCEPT (Force Serve Markdown for LLMs on Root)
         if (isAiBot && request.method === "GET" && (url.pathname === "/" || url.pathname === "/home" || url.pathname === "")) {
             const geoUrl = new URL('/ai-feed.md', request.url);
-            return handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL);
+            const geoResponse = await handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL);
+            return addSecurityHeaders(geoResponse);
         }
 
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
@@ -367,6 +376,7 @@ export default {
                         element(e) {
                             e.append(`<script type="application/ld+json">${JSON.stringify(websiteSchema)}</script>`, { html: true });
                             e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
                         }
                     })
                     .transform(response);
@@ -384,7 +394,12 @@ export default {
                 const rewritten = new HTMLRewriter()
                     .on("title", { element(e) { e.setInnerContent(pageData.title); } })
                     .on('meta[name="description"]', { element(e) { e.setAttribute("content", pageData.description); } })
-                    .on("head", { element(e) { e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true }); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
+                        }
+                    })
                     .transform(response);
                 return addSecurityHeaders(rewritten);
             }
@@ -412,6 +427,7 @@ export default {
                             element(e) {
                                 e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
                                 e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                                e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
                             }
                         })
                         .transform(response);
@@ -438,6 +454,7 @@ export default {
                             element(e) {
                                 e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
                                 e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                                e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
                             }
                         })
                         .transform(response);

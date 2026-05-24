@@ -6,6 +6,8 @@
 # - ADDED: Original generic directives.
 # - EDITED (Phase 7 GEO):
 # • Injected explicit LLM directives allowing the GLOBAL_CRAWLER_MATRIX agents to locate the `llms.txt` edge feeds safely without triggering the AEGIS anomaly trips.
+# - EDITED (Phase 8 GEO Full Execution):
+# • Expanded explicit permissions block to strictly target OAI-SearchBot, DeepSeek, and anthropic-ai.
 
 User-agent: *
 Allow: /
@@ -34,6 +36,27 @@ User-agent: Google-Extended
 Allow: /
 Allow: /llms.txt
 Allow: /ai-feed.md
+Disallow: /api/
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Allow: /ontology.json
+Disallow: /api/
+
+User-agent: anthropic-ai
+Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Allow: /ontology.json
+Disallow: /api/
+
+User-agent: DeepSeek
+Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Allow: /ontology.json
 Disallow: /api/
 
 Sitemap: https://treishvaamfinance.com/sitemap.xml

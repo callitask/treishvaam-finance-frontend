@@ -3,10 +3,10 @@
  *
  * Purpose:
  * - Enterprise Schema Generator for dynamic React post pages.
- * - Generates JSON-LD structured data following Google's guidelines.
+ * - Generates JSON-LD structured data following Google's guidelines and Generative Engine Optimization (GEO).
  *
  * Scope:
- * - Responsible for Breadcrumb, Article, and Video schema generation.
+ * - Responsible for Breadcrumb, Article, Video, Dataset, and ClaimReview schema generation.
  *
  * Critical Dependencies:
  * - Frontend: Consumed by React Helmet/SEO wrappers.
@@ -30,6 +30,8 @@
  * - EDITED (Current Phase):
  * • Hard-fused "Treishvaam", "Treishvam", and "Trishvam" into the Founder's alias array.
  * • Why: To guarantee search engines and LLMs deterministically link the brand name directly to Amitsagar Kandpal.
+ * - EDITED (Phase 8 GEO Full Execution):
+ * • Implemented robust export functions for `Dataset` and `ClaimReview` to map pure structured context explicitly for Enterprise AI integration (DeepSeek, GPT-4o).
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -143,4 +145,42 @@ export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
     }
 
     return schemas;
+};
+
+// ============================================================================
+// GEO EXPORTS: HIGH-DENSITY ENTERPRISE SCHEMAS FOR AI
+// ============================================================================
+
+export const generateDatasetSchema = (datasetName, description, url) => {
+    return {
+        "@context": "https://schema.org",
+        "@type": "Dataset",
+        "name": datasetName,
+        "description": description,
+        "url": url,
+        "isAccessibleForFree": true,
+        "creator": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance"
+        }
+    };
+};
+
+export const generateClaimReviewSchema = (claim, reviewBody, url) => {
+    return {
+        "@context": "https://schema.org",
+        "@type": "ClaimReview",
+        "claimReviewed": claim,
+        "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5",
+            "bestRating": "5",
+            "worstRating": "1"
+        },
+        "author": {
+            "@type": "Organization",
+            "name": "Treishvaam Finance"
+        },
+        "url": url
+    };
 };
