@@ -19,5 +19,21 @@ Disallow: /?q=*
 # Disallow: /silent-check-sso.html (Removed to allow sso callback discovery)
 # Disallow: /login (Removed and explicitly allowed above for GSC indexing)
 
+# --- AI BOT GEO WHITELIST (Phase 6.3 GEO) ---
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: PerplexityBot
+User-agent: Google-Extended
+Allow: /llms.txt
+Allow: /ai-feed.md
+Allow: /api/public/geo/
+Allow: /
+
+# --- UNAUTHORIZED SCRAPER BLOCKLIST (L4-ADA Enhancement) ---
+User-agent: CCBot
+User-agent: omgili
+User-agent: omgilibot
+Disallow: /
+
 # Sitemap Index
 Sitemap: https://treishvaamfinance.com/sitemap.xml

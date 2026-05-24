@@ -33,6 +33,9 @@
  * • Added L4-ADA Edge Deception interception utilizing `AEGIS_THREAT_KV`.
  * • Replaced the narrow crawler regex with a compiled Enterprise Global Crawler Matrix. This encompasses Google Ecosystem (News, Extended, APIs), major LLMs (OpenAI, Meta, Amazon, DeepSeek, Qwen, Mistral), Social Unfurlers, and News Aggregators to ensure 100% digital footprint retention.
  * • Implemented `crypto.subtle` HMAC-SHA-512 signing, appending `X-Aegis-Edge-Signature` to all backend proxy requests to enforce Zero-Trust Origin policies.
+ * - EDITED (Phase 6.3 - GEO Edge Integration):
+ * • Intercepted `/llms.txt` and `/ai-feed.md` to map to backend `/api/public/geo/` endpoints.
+ * • Deployed heavy KV caching utilizing `TREISHFIN_SEO_CACHE` to serve AI crawlers instantly with $0 backend compute cost.
  */
 
 // =================================================================================
@@ -204,13 +207,27 @@ export default {
             return JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026');
         };
 
+        // =================================================================================
+        // GEO (Generative Engine Optimization) & SITEMAP CACHING HANDLERS
+        // =================================================================================
+        if (url.pathname === '/llms.txt' || url.pathname === '/ai-feed.md') {
+            return handleGeoFeedFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
+        }
+
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
             return handleDynamicSitemapFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
         }
 
         if (url.pathname === '/robots.txt') {
-            const robotsTxt = `User-agent: *\nAllow: /\nAllow: /api/posts\nAllow: /api/categories\nAllow: /api/market\nAllow: /api/news\nAllow: /login\nDisallow: /api/auth/\nDisallow: /api/contact/\nDisallow: /api/admin/\nDisallow: /dashboard/\nDisallow: /?q=*\nSitemap: ${FRONTEND_URL}/sitemap.xml`;
-            return new Response(robotsTxt, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
+            // Note: Handled statically by Next.js app/public directory unless overridden, 
+            // but we ensure it resolves fast natively if caught here.
+            // Delegate back to Next.js or edge fetch
+            try {
+                const assetResp = await fetch(baseEnhancedRequest);
+                return addSecurityHeaders(assetResp);
+            } catch (e) {
+                return new Response("Asset Not Found", { status: 404 });
+            }
         }
 
         if (url.pathname.startsWith("/api")) {
@@ -380,6 +397,45 @@ export default {
         return addSecurityHeaders(response);
     }
 };
+
+async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl) {
+    const cache = caches.default;
+    const cacheRequest = new Request(request.url, request);
+
+    let cachedResponse = await cache.match(cacheRequest);
+    if (cachedResponse) return new Response(cachedResponse.body, cachedResponse);
+
+    const key = `geo:finance:${url.pathname}`;
+    const cachedKv = await env.TREISHFIN_SEO_CACHE.get(key);
+
+    const contentType = url.pathname.endsWith('.md') ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8";
+
+    if (cachedKv) {
+        const kvResponse = new Response(cachedKv, { headers: { "Content-Type": contentType, "Cache-Control": "public, s-maxage=86400, max-age=3600" } });
+        ctx.waitUntil(cache.put(cacheRequest, kvResponse.clone()));
+        return kvResponse;
+    }
+
+    try {
+        const apiPath = `/api/public/geo${url.pathname}`;
+        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, request));
+
+        if (backendResp.ok) {
+            const newResp = new Response(backendResp.body, backendResp);
+            newResp.headers.set("Content-Type", contentType);
+            newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
+
+            // Clone before consuming the body for KV to avoid locking the stream
+            const cloneForKv = newResp.clone();
+            ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
+            ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
+
+            return newResp;
+        }
+    } catch (e) { }
+
+    return new Response("GEO Feed Unavailable", { status: 503 });
+}
 
 async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
     const cache = caches.default;

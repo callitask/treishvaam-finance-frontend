@@ -43,6 +43,9 @@
  * - EDITED (Phase 6 - Dynamic Privacy Toggle Integration):
  * • Conditionally injected `anonymize_ip: true` into the GA4 snippet based on `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY`.
  * • Why: Maintains 100% data fidelity by default (for Indian users) but allows instant One-Click reversion to strict GDPR/DPDP anonymization if policies change.
+ * - EDITED (Phase 6.3 - Enterprise GEO): 
+ * • Injected `<link rel="llms-txt">` to broadcast AI endpoint to crawlers. 
+ * • Hardened global SEO metadata for SGE compliance (max-snippet, max-image-preview, max-video-preview).
  * * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -93,6 +96,13 @@ export const metadata = {
     robots: {
         index: true,
         follow: true,
+        googleBot: {
+            index: true,
+            follow: true,
+            'max-video-preview': -1,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+        },
     },
 };
 
@@ -123,6 +133,10 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <head>
+                {/* Generative Engine Optimization (GEO) Broadcasts */}
+                <link rel="llms-txt" href="/llms.txt" nonce={nonce} />
+                <link rel="alternate" type="text/markdown" href="/ai-feed.md" nonce={nonce} />
+
                 <Script
                     id="organization-schema"
                     type="application/ld+json"
