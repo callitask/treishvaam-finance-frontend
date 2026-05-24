@@ -46,6 +46,8 @@
  * - EDITED (Phase 6.3 - Enterprise GEO): 
  * • Injected `<link rel="llms-txt">` to broadcast AI endpoint to crawlers. 
  * • Hardened global SEO metadata for SGE compliance (max-snippet, max-image-preview, max-video-preview).
+ * - EDITED (Phase 6.4 - GEO Validation):
+ * • Verified SGE LLM optimization markers remain deeply embedded securely.
  * * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
