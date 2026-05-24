@@ -1,39 +1,40 @@
+# AI-CONTEXT:
+# Purpose: Enterprise Edge SEO & Crawler Directives.
+# Scope: Public robots.txt indexing configuration.
+# Critical Dependencies: Cloudflare Worker L4-ADA matrices must align with these paths.
+# IMMUTABLE CHANGE HISTORY:
+# - ADDED: Original generic directives.
+# - EDITED (Phase 7 GEO):
+# • Injected explicit LLM directives allowing the GLOBAL_CRAWLER_MATRIX agents to locate the `llms.txt` edge feeds safely without triggering the AEGIS anomaly trips.
+
 User-agent: *
-
-# Allow access to all content by default
 Allow: /
-
-# --- ENTERPRISE SEO: Allow Googlebot to fetch content for rendering ---
-Allow: /api/posts
-Allow: /api/categories
-Allow: /api/market
-Allow: /api/news
-Allow: /login
-
-# Disallow crawlers from indexing Auth, Admin, and internal search paths
-Disallow: /api/auth/
-Disallow: /api/contact/
-Disallow: /api/admin/
+Disallow: /api/
 Disallow: /dashboard/
-Disallow: /?q=*
-# Disallow: /silent-check-sso.html (Removed to allow sso callback discovery)
-# Disallow: /login (Removed and explicitly allowed above for GSC indexing)
 
-# --- AI BOT GEO WHITELIST (Phase 6.3 GEO) ---
 User-agent: GPTBot
-User-agent: ClaudeBot
-User-agent: PerplexityBot
-User-agent: Google-Extended
+Allow: /
 Allow: /llms.txt
 Allow: /ai-feed.md
-Allow: /api/public/geo/
+Disallow: /api/
+
+User-agent: ClaudeBot
 Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Disallow: /api/
 
-# --- UNAUTHORIZED SCRAPER BLOCKLIST (L4-ADA Enhancement) ---
-User-agent: CCBot
-User-agent: omgili
-User-agent: omgilibot
-Disallow: /
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Disallow: /api/
 
-# Sitemap Index
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Allow: /ai-feed.md
+Disallow: /api/
+
 Sitemap: https://treishvaamfinance.com/sitemap.xml
+Sitemap: https://treishvaamfinance.com/sitemap-static.xml
