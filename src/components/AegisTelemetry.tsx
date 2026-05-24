@@ -1,54 +1,36 @@
+"use client";
+
 /**
  * AI-CONTEXT:
  *
  * Purpose:
- * - Next.js Client Component wrapper for the AEGIS Biometric tracking script.
- *
- * Scope:
- * - Executes strictly in the browser.
- * - Safely initializes event listeners on component mount.
- *
- * Critical Dependencies:
+ * - Client-side wrapper for the AEGIS L5-BIE biometric telemetry engine.
+ * * Scope:
+ * - Mounts the WebCrypto hashing listener strictly in the browser environment.
+ * * Critical Dependencies:
  * - src/lib/aegis-biometrics.ts
- *
- * Security Constraints:
- * - Render silent. Must never disrupt DOM layout or CSS.
- *
- * Change Intent:
- * - Executing Phase 6.2 of the AEGIS Master Orchestrator.
- *
- * Future AI Guidance:
- * - Keep this component completely isolated. Do not merge it with visual components.
- *
- * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * * Security Constraints:
+ * - Must be a "use client" component.
+ * - Must unmount listeners gracefully to prevent memory leaks or dual-firing.
+ * * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED:
- * • Initial creation for Phase 6.2 Frontend Telemetry.
- * • Wrapped native JS tracking in React useEffect lifecycle.
- * - EDITED (Phase 6.6 Execution Check):
- * • Verified zero-dependency isolation to ensure it bypasses Hydration and acts purely as an invisible behavioral collector.
- *
- * - DO-NOT-DELETE RULE:
- * This IMMUTABLE CHANGE HISTORY section must never be deleted,
- * truncated, rewritten, or regenerated.
- * Future AI must append only.
+ * • Created isolated client component to allow Next.js Edge SSR to render the global layout without failing on WebCrypto `window` references.
  */
-"use client";
 
 import { useEffect } from 'react';
 import { initializeAegisTelemetry } from '../lib/aegis-biometrics';
 
 export default function AegisTelemetry() {
     useEffect(() => {
-        let cleanup = () => { };
-
-        if (typeof window !== 'undefined') {
-            cleanup = initializeAegisTelemetry();
-        }
+        // Initializes the passive DOM listeners for Jitter Entropy extraction
+        const cleanup = initializeAegisTelemetry();
 
         return () => {
+            // Guarantee teardown if the component unmounts
             if (cleanup) cleanup();
         };
     }, []);
 
-    return null; // Silent telemetry, no DOM footprint
+    // Purely passive telemetry layer. Emits no UI.
+    return null;
 }

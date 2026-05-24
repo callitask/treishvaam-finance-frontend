@@ -140,6 +140,7 @@ export default function RootLayout({
                 {/* Generative Engine Optimization (GEO) Broadcasts */}
                 <link rel="llms-txt" href="/llms.txt" nonce={nonce} />
                 <link rel="alternate" type="text/markdown" href="/ai-feed.md" nonce={nonce} />
+                <link rel="alternate" type="application/json+ld" href="/ontology.json" nonce={nonce} />
 
                 <Script
                     id="organization-schema"
