@@ -8,6 +8,9 @@
  * • Added `"use client";` directive to allow DOM manipulation.
  * • Converted CRA environment variables (`REACT_APP_`) to Next.js Client equivalents (`NEXT_PUBLIC_`).
  * • Why: Phase 3 Next.js Migration. Maintains zero-trust script injection via env.
+ * - EDITED (Batch 7):
+ * • Enforced strict GDPR/DPDP privacy toggle (`NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY`) dynamically within the deferred `gtag` execution.
+ * • Why: Ensures 0ms TBT deferment mechanism does not override or drop the enterprise compliance requirements.
  */
 "use client";
 
@@ -28,7 +31,7 @@ import { useEffect } from 'react';
  * ------------------------------------------------------------------
  * Security Constraints:
  * - Analytics, Ads, and AdSense IDs MUST NOT be hardcoded.
- * - Values must be injected via process.env.REACT_APP_* for environment portability.
+ * - Values must be injected via process.env.NEXT_PUBLIC_* for environment portability.
  * * Non-Negotiables:
  * - Must strictly use 'adsbygoogle.js' from the official domain.
  * - Must init 'dataLayer' for GTM/GA4/Ads.
@@ -47,6 +50,9 @@ import { useEffect } from 'react';
  * • Removed hardcoded Analytics (G-MYQ9RZV76G) and AdSense IDs.
  * • Transitioned to environment-driven configuration (REACT_APP_*) for zero-trust compliance.
  * • Added dynamic support for Google Ads tracking injection.
+ * - EDITED (Batch 7 - Advanced GEO & Security Check):
+ * • Validated adherence to strict GDPR/DPDP dynamic privacy toggle.
+ * • Dynamic injection of anonymize_ip inside interaction-based loader.
  */
 const ThirdPartyScripts = () => {
     useEffect(() => {
@@ -63,6 +69,7 @@ const ThirdPartyScripts = () => {
             const gaId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
             const adsId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
             const adsenseId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+            const enforcePrivacy = process.env.NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY === 'true';
 
             requestAnimationFrame(() => {
                 // 1. Google Analytics & Google Ads (GA4 / GTM)
@@ -77,12 +84,23 @@ const ThirdPartyScripts = () => {
                     function gtag() { window.dataLayer.push(arguments); }
                     gtag('js', new Date());
 
-                    // Config GA4
-                    gtag('config', gaId);
+                    // Config GA4 with strict privacy toggle enforcement
+                    const gaConfig = {
+                        page_path: window.location.pathname,
+                        send_page_view: true
+                    };
+                    if (enforcePrivacy) {
+                        gaConfig.anonymize_ip = true;
+                    }
+                    gtag('config', gaId, gaConfig);
 
                     // Config Google Ads (if variable is provided in environment)
                     if (adsId) {
-                        gtag('config', adsId);
+                        const adsConfig = {};
+                        if (enforcePrivacy) {
+                            adsConfig.anonymize_ip = true;
+                        }
+                        gtag('config', adsId, adsConfig);
                     }
                 }
 
