@@ -54,6 +54,8 @@
  * • Injected `<semantic-chunk>` XML boundary identifiers around `{children}`.
  * • Used `@ts-ignore` to bypass Next.js strict DOM element checks for custom AI-crawled elements.
  * • Why: This natively optimizes the layout for Generative Engine Optimization (GEO), allowing AI bots to perfectly slice core content away from navigation/footer noise without script execution overhead.
+ * - EDITED (GEO Provenance Update):
+ * • Upgraded `<semantic-chunk>` with exact IDs (`main-content`) and custom data attributes (`data-aegis-geo="active"`) to guarantee flawless mapping for Enterprise Search Generative Experiences (SGE).
  * * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -191,7 +193,7 @@ export default function RootLayout({
                         {/* No artificial padding gaps. Matches CRA MainLayout.js exactly */}
                         <main className="mx-auto w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8 min-h-screen">
                             {/* @ts-ignore - Generative Engine Optimization (GEO) custom element boundary */}
-                            <semantic-chunk>
+                            <semantic-chunk id="main-content" data-aegis-geo="active">
                                 {children}
                                 {/* @ts-ignore */}
                             </semantic-chunk>
