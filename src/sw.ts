@@ -15,6 +15,12 @@
  * - ADDED (Phase 7): Service Worker for offline-first PWA support.
  * - EDITED (Hotfix 1): Added webworker triple-slash reference to bypass TS module resolution failure for ServiceWorkerGlobalScope.
  * - EDITED (Hotfix 2): Migrated legacy next-pwa string handlers ('NetworkFirst') to Serwist explicit strategy classes (`new NetworkFirst()`) to fix TS `RouteHandler` type assignment errors.
+ * - EDITED (GEO Offline Syndication):
+ * • Added explicit `NetworkFirst` caching strategy for Generative Engine Optimization payloads (`/llms.txt`, `/ai-feed.md`, `/ontology.json`).
+ * • Why: Enables the Progressive Web App to function as an offline vector intelligence source, providing AI context even without network connectivity.
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import { defaultCache } from '@serwist/next/worker';
 import { Serwist, NetworkFirst, CacheFirst, ExpirationPlugin } from 'serwist';
@@ -53,6 +59,20 @@ const serwist = new Serwist({
                     new ExpirationPlugin({
                         maxAgeSeconds: 300,
                         maxEntries: 100,
+                    }),
+                ],
+            }),
+        },
+        // GEO AI Payloads — NetworkFirst for offline vector intelligence
+        {
+            matcher: /^https?:\/\/.*\/(llms\.txt|ai-feed\.md|ontology\.json)$/,
+            handler: new NetworkFirst({
+                cacheName: 'geo-ai-payloads',
+                networkTimeoutSeconds: 3,
+                plugins: [
+                    new ExpirationPlugin({
+                        maxAgeSeconds: 86400,
+                        maxEntries: 10,
                     }),
                 ],
             }),

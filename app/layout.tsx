@@ -56,7 +56,10 @@
  * • Why: This natively optimizes the layout for Generative Engine Optimization (GEO), allowing AI bots to perfectly slice core content away from navigation/footer noise without script execution overhead.
  * - EDITED (GEO Provenance Update):
  * • Upgraded `<semantic-chunk>` with exact IDs (`main-content`) and custom data attributes (`data-aegis-geo="active"`) to guarantee flawless mapping for Enterprise Search Generative Experiences (SGE).
- * * - DO-NOT-DELETE RULE:
+ * - EDITED (OpenSearch Syndication Phase):
+ * • Injected `<link rel="search" type="application/opensearchdescription+xml">` pointing to `/opensearch.xml`.
+ * • Why: Enables native browser address-bar search integration and allows AI plugins to dynamically interface with the platform's search engine.
+ * * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
  * Future AI must append only.
@@ -147,6 +150,7 @@ export default function RootLayout({
                 <link rel="llms-txt" href="/llms.txt" nonce={nonce} />
                 <link rel="alternate" type="text/markdown" href="/ai-feed.md" nonce={nonce} />
                 <link rel="alternate" type="application/json+ld" href="/ontology.json" nonce={nonce} />
+                <link rel="search" type="application/opensearchdescription+xml" title="Treishvaam Finance Search" href="/opensearch.xml" nonce={nonce} />
 
                 <Script
                     id="organization-schema"
