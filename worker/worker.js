@@ -43,6 +43,9 @@
  * • Enhanced `handleGeoFeedFromKV` to elegantly handle cache misses without blocking the thread, 
  * asynchronously triggering a KV update while serving the direct backend response to the LLM crawler immediately.
  * • Verified canonical rules are offloaded entirely to Cloudflare Bulk Redirects (as per Master Prompt).
+ * - EDITED (GEO Phase Finalization):
+ * • Expanded AI Bot Interception (GEO) to seamlessly intercept ALL HTML content requests from LLMs, bypassing expensive React execution completely.
+ * • FIXED CRITICAL ZERO-TRUST FLAW: Refactored `crypto.subtle` signing into a centralized `generateEdgeSignature` helper. Cron Jobs and internal Cache Misses (Sitemaps/GEO) were previously fetching translated backend paths but retaining the old edge signature, causing 403 Forbidden rejections at the Backend `AegisEdgeValidationFilter`. Signatures are now strictly generated per exact backend API path.
  * * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -63,6 +66,28 @@ const internal = "Treishvaam-Worker-Crawler";
 const GLOBAL_CRAWLER_MATRIX = new RegExp(`(${searchEngines}|${googleEcosystem}|${aiAndLlms}|${socialAndUnfurl}|${newsAndFeeds}|${archiversAndAcademic}|${internal})`, "i");
 const aiBotsOnly = new RegExp(`(${aiAndLlms})`, "i");
 
+async function generateEdgeSignature(path, timestamp, ip, secret) {
+    if (!secret) return "";
+    try {
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey(
+            "raw",
+            encoder.encode(secret),
+            { name: "HMAC", hash: "SHA-512" },
+            false,
+            ["sign"]
+        );
+        const data = encoder.encode(path + ":" + timestamp + ":" + ip);
+        const signatureBuf = await crypto.subtle.sign("HMAC", key, data);
+        return Array.from(new Uint8Array(signatureBuf))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+    } catch (e) {
+        console.error("AEGIS Helper Signing Failed", e);
+        return "";
+    }
+}
+
 export default {
     // =================================================================================
     // 1. SCHEDULED TASKS (CRON JOB) - THE NEW ENGINE
@@ -70,10 +95,20 @@ export default {
     async scheduled(event, env, ctx) {
         console.log("TRIGGER: Scheduled Sitemap Update");
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
+        const clientIp = "127.0.0.1"; // Local loopback for cron execution
 
         try {
-            const metaResp = await fetch(`${BACKEND_URL}/api/public/sitemap/meta`, {
-                headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
+            const metaPath = `/api/public/sitemap/meta`;
+            const metaTimestamp = Date.now().toString();
+            const metaSignature = await generateEdgeSignature(metaPath, metaTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+            const metaResp = await fetch(`${BACKEND_URL}${metaPath}`, {
+                headers: {
+                    "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                    "X-Aegis-Edge-Signature": metaSignature,
+                    "X-Aegis-Edge-Timestamp": metaTimestamp,
+                    "CF-Connecting-IP": clientIp
+                }
             });
 
             if (metaResp.ok) {
@@ -89,8 +124,16 @@ export default {
                 for (const file of priorityFiles) {
                     try {
                         const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
+                        const fileTimestamp = Date.now().toString();
+                        const fileSignature = await generateEdgeSignature(apiPath, fileTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
                         const fileResp = await fetch(`${BACKEND_URL}${apiPath}`, {
-                            headers: { "User-Agent": "Treishvaam-Worker-Crawler/1.0" }
+                            headers: {
+                                "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                                "X-Aegis-Edge-Signature": fileSignature,
+                                "X-Aegis-Edge-Timestamp": fileTimestamp,
+                                "CF-Connecting-IP": clientIp
+                            }
                         });
 
                         if (fileResp.ok && fileResp.headers.get("content-type")?.includes("xml")) {
@@ -185,32 +228,12 @@ export default {
         // =================================================================================
         // 2.6 AEGIS ZERO-TRUST HMAC SIGNING (CRYPTO.SUBTLE)
         // =================================================================================
-        let edgeSignature = "";
-        let edgeTimestamp = Date.now().toString();
+        const edgeTimestamp = Date.now().toString();
+        const edgeSignature = await generateEdgeSignature(url.pathname, edgeTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
-        if (env.AEGIS_EDGE_SECRET) {
-            try {
-                const encoder = new TextEncoder();
-                const key = await crypto.subtle.importKey(
-                    "raw",
-                    encoder.encode(env.AEGIS_EDGE_SECRET),
-                    { name: "HMAC", hash: "SHA-512" },
-                    false,
-                    ["sign"]
-                );
-                // Signature secures the *translated* temporal MTD path, defeating MITM replay attacks
-                const data = encoder.encode(url.pathname + ":" + edgeTimestamp + ":" + clientIp);
-                const signatureBuf = await crypto.subtle.sign("HMAC", key, data);
-
-                edgeSignature = Array.from(new Uint8Array(signatureBuf))
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('');
-
-                enhancedHeaders.set("X-Aegis-Edge-Signature", edgeSignature);
-                enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
-            } catch (e) {
-                console.error("AEGIS Signing Failed", e);
-            }
+        if (edgeSignature) {
+            enhancedHeaders.set("X-Aegis-Edge-Signature", edgeSignature);
+            enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
         }
 
         const baseEnhancedRequest = new Request(request.url, {
@@ -252,19 +275,25 @@ export default {
         // =================================================================================
         // GEO (Generative Engine Optimization) & SITEMAP CACHING HANDLERS
         // =================================================================================
-        if (url.pathname === '/llms.txt' || url.pathname === '/ai-feed.md' || url.pathname === '/ontology.json') {
-            return handleGeoFeedFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
+
+        // AGGRESSIVE GEO AI-BOT INTERCEPT (Force Serve Markdown for LLMs on ALL HTML Routes)
+        if (isAiBot && request.method === "GET") {
+            const isAsset = url.pathname.match(/\.(css|js|jpg|jpeg|png|gif|webp|ico|woff|woff2|ttf|eot|svg|xml|json)$/i);
+            const isApi = url.pathname.startsWith("/api");
+
+            if (!isAsset && !isApi && url.pathname !== '/llms.txt' && url.pathname !== '/ontology.json') {
+                const geoUrl = new URL('/ai-feed.md', request.url);
+                const geoResponse = await handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL, clientIp);
+                return addSecurityHeaders(geoResponse);
+            }
         }
 
-        // AGGRESSIVE GEO AI-BOT INTERCEPT (Force Serve Markdown for LLMs on Root)
-        if (isAiBot && request.method === "GET" && (url.pathname === "/" || url.pathname === "/home" || url.pathname === "")) {
-            const geoUrl = new URL('/ai-feed.md', request.url);
-            const geoResponse = await handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL);
-            return addSecurityHeaders(geoResponse);
+        if (url.pathname === '/llms.txt' || url.pathname === '/ai-feed.md' || url.pathname === '/ontology.json') {
+            return handleGeoFeedFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL, clientIp);
         }
 
         if (url.pathname.startsWith('/sitemap-dynamic/')) {
-            return handleDynamicSitemapFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL);
+            return handleDynamicSitemapFromKV(baseEnhancedRequest, url, env, ctx, BACKEND_URL, clientIp);
         }
 
         if (url.pathname === '/robots.txt') {
@@ -425,7 +454,14 @@ export default {
                     let apiPath = `/api/v1/posts/url/${articleId}`;
                     if (mtdManifest && mtdManifest[apiPath]) apiPath = mtdManifest[apiPath];
 
-                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: enhancedHeaders });
+                    const apiTimestamp = Date.now().toString();
+                    const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+                    const ssrHeaders = new Headers(enhancedHeaders);
+                    ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
+                    ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+
+                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const post = await apiResp.json();
 
@@ -450,8 +486,14 @@ export default {
 
                 try {
                     let apiPath = `/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`;
-                    // Query params make MTD matching complex; MTD usually applies to exact base paths. We'll skip MTD for this GET unless strictly mapped.
-                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: enhancedHeaders });
+                    const apiTimestamp = Date.now().toString();
+                    const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+                    const ssrHeaders = new Headers(enhancedHeaders);
+                    ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
+                    ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+
+                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
                     const marketData = await apiResp.json();
 
@@ -476,7 +518,7 @@ export default {
     }
 };
 
-async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl) {
+async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
 
@@ -497,10 +539,21 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl) {
         return kvResponse;
     }
 
-    // MISSING KV CACHE: Ensure we fetch immediately from Backend and do not break LLM Crawler flows
+    // MISSING KV CACHE: Ensure we fetch immediately from Backend with EXACT signature
     try {
         const apiPath = `/api/public/geo${url.pathname}`;
-        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, request));
+        const timestamp = Date.now().toString();
+        const signature = await generateEdgeSignature(apiPath, timestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+        const newHeaders = new Headers(request.headers);
+        newHeaders.set("X-Aegis-Edge-Signature", signature);
+        newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
+
+        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
+            method: request.method,
+            headers: newHeaders,
+            body: request.body
+        }));
 
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
@@ -521,7 +574,7 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl) {
     return new Response("GEO Feed Unavailable", { status: 503 });
 }
 
-async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
+async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, clientIp) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
 
@@ -539,7 +592,18 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl) {
 
     try {
         const apiPath = url.pathname.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, request));
+        const timestamp = Date.now().toString();
+        const signature = await generateEdgeSignature(apiPath, timestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+        const newHeaders = new Headers(request.headers);
+        newHeaders.set("X-Aegis-Edge-Signature", signature);
+        newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
+
+        const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
+            method: request.method,
+            headers: newHeaders,
+            body: request.body
+        }));
 
         if (backendResp.ok) {
             const newResp = new Response(backendResp.body, backendResp);
