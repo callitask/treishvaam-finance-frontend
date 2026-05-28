@@ -268,4 +268,5 @@ git push origin claude/feature-name
 ---
 
 ## License
-Proprietary software. All rights reserved by Treishvaam Group.
+This software is proprietary. See [LICENSE](LICENSE) for full terms.
+All rights reserved by Amitsagar Kandpal (Treishvaam Group) © 2024–2026.

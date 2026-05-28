@@ -1,41 +1,108 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ============================================================
+# TREISHVAAM FINANCE FRONTEND — .gitignore
+# ============================================================
+# AI-CONTEXT:
+# Purpose: Prevent sensitive, generated, and AI session files from entering git.
+# Security: .env variants, AI instruction folders, and stray documents
+#           must NEVER be committed.
+#
+# IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+# - ADDED: Initial .gitignore for CRA.
+# - EDITED: Added AI instruction folders and RULES OF ENGAGEMENT.
+# - EDITED: Added HANDOVER_DOCUMENT.md and FINANCE_BUG_ANALYSIS.md.
+# - EDITED (2026-05-25 / Docs Restructure Phase):
+#   • Consolidated .gitignore-additions.md content into this file.
+#   • Deleted .gitignore-additions.md (content absorbed, file no longer needed).
+#   • Added: docs_file_list.json (Windows PS artifact — exposes local paths, security risk).
+#   • Added: "New Text Document.txt" and *.txt catch-all for stray text files.
+#   • Added: .roo/state/ (Roo Code session state — not for git).
+#   • Added: build/ (CRA legacy build artifact — must not be in git).
+#   • Added: fix-encoding.js (one-time encoding fix script — target file exists, script obsolete).
+#   • Added: postcss.config.js (legacy CRA duplicate of postcss.config.mjs — deleted).
+#   • Added: !.env.example exception to keep the safe template.
 
-# dependencies
+# ============================================================
+# DEPENDENCIES
+# ============================================================
 /node_modules
 /.pnp
 .pnp.js
 
-# testing
+# ============================================================
+# TESTING
+# ============================================================
 /coverage
 
-# production
+# ============================================================
+# BUILD ARTIFACTS — NEVER COMMIT THESE
+# ============================================================
 /build
+/out
+.next/
+.vercel/
 
-# misc
-.DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ============================================================
+# ENVIRONMENT & SECRETS — NEVER COMMIT THESE
+# ============================================================
 .env
-.env.production
+.env.local
 .env.development
+.env.development.local
+.env.production
+.env.production.local
+.env.test.local
+# Keep the example template (contains no real values)
+!.env.example
 
-# logs
+# ============================================================
+# LOGS
+# ============================================================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Next.js
-.next/
-out/
+# ============================================================
+# OS FILES
+# ============================================================
+.DS_Store
+Thumbs.db
 
-# AI instruction folders & Local Backend — NEVER push to git
+# ============================================================
+# IDE
+# ============================================================
+.vscode/settings.json
+.idea/
+*.iml
+
+# ============================================================
+# AI SESSION & INSTRUCTION FOLDERS — NEVER COMMIT THESE
+# These folders hold session-level AI context and architecture secrets.
+# ============================================================
 RULES OF ENGAGEMENT & AI INSTRUCTIONS & EDITS/
 BACKEND_CODE_FILES/
 BACKEND CODE FILES/
+
+# ============================================================
+# STRAY / ONE-TIME / TEMPORARY FILES — NEVER COMMIT THESE
+# ============================================================
 HANDOVER_DOCUMENT.md
 HANDOVER_DOCUMENT_TEMPLATE.md
 FINANCE_BUG_ANALYSIS.md
 ARCHITECTURE_QUICKREF.md
 TODO.md
+docs_file_list.json
+New Text Document.txt
+fix-encoding.js
+*.txt
+
+# ============================================================
+# LEGACY CRA ARTIFACTS (superseded by Next.js equivalents)
+# ============================================================
+# postcss.config.mjs is the correct ESM version — .js is CRA legacy duplicate
+postcss.config.js
+
+# ============================================================
+# AI TOOL STATE
+# ============================================================
+# Roo Code session state (AI rules are kept, session state is local-only)
+.roo/state/
