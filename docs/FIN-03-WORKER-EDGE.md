@@ -4,19 +4,24 @@
 **Worker Name:** `treishfin-seo-worker`
 **Route:** `treishvaamfinance.com/*`
 **Classification:** Internal Reference (Sanitized — No KV IDs, No Signing Keys)
+**Last Verified:** 2026-05-29 — All claims verified against actual `worker/worker.js` (616 lines) and `worker/wrangler.toml`
 
 ---
 
 ## 1. Overview
 
-The `treishfin-seo-worker` is the **single entry point** for all traffic to `treishvaamfinance.com`. Every HTTP request — human user, search engine, or AI crawler — passes through this Worker before any Next.js page or Spring Boot API is contacted.
+The `treishfin-seo-worker` is the **sole entry point** for all HTTP traffic to `treishvaamfinance.com`. Every request — human user, search engine crawler, or AI LLM agent — passes through this Worker before any Next.js page or Spring Boot API is contacted.
 
-The Worker performs five concurrent roles:
-1. **Zero-Trust API Proxy** — HMAC-signs all backend requests, injects tenant headers
-2. **AEGIS L4-ADA Checkpoint** — blocks or tarpits known malicious IPs and JA3 fingerprints
-3. **GEO Router** — intercepts LLM crawlers and serves semantic payloads from KV
-4. **SEO Intelligence** — injects JSON-LD schemas, handles sitemap caching, prevents SPA 404s
-5. **Cron Cache Warmer** — hourly proactive KV sitemap refresh
+The Worker is a **616-line, single-file Cloudflare Worker** running in a V8 isolate. It performs six concurrent roles:
+
+| Role | Description |
+| :--- | :--- |
+| **Zero-Trust API Proxy** | HMAC-SHA-512 signs all backend requests; injects tenant headers |
+| **AEGIS L4-ADA Checkpoint** | Reads KV threat manifests; blocks or tarpits malicious IPs/JA3 hashes |
+| **GEO Router** | Intercepts LLM crawlers; serves KV-cached semantic payloads; bypasses React entirely |
+| **SEO Intelligence Layer** | Injects JSON-LD schemas via `HTMLRewriter`; prevents SPA 404 SEO penalties |
+| **Cron Cache Warmer** | Hourly proactive KV sitemap refresh via `scheduled()` handler |
+| **Asset & Static Proxy** | Passes static assets through with appropriate `Cache-Control` headers |
 
 ---
 
@@ -25,18 +30,24 @@ The Worker performs five concurrent roles:
 ```
 worker/
 ├── worker.js       ← Main Worker logic (all logic in one file — Cloudflare Workers constraint)
-└── wrangler.toml   ← Worker config: KV bindings, cron triggers, environment variables
+└── wrangler.toml   ← Worker config: KV bindings, cron triggers, route, environment
 ```
 
-**Deployment command** (run only when `worker.js` or `wrangler.toml` changes):
+**Deployment command (ONLY when `worker.js` or `wrangler.toml` changed):**
 ```powershell
 cd "C:\Users\7303150607\OneDrive\Desktop\PrOJEct\treishvaam-finance-frontend\worker"
 npx wrangler deploy
 ```
 
+**Manual cache refresh (production emergency):**
+```
+GET https://treishvaamfinance.com/sys/force-update
+```
+This endpoint triggers `this.scheduled()` immediately — forces KV sitemap refresh without waiting for the hourly cron.
+
 ---
 
-## 3. Wrangler Configuration (`wrangler.toml`)
+## 3. Wrangler Configuration (`wrangler.toml` — verified)
 
 ```toml
 name = "treishfin-seo-worker"
@@ -45,315 +56,281 @@ compatibility_date = "2024-01-01"
 
 [[kv_namespaces]]
 binding = "TREISHFIN_SEO_CACHE"
-# id managed via Cloudflare dashboard + wrangler — never hardcode
+# Production KV ID: 8e80f838...  (managed via Cloudflare dashboard — never hardcode)
 
 [[kv_namespaces]]
 binding = "AEGIS_THREAT_KV"
-# id managed via Cloudflare dashboard + wrangler — never hardcode
+# Production KV ID: 87e18923...  (managed via Cloudflare dashboard — never hardcode)
 
 [triggers]
-crons = ["0 * * * *"]    # Runs once per hour for sitemap cache warming
+crons = ["0 * * * *"]    # Hourly sitemap cache warmer
 
 [vars]
 NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY = "false"
 ```
 
-**Worker Secrets** (injected via `npx wrangler secret put` — never in `wrangler.toml`):
-- `AEGIS_EDGE_SECRET` — HMAC-SHA-512 signing key for backend request authentication
-- `BACKEND_API_URL` — Cloudflare Tunnel URL to Spring Boot backend
+**Worker Secrets** (injected via `npx wrangler secret put` — NEVER in `wrangler.toml`):
+
+| Secret | Purpose |
+| :--- | :--- |
+| `AEGIS_EDGE_SECRET` | HMAC-SHA-512 seed for `generateEdgeSignature()`. Must match backend `AEGIS_EDGE_SECRET` exactly |
+| `BACKEND_API_URL` | Cloudflare Tunnel URL to Spring Boot backend |
+| `BACKEND_URL` | Fallback alias; used if `BACKEND_API_URL` is absent |
 
 ---
 
-## 4. Security — HMAC-SHA-512 Edge Signing
+## 4. Global Crawler Matrix (Compiled Once Per V8 Isolate)
 
-Every request the Worker forwards to the backend is cryptographically signed. This prevents direct-IP backend access from bypassing the AEGIS security pipeline.
+The Worker compiles two RegExp objects **once at module load time** — zero per-request regex compilation overhead:
 
-```
-Worker generates:
-  timestamp = Math.floor(Date.now() / 1000)
-  signature = HMAC-SHA-512(
-      key: AEGIS_EDGE_SECRET,
-      data: `${pathname}:${timestamp}:${clientIp}`
-  )
+**`GLOBAL_CRAWLER_MATRIX`** — all verified ecosystem bots:
 
-Injects headers:
-  X-Aegis-Edge-Signature: <hex-encoded signature>
-  X-Aegis-Edge-Timestamp: <unix epoch seconds>
-```
+| Category | Bots |
+| :--- | :--- |
+| Search Engines | Googlebot, Bingbot, Slurp, DuckDuckBot, Baiduspider, YandexBot, Sogou, Exabot, SeznamBot |
+| Google Ecosystem | Google-Extended, Googlebot-News, Googlebot-Image, Googlebot-Video, Google-Read-Aloud, Storebot-Google, APIs-Google, AdsBot-Google, Mediapartners-Google |
+| AI & LLMs | GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, anthropic-ai, MetaExternalAgent, Amazonbot, Applebot, Applebot-Extended, PerplexityBot, DeepSeek, Bytespider, Qwen, Mistral, YouBot, Cohere-training, Diffbot |
+| Social & Unfurl | Twitterbot, facebookexternalhit, LinkedInBot, Slackbot, Discordbot, TelegramBot, WhatsApp, Pinterestbot, Redditbot |
+| News & Feeds | flipboard, feedly, NewsBlur, Inoreader, PocketParser, PaperLiBot, WordPress, Tumblr |
+| Archivers & Academic | ia_archiver, archive.org_bot, Wikipedia, SemanticScholarBot |
+| Internal | Treishvaam-Worker-Crawler |
 
-**Backend verification (`AegisEdgeValidationFilter`):**
-- Recomputes the signature server-side
-- Uses constant-time comparison (`MessageDigest.isEqual()`) to prevent timing attacks
-- Enforces 300-second TTL — timestamps older than 5 minutes are rejected (replay prevention)
+**`aiBotsOnly`** — subset for GEO interception (AI/LLM agents only):
+GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, anthropic-ai, MetaExternalAgent, Amazonbot, Applebot, Applebot-Extended, PerplexityBot, DeepSeek, Bytespider, Qwen, Mistral, YouBot, Cohere-training, Diffbot
 
-**Implementation note:** WebCrypto API in Cloudflare Workers natively supports SHA-512 only (not SHA3-512). HMAC-SHA-512 is used at the Edge. BouncyCastle handles SHA3 natively on the Java backend side.
-
-**Centralized helper:** All signing (regular requests AND cron jobs) uses a single `generateEdgeSignature(path, timestamp, ip)` helper function. Previous versions had stale signatures in cron jobs — this is fixed and must not be reverted.
+**Critical rule:** Verified crawlers in `GLOBAL_CRAWLER_MATRIX` **bypass AEGIS threat evaluation entirely** to preserve site indexability. AI bots in `aiBotsOnly` are additionally routed to GEO payloads instead of React HTML.
 
 ---
 
-## 5. Global Crawler Matrix
+## 5. HMAC-SHA-512 Edge Signing — `generateEdgeSignature()`
 
-A single `GLOBAL_CRAWLER_MATRIX` regex is compiled once per V8 isolate (0ms per-request overhead). It covers:
+**This is the most critical security function in the Worker.** Every request forwarded to the backend must carry a valid AEGIS Edge Signature.
 
-**Search Engines:** Googlebot, Bingbot, Slurp, DuckDuckBot, YandexBot, Baiduspider, Sogou, Exabot, ia_archiver
+```
+Signature = HMAC-SHA-512(
+    key:  AEGIS_EDGE_SECRET,
+    data: `${pathname}:${timestamp}:${clientIp}`
+)
+→ Hex-encoded into X-Aegis-Edge-Signature header
+→ Unix epoch (seconds) into X-Aegis-Edge-Timestamp header
+```
 
-**Google Ecosystem:** Google-Extended, Googlebot-News, AdsBot-Google, Mediapartners-Google, APIs-Google
+**Centralized helper (critical — do not inline):** `generateEdgeSignature(path, timestamp, ip, secret)` is a shared async function called by:
+- The main `fetch()` handler for every forwarded request
+- The `scheduled()` cron handler
+- The `handleGeoFeedFromKV()` function on KV cache miss
+- The `handleDynamicSitemapFromKV()` function on KV cache miss
+- SEO intelligence hydration calls (`/category/`, `/market/` SSR data)
 
-**AI & LLMs (`aiBotsOnly` subset):**
-- OpenAI: GPTBot, ChatGPT-User, OAI-SearchBot
-- Anthropic: ClaudeBot, anthropic-ai
-- Perplexity: PerplexityBot
-- ByteDance: Bytespider
-- DeepSeek: DeepSeek
-- Alibaba: Qwen
-- Mistral: Mistral
-- Cohere: Cohere-training
-- Meta: MetaExternalAgent
-- Amazon: Amazonbot
-- Apple: Applebot, Applebot-Extended
-- Others: YouBot, Diffbot, SemanticScholarBot
+**Why centralized matters (IMMUTABLE history):** Previously, the cron and cache-miss paths were signing stale/incorrect paths, causing 403 Forbidden rejections at `AegisEdgeValidationFilter`. The centralized helper was the fix — do not re-inline or duplicate signature logic.
 
-**Social/Unfurl:** Twitterbot, facebookexternalhit, LinkedInBot, WhatsApp, Slackbot, Discordbot
-
-**News/RSS:** flipboard, feedly, NewsBlur, Inoreader
-
-**Archivers:** archive.org_bot, Wikipedia, CommonCrawl
-
-**Internal:** Treishvaam-Worker-Crawler
-
-All confirmed crawlers bypass the AEGIS threat evaluation pipeline to preserve indexability.
+**WebCrypto note:** WebCrypto API supports SHA-512 natively but not SHA3-512. HMAC-SHA-512 is used at the Edge. The backend `AegisEdgeValidationFilter` is built with BouncyCastle and accepts HMAC-SHA-512. This is a documented and accepted asymmetry.
 
 ---
 
-## 6. Request Processing Pipeline
+## 6. Request Processing Flow (Complete)
 
 ```
-Incoming Request
+Incoming Request to treishvaamfinance.com
+      │
+      ├─ /sys/force-update → triggers scheduled() immediately → 200 OK
       │
       ▼
-[1] Extract: clientIp (CF-Connecting-IP), ja3Hash (X-JA3-Fingerprint), userAgent
+Resolve User-Agent:
+  isVerifiedCrawler = GLOBAL_CRAWLER_MATRIX.test(UA)
+  isAiBot           = aiBotsOnly.test(UA)
+  clientIp          = CF-Connecting-IP header
       │
       ▼
-[2] Is it a known crawler? (GLOBAL_CRAWLER_MATRIX)
-      YES → Skip AEGIS threat check → continue to GEO / SEO routing
-      NO  ↓
-      ▼
-[3] AEGIS Threat Check (AEGIS_THREAT_KV.get(clientIp))
-      TARPIT marker found → route to backend Virtual Thread tarpit (with Edge Signature)
-      BLOCK marker found  → return 403 immediately (no backend contact)
-      ↓
-      ▼
-[4] RSC request? (URL has ?_rsc= parameter)
-      YES → bypass all HTML injection → forward directly to Pages
-      NO  ↓
-      ▼
-[5] Is it an AI/LLM bot? (aiBotsOnly subset)
-      YES → handleGeoFeedFromKV() → serve /ai-feed.md from KV (or backend fallback)
-            Header: X-GEO-Bot-Detected: true
-      NO  ↓
-      ▼
-[6] Is it a sitemap/SEO path?
-      /sitemap.xml, /sitemap-dynamic/* → three-tier KV cache-shield (see §8)
-      ↓
-      ▼
-[7] Is it an API request? (/api/**)
-      YES → inject X-Tenant-ID + AEGIS Edge Signature → proxy to BACKEND_API_URL
-      NO  ↓
-      ▼
-[8] Is it a known SPA route? (/about, /vision, /contact, /privacy, /terms)
-      Pages returns 404 → intercept → fetch root index.html → return 200
-      Header: X-SPA-Fallback: Active
-      ↓
-      ▼
-[9] Is it a search engine crawler? (non-AI)
-      YES → fetch Pages HTML → HTMLRewriter injects JSON-LD schemas
-      NO  ↓
-      ▼
-[10] Standard user request → proxy to Cloudflare Pages
-```
-
----
-
-## 7. GEO — AI Bot Interception
-
-When `aiBotsOnly` regex matches, `handleGeoFeedFromKV()` executes:
-
-```javascript
-// KV-first with backend fallback
-const cached = await TREISHFIN_SEO_CACHE.get('geo:ai-feed.md');
-if (cached) {
-    return new Response(cached, {
-        headers: {
-            'Content-Type': 'text/markdown',
-            'Cache-Control': 'public, max-age=3600',
-            'X-GEO-Bot-Detected': 'true',
-            'X-GEO-Source': 'kv-cache'
-        }
-    });
-}
-
-// Cache miss: fetch from backend, serve immediately, write to KV asynchronously
-const response = await fetch(`${BACKEND_API_URL}/api/public/geo/ai-feed.md`, {
-    headers: { /* AEGIS Edge Signature headers */ }
-});
-const body = await response.text();
-
-ctx.waitUntil(
-    TREISHFIN_SEO_CACHE.put('geo:ai-feed.md', body, { expirationTtl: 3600 })
-);
-
-return new Response(body, { /* headers */ });
-```
-
-React HTML rendering is bypassed entirely — LLMs never trigger Next.js hydration.
-
----
-
-## 8. Three-Tier KV Cache-Shield (Sitemap & SEO)
-
-```
-Request for /sitemap.xml or /sitemap-dynamic/blog/0.xml
+KV Threat Lookup (if NOT verified crawler):
+  1. Read aegis:mtd:manifest from AEGIS_THREAT_KV (MTD path translation map)
+  2. Read aegis:block:{clientIp} from AEGIS_THREAT_KV
+     ├─ BLOCK marker → instant 403 JSON response (Cache-Control: no-store)
+     └─ TARPIT marker → reroute to /api/v1/aegis/tarpit/trap on backend
       │
       ▼
-[Tier 1] CDN Edge Cache (caches.default.match)
-      HIT  → Serve (0 KV reads, 0 network cost)
-      MISS ↓
+MTD Path Translation (API paths only):
+  If isTarpit → targetPath = /api/v1/aegis/tarpit/trap
+  Else if mtdManifest[targetPath] exists → translate path
+      │
       ▼
-[Tier 2] Cloudflare KV (TREISHFIN_SEO_CACHE)
-      HIT  → Serve + populate Tier 1 with caches.default.put()
-      MISS ↓
-      ▼
-[Tier 3] Backend (Spring Boot SitemapController)
-      Serve immediately to user
-      ctx.waitUntil() → async KV write (user never waits for write)
-      Tier 1 populated on next request
+Inject Standard Headers:
+  X-Visitor-City, X-Visitor-Country  (from Cloudflare cf object)
+  X-Tenant-ID: finance
+  X-Aegis-Edge-Signature              (HMAC-SHA-512 of translated pathname)
+  X-Aegis-Edge-Timestamp              (Unix epoch string)
+      │
+      ├─ isAiBot + GET + not asset/API/llms.txt/ontology.json
+      │      └─ handleGeoFeedFromKV(request → /ai-feed.md)  [AGGRESSIVE GEO INTERCEPT]
+      │
+      ├─ pathname = /llms.txt | /ai-feed.md | /ontology.json
+      │      └─ handleGeoFeedFromKV()
+      │
+      ├─ pathname starts with /sitemap-dynamic/
+      │      └─ handleDynamicSitemapFromKV()
+      │
+      ├─ pathname = /robots.txt
+      │      └─ fetch(static asset) → addSecurityHeaders()
+      │
+      ├─ pathname starts with /api/
+      │      ├─ Image/upload paths → CDN Cache → Backend
+      │      └─ All other API → proxy to backend (MTD-translated path)
+      │
+      ├─ Static asset (extension match)
+      │      └─ fetch(static) → addSecurityHeaders()
+      │
+      └─ All other paths (HTML pages):
+             isRscRequest = RSC/Next-Router-Prefetch/Next-Url/text/x-component headers
+             │
+             ├─ Fetch from Cloudflare Pages (Next.js)
+             ├─ SPA fallback: 404/403 on known route → serve /index.html with 200
+             ├─ Cache successful responses (public, max-age=600)
+             ├─ On 5xx: serve CDN cache if available
+             │
+             └─ SEO Intelligence (if NOT isRscRequest):
+                    ├─ / or /home → WebSite JSON-LD schema + GEO discovery links
+                    ├─ /about, /vision → static meta injection
+                    ├─ /category/…/:id → fetch post from backend, inject title/meta/preloadedState
+                    └─ /market/:ticker → fetch market data, inject ticker title/preloadedState
 ```
 
-### KV Key Structure
-
-| KV Key | Value | Purpose |
-|:---|:---|:---|
-| `sitemap:meta` | JSON `{"markets":[...],"blogs":[...]}` | Sitemap index manifest |
-| `sitemap:/sitemap-dynamic/blog/0.xml` | XML urlset | Blog post sitemap page 0 |
-| `sitemap:/sitemap-dynamic/market/0.xml` | XML urlset | Market ticker sitemap page 0 |
-| `aegis:mtd:manifest` | JSON path manifest | MTD temporal path translations |
-| `geo:ai-feed.md` | Markdown text | GEO AI feed payload |
-| `geo:llms.txt` | Plain text | LLMs.txt discovery file |
-| `geo:ontology.json` | JSON-LD graph | Entity ontology |
-
-**Rules:**
-- `TREISHFIN_SEO_CACHE_preview` namespace is NEVER used in production logic
-- KV `null` returns (cache misses) must always be handled gracefully — never throw
+**RSC bypass:** The entire SEO Intelligence block is wrapped in `if (!isRscRequest)`. React Server Component streaming requests (`RSC: 1`, `Next-Router-Prefetch`, `Next-Url`, `Accept: text/x-component`) bypass all SEO injection to prevent 500 errors on RSC streams. This was a critical fix — do not remove this guard.
 
 ---
 
-## 9. E-E-A-T JSON-LD Injection (HTMLRewriter)
+## 7. GEO Handler — `handleGeoFeedFromKV()`
 
-For standard search engine crawlers on root HTML routes, the Worker injects structured data using Cloudflare's zero-latency `HTMLRewriter` API:
+Three-tier caching for GEO payload delivery:
 
-```javascript
-new HTMLRewriter()
-    .on('head', new SchemaInjector(pathname))
-    .transform(pagesResponse)
+```
+1. CDN Edge Cache (caches.default)
+   └─ HIT → return immediately (fastest — 0ms KV read)
+
+2. KV Store (TREISHFIN_SEO_CACHE)
+   Key: geo:finance:/llms.txt | geo:finance:/ai-feed.md | geo:finance:/ontology.json
+   └─ HIT → serve + async CDN cache write (ctx.waitUntil)
+
+3. Backend Fallback (BACKEND_API_URL)
+   Path: /api/public/geo{url.pathname}
+   └─ HIT → serve + async KV write (expirationTtl: 86400) + CDN cache write
+   └─ MISS/Error → 503 "GEO Feed Unavailable"
 ```
 
-**Injected schemas:**
-
-| Schema Type | Data |
-|:---|:---|
-| `Organization` | Treishvaam Finance — legalName, foundingDate, url, sameAs (social profiles) |
-| `Person` | Founder entity with E-E-A-T authority signals |
-| `WebPage` / `Article` | Path-specific metadata, `datePublished`, `dateModified` |
-| `BreadcrumbList` | Auto-generated from URL path segments |
-
-Additionally injects `<base href="/">` on deep URL paths — prevents CSS/JS MIME type errors from relative path resolution (critical for SPA navigation after direct deep link access).
+**Cache headers:** `public, s-maxage=86400, max-age=3600`
+**Bot detection tag:** `X-GEO-Bot-Detected: true` header added to all AI bot responses
 
 ---
 
-## 10. SPA Fallback (GSC 404 Prevention)
+## 8. Sitemap Handler — `handleDynamicSitemapFromKV()`
 
-```javascript
-const KNOWN_SPA_ROUTES = ['/about', '/vision', '/contact', '/privacy', '/terms', '/home'];
+Three-tier caching identical to GEO handler:
 
-if (KNOWN_SPA_ROUTES.some(r => pathname.startsWith(r)) && pagesResponse.status === 404) {
-    const rootHtml = await fetch(CF_PAGES_ORIGIN + '/');
-    return new Response(rootHtml.body, {
-        headers: {
-            'Content-Type': 'text/html',
-            'X-SPA-Fallback': 'Active'
-        }
-    });
-}
+```
+1. CDN Edge Cache
+2. KV Store
+   Key: sitemap:finance:/sitemap-dynamic/blog/0.xml
+        sitemap:finance:/sitemap-dynamic/market/0.xml
+3. Backend Fallback
+   Path translation: /sitemap-dynamic/X → /api/public/sitemap/X
 ```
 
-Eliminates "Soft 404" indexing penalties in Google Search Console.
+**KV Data Structure:**
+```json
+Key: sitemap:finance:meta
+Value: {"markets":["/sitemap-dynamic/market/0.xml"],"blogs":["/sitemap-dynamic/blog/0.xml"]}
+
+Key: sitemap:finance:/sitemap-dynamic/blog/0.xml
+Value: <urlset ...>...</urlset>   (XML string)
+
+Key: sitemap:finance:/sitemap-dynamic/market/0.xml
+Value: <urlset ...>...</urlset>   (XML string)
+```
+
+**Free-tier protection:** `localBlockCache` deduplication in `CloudflareEdgeSyncService` prevents redundant KV write operations. Minimize KV `list()` operations.
 
 ---
 
-## 11. RSC (React Server Component) Stream Protection
+## 9. Cron Job — `scheduled()` Handler
 
-```javascript
-const isRscRequest = url.searchParams.has('_rsc');
-if (isRscRequest) {
-    return fetch(CF_PAGES_ORIGIN + request.url); // bypass all injection
-}
+Runs every hour: `0 * * * *`
+
+```
+1. Fetch sitemap metadata: GET /api/public/sitemap/meta (signed with AEGIS Edge Signature)
+2. Write metadata to KV: sitemap:finance:meta (expirationTtl: 90000)
+3. For each sitemap path in metadata (priority: first 5):
+   a. Translate path: /sitemap-dynamic/X → /api/public/sitemap/X
+   b. Generate fresh AEGIS Edge Signature for the translated path
+   c. Fetch XML from backend
+   d. Write to KV: sitemap:finance:/sitemap-dynamic/X (expirationTtl: 90000)
 ```
 
-Next.js RSC requests use `?_rsc=` query parameter for streaming JSON. All HTML injection is bypassed for RSC requests — injecting into a JSON stream would cause a 500 error on the frontend.
+**Client IP for cron:** Hardcoded `127.0.0.1` (loopback) — used for HMAC signature generation when no real client IP is available. The backend's `AegisEdgeValidationFilter` exempts `127.0.0.1`.
 
 ---
 
-## 12. Cron Job — Sitemap Cache Warming
+## 10. SEO Intelligence — `HTMLRewriter` Injections
 
-Runs on the schedule defined in `wrangler.toml` (`"0 * * * *"` = once per hour):
+All SEO injections are wrapped in `if (!isRscRequest)` to prevent RSC stream corruption.
 
-```javascript
-async scheduled(event, env, ctx) {
-    // 1. Fetch sitemap manifest from backend (with AEGIS signature)
-    const meta = await fetch(`${BACKEND_API_URL}/api/public/sitemap/meta`, { headers: aegisHeaders });
-    
-    // 2. For each sitemap URL in the manifest, fetch and write to KV
-    for (const sitemapPath of [...meta.blogs, ...meta.markets]) {
-        const xml = await fetch(`${BACKEND_API_URL}${sitemapPath}`, { headers: aegisHeaders });
-        ctx.waitUntil(
-            env.TREISHFIN_SEO_CACHE.put(`sitemap:${sitemapPath}`, await xml.text(), { expirationTtl: 86400 })
-        );
-    }
-}
-```
+| Route | Injection |
+| :--- | :--- |
+| `/`, `/home` | WebSite JSON-LD schema; `<link rel="alternate" type="text/markdown" href="/llms.txt">` and `<link rel="alternate" type="application/json+ld" href="/ontology.json">` |
+| `/about`, `/vision` | Static title + description meta; GEO discovery links |
+| `/category/…/:id` | Dynamic: fetch post from backend → inject `<title>`, `meta[description]`, `window.__PRELOADED_STATE__`, GEO discovery links |
+| `/market/:ticker` | Dynamic: fetch market widget from backend → inject ticker name/symbol title, `window.__PRELOADED_STATE__`, GEO discovery links |
 
-Ensures the KV cache is always warm before Google's daily crawl.
+**`window.__PRELOADED_STATE__`:** JSON payload injected into `<head>` for client-side hydration. Sanitized via `safeStringify()` which escapes `<`, `>`, `&` to prevent XSS via JSON payload injection.
 
 ---
 
-## 13. Cloudflare Edge Redirect Rules (Dashboard — Not in Worker Code)
+## 11. Security Headers — `addSecurityHeaders()`
 
-These rules are managed in the Cloudflare Dashboard. The Worker assumes canonical hostnames and must never re-implement these.
+Applied to all HTML and API responses:
 
-**Rule 1 — www → apex 301:**
 ```
-(http.host in {"www.treishvaamfinance.com"})
-→ concat("https://", substring(http.host, 4), http.request.uri.path)
-Status: 301, Preserve query string: ON
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 1; mode=block
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=()
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Resource-Policy: same-site
+X-Permitted-Cross-Domain-Policies: none
 ```
 
-**Rule 2 — Preview URL Canonicalization:**
-`treishvaam-finance-frontend.pages.dev` is **NOT** in the Bulk Redirect list.
-The Worker internally `fetch()`es the `.pages.dev` origin to get application code. A bulk redirect intercepting this internal fetch would return a 301 to the Worker, which passes it to the user, causing a fatal `ERR_TOO_MANY_REDIRECTS` infinite loop.
-Duplicate-content protection for Finance is handled exclusively via `<link rel="canonical">` in the application HTML.
+Additionally:
+- `Content-Security-Policy-Report-Only` is **deleted** (not surfaced to end users)
+- `X-GEO-Bot-Detected: true` added when `isAiBot` is true
+- SPA fallback: if `X-SPA-Fallback` header present and status is 404, status is overridden to 200
 
 ---
 
-## 14. Key Cloudflare Pages Environment Variables
+## 12. Known Architectural Gaps
 
-| Variable | Purpose | Set In |
-|:---|:---|:---|
-| `NEXT_PUBLIC_API_URL` | Backend API base URL (for GEO route proxies) | Cloudflare Pages Environment Variables |
-| `NEXT_PUBLIC_GA_MEASUREMENT_ID` | GA4 Measurement ID | Cloudflare Pages Environment Variables |
-| `NEXT_PUBLIC_GOOGLE_ADS_ID` | Google Ads conversion ID | Cloudflare Pages Environment Variables |
-| `NEXT_PUBLIC_ADSENSE_CLIENT_ID` | AdSense publisher ID | Cloudflare Pages Environment Variables |
-| `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY` | GA4 `anonymize_ip` toggle (`true`/`false`) | Cloudflare Pages Env Vars + `wrangler.toml [vars]` |
-| `NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL` | Dynamic team portrait URL (bypasses repo rebuilds) | Cloudflare Pages Environment Variables |
+**Agro Worker missing AEGIS Phase 6 upgrades:**
+`treishvaamagro-seo-worker` does not yet implement:
+- `generateEdgeSignature()` centralized helper
+- Global Crawler Matrix
+- GEO AI bot interception
+- MTD path translation
+- AEGIS_THREAT_KV integration
 
-**ABSOLUTE RULE:** None of these values are hardcoded in the repository. They are injected at build time by Cloudflare Pages or at runtime by the Worker.
+When the Agro frontend is finalized, the Finance `worker.js` logic must be mirrored precisely into the Agro worker, substituting `BACKEND_ORIGIN` and `CF_PAGES_ORIGIN` secrets in place of `BACKEND_API_URL`.
+
+---
+
+## IMMUTABLE CHANGE HISTORY (DO NOT DELETE)
+
+- **EDITED (RSC Stream Fix):** Wrapped entire SEO Intelligence block in `if (!isRscRequest)`. Reason: React Server Component stream requests (`RSC: 1` header, `Next-Router-Prefetch`, `Next-Url`, `Accept: text/x-component`) were triggering HTMLRewriter transforms on RSC binary streams, causing 500 errors.
+
+- **EDITED (Phase 6.1 — AEGIS Edge Integration):** Replaced narrow crawler regex with compiled Global Crawler Matrix. Implemented `crypto.subtle` HMAC-SHA-512 signing.
+
+- **EDITED (Phase 6.3 — GEO Edge Integration):** Intercepted `/llms.txt` and `/ai-feed.md`. Three-tier KV caching deployed using `TREISHFIN_SEO_CACHE`.
+
+- **EDITED (Phase 6.5 — GEO AI Bot Interception):** Intercepted AI LLM agents on root paths (`/`, `/home`) and served `/ai-feed.md`. React HTML bypassed entirely for LLM agents.
+
+- **EDITED (Phase 6.6 — MTD & Tarpit):** MTD path translation via `aegis:mtd:manifest`. Edge-to-backend Virtual Thread Tarpit routing for TARPIT-flagged IPs. Added `/ontology.json` proxy.
+
+- **EDITED (Phase 8 — GEO Full Execution):** Broadened AI bot list to include OAI-SearchBot and DeepSeek. Added `X-GEO-Bot-Detected` header. CRITICAL FIX: Refactored `crypto.subtle` signing into centralized `generateEdgeSignature` helper. Cron and cache-miss paths previously retained stale signatures, causing 403 rejections at `AegisEdgeValidationFilter`. Signatures now generated per exact backend API path for every fetch.
+
+- **VERIFIED (2026-05-29 — Enterprise Documentation Generation):** All Worker capabilities verified line by line against `worker/worker.js` (616 lines). Added complete request flow, cron flow, KV data structure, and RSC bypass documentation. Confirmed `handleGeoFeedFromKV` and `handleDynamicSitemapFromKV` function signatures and three-tier caching logic.
