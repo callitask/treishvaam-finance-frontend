@@ -59,6 +59,11 @@
  * - EDITED (OpenSearch Syndication Phase):
  * • Injected `<link rel="search" type="application/opensearchdescription+xml">` pointing to `/opensearch.xml`.
  * • Why: Enables native browser address-bar search integration and allows AI plugins to dynamically interface with the platform's search engine.
+ * - EDITED (Post-Approval - Full Enterprise Knowledge Graph Restoration):
+ * • Replaced the minimal `organizationSchema` with an exhaustive `enterpriseGraphSchema` utilizing the Schema.org `@graph` structure.
+ * • Merged legacy schema data: Added `FinancialService` classification, Corporate Address, Customer Service `contactPoint`, and Sitelinks navigation.
+ * • Added strict `@id` bi-directional mapping between Treishvaam Finance, Treishvaam Group (Parent Corporation), and Amitsagar Kandpal (Founder).
+ * • Why: Delivers maximum entity resolution capability to Google's Knowledge Panel and LLM (GEO) crawlers, ensuring typo-tolerance ("Treishvam", "Trishvam") and locking the brand's digital footprint across all subsidiaries.
  * * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -85,26 +90,28 @@ import { Providers } from './providers';
 // ENFORCE CLOUDFLARE EDGE RUNTIME
 export const runtime = 'edge';
 
+const BASE_URL = 'https://treishvaamfinance.com';
+
 export const metadata = {
     title: 'Treishvaam Finance | Institutional Financial Intelligence',
     description: 'Global financial news, proprietary market data, and expert analysis from India\'s premier financial intelligence platform.',
     openGraph: {
         title: 'Treishvaam Finance | Institutional Financial Intelligence',
         description: 'Global financial news, proprietary market data, and expert analysis.',
-        url: 'https://treishvaamfinance.com',
+        url: BASE_URL,
         siteName: 'Treishvaam Finance',
-        images: [{ url: 'https://treishvaamfinance.com/logo.webp', width: 512, height: 512, alt: 'Treishvaam Finance' }],
+        images: [{ url: `${BASE_URL}/logo.webp`, width: 512, height: 512, alt: 'Treishvaam Finance' }],
         type: 'website',
     },
     twitter: {
         card: 'summary',
         title: 'Treishvaam Finance',
         description: 'India\'s premier financial intelligence platform.',
-        images: ['https://treishvaamfinance.com/logo.webp'],
+        images: [`${BASE_URL}/logo.webp`],
     },
-    metadataBase: new URL('https://treishvaamfinance.com'),
+    metadataBase: new URL(BASE_URL),
     alternates: {
-        canonical: 'https://treishvaamfinance.com',
+        canonical: BASE_URL,
     },
     robots: {
         index: true,
@@ -130,16 +137,143 @@ export default function RootLayout({
     const headersList = headers();
     const nonce = headersList.get('x-nonce') ?? '';
 
-    const organizationSchema = {
+    // Ultimate Enterprise Knowledge Graph: `@graph` deterministically links all entities.
+    const enterpriseGraphSchema = {
         "@context": "https://schema.org",
-        "@type": "Organization",
-        "name": "Treishvaam Finance",
-        "url": "https://treishvaamfinance.com",
-        "logo": "https://treishvaamfinance.com/logo.webp",
-        "description": "India's premier financial intelligence platform providing global financial news, proprietary market data, and expert analysis.",
-        "foundingDate": "2024",
-        "sameAs": [
-            "https://linkedin.com/company/treishvaamfinance"
+        "@graph": [
+            {
+                "@type": ["Organization", "FinancialService"],
+                "@id": `${BASE_URL}/#organization`,
+                "name": "Treishvaam Finance",
+                "alternateName": [
+                    "Treishvam Finance",
+                    "Treshvam Finance",
+                    "Trishvam Finance",
+                    "Treishvaam",
+                    "Treishvam",
+                    "Trishvam"
+                ],
+                "url": `${BASE_URL}/`,
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://treishvaamgroup.com/logo512.webp",
+                    "width": 512,
+                    "height": 512
+                },
+                "image": "https://treishvaamgroup.com/logo512.webp",
+                "description": "Treishvaam Finance provides real-time market data, financial news, and expert analysis. A subsidiary of Treishvaam Group.",
+                "foundingDate": "2024",
+                "priceRange": "$$",
+                "telephone": "+91 81785 29633",
+                "email": "treishfin.treishvaamgroup@gmail.com",
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": "Electronic City",
+                    "addressLocality": "Bangalore",
+                    "addressRegion": "Karnataka",
+                    "postalCode": "560100",
+                    "addressCountry": "IN"
+                },
+                "sameAs": [
+                    "https://www.linkedin.com/company/treishvaamfinance",
+                    "https://twitter.com/treishvaamfinance",
+                    "https://x.com/treishvaamfinance",
+                    "https://www.instagram.com/treishvaamfinance"
+                ],
+                "contactPoint": {
+                    "@type": "ContactPoint",
+                    "contactType": "customer service",
+                    "telephone": "+91 81785 29633",
+                    "email": "treishfin.treishvaamgroup@gmail.com",
+                    "areaServed": "Global",
+                    "availableLanguage": "English"
+                },
+                "parentOrganization": {
+                    "@id": `${BASE_URL}/#parentOrganization`
+                },
+                "founder": {
+                    "@id": `${BASE_URL}/#founder`
+                }
+            },
+            {
+                "@type": "Corporation",
+                "@id": `${BASE_URL}/#parentOrganization`,
+                "name": "Treishvaam Group",
+                "alternateName": ["Treishvam Group", "Treshvam Group", "Trishvam Group"],
+                "url": "https://treishvaamgroup.com/",
+                "email": "treishvaamgroup@gmail.com",
+                "telephone": "+91 81785 29633",
+                "logo": "https://treishvaamgroup.com/logo512.webp",
+                "image": "https://treishvaamgroup.com/logo512.webp",
+                "sameAs": [
+                    "https://www.linkedin.com/company/treishvaamgroup",
+                    "https://twitter.com/treishvaamgroup",
+                    "https://x.com/treishvaamgroup",
+                    "https://www.instagram.com/treishvaamgroup"
+                ],
+                "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": "Electronic City",
+                    "addressLocality": "Bangalore",
+                    "addressRegion": "Karnataka",
+                    "postalCode": "560100",
+                    "addressCountry": "IN"
+                }
+            },
+            {
+                "@type": "Person",
+                "@id": `${BASE_URL}/#founder`,
+                "name": "Amitsagar Kandpal",
+                "alternateName": [
+                    "Amit Kandpal",
+                    "Amit Sagar Kandpal",
+                    "Amitsagar",
+                    "Treishvaam",
+                    "Treishvam",
+                    "Trishvam"
+                ],
+                "jobTitle": "Founder & Chairman",
+                "email": "callitask@gmail.com",
+                "telephone": "+91 81785 29633",
+                "url": "https://treishvaamgroup.com/",
+                "sameAs": [
+                    "https://www.linkedin.com/in/amitsagarkandpal",
+                    "https://twitter.com/treishvaam",
+                    "https://x.com/treishvaam",
+                    "https://www.instagram.com/treishvaam"
+                ],
+                "worksFor": {
+                    "@id": `${BASE_URL}/#parentOrganization`
+                }
+            },
+            {
+                "@type": "WebSite",
+                "@id": `${BASE_URL}/#website`,
+                "name": "Treishvaam Finance",
+                "url": `${BASE_URL}/`,
+                "publisher": {
+                    "@id": `${BASE_URL}/#organization`
+                },
+                "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                        "@type": "EntryPoint",
+                        "urlTemplate": `${BASE_URL}/search?q={search_term_string}`
+                    },
+                    "query-input": "required name=search_term_string"
+                }
+            },
+            {
+                "@type": "ItemList",
+                "@id": `${BASE_URL}/#sitelinks`,
+                "itemListElement": [
+                    { "@type": "SiteNavigationElement", "position": 1, "name": "Markets", "url": `${BASE_URL}/market` },
+                    { "@type": "SiteNavigationElement", "position": 2, "name": "Financial News", "url": `${BASE_URL}/blog` },
+                    { "@type": "SiteNavigationElement", "position": 3, "name": "About Us", "url": `${BASE_URL}/about` },
+                    { "@type": "SiteNavigationElement", "position": 4, "name": "Our Vision", "url": `${BASE_URL}/vision` },
+                    { "@type": "SiteNavigationElement", "position": 5, "name": "Contact", "url": `${BASE_URL}/contact` }
+                ]
+            }
         ]
     };
 
@@ -153,11 +287,11 @@ export default function RootLayout({
                 <link rel="search" type="application/opensearchdescription+xml" title="Treishvaam Finance Search" href="/opensearch.xml" nonce={nonce} />
 
                 <Script
-                    id="organization-schema"
+                    id="enterprise-graph-schema"
                     type="application/ld+json"
                     strategy="beforeInteractive"
                     nonce={nonce}
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(enterpriseGraphSchema) }}
                 />
                 {GA_MEASUREMENT_ID && (
                     <>
