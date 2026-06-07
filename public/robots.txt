@@ -8,10 +8,22 @@
 # • Injected explicit LLM directives allowing the GLOBAL_CRAWLER_MATRIX agents to locate the `llms.txt` edge feeds safely without triggering the AEGIS anomaly trips.
 # - EDITED (Phase 8 GEO Full Execution):
 # • Expanded explicit permissions block to strictly target OAI-SearchBot, DeepSeek, and anthropic-ai.
+# - EDITED (Post-Approval - Edge SEO Split-Tagging):
+# • Explicitly allowed Googlebot to access specific /api/ paths required for React hydration (/posts, /categories, /market).
+# • Explicitly blocked Googlebot from /api/v1/analytics to keep first-party telemetry clean of bot traffic.
 
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /dashboard/
+
+User-agent: Googlebot
+Allow: /
+Allow: /api/v1/posts
+Allow: /api/v1/categories
+Allow: /api/v1/market
+Disallow: /api/v1/analytics
+Disallow: /api/v1/admin
 Disallow: /dashboard/
 
 User-agent: GPTBot

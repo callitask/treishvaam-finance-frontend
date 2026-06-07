@@ -30,10 +30,11 @@
  * • FIXED KV STORAGE HOLE: `handleDynamicSitemapFromKV` now asynchronously clones and writes backend responses to `TREISHFIN_SEO_CACHE` on cache misses.
  * - EDITED (Post-Approval - GSC Inspection Fix Phase 2):
  * • ADDED Edge User-Agent Normalization: `Google-InspectionTool` is now instantly aliased to `Googlebot`.
- * • Why: Next.js SSR was crashing with a 500 error during Live Tests because it forwarded the `Google-InspectionTool` User-Agent to the Java backend, which triggered the backend's native L4-ADA firewall to reject the data fetch with a 403. Edge normalization fixes this without requiring a backend Java rebuild.
  * - EDITED (Post-Approval - Edge Body Sanitization):
  * • Enforced `body: null` for all GET/HEAD request clones inside `baseEnhancedRequest`, `proxyReq`, and KV-fetch fallbacks. 
- * • Why: Resolves native Cloudflare V8 `TypeError: Request with GET/HEAD method cannot have body` which surfaced as a 500 Internal Server Error in Google Search Console. 
+ * - EDITED (Post-Approval - Edge SEO Split-Tagging & API Leak Prevention):
+ * • Injected `X-Robots-Tag: noindex, noarchive` into all `/api/` responses via `addSecurityHeaders`.
+ * • Why: Allows Googlebot to fetch JSON to render the React DOM (resolving 499 Client Closed Errors) without leaking raw backend JSON into Google Search Results. Protects Enterprise Knowledge Graph sovereignty.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -84,7 +85,7 @@ export default {
     async scheduled(event, env, ctx) {
         console.log("TRIGGER: Scheduled Sitemap Update");
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
-        const clientIp = "127.0.0.1"; // Local loopback for cron execution
+        const clientIp = "127.0.0.1";
 
         try {
             const metaPath = `/api/public/sitemap/meta`;
@@ -167,8 +168,7 @@ export default {
 
         let userAgent = request.headers.get("User-Agent") || "";
 
-        // 🚀 THE FIX: EDGE USER-AGENT NORMALIZATION
-        // Intercepts the Live Test tool and rewrites it to Googlebot so the backend Java firewall trusts the Next.js API fetch.
+        // Edge User-Agent Normalization: Bypass native backend anomalies for Google Live Test
         if (userAgent.includes("Google-InspectionTool")) {
             userAgent = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
         }
@@ -227,9 +227,7 @@ export default {
         const cf = request.cf || {};
         const enhancedHeaders = new Headers(request.headers);
 
-        // Apply the normalized Googlebot identity to Next.js and Backend subrequests
         enhancedHeaders.set("User-Agent", userAgent);
-
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
         enhancedHeaders.set("X-Tenant-ID", "finance");
@@ -243,7 +241,6 @@ export default {
             enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
         }
 
-        // Strict Edge Sanitization: Ensure GET/HEAD requests explicitly dump their bodies to avoid V8 exceptions
         const isGetOrHead = request.method === 'GET' || request.method === 'HEAD';
 
         const baseEnhancedRequest = new Request(request.url, {
@@ -253,6 +250,7 @@ export default {
             redirect: request.redirect
         });
 
+        // 🚀 THE FIX: EDGE SEO SPLIT-TAGGING
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
@@ -265,6 +263,12 @@ export default {
             newHeaders.set("Cross-Origin-Resource-Policy", "same-site");
             newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
             newHeaders.delete("Content-Security-Policy-Report-Only");
+
+            // CRITICAL: Prevent API Data Leaks in Search Results.
+            // Googlebot can read the JSON to render UI, but will NEVER index the JSON payload itself.
+            if (url.pathname.startsWith("/api")) {
+                newHeaders.set("X-Robots-Tag", "noindex, noarchive");
+            }
 
             if (isAiBot) {
                 newHeaders.set("X-GEO-Bot-Detected", "true");
@@ -340,9 +344,13 @@ export default {
                         ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
                         return addSecurityHeaders(responseToCache);
                     }
-                    return apiResp;
+                    return addSecurityHeaders(apiResp);
                 }
-                return await fetch(proxyReq);
+
+                // Fetch the API and append X-Robots-Tag: noindex via addSecurityHeaders
+                const apiResponse = await fetch(proxyReq);
+                return addSecurityHeaders(apiResponse);
+
             } catch (e) {
                 return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } });
             }
