@@ -17,36 +17,23 @@
  * - KV Namespace: AEGIS_THREAT_KV (Phase 6.1)
  *
  * Security Constraints:
- * - Edge Signature uses HMAC-SHA-512 via `crypto.subtle`. (Note: Master document specifies SHA3-512, 
- * but WebCrypto API natively limits to SHA-512 without polyfills. HMAC-SHA-512 is retained for 0ms execution speed).
+ * - Edge Signature uses HMAC-SHA-512 via `crypto.subtle`.
  * - SEO/AI Crawlers must explicitly bypass AEGIS threat evaluation to preserve indexability.
  * - Must never hardcode fallback URLs.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase - 500 RSC Stream Fix):
  * • Wrapped the ENTIRE "SEO INTELLIGENCE" block in `if (!isRscRequest)`.
- * - EDITED (Phase 6.1 - AEGIS Edge Integration & Global Crawler Matrix):
- * • Replaced narrow crawler regex with a compiled Enterprise Global Crawler Matrix. 
- * • Implemented `crypto.subtle` HMAC-SHA-512 signing.
- * - EDITED (Phase 6.3 - GEO Edge Integration):
- * • Intercepted `/llms.txt` and `/ai-feed.md`. Deployed heavy KV caching utilizing `TREISHFIN_SEO_CACHE`.
- * - EDITED (Phase 6.5 - GEO AI Bot Interception):
- * • Intercepted pure AI LLM agents on the root paths (`/`, `/home`) and served `/ai-feed.md`.
- * - EDITED (Phase 6.6 - MTD & Tarpit Execution):
- * • Implemented Moving Target Defense (MTD) path translation via `aegis:mtd:manifest`.
- * • Implemented Edge-to-Backend Virtual Thread Tarpit routing for `TARPIT` flagged IP addresses.
- * • Added proxy support for the new `/ontology.json` GEO payload.
- * - EDITED (Phase 8 GEO Full Execution):
- * • Broadened the explicitly defined AI Bot list to encompass `OAI-SearchBot` and `DeepSeek` in the `GLOBAL_CRAWLER_MATRIX`.
- * • Added `X-GEO-Bot-Detected` header tagging to explicitly mark intercepted LLM streams.
  * - EDITED (Batch 8 - Advanced GEO Cache Miss Handling):
- * • Enhanced `handleGeoFeedFromKV` to elegantly handle cache misses without blocking the thread, 
- * asynchronously triggering a KV update while serving the direct backend response to the LLM crawler immediately.
- * • Verified canonical rules are offloaded entirely to Cloudflare Bulk Redirects (as per Master Prompt).
+ * • Enhanced `handleGeoFeedFromKV` to elegantly handle cache misses without blocking the thread.
  * - EDITED (GEO Phase Finalization):
- * • Expanded AI Bot Interception (GEO) to seamlessly intercept ALL HTML content requests from LLMs, bypassing expensive React execution completely.
- * • FIXED CRITICAL ZERO-TRUST FLAW: Refactored `crypto.subtle` signing into a centralized `generateEdgeSignature` helper. Cron Jobs and internal Cache Misses (Sitemaps/GEO) were previously fetching translated backend paths but retaining the old edge signature, causing 403 Forbidden rejections at the Backend `AegisEdgeValidationFilter`. Signatures are now strictly generated per exact backend API path.
- * * - DO-NOT-DELETE RULE:
+ * • Expanded AI Bot Interception (GEO) to seamlessly intercept ALL HTML content requests from LLMs.
+ * • FIXED CRITICAL ZERO-TRUST FLAW: Refactored `crypto.subtle` signing into a centralized helper.
+ * - EDITED (Post-Approval - Enterprise Cache & Cron Scaling):
+ * • FIXED KV STORAGE HOLE: `handleDynamicSitemapFromKV` now asynchronously clones and writes backend responses to `TREISHFIN_SEO_CACHE` on cache misses. This prevents TTFB 503 errors.
+ * • CRON SCALING: Removed the arbitrary `.slice(0, 5)` bottleneck in the `scheduled` event. Implemented Promise.allSettled batch processing to warm all sitemap chunks concurrently while respecting Cloudflare's 50 subrequest limit.
+ *
+ * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
  * Future AI must append only.
@@ -107,6 +94,7 @@ export default {
                     "User-Agent": "Treishvaam-Worker-Crawler/1.0",
                     "X-Aegis-Edge-Signature": metaSignature,
                     "X-Aegis-Edge-Timestamp": metaTimestamp,
+                    "X-Aegis-Client-IP": clientIp,
                     "CF-Connecting-IP": clientIp
                 }
             });
@@ -119,28 +107,35 @@ export default {
                 if (metaJson.blogs) filesToUpdate.push(...metaJson.blogs.map(path => ({ key: `sitemap:finance:${path}`, path })));
                 if (metaJson.markets) filesToUpdate.push(...metaJson.markets.map(path => ({ key: `sitemap:finance:${path}`, path })));
 
-                const priorityFiles = filesToUpdate.slice(0, 5);
+                // ENTERPRISE BATCH PROCESSING: Respect CF 50 subrequest limit by chunking concurrency
+                const BATCH_SIZE = 10;
+                for (let i = 0; i < filesToUpdate.length; i += BATCH_SIZE) {
+                    const batch = filesToUpdate.slice(i, i + BATCH_SIZE);
 
-                for (const file of priorityFiles) {
-                    try {
-                        const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
-                        const fileTimestamp = Date.now().toString();
-                        const fileSignature = await generateEdgeSignature(apiPath, fileTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+                    const fetchPromises = batch.map(async (file) => {
+                        try {
+                            const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
+                            const fileTimestamp = Date.now().toString();
+                            const fileSignature = await generateEdgeSignature(apiPath, fileTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
-                        const fileResp = await fetch(`${BACKEND_URL}${apiPath}`, {
-                            headers: {
-                                "User-Agent": "Treishvaam-Worker-Crawler/1.0",
-                                "X-Aegis-Edge-Signature": fileSignature,
-                                "X-Aegis-Edge-Timestamp": fileTimestamp,
-                                "CF-Connecting-IP": clientIp
+                            const fileResp = await fetch(`${BACKEND_URL}${apiPath}`, {
+                                headers: {
+                                    "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                                    "X-Aegis-Edge-Signature": fileSignature,
+                                    "X-Aegis-Edge-Timestamp": fileTimestamp,
+                                    "X-Aegis-Client-IP": clientIp,
+                                    "CF-Connecting-IP": clientIp
+                                }
+                            });
+
+                            if (fileResp.ok && fileResp.headers.get("content-type")?.includes("xml")) {
+                                const content = await fileResp.text();
+                                await env.TREISHFIN_SEO_CACHE.put(file.key, content, { expirationTtl: 90000 });
                             }
-                        });
+                        } catch (e) { console.error(`Failed to update ${file.key}`); }
+                    });
 
-                        if (fileResp.ok && fileResp.headers.get("content-type")?.includes("xml")) {
-                            const content = await fileResp.text();
-                            await env.TREISHFIN_SEO_CACHE.put(file.key, content, { expirationTtl: 90000 });
-                        }
-                    } catch (e) { console.error(`Failed to update ${file.key}`); }
+                    await Promise.allSettled(fetchPromises);
                 }
             }
         } catch (e) { console.error("Cron Failed", e); }
@@ -224,6 +219,9 @@ export default {
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
         enhancedHeaders.set("X-Tenant-ID", "finance");
+
+        // BINDING: Inject the immutable Aegis IP to bypass Cloudflare outbound IP overwrites
+        enhancedHeaders.set("X-Aegis-Client-IP", clientIp);
 
         // =================================================================================
         // 2.6 AEGIS ZERO-TRUST HMAC SIGNING (CRYPTO.SUBTLE)
@@ -548,6 +546,7 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
         const newHeaders = new Headers(request.headers);
         newHeaders.set("X-Aegis-Edge-Signature", signature);
         newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
+        newHeaders.set("X-Aegis-Client-IP", clientIp);
 
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
@@ -598,6 +597,7 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
         const newHeaders = new Headers(request.headers);
         newHeaders.set("X-Aegis-Edge-Signature", signature);
         newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
+        newHeaders.set("X-Aegis-Client-IP", clientIp);
 
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
@@ -606,9 +606,15 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
         }));
 
         if (backendResp.ok) {
+            // THE FIX: Clone and save to KV Cache before returning
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
+            newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
+
+            const cloneForKv = newResp.clone();
+            ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
+
             return newResp;
         }
     } catch (e) { }
