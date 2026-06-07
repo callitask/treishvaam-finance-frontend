@@ -31,6 +31,9 @@
  * - EDITED (Post-Approval - GSC Inspection Fix Phase 2):
  * • ADDED Edge User-Agent Normalization: `Google-InspectionTool` is now instantly aliased to `Googlebot`.
  * • Why: Next.js SSR was crashing with a 500 error during Live Tests because it forwarded the `Google-InspectionTool` User-Agent to the Java backend, which triggered the backend's native L4-ADA firewall to reject the data fetch with a 403. Edge normalization fixes this without requiring a backend Java rebuild.
+ * - EDITED (Post-Approval - Edge Body Sanitization):
+ * • Enforced `body: null` for all GET/HEAD request clones inside `baseEnhancedRequest`, `proxyReq`, and KV-fetch fallbacks. 
+ * • Why: Resolves native Cloudflare V8 `TypeError: Request with GET/HEAD method cannot have body` which surfaced as a 500 Internal Server Error in Google Search Console. 
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -240,10 +243,13 @@ export default {
             enhancedHeaders.set("X-Aegis-Edge-Timestamp", edgeTimestamp);
         }
 
+        // Strict Edge Sanitization: Ensure GET/HEAD requests explicitly dump their bodies to avoid V8 exceptions
+        const isGetOrHead = request.method === 'GET' || request.method === 'HEAD';
+
         const baseEnhancedRequest = new Request(request.url, {
             headers: enhancedHeaders,
             method: request.method,
-            body: request.body,
+            body: isGetOrHead ? null : request.body,
             redirect: request.redirect
         });
 
@@ -316,7 +322,7 @@ export default {
             const proxyReq = new Request(proxyTargetUrl.toString(), {
                 headers: enhancedHeaders,
                 method: request.method,
-                body: request.body,
+                body: isGetOrHead ? null : request.body,
                 redirect: request.redirect
             });
 
@@ -546,10 +552,12 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
         newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
         newHeaders.set("X-Aegis-Client-IP", clientIp);
 
+        const isGetOrHead = request.method === "GET" || request.method === "HEAD";
+
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
             headers: newHeaders,
-            body: request.body
+            body: isGetOrHead ? null : request.body
         }));
 
         if (backendResp.ok) {
@@ -594,10 +602,12 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
         newHeaders.set("X-Aegis-Edge-Timestamp", timestamp);
         newHeaders.set("X-Aegis-Client-IP", clientIp);
 
+        const isGetOrHead = request.method === "GET" || request.method === "HEAD";
+
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
             headers: newHeaders,
-            body: request.body
+            body: isGetOrHead ? null : request.body
         }));
 
         if (backendResp.ok) {

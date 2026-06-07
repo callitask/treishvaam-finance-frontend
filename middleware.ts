@@ -6,6 +6,7 @@
  * - Injects nonce into the Content-Security-Policy response header.
  * - Passes nonce to app/layout.tsx via x-nonce request header.
  * - Removes unsafe-inline and unsafe-eval from CSP — the primary XSS mitigation.
+ * - Enforces Canonical Apex URL by redirecting /home to /.
  *
  * Scope:
  * - Runs on all routes EXCEPT static assets (already served without script execution).
@@ -30,6 +31,8 @@
  * triggered dynamic RSC (React Server Component) fetches for routes like `/home`, the middleware 
  * threw a fatal `Buffer is not defined` error, resulting in a 500 Internal Server Error. 
  * `btoa()` perfectly resolves this while maintaining cryptographic integrity.
+ * - EDITED (Post-Approval - Apex URL Enforcement):
+ * • Added a 301 Permanent Redirect to map legacy `/home` traffic to the root `/`.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY must never be deleted, truncated, or regenerated.
@@ -38,6 +41,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+    // Enforce Canonical Apex URL: Redirect /home to /
+    if (request.nextUrl.pathname === '/home') {
+        return NextResponse.redirect(new URL('/', request.url), 301);
+    }
+
     // Generate a unique, cryptographically random nonce using strictly Web Standard APIs (Edge Safe)
     const nonce = btoa(crypto.randomUUID());
 
