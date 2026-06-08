@@ -35,6 +35,8 @@
  * - EDITED (Post-Approval - Edge SEO Split-Tagging & API Leak Prevention):
  * • Injected `X-Robots-Tag: noindex, noarchive` into all `/api/` responses via `addSecurityHeaders`.
  * • Why: Allows Googlebot to fetch JSON to render the React DOM (resolving 499 Client Closed Errors) without leaking raw backend JSON into Google Search Results. Protects Enterprise Knowledge Graph sovereignty.
+ * - EDITED (MTD Prefix Fix):
+ * • Replaced exact string match lookup for `mtdManifest` with a `.startsWith()` prefix matching iteration, addressing the post-login infinite deception loop.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -207,8 +209,14 @@ export default {
         if (targetPath.startsWith("/api")) {
             if (isTarpit) {
                 targetPath = "/api/v1/aegis/tarpit/trap";
-            } else if (mtdManifest && mtdManifest[targetPath]) {
-                targetPath = mtdManifest[targetPath];
+            } else if (mtdManifest && mtdManifest.paths) {
+                // FIXED: Use prefix matching to translate paths accurately
+                for (const canonical of Object.keys(mtdManifest.paths)) {
+                    if (targetPath.startsWith(canonical)) {
+                        targetPath = targetPath.replace(canonical, mtdManifest.paths[canonical]);
+                        break;
+                    }
+                }
             }
         }
 
@@ -464,7 +472,14 @@ export default {
 
                 try {
                     let apiPath = `/api/v1/posts/url/${articleId}`;
-                    if (mtdManifest && mtdManifest[apiPath]) apiPath = mtdManifest[apiPath];
+                    if (mtdManifest && mtdManifest.paths) {
+                        for (const canonical of Object.keys(mtdManifest.paths)) {
+                            if (apiPath.startsWith(canonical)) {
+                                apiPath = apiPath.replace(canonical, mtdManifest.paths[canonical]);
+                                break;
+                            }
+                        }
+                    }
 
                     const apiTimestamp = Date.now().toString();
                     const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);

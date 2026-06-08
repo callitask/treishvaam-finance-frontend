@@ -55,6 +55,8 @@
  * - EDITED (Auth Loop Relaxation):
  * • Demoted the `CSP_BLOCK_OR_UNDEFINED` error from triggering a FATAL loop breaker to a graceful Guest Mode degradation.
  * • Why: The strict Edge Worker CSP was blocking the `silent-check-sso.html` iframe communication on some devices, falsely triggering the Anti-Loop breaker and hard-locking the auth state.
+ * - EDITED (Session Salvage Operation):
+ * • ADDED: Interception inside the `.catch()` block to salvage the Keycloak object. If the iframe fails (`CSP_BLOCK_OR_UNDEFINED`) but `initKeycloak.token` was successfully provisioned, it overrides the failure and mounts the user session securely, breaking the login refresh loop.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -236,6 +238,67 @@ export const AuthProvider = ({ children }) => {
       .catch((rawErr) => {
         const err = rawErr === undefined ? "CSP_BLOCK_OR_UNDEFINED" : rawErr;
         console.error("[Auth] Init Failed:", err);
+
+        // --- SESSION SALVAGE OPERATION ---
+        // If the token was successfully fetched but the iframe blocked the promise resolution,
+        // we salvage the session directly from the keycloak object.
+        if (err === "CSP_BLOCK_OR_UNDEFINED" && initKeycloak.token) {
+          console.log("[Auth] Session Salvaged! Token acquired despite iframe CSP block.");
+          sessionStorage.removeItem('kc_silent_sso_failed');
+          sessionStorage.removeItem('kc_fatal_loop_breaker');
+
+          if (window.location.search.includes('code=') || window.location.hash.includes('code=')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+
+          setToken(initKeycloak.token);
+          setAuthToken(initKeycloak.token);
+          setIsAuthenticated(true);
+
+          const { name, email, realm_access, sub } = initKeycloak.tokenParsed || {};
+          const roles = realm_access ? realm_access.roles : [];
+
+          const initialUser = {
+            name,
+            email,
+            roles,
+            isAdmin: roles.includes('admin') || roles.includes('publisher')
+          };
+          setUser(initialUser);
+
+          const safeId = String(sub || email || 'anonymous-id');
+          const safeEmail = String(email || 'anonymous@treishvaam.com');
+          const safeName = String(name || 'Anonymous User');
+
+          try {
+            if (window.faro && window.faro.api) {
+              window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
+            }
+          } catch (e) {
+            console.warn("[Auth] Salvage Faro instrumentation failed", e);
+          }
+
+          getUserProfile().then(response => {
+            if (response?.data) {
+              const { displayName } = response.data;
+              setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
+              try {
+                if (window.faro && window.faro.api) {
+                  window.faro.api.setUser({
+                    id: safeId,
+                    username: String(displayName || name || 'Anonymous User'),
+                    email: safeEmail
+                  });
+                }
+              } catch (e) { }
+            }
+          }).catch(err => {
+            console.warn("[Auth] Failed to fetch extended profile during salvage:", err);
+          });
+
+          return; // Exit catch block early - session successfully salvaged
+        }
+        // --- END SALVAGE ---
 
         const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
 
