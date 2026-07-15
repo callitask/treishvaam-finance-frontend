@@ -57,6 +57,9 @@
  * • Why: The strict Edge Worker CSP was blocking the `silent-check-sso.html` iframe communication on some devices, falsely triggering the Anti-Loop breaker and hard-locking the auth state.
  * - EDITED (Session Salvage Operation):
  * • ADDED: Interception inside the `.catch()` block to salvage the Keycloak object. If the iframe fails (`CSP_BLOCK_OR_UNDEFINED`) but `initKeycloak.token` was successfully provisioned, it overrides the failure and mounts the user session securely, breaking the login refresh loop.
+ * - EDITED (Next.js Hash Normalization Fix):
+ * • Changed `responseMode` from `fragment` to `query`.
+ * • Why: Next.js 14 App Router aggressively normalizes URLs and strips hash fragments (`#state=...&code=...`) before the component mounts. By forcing Keycloak to use the query string (`?state=...&code=...`), we bypass Next.js hash stripping, allowing the OIDC code exchange to complete successfully and permanently resolving the login redirect loop.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -147,7 +150,7 @@ export const AuthProvider = ({ children }) => {
     let initOptions = {
       pkceMethod: 'S256',
       checkLoginIframe: false,
-      responseMode: 'fragment',
+      responseMode: 'query', // FIXED: Switched to query to survive Next.js hash normalization
     };
 
     if (isLoginError) {
@@ -240,8 +243,6 @@ export const AuthProvider = ({ children }) => {
         console.error("[Auth] Init Failed:", err);
 
         // --- SESSION SALVAGE OPERATION ---
-        // If the token was successfully fetched but the iframe blocked the promise resolution,
-        // we salvage the session directly from the keycloak object.
         if (err === "CSP_BLOCK_OR_UNDEFINED" && initKeycloak.token) {
           console.log("[Auth] Session Salvaged! Token acquired despite iframe CSP block.");
           sessionStorage.removeItem('kc_silent_sso_failed');
@@ -296,14 +297,12 @@ export const AuthProvider = ({ children }) => {
             console.warn("[Auth] Failed to fetch extended profile during salvage:", err);
           });
 
-          return; // Exit catch block early - session successfully salvaged
+          return;
         }
         // --- END SALVAGE ---
 
         const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
 
-        // RELAXATION FIX: If the error is CSP block on the iframe, do not trigger FATAL breaker.
-        // It's just a silent SSO failure, degrade gracefully to guest mode.
         if (callbackCodeDetected && err !== "CSP_BLOCK_OR_UNDEFINED") {
           console.error("[Auth] FATAL: Token exchange failed after callback. Engaging Anti-Loop breaker.");
           sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
