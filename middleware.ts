@@ -33,6 +33,9 @@
  * `btoa()` perfectly resolves this while maintaining cryptographic integrity.
  * - EDITED (Post-Approval - Apex URL Enforcement):
  * • Added a 301 Permanent Redirect to map legacy `/home` traffic to the root `/`.
+ * - EDITED (Silent SSO CSP Fix):
+ * • Appended `silent-check-sso\\.html` to the middleware matcher exclusion regex.
+ * • Why: The Keycloak silent SSO relies on a static HTML file executing an inline script to send a `postMessage`. Because it is static, it cannot receive the dynamic Next.js SSR nonce. The global CSP was blocking the script, throwing `CSP_BLOCK_OR_UNDEFINED`, and trapping the frontend in an unauthenticated loop. Exempting the file allows the iframe to process the OAuth callback while preserving strict CSP for the main React application.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY must never be deleted, truncated, or regenerated.
@@ -86,6 +89,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
+        '/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap.*|silent-check-sso\\.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
     ],
 };
