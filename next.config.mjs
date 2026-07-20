@@ -13,13 +13,16 @@
  * - EDITED (Phase 3 — CSP Nonce):
  * • Removed static Content-Security-Policy header (now handled dynamically by middleware.ts for nonces).
  * • Added Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy, and X-Permitted-Cross-Domain-Policies.
- * * - EDITED (Phase 7 & 8):
+ * - EDITED (Phase 7 & 8):
  * • Wrapped next config with `withSerwist` for PWA offline-fallback capability.
  * • Removed `unoptimized: true` and replaced it with a Cloudflare custom Image Loader.
  * • Why: Restores Image optimization without breaking Cloudflare Pages Edge Server constraints.
  * - EDITED (CI/CD Type Verification Fix):
  * • Added `typescript: { ignoreBuildErrors: true }`.
  * • Why: Prevents the Cloudflare Pages / Next.js Edge compiler from aborting the production build due to minor type-inference warnings or missing ambient declarations. Type-safety is deferred to local development/IDE environments to guarantee deployment resilience.
+ * - EDITED (Phase 5 — Auth Timeout Loop & Iframe Isolation):
+ * • Relaxed `Cross-Origin-Opener-Policy` from `same-origin` to `same-origin-allow-popups` globally.
+ * • Why: `silent-check-sso.html` bypasses `middleware.ts` and inherited the strict global header, which severed `parent.postMessage` cross-origin capabilities, causing a Keycloak auth timeout and top-level redirect loop.
  */
 import withSerwistInit from '@serwist/next';
 
@@ -47,7 +50,7 @@ const nextConfig = {
             {
                 source: '/(.*)',
                 headers: [
-                    { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+                    { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
                     { key: 'Cross-Origin-Resource-Policy', value: 'same-site' },
                     { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
                 ],

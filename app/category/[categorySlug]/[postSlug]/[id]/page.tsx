@@ -3,7 +3,7 @@
  *
  * Purpose:
  * - Next.js App Router Server Component wrapper for the Single Post page.
- * - Handles Edge SSR metadata generation (SEO / OpenGraph) and renders the client component.
+ * - Handles Edge SSR metadata generation (SEO / OpenGraph / Canonical) and renders the client component.
  *
  * Scope:
  * - Responsible for: generateMetadata (server-side SEO), rendering SinglePostPage client component.
@@ -16,15 +16,17 @@
  *
  * Security Constraints:
  * - API_URL must NEVER be hardcoded — always read from NEXT_PUBLIC_API_URL env var.
+ * - MUST generate native WebCrypto HMAC-SHA512 signatures to penetrate backend Zero-Trust Aegis filters.
  *
  * Non-Negotiables:
  * - generateMetadata MUST handle undefined/null API responses without throwing.
  * - export const runtime = 'edge' MUST remain — required for Cloudflare Pages Edge SSR.
  * - All post property accesses MUST use optional chaining (?.) — API may return undefined on timeout.
+ * - MUST explicitly declare canonical URLs to prevent GSC duplicate indexing anomalies.
  *
  * Change Intent:
- * - Fixed Next.js 15 routing crash by wrapping params in Promise.resolve(), preventing async
- * access violations that cause undefined IDs.
+ * - Extended the Zero-Trust cryptographic boundary into the Edge SSR to resolve the 403 Forbidden
+ * "Article Not Found" metadata failure and injected enterprise SEO/GEO canonical tags.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED:
@@ -51,6 +53,13 @@
  *   • What behavior must remain unchanged: cache: 'no-store', null-safety guards, optional chaining,
  *     export const runtime = 'edge', all OpenGraph and Twitter card metadata fields.
  *
+ * - EDITED (Phase 5 — Zero-Trust Edge Signature & Canonical GSC Fix):
+ *   • Added `generateEdgeSignature()` WebCrypto helper to mathematically sign the metadata fetch.
+ *   • Why: `generateMetadata` bypasses the Edge Worker. Lacking the `X-Aegis-Edge-Signature`, the backend 
+ *     Aegis filter returned 403 Forbidden, triggering a blind fallback to "Article Not Found".
+ *   • Added Next.js `alternates: { canonical }` and mirrored the explicit canonical URL in OpenGraph metadata.
+ *   • Why: Resolves Google Search Console (GSC) duplicate/unindexed URL anomalies to enforce strict GEO/AIEO standards.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated. Future AI must append only.
@@ -59,10 +68,25 @@ import SinglePostPage from '../../../../../src/pages/SinglePostPage';
 
 export const runtime = 'edge';
 
+// Cryptographic function to penetrate backend Zero-Trust filter natively at the Edge
+async function generateEdgeSignature(path: string, timestamp: string, ip: string, secret: string) {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        "raw",
+        encoder.encode(secret),
+        { name: "HMAC", hash: "SHA-512" },
+        false,
+        ["sign"]
+    );
+    const data = encoder.encode(`${path}:${timestamp}:${ip}`);
+    const signature = await crypto.subtle.sign("HMAC", key, data);
+    return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // Native Next.js Server-Side SEO Generation at the Edge
-// PHASE 2 FIX: All post property accesses are null-guarded to prevent TypeError
 export async function generateMetadata({ params }: { params: any }) {
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend.treishvaamgroup.com';
+    const EDGE_SECRET = process.env.AEGIS_EDGE_SECRET || '';
 
     try {
         // Next.js 15 compat: resolve params as a promise to prevent undefined errors
@@ -72,12 +96,27 @@ export async function generateMetadata({ params }: { params: any }) {
             return { title: 'Article Not Found | Treishvaam Finance' };
         }
 
-        const res = await fetch(`${API_URL}/api/v1/posts/url/${resolvedParams.id}`, {
+        const canonicalUrl = `https://treishvaamfinance.com/category/${resolvedParams.categorySlug}/${resolvedParams.postSlug}/${resolvedParams.id}`;
+
+        const apiPath = `/api/v1/posts/url/${resolvedParams.id}`;
+        const timestamp = Date.now().toString();
+        const clientIp = '127.0.0.1'; // Internal SSR identifier (safe from L4-ADA tarpits)
+
+        let signature = '';
+        if (EDGE_SECRET) {
+            signature = await generateEdgeSignature(apiPath, timestamp, clientIp, EDGE_SECRET);
+        } else {
+            console.warn("[generateMetadata] AEGIS_EDGE_SECRET is missing. Metadata fetch may be blocked by backend.");
+        }
+
+        const res = await fetch(`${API_URL}${apiPath}`, {
             cache: 'no-store',
-            // BUG-FINANCE-01 FIX B: This server-side fetch runs at the Edge and bypasses the
-            // Cloudflare Worker entirely. X-Tenant-ID must be injected here explicitly so the
-            // backend TenantInterceptor resolves to "finance" instead of DEFAULT_TENANT="public".
-            headers: { 'X-Tenant-ID': 'finance' },
+            headers: {
+                'X-Tenant-ID': 'finance',
+                'X-Aegis-Client-IP': clientIp,
+                'X-Aegis-Edge-Timestamp': timestamp,
+                'X-Aegis-Edge-Signature': signature
+            },
         });
 
         if (!res.ok) {
@@ -102,9 +141,13 @@ export async function generateMetadata({ params }: { params: any }) {
             title,
             description,
             keywords,
+            alternates: {
+                canonical: canonicalUrl,
+            },
             openGraph: {
                 title: post?.title || 'Treishvaam Finance',
                 description,
+                url: canonicalUrl,
                 images: [coverImage],
                 type: 'article'
             },
