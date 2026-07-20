@@ -36,6 +36,9 @@
  * - EDITED (Silent SSO CSP Fix):
  * • Appended `silent-check-sso\\.html` to the middleware matcher exclusion regex.
  * • Why: The Keycloak silent SSO relies on a static HTML file executing an inline script to send a `postMessage`. Because it is static, it cannot receive the dynamic Next.js SSR nonce. The global CSP was blocking the script, throwing `CSP_BLOCK_OR_UNDEFINED`, and trapping the frontend in an unauthenticated loop. Exempting the file allows the iframe to process the OAuth callback while preserving strict CSP for the main React application.
+ * - EDITED (Cross-Origin Policy Relaxation):
+ * • Relaxed `Cross-Origin-Opener-Policy` to `same-origin-allow-popups` and removed `Cross-Origin-Resource-Policy`.
+ * • Why: The strict COOP/CORP headers were violently blocking the Keycloak OIDC silent-check-sso iframe from communicating with the frontend window across origins, trapping unauthenticated users in an infinite `CSP_BLOCK_OR_UNDEFINED` loop.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY must never be deleted, truncated, or regenerated.
@@ -80,8 +83,8 @@ export function middleware(request: NextRequest) {
     response.headers.set('Content-Security-Policy', cspDirectives);
 
     // Add the three missing Cross-Origin headers
-    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-    response.headers.set('Cross-Origin-Resource-Policy', 'same-site');
+    response.headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+    response.headers.delete('Cross-Origin-Resource-Policy');
     response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 
     return response;

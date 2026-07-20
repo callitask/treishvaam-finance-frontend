@@ -1,43 +1,42 @@
 /**
  * AI-CONTEXT:
- *
  * Purpose:
  * - Enterprise Edge Controller for Treishvaam Finance.
  * - Handles: Zero-Trust Security, Rich Result SEO Injection, KV-Backed Sitemap (Edge Replica).
  * - Serves as the L4-ADA (Active Deception Architecture) Edge Gateway.
- *
  * Scope:
  * - Intercepts all traffic to treishvaamfinance.com
  * - Manages routing between Static Frontend, Dynamic Backend, and KV Store.
  * - Enforces Global Crawler Matrix to protect digital footprints while dropping botnets.
- *
  * Critical Dependencies:
  * - Backend: via env.BACKEND_API_URL
  * - KV Namespace: TREISHFIN_SEO_CACHE
  * - KV Namespace: AEGIS_THREAT_KV (Phase 6.1)
- *
  * Security Constraints:
  * - Edge Signature uses HMAC-SHA-512 via `crypto.subtle`.
  * - SEO/AI Crawlers must explicitly bypass AEGIS threat evaluation to preserve indexability.
  * - Must never hardcode fallback URLs.
- *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED (Current Phase - 500 RSC Stream Fix):
- * • Wrapped the ENTIRE "SEO INTELLIGENCE" block in `if (!isRscRequest)`.
+ *   Wrapped the ENTIRE "SEO INTELLIGENCE" block in `if (!isRscRequest)`.
  * - EDITED (Batch 8 - Advanced GEO Cache Miss Handling):
- * • Enhanced `handleGeoFeedFromKV` to elegantly handle cache misses without blocking the thread.
+ *   Enhanced `handleGeoFeedFromKV` to elegantly handle cache misses without blocking the thread.
  * - EDITED (Post-Approval - Enterprise Cache & Cron Scaling):
- * • FIXED KV STORAGE HOLE: `handleDynamicSitemapFromKV` now asynchronously clones and writes backend responses to `TREISHFIN_SEO_CACHE` on cache misses.
+ *   FIXED KV STORAGE HOLE: `handleDynamicSitemapFromKV` now asynchronously clones and writes backend responses to `TREISHFIN_SEO_CACHE` on cache misses.
  * - EDITED (Post-Approval - GSC Inspection Fix Phase 2):
- * • ADDED Edge User-Agent Normalization: `Google-InspectionTool` is now instantly aliased to `Googlebot`.
+ *   ADDED Edge User-Agent Normalization: `Google-InspectionTool` is now instantly aliased to `Googlebot`.
  * - EDITED (Post-Approval - Edge Body Sanitization):
- * • Enforced `body: null` for all GET/HEAD request clones inside `baseEnhancedRequest`, `proxyReq`, and KV-fetch fallbacks. 
+ *   Enforced `body: null` for all GET/HEAD request clones inside `baseEnhancedRequest`, `proxyReq`, and KV-fetch fallbacks. 
  * - EDITED (Post-Approval - Edge SEO Split-Tagging & API Leak Prevention):
- * • Injected `X-Robots-Tag: noindex, noarchive` into all `/api/` responses via `addSecurityHeaders`.
- * • Why: Allows Googlebot to fetch JSON to render the React DOM (resolving 499 Client Closed Errors) without leaking raw backend JSON into Google Search Results. Protects Enterprise Knowledge Graph sovereignty.
+ *   Injected `X-Robots-Tag: noindex, noarchive` into all `/api/` responses via `addSecurityHeaders`.
+ *   Why: Allows Googlebot to fetch JSON to render the React DOM (resolving 499 Client Closed Errors) without leaking raw backend JSON into Google Search Results. Protects Enterprise Knowledge Graph sovereignty.
  * - EDITED (MTD Prefix Fix):
- * • Replaced exact string match lookup for `mtdManifest` with a `.startsWith()` prefix matching iteration, addressing the post-login infinite deception loop.
- *
+ *   Replaced exact string match lookup for `mtdManifest` with a `.startsWith()` prefix matching iteration, addressing the post-login infinite deception loop.
+ * - EDITED (MTD Spring Security & Edge Signature Fix):
+ * • Injected `isPublicExempt` to bypass MTD obfuscation for public APIs (`/analytics/`, `/posts/`, `/market/`). Why: MTD was translating public endpoints (like Faro analytics) into obfuscated paths which Spring Security rejected with 401 Unauthorized, breaking telemetry.
+ * • Removed MTD translation from the Article SSR fetch. Why: It caused the backend to return 401, blocking the `__PRELOADED_STATE__` injection and causing a fatal Next.js hydration crash (`Cannot read properties of undefined (reading 'id')`).
+ * • Stripped query strings (`.split('?')[0]`) from `apiPath` before calling `generateEdgeSignature` in the Market Widget block. Why: The backend `AegisEdgeValidationFilter` evaluates the URI without query parameters, causing a mathematical signature mismatch and throwing a 403 Forbidden.
+ * • Relaxed COOP/CORP headers in `addSecurityHeaders` to mirror `middleware.ts` and cure the Keycloak iframe communication lock.
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -115,7 +114,6 @@ export default {
                 const BATCH_SIZE = 10;
                 for (let i = 0; i < filesToUpdate.length; i += BATCH_SIZE) {
                     const batch = filesToUpdate.slice(i, i + BATCH_SIZE);
-
                     const fetchPromises = batch.map(async (file) => {
                         try {
                             const apiPath = file.path.replace('/sitemap-dynamic/', '/api/public/sitemap/');
@@ -138,7 +136,6 @@ export default {
                             }
                         } catch (e) { console.error(`Failed to update ${file.key}`); }
                     });
-
                     await Promise.allSettled(fetchPromises);
                 }
             }
@@ -169,7 +166,6 @@ export default {
         }
 
         let userAgent = request.headers.get("User-Agent") || "";
-
         // Edge User-Agent Normalization: Bypass native backend anomalies for Google Live Test
         if (userAgent.includes("Google-InspectionTool")) {
             userAgent = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
@@ -185,7 +181,6 @@ export default {
 
         try {
             const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
-
             const mtdManifestStr = await threatKv.get("aegis:mtd:manifest");
             if (mtdManifestStr) {
                 mtdManifest = JSON.parse(mtdManifestStr);
@@ -207,9 +202,12 @@ export default {
         } catch (e) { }
 
         if (targetPath.startsWith("/api")) {
+            // Bypass MTD Translation for Public API endpoints to prevent Spring Security 401 Rejections
+            const isPublicExempt = targetPath.includes("/analytics/") || targetPath.includes("/posts/") || targetPath.includes("/market/") || targetPath.includes("/categories");
+
             if (isTarpit) {
                 targetPath = "/api/v1/aegis/tarpit/trap";
-            } else if (mtdManifest && mtdManifest.paths) {
+            } else if (mtdManifest && mtdManifest.paths && !isPublicExempt) {
                 // FIXED: Use prefix matching to translate paths accurately
                 for (const canonical of Object.keys(mtdManifest.paths)) {
                     if (targetPath.startsWith(canonical)) {
@@ -219,7 +217,6 @@ export default {
                 }
             }
         }
-
         url.pathname = targetPath;
 
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
@@ -234,7 +231,6 @@ export default {
 
         const cf = request.cf || {};
         const enhancedHeaders = new Headers(request.headers);
-
         enhancedHeaders.set("User-Agent", userAgent);
         enhancedHeaders.set("X-Visitor-City", cf.city || "Unknown");
         enhancedHeaders.set("X-Visitor-Country", cf.country || "Unknown");
@@ -250,7 +246,6 @@ export default {
         }
 
         const isGetOrHead = request.method === 'GET' || request.method === 'HEAD';
-
         const baseEnhancedRequest = new Request(request.url, {
             headers: enhancedHeaders,
             method: request.method,
@@ -258,7 +253,7 @@ export default {
             redirect: request.redirect
         });
 
-        // 🚀 THE FIX: EDGE SEO SPLIT-TAGGING
+        //   THE FIX: EDGE SEO SPLIT-TAGGING
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
@@ -267,8 +262,8 @@ export default {
             newHeaders.set("X-XSS-Protection", "1; mode=block");
             newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
-            newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
-            newHeaders.set("Cross-Origin-Resource-Policy", "same-site");
+            newHeaders.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+            newHeaders.delete("Cross-Origin-Resource-Policy");
             newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
             newHeaders.delete("Content-Security-Policy-Report-Only");
 
@@ -277,11 +272,9 @@ export default {
             if (url.pathname.startsWith("/api")) {
                 newHeaders.set("X-Robots-Tag", "noindex, noarchive");
             }
-
             if (isAiBot) {
                 newHeaders.set("X-GEO-Bot-Detected", "true");
             }
-
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
                 return new Response(response.body, { status: 200, headers: newHeaders });
             }
@@ -296,11 +289,9 @@ export default {
         // =================================================================================
         // GEO (Generative Engine Optimization) & SITEMAP CACHING HANDLERS
         // =================================================================================
-
         if (isAiBot && request.method === "GET") {
             const isAsset = url.pathname.match(/\.(css|js|jpg|jpeg|png|gif|webp|ico|woff|woff2|ttf|eot|svg|xml|json)$/i);
             const isApi = url.pathname.startsWith("/api");
-
             if (!isAsset && !isApi && url.pathname !== '/llms.txt' && url.pathname !== '/ontology.json') {
                 const geoUrl = new URL('/ai-feed.md', request.url);
                 const geoResponse = await handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL, clientIp);
@@ -343,6 +334,7 @@ export default {
                     const cache = caches.default;
                     const cacheKey = new Request(url.toString(), request);
                     const cachedResponse = await cache.match(cacheKey);
+
                     if (cachedResponse) return addSecurityHeaders(new Response(cachedResponse.body, cachedResponse));
 
                     const apiResp = await fetch(proxyReq);
@@ -358,7 +350,6 @@ export default {
                 // Fetch the API and append X-Robots-Tag: noindex via addSecurityHeaders
                 const apiResponse = await fetch(proxyReq);
                 return addSecurityHeaders(apiResponse);
-
             } catch (e) {
                 return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } });
             }
@@ -375,8 +366,8 @@ export default {
 
         let response;
         const isRscRequest = request.headers.get("RSC") === "1" || request.headers.has("Next-Router-Prefetch") || request.headers.has("Next-Url") || request.headers.get("Accept")?.includes("text/x-component");
-        const cacheUrl = new URL(request.url);
 
+        const cacheUrl = new URL(request.url);
         if (isRscRequest) {
             cacheUrl.searchParams.set("_rsc_cache", "1");
         }
@@ -421,12 +412,10 @@ export default {
         // =================================================================================
         // 6. SEO INTELLIGENCE & EDGE HYDRATION
         // =================================================================================
-
         if (!isRscRequest) {
             if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
                 const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
                 const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis.";
-
                 const websiteSchema = { "@context": "https://schema.org", "@type": "WebSite", "name": "Treishvaam Finance", "url": FRONTEND_URL + "/" };
 
                 const rewritten = new HTMLRewriter()
@@ -440,13 +429,12 @@ export default {
                         }
                     })
                     .transform(response);
-
                 return addSecurityHeaders(rewritten);
             }
 
             const staticPages = {
                 "/about": { title: "About Us | Treishvaam Finance", description: "Learn about Treishvaam Finance." },
-                "/vision": { title: "Treishvaam Finance · Our Vision", description: "Philosophy driving Treishvaam." }
+                "/vision": { title: "Treishvaam Finance   Our Vision", description: "Philosophy driving Treishvaam." }
             };
 
             if (staticPages[url.pathname]) {
@@ -467,20 +455,9 @@ export default {
             if (url.pathname.includes("/category/")) {
                 const parts = url.pathname.split("/");
                 const articleId = parts[parts.length - 1];
-
                 if (!articleId) return addSecurityHeaders(response);
-
                 try {
                     let apiPath = `/api/v1/posts/url/${articleId}`;
-                    if (mtdManifest && mtdManifest.paths) {
-                        for (const canonical of Object.keys(mtdManifest.paths)) {
-                            if (apiPath.startsWith(canonical)) {
-                                apiPath = apiPath.replace(canonical, mtdManifest.paths[canonical]);
-                                break;
-                            }
-                        }
-                    }
-
                     const apiTimestamp = Date.now().toString();
                     const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
@@ -490,8 +467,8 @@ export default {
 
                     const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
-                    const post = await apiResp.json();
 
+                    const post = await apiResp.json();
                     const rewritten = new HTMLRewriter()
                         .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
                         .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
@@ -510,11 +487,13 @@ export default {
             if (url.pathname.startsWith("/market/")) {
                 const rawTicker = url.pathname.split("/market/")[1];
                 if (!rawTicker) return addSecurityHeaders(response);
-
                 try {
                     let apiPath = `/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`;
                     const apiTimestamp = Date.now().toString();
-                    const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+                    // FIXED: Strip query string for Edge Signature to match backend getRequestURI()
+                    const signPath = apiPath.split('?')[0];
+                    const apiSignature = await generateEdgeSignature(signPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
                     const ssrHeaders = new Headers(enhancedHeaders);
                     ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
@@ -522,8 +501,8 @@ export default {
 
                     const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
-                    const marketData = await apiResp.json();
 
+                    const marketData = await apiResp.json();
                     if (!marketData.quoteData) return addSecurityHeaders(response);
 
                     const rewritten = new HTMLRewriter()
@@ -543,12 +522,11 @@ export default {
 
         return addSecurityHeaders(response);
     }
-};
+}
 
 async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
-
     let cachedResponse = await cache.match(cacheRequest);
     if (cachedResponse) return new Response(cachedResponse.body, cachedResponse);
 
@@ -576,7 +554,6 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
         newHeaders.set("X-Aegis-Client-IP", clientIp);
 
         const isGetOrHead = request.method === "GET" || request.method === "HEAD";
-
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
             headers: newHeaders,
@@ -587,11 +564,9 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("Content-Type", contentType);
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
-
             const cloneForKv = newResp.clone();
             ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
-
             return newResp;
         }
     } catch (e) { }
@@ -602,7 +577,6 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
 async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, clientIp) {
     const cache = caches.default;
     const cacheRequest = new Request(request.url, request);
-
     let cachedResponse = await cache.match(cacheRequest);
     if (cachedResponse) return new Response(cachedResponse.body, cachedResponse);
 
@@ -626,7 +600,6 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
         newHeaders.set("X-Aegis-Client-IP", clientIp);
 
         const isGetOrHead = request.method === "GET" || request.method === "HEAD";
-
         const backendResp = await fetch(new Request(`${backendUrl}${apiPath}`, {
             method: request.method,
             headers: newHeaders,
@@ -637,11 +610,9 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
-
             const cloneForKv = newResp.clone();
             ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
-
             return newResp;
         }
     } catch (e) { }
