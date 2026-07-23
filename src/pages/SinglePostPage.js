@@ -30,6 +30,11 @@
  * • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
  * - EDITED (HOTFIX - HYDRATION CRASH BATCH 3):
  * • Created strict `validHeadings` filter inside render cycle to strip ghost elements.
+ * - EDITED (Hotfix - Hydration & Rendering Hardening):
+ * • Replaced unsafe `typeof window` eval with strict post-mount `clientUrl` state to definitively eliminate Server/Client hydration mismatches.
+ * • Added `Array.isArray(post.tags)` guard to prevent fatal `TypeError: .map is not a function` exceptions if the API payload flattens the array.
+ * • Wrapped `new Date()` instantiation in `!isNaN` validation to prevent fatal `RangeError: Invalid time value` client-side crashes on malformed timestamps.
+ * • Synchronized property mapping (`coverImageUrl`, `author`) to explicitly match the Java `BlogPost.java` DTO structure.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -56,7 +61,15 @@ const SinglePostPage = () => {
     const [activeId, setActiveId] = useState('');
     const [progress, setProgress] = useState(0);
 
+    const [clientUrl, setClientUrl] = useState('');
+
     const articleRef = useRef(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setClientUrl(window.location.href);
+        }
+    }, []);
 
     useEffect(() => {
         if (!id) return;
@@ -120,7 +133,6 @@ const SinglePostPage = () => {
         return headings;
     }, [post]);
 
-    // BATCH 3 FIX: Strictly typed array filter. Drops any ghosts before iteration.
     const validHeadings = useMemo(() => {
         if (!extractedHeadings || !Array.isArray(extractedHeadings)) return [];
         return extractedHeadings.filter(h => h && typeof h === 'object' && typeof h.id === 'string' && h.id.trim() !== '');
@@ -186,18 +198,24 @@ const SinglePostPage = () => {
 
     const categoryName = post?.category?.name || 'Uncategorized';
     const categorySlug = post?.category?.slug || 'general';
-    const authorName = post?.authorName || 'Treishvaam Editorial';
-    const publishDate = post?.createdAt
-        ? new Date(post.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-        : 'N/A';
+    const authorName = post?.author || post?.authorName || 'Treishvaam Editorial';
 
-    const postUrl = typeof window !== 'undefined'
-        ? window.location.href
-        : `https://treishvaamfinance.com/category/${categorySlug}/${post?.userFriendlySlug}/${post?.urlArticleId}`;
+    let publishDate = 'N/A';
+    if (post?.createdAt) {
+        const d = new Date(post.createdAt);
+        if (!isNaN(d.getTime())) {
+            publishDate = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+    }
 
-    const coverImageUrl = post?.thumbnailUrl
-        ? `${API_URL}/api/v1/files/download/${post.thumbnailUrl}`
+    const postUrl = clientUrl || `https://treishvaamfinance.com/category/${categorySlug}/${post?.userFriendlySlug}/${post?.urlArticleId}`;
+
+    const activeImage = post?.coverImageUrl || post?.thumbnailUrl;
+    const coverImageUrl = activeImage
+        ? `${API_URL}/api/v1/files/download/${activeImage}`
         : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
+
+    const imageAltText = post?.coverImageAltText || post?.thumbnailAltText || post?.title || 'Article cover image';
 
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
@@ -249,16 +267,16 @@ const SinglePostPage = () => {
                             </div>
                         </header>
 
-                        {post?.thumbnailUrl && (
+                        {activeImage && (
                             <figure className="mb-10">
                                 <img
                                     src={coverImageUrl}
-                                    alt={post?.thumbnailAltText || post?.title || 'Article cover image'}
+                                    alt={imageAltText}
                                     className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800"
                                 />
-                                {post?.thumbnailAltText && (
+                                {imageAltText && imageAltText !== post.title && imageAltText !== 'Article cover image' && (
                                     <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
-                                        {post.thumbnailAltText}
+                                        {imageAltText}
                                     </figcaption>
                                 )}
                             </figure>
@@ -269,7 +287,7 @@ const SinglePostPage = () => {
                             dangerouslySetInnerHTML={{ __html: post?.content || '' }}
                         />
 
-                        {post?.tags && post.tags.length > 0 && (
+                        {Array.isArray(post?.tags) && post.tags.length > 0 && (
                             <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
                                     <Tag className="w-4 h-4 mr-2" /> Topics
