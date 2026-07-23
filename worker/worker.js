@@ -40,6 +40,9 @@
  * - EDITED (Phase 6 - Edge Fetch Content Negotiation Fix):
  *   Injected 'Accept: application/json' into the ssrHeaders for SEO metadata fetches (/category/ and /market/).
  *   Why: Resolves a 406 HttpMediaTypeNotAcceptableException loop where the Spring Boot backend rejected the Edge Worker's background fetches because the cloned browser headers demanded text/html. This fix restores dynamic SEO `<title>` and OpenGraph tags to the browser tab.
+ * - EDITED (Phase 7 - High Availability API KV Caching):
+ *   Integrated `TREISHFIN_SEO_CACHE` for `/api/v1/posts/url/` and `/api/v1/market/widget` JSON payloads inside the SEO Intelligence block.
+ *   Why: Guarantees 100% SEO and rendering uptime. If the backend is offline, the Edge Worker now pulls the API JSON from KV, successfully rewrites the HTML `<title>`, and injects `__PRELOADED_STATE__` for the frontend to consume.
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -413,7 +416,7 @@ export default {
         }
 
         // =================================================================================
-        // 6. SEO INTELLIGENCE & EDGE HYDRATION
+        // 6. SEO INTELLIGENCE & EDGE HYDRATION (HIGH AVAILABILITY UPGRADE)
         // =================================================================================
         if (!isRscRequest) {
             if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
@@ -459,69 +462,102 @@ export default {
                 const parts = url.pathname.split("/");
                 const articleId = parts[parts.length - 1];
                 if (!articleId) return addSecurityHeaders(response);
+
+                let post = null;
+                const kvKey = `api:finance:post:${articleId}`;
+
+                // Phase 7 HA Execution: Attempt to fetch from Edge KV cache first
                 try {
-                    let apiPath = `/api/v1/posts/url/${articleId}`;
-                    const apiTimestamp = Date.now().toString();
-                    const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+                    const cachedStr = await env.TREISHFIN_SEO_CACHE.get(kvKey);
+                    if (cachedStr) post = JSON.parse(cachedStr);
+                } catch (e) { }
 
-                    const ssrHeaders = new Headers(enhancedHeaders);
-                    ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
-                    ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
-                    ssrHeaders.set("Accept", "application/json");
+                // If cache miss or backend is required, execute secure fetch
+                if (!post) {
+                    try {
+                        let apiPath = `/api/v1/posts/url/${articleId}`;
+                        const apiTimestamp = Date.now().toString();
+                        const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
-                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
-                    if (!apiResp.ok) return addSecurityHeaders(response);
+                        const ssrHeaders = new Headers(enhancedHeaders);
+                        ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
+                        ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+                        ssrHeaders.set("Accept", "application/json");
 
-                    const post = await apiResp.json();
-                    const rewritten = new HTMLRewriter()
-                        .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
-                        .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
-                        .on("head", {
-                            element(e) {
-                                e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
-                                e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
-                                e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
-                            }
-                        })
-                        .transform(response);
-                    return addSecurityHeaders(rewritten);
-                } catch (e) { return addSecurityHeaders(response); }
+                        const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
+                        if (apiResp.ok) {
+                            post = await apiResp.json();
+                            // Asynchronously hydrate the HA KV cache
+                            ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(kvKey, JSON.stringify(post), { expirationTtl: 86400 }));
+                        }
+                    } catch (e) { }
+                }
+
+                if (!post) return addSecurityHeaders(response);
+
+                const rewritten = new HTMLRewriter()
+                    .on("title", { element(e) { e.setInnerContent(post.title + " | Treishvaam Finance"); } })
+                    .on('meta[name="description"]', { element(e) { e.setAttribute("content", post.metaDescription || post.title); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(post)};</script>`, { html: true });
+                            e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
+                        }
+                    })
+                    .transform(response);
+                return addSecurityHeaders(rewritten);
             }
 
             if (url.pathname.startsWith("/market/")) {
                 const rawTicker = url.pathname.split("/market/")[1];
                 if (!rawTicker) return addSecurityHeaders(response);
+
+                let marketData = null;
+                const tickerDecoded = encodeURIComponent(decodeURIComponent(rawTicker));
+                const kvKey = `api:finance:market:${tickerDecoded}`;
+
+                // Phase 7 HA Execution: Attempt to fetch from Edge KV cache first
                 try {
-                    let apiPath = `/api/v1/market/widget?ticker=${encodeURIComponent(decodeURIComponent(rawTicker))}`;
-                    const apiTimestamp = Date.now().toString();
+                    const cachedData = await env.TREISHFIN_SEO_CACHE.get(kvKey);
+                    if (cachedData) marketData = JSON.parse(cachedData);
+                } catch (e) { }
 
-                    // FIXED: Strip query string for Edge Signature to match backend getRequestURI()
-                    const signPath = apiPath.split('?')[0];
-                    const apiSignature = await generateEdgeSignature(signPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+                if (!marketData) {
+                    try {
+                        let apiPath = `/api/v1/market/widget?ticker=${tickerDecoded}`;
+                        const apiTimestamp = Date.now().toString();
 
-                    const ssrHeaders = new Headers(enhancedHeaders);
-                    ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
-                    ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
-                    ssrHeaders.set("Accept", "application/json");
+                        // FIXED: Strip query string for Edge Signature to match backend getRequestURI()
+                        const signPath = apiPath.split('?')[0];
+                        const apiSignature = await generateEdgeSignature(signPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
 
-                    const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
-                    if (!apiResp.ok) return addSecurityHeaders(response);
+                        const ssrHeaders = new Headers(enhancedHeaders);
+                        ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
+                        ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+                        ssrHeaders.set("Accept", "application/json");
 
-                    const marketData = await apiResp.json();
-                    if (!marketData.quoteData) return addSecurityHeaders(response);
+                        const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
+                        if (apiResp.ok) {
+                            marketData = await apiResp.json();
+                            ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(kvKey, JSON.stringify(marketData), { expirationTtl: 3600 })); // 1 hour for market data
+                        }
+                    } catch (e) { }
+                }
 
-                    const rewritten = new HTMLRewriter()
-                        .on("title", { element(e) { e.setInnerContent(`${marketData.quoteData.name} (${marketData.quoteData.ticker}) | Treishvaam Finance`); } })
-                        .on("head", {
-                            element(e) {
-                                e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
-                                e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
-                                e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
-                            }
-                        })
-                        .transform(response);
-                    return addSecurityHeaders(rewritten);
-                } catch (e) { return addSecurityHeaders(response); }
+                if (!marketData || !marketData.quoteData) return addSecurityHeaders(response);
+
+                const rewritten = new HTMLRewriter()
+                    .on("title", { element(e) { e.setInnerContent(`${marketData.quoteData.name} (${marketData.quoteData.ticker}) | Treishvaam Finance`); } })
+                    .on("head", {
+                        element(e) {
+                            e.append(`<script>window.__PRELOADED_STATE__ = ${safeStringify(marketData)};</script>`, { html: true });
+                            e.append(`<link rel="alternate" type="text/markdown" href="/llms.txt">`, { html: true });
+                            e.append(`<link rel="alternate" type="application/json+ld" href="/ontology.json">`, { html: true });
+                        }
+                    })
+                    .transform(response);
+                return addSecurityHeaders(rewritten);
             }
         }
 

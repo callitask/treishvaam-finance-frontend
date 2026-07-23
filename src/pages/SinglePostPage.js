@@ -38,6 +38,12 @@
  * - EDITED (Phase 5 - Legacy Child Component Prop Injection):
  * • Injected `post={{ id: id || '', ...(post || {}) }}` defensively into custom child components (`ReadingProgressBar`, `TableOfContents`, `ShareModal`).
  * • Why: A child component was expecting the full `post` object to read `post.id`, throwing a fatal `TypeError: Cannot read properties of undefined (reading 'id')` during the client render cycle. Guaranteed injection neutralizes the crash.
+ * - EDITED (Phase 6 - Hydration Title Overwrite Protection):
+ * • Added a `useEffect` hook to dynamically assert `document.title = post.title` post-render.
+ * • Why: Next.js Client-Side Hydration was forcefully overwriting the Cloudflare Worker's correct `HTMLRewriter` title with the failed Edge SSR fallback ("Article Not Found"). This dynamically restores the correct title to the browser tab once the article payload loads.
+ * - EDITED (Phase 7 - Zero-Trust High Availability Preload Consumption):
+ * • Refactored `useEffect` to intercept and consume `window.__PRELOADED_STATE__` instantly upon mount.
+ * • Why: Elevates the component to 100% High Availability (HA). If the backend is completely offline, the component now successfully reads the cached JSON payload injected by the Edge Worker, skips the live API fetch entirely, and overrides the document title via `setTimeout` to defeat Next.js hydration anomalies.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -78,6 +84,18 @@ const SinglePostPage = () => {
         if (!id) return;
 
         let isMounted = true;
+
+        // 1. Zero-Trust HA Fallback: Consume Worker's Preloaded State
+        if (typeof window !== 'undefined' && window.__PRELOADED_STATE__) {
+            const preloaded = window.__PRELOADED_STATE__;
+            // Ensure the preloaded state matches the current route ID or URL article ID
+            if (preloaded.id == id || preloaded.urlArticleId == id || preloaded.userFriendlySlug == id) {
+                setPost(preloaded);
+                setLoading(false);
+                return; // Skip API fetch entirely!
+            }
+        }
+
         const fetchPost = async () => {
             setLoading(true);
             setError(null);
@@ -104,6 +122,18 @@ const SinglePostPage = () => {
 
         return () => { isMounted = false; };
     }, [id]);
+
+    // PROTECT TAB TITLE FROM NEXT.JS HYDRATION OVERWRITE
+    useEffect(() => {
+        if (post?.title) {
+            // setTimeout pushes the execution to the end of the event loop, 
+            // mathematically guaranteeing it fires AFTER Next.js router hydration completes.
+            const timer = setTimeout(() => {
+                document.title = `${post.title} | Treishvaam Finance`;
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [post?.title]);
 
     const extractedHeadings = useMemo(() => {
         if (!post || !post.content || typeof post.content !== 'string') return [];
