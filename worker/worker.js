@@ -37,6 +37,9 @@
  * • Removed MTD translation from the Article SSR fetch. Why: It caused the backend to return 401, blocking the `__PRELOADED_STATE__` injection and causing a fatal Next.js hydration crash (`Cannot read properties of undefined (reading 'id')`).
  * • Stripped query strings (`.split('?')[0]`) from `apiPath` before calling `generateEdgeSignature` in the Market Widget block. Why: The backend `AegisEdgeValidationFilter` evaluates the URI without query parameters, causing a mathematical signature mismatch and throwing a 403 Forbidden.
  * • Relaxed COOP/CORP headers in `addSecurityHeaders` to mirror `middleware.ts` and cure the Keycloak iframe communication lock.
+ * - EDITED (Phase 6 - Edge Fetch Content Negotiation Fix):
+ *   Injected 'Accept: application/json' into the ssrHeaders for SEO metadata fetches (/category/ and /market/).
+ *   Why: Resolves a 406 HttpMediaTypeNotAcceptableException loop where the Spring Boot backend rejected the Edge Worker's background fetches because the cloned browser headers demanded text/html. This fix restores dynamic SEO `<title>` and OpenGraph tags to the browser tab.
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -464,6 +467,7 @@ export default {
                     const ssrHeaders = new Headers(enhancedHeaders);
                     ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
                     ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+                    ssrHeaders.set("Accept", "application/json");
 
                     const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
@@ -498,6 +502,7 @@ export default {
                     const ssrHeaders = new Headers(enhancedHeaders);
                     ssrHeaders.set("X-Aegis-Edge-Signature", apiSignature);
                     ssrHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+                    ssrHeaders.set("Accept", "application/json");
 
                     const apiResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: ssrHeaders });
                     if (!apiResp.ok) return addSecurityHeaders(response);
