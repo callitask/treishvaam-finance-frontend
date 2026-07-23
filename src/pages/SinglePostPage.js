@@ -35,6 +35,9 @@
  * • Added `Array.isArray(post.tags)` guard to prevent fatal `TypeError: .map is not a function` exceptions if the API payload flattens the array.
  * • Wrapped `new Date()` instantiation in `!isNaN` validation to prevent fatal `RangeError: Invalid time value` client-side crashes on malformed timestamps.
  * • Synchronized property mapping (`coverImageUrl`, `author`) to explicitly match the Java `BlogPost.java` DTO structure.
+ * - EDITED (Phase 5 - Legacy Child Component Prop Injection):
+ * • Injected `post={{ id: id || '', ...(post || {}) }}` defensively into custom child components (`ReadingProgressBar`, `TableOfContents`, `ShareModal`).
+ * • Why: A child component was expecting the full `post` object to read `post.id`, throwing a fatal `TypeError: Cannot read properties of undefined (reading 'id')` during the client render cycle. Guaranteed injection neutralizes the crash.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -217,10 +220,18 @@ const SinglePostPage = () => {
 
     const imageAltText = post?.coverImageAltText || post?.thumbnailAltText || post?.title || 'Article cover image';
 
+    // Construct a defenisve post object to pass downwards ensuring 'id' always exists
+    const defensivePostProp = { id: id || '', ...(post || {}) };
+
     return (
         <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
             {validHeadings.length > 0 && (
-                <ReadingProgressBar headings={validHeadings} activeId={activeId} progress={progress} />
+                <ReadingProgressBar
+                    post={defensivePostProp}
+                    headings={validHeadings}
+                    activeId={activeId}
+                    progress={progress}
+                />
             )}
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
@@ -309,7 +320,12 @@ const SinglePostPage = () => {
                     <aside className="w-full lg:w-[30%]">
                         <div className="sticky top-24 space-y-8">
                             {validHeadings.length > 0 && (
-                                <TableOfContents headings={validHeadings} activeId={activeId} progress={progress} />
+                                <TableOfContents
+                                    post={defensivePostProp}
+                                    headings={validHeadings}
+                                    activeId={activeId}
+                                    progress={progress}
+                                />
                             )}
                             <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
                                 <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
@@ -339,6 +355,7 @@ const SinglePostPage = () => {
             </main>
 
             <ShareModal
+                post={defensivePostProp}
                 isOpen={isShareModalOpen}
                 onClose={() => setIsShareModalOpen(false)}
                 url={postUrl}
