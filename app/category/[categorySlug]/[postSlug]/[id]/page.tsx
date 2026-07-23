@@ -59,6 +59,9 @@
  *     Aegis filter returned 403 Forbidden, triggering a blind fallback to "Article Not Found".
  *   • Added Next.js `alternates: { canonical }` and mirrored the explicit canonical URL in OpenGraph metadata.
  *   • Why: Resolves Google Search Console (GSC) duplicate/unindexed URL anomalies to enforce strict GEO/AIEO standards.
+ * - EDITED (Phase 6 - Strict Content Negotiation Fix):
+ *   • Injected `'Accept': 'application/json'` into the `generateMetadata` fetch headers.
+ *   • Why: Spring Boot 3 enforces strict content negotiation. Without this header, the backend rejected the Edge SSR fetch with a `406 HttpMediaTypeNotAcceptableException`. Next.js interpreted the failure as a missing article and silently fell back to rendering "Article Not Found" in the `<title>` tag and SEO metadata.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
@@ -112,6 +115,7 @@ export async function generateMetadata({ params }: { params: any }) {
         const res = await fetch(`${API_URL}${apiPath}`, {
             cache: 'no-store',
             headers: {
+                'Accept': 'application/json',
                 'X-Tenant-ID': 'finance',
                 'X-Aegis-Client-IP': clientIp,
                 'X-Aegis-Edge-Timestamp': timestamp,
