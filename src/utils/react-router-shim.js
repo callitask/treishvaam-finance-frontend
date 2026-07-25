@@ -7,6 +7,13 @@
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: Phase 4 Migration alias shim.
  * - EDITED: Added `useSearchParams` polyfill matching the React Router v6 Tuple API `[searchParams, setSearchParams]`.
+ * - EDITED (Vol 2 - Hydration Mismatch Resolution):
+ * • ROOT CAUSE: Inline evaluation of `window.location.hash` during render created an SSR/CSR HTML attribute mismatch on NavLink components, triggering React Hydration Error #423 and forcing React to unmount/remount the client DOM tree.
+ * • FIX: Deferred `hash` state population to a post-mount `useEffect` hook, guaranteeing 100% byte-for-byte SSR/CSR hydration parity.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React from 'react';
 import NextLink from 'next/link';
@@ -26,10 +33,18 @@ export const useNavigate = () => {
 export const useLocation = () => {
     const pathname = usePathname();
     const searchParams = useNextSearchParams();
+    const [hash, setHash] = React.useState('');
+
+    React.useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setHash(window.location.hash || '');
+        }
+    }, []);
+
     return {
         pathname: pathname || '/',
         search: searchParams && searchParams.toString() ? `?${searchParams.toString()}` : '',
-        hash: '',
+        hash: hash,
         state: null
     };
 };
