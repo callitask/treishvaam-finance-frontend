@@ -60,6 +60,10 @@
  * - EDITED (Next.js Hash Normalization Fix):
  * • Changed `responseMode` from `fragment` to `query`.
  * • Why: Next.js 14 App Router aggressively normalizes URLs and strips hash fragments (`#state=...&code=...`) before the component mounts. By forcing Keycloak to use the query string (`?state=...&code=...`), we bypass Next.js hash stripping, allowing the OIDC code exchange to complete successfully and permanently resolving the login redirect loop.
+ * - EDITED (Phase 5 - Eager Redirect Race Condition Fix):
+ * • Changed initial state from `const [loading, setLoading] = useState(false)` to `useState(true)`.
+ * • Why: When a user returned from Keycloak to a protected route (like `/dashboard`), `PrivateRoute` evaluated the auth state instantaneously. Because `loading` defaulted to `false` and the user wasn't authenticated yet (Keycloak was still fetching the token), `PrivateRoute` eagerly redirected to `/login`. This client-side navigation aborted Keycloak's active OAuth code-exchange fetch, resulting in a fatal `TypeError: Failed to fetch` and locking the user out. Setting `loading: true` mathematically guarantees `PrivateRoute` waits for the Keycloak initialization sequence to complete.
+ * • Added `setLoading(false)` to the bot/crawler detection block to prevent bots from stalling indefinitely.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -75,7 +79,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // FIX: Initialize to true to shield the Keycloak init window from eager redirects
+  const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
   const [fatalError, setFatalError] = useState(false);
 
@@ -102,10 +107,9 @@ export const AuthProvider = ({ children }) => {
 
     if (isBot) {
       console.log("[Auth] Bot/Crawler detected. Skipping Keycloak initialization for SEO.");
+      setLoading(false); // Unblock rendering for bots
       return;
     }
-
-    setLoading(true);
 
     const snapshotHref = window.location.href;
     const snapshotHash = window.location.hash;
