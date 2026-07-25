@@ -66,7 +66,10 @@
  * • Added `setLoading(false)` to the bot/crawler detection block to prevent bots from stalling indefinitely.
  * - EDITED (Vol 2 - Infinite Login Loop Resolution):
  * • ROOT CAUSE: Keycloak JS adapter completes the token exchange but rejects the initialization promise because `onLoad: 'check-sso'` was missing during the `isLoginCallback` flow.
- * • FIX: Enforced `initOptions.onLoad = 'check-sso'` inside the `isLoginCallback` evaluation block to guarantee promise resolution and permanently terminate the redirect loop.
+ * • FIX: Enforced `initOptions.onLoad = 'check-sso'` inside the `isLoginCallback` evaluation block to guarantee promise resolution.
+ * - EDITED (Vol 3 - Issuer Mismatch / Loop Resolution):
+ * • ROOT CAUSE: Keycloak 23+ validates the `iss` query parameter against `authUrl + '/realms/' + realm`. If `NEXT_PUBLIC_AUTH_URL` contains a trailing slash, the string mismatch causes the adapter to instantly reject the token.
+ * • FIX: Applied `.replace(/\/+$/, '')` to `authUrl` prior to Keycloak instantiation to mathematically guarantee OAuth issuer string matching.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -142,13 +145,16 @@ export const AuthProvider = ({ children }) => {
 
     console.log("[Auth] Init Started");
 
-    const authUrl = process.env.NEXT_PUBLIC_AUTH_URL;
+    const authUrlRaw = process.env.NEXT_PUBLIC_AUTH_URL;
 
-    if (!authUrl) {
+    if (!authUrlRaw) {
       console.error("[Auth] FATAL: NEXT_PUBLIC_AUTH_URL is missing. Halting to enforce zero-trust.");
       setLoading(false);
       return;
     }
+
+    // FIX: Guarantee strict issuer string matching against Keycloak 23+ expectations
+    const authUrl = authUrlRaw.replace(/\/+$/, '');
 
     const initKeycloak = new Keycloak({
       url: authUrl,
