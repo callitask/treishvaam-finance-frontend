@@ -70,12 +70,15 @@
  * - EDITED (Vol 3 - Issuer Mismatch / Loop Resolution):
  * • ROOT CAUSE: Keycloak 23+ validates the `iss` query parameter against `authUrl + '/realms/' + realm`. If `NEXT_PUBLIC_AUTH_URL` contains a trailing slash, the string mismatch causes the adapter to instantly reject the token.
  * • FIX: Applied `.replace(/\/+$/, '')` to `authUrl` prior to Keycloak instantiation to mathematically guarantee OAuth issuer string matching.
+ * - EDITED (Vol 4 - React Hydration Race Condition Shield):
+ * • ROOT CAUSE: Next.js App Router hydration mismatches (Errors #418, #425) caused React to violently unmount and remount the `AuthContext` provider *during* the active OAuth callback exchange. Mount 2 tried to initialize Keycloak using the burnt URL code, failed (because Mount 1 consumed the `sessionStorage` state), threw `CSP_BLOCK_OR_UNDEFINED`, and kicked the user out.
+ * • FIX: Deployed a Global Singleton Shield (`globalKeycloak`, `globalInitPromise`) outside the component hierarchy. If React remounts, Mount 2 smoothly attaches to Mount 1's active authentication promise instead of crashing. Stripped `onLoad = 'check-sso'` from the callback flow to stop post-exchange iframe spawns.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
-import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import Keycloak from 'keycloak-js';
 import { setAuthToken, getUserProfile } from '../apiConfig';
 
@@ -85,24 +88,22 @@ export const useAuth = () => {
   return useContext(AuthContext);
 };
 
+// --- SINGLETON SHIELD: Prevents React Hydration (#425) remounts from burning the OAuth Code ---
+let globalKeycloak = null;
+let globalInitPromise = null;
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  // FIX: Initialize to true to shield the Keycloak init window from eager redirects
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
   const [fatalError, setFatalError] = useState(false);
-
-  const isRun = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-
-    if (isRun.current) return;
-    isRun.current = true;
 
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
@@ -117,8 +118,68 @@ export const AuthProvider = ({ children }) => {
 
     if (isBot) {
       console.log("[Auth] Bot/Crawler detected. Skipping Keycloak initialization for SEO.");
-      setLoading(false); // Unblock rendering for bots
+      setLoading(false);
       return;
+    }
+
+    // Helper to securely map profile and metrics natively
+    const syncProfileData = (kcInstance) => {
+      const { name, email, realm_access, sub } = kcInstance.tokenParsed || {};
+      const roles = realm_access ? realm_access.roles : [];
+
+      setUser({
+        name,
+        email,
+        roles,
+        isAdmin: roles.includes('admin') || roles.includes('publisher')
+      });
+
+      const safeId = String(sub || email || 'anonymous-id');
+      const safeEmail = String(email || 'anonymous@treishvaam.com');
+      const safeName = String(name || 'Anonymous User');
+
+      try {
+        if (window.faro && window.faro.api) {
+          window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
+        }
+      } catch (e) {
+        console.warn("[Auth] Initial Faro instrumentation failed", e);
+      }
+
+      getUserProfile().then(response => {
+        if (response?.data) {
+          const { displayName } = response.data;
+          setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
+          try {
+            if (window.faro && window.faro.api) {
+              window.faro.api.setUser({
+                id: safeId,
+                username: String(displayName || name || 'Anonymous User'),
+                email: safeEmail
+              });
+            }
+          } catch (e) { }
+        }
+      }).catch(err => console.warn("[Auth] Failed to fetch extended profile:", err));
+    };
+
+    // --- HYDRATION SHIELD LOGIC ---
+    // If React unmounted and remounted us during an active exchange, seamlessly attach to the global promise
+    if (globalInitPromise && globalKeycloak) {
+      console.log("[Auth] React Hydration remount detected. Safely attaching to existing Keycloak session...");
+      setKeycloak(globalKeycloak);
+
+      globalInitPromise.then((authenticated) => {
+        if (authenticated) {
+          setToken(globalKeycloak.token);
+          setAuthToken(globalKeycloak.token);
+          setIsAuthenticated(true);
+          syncProfileData(globalKeycloak);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
+
+      return; // Halt redundant execution
     }
 
     const snapshotHref = window.location.href;
@@ -153,7 +214,7 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    // FIX: Guarantee strict issuer string matching against Keycloak 23+ expectations
+    // Guarantee strict issuer string matching against Keycloak 23+ expectations
     const authUrl = authUrlRaw.replace(/\/+$/, '');
 
     const initKeycloak = new Keycloak({
@@ -162,12 +223,13 @@ export const AuthProvider = ({ children }) => {
       clientId: 'finance-app',
     });
 
+    globalKeycloak = initKeycloak;
     setKeycloak(initKeycloak);
 
     let initOptions = {
       pkceMethod: 'S256',
       checkLoginIframe: false,
-      responseMode: 'query', // FIXED: Switched to query to survive Next.js hash normalization
+      responseMode: 'query',
     };
 
     if (isLoginError) {
@@ -177,7 +239,7 @@ export const AuthProvider = ({ children }) => {
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      initOptions.onLoad = 'check-sso'; // <--- FIX: Added check-sso to guarantee Promise resolution
+      // CRITICAL FIX: Removed onLoad = 'check-sso' here to prevent iframe spawn post-code-exchange
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
@@ -192,9 +254,9 @@ export const AuthProvider = ({ children }) => {
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
     );
 
-    const initPromise = initKeycloak.init(initOptions);
+    globalInitPromise = initKeycloak.init(initOptions);
 
-    Promise.race([initPromise, timeoutPromise])
+    Promise.race([globalInitPromise, timeoutPromise])
       .then((authenticated) => {
         console.log("[Auth] Init Success. Authenticated:", authenticated);
 
@@ -209,48 +271,7 @@ export const AuthProvider = ({ children }) => {
           setToken(initKeycloak.token);
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
-
-          const { name, email, realm_access, sub } = initKeycloak.tokenParsed || {};
-          const roles = realm_access ? realm_access.roles : [];
-
-          const initialUser = {
-            name,
-            email,
-            roles,
-            isAdmin: roles.includes('admin') || roles.includes('publisher')
-          };
-          setUser(initialUser);
-
-          const safeId = String(sub || email || 'anonymous-id');
-          const safeEmail = String(email || 'anonymous@treishvaam.com');
-          const safeName = String(name || 'Anonymous User');
-
-          try {
-            if (window.faro && window.faro.api) {
-              window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
-            }
-          } catch (e) {
-            console.warn("[Auth] Initial Faro instrumentation failed", e);
-          }
-
-          getUserProfile().then(response => {
-            if (response?.data) {
-              const { displayName } = response.data;
-              setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
-              try {
-                if (window.faro && window.faro.api) {
-                  window.faro.api.setUser({
-                    id: safeId,
-                    username: String(displayName || name || 'Anonymous User'),
-                    email: safeEmail
-                  });
-                }
-              } catch (e) { }
-            }
-          }).catch(err => {
-            console.warn("[Auth] Failed to fetch extended profile:", err);
-          });
-
+          syncProfileData(initKeycloak);
         } else {
           setIsAuthenticated(false);
           setAuthToken(null);
@@ -273,51 +294,9 @@ export const AuthProvider = ({ children }) => {
           setToken(initKeycloak.token);
           setAuthToken(initKeycloak.token);
           setIsAuthenticated(true);
-
-          const { name, email, realm_access, sub } = initKeycloak.tokenParsed || {};
-          const roles = realm_access ? realm_access.roles : [];
-
-          const initialUser = {
-            name,
-            email,
-            roles,
-            isAdmin: roles.includes('admin') || roles.includes('publisher')
-          };
-          setUser(initialUser);
-
-          const safeId = String(sub || email || 'anonymous-id');
-          const safeEmail = String(email || 'anonymous@treishvaam.com');
-          const safeName = String(name || 'Anonymous User');
-
-          try {
-            if (window.faro && window.faro.api) {
-              window.faro.api.setUser({ id: safeId, username: safeName, email: safeEmail });
-            }
-          } catch (e) {
-            console.warn("[Auth] Salvage Faro instrumentation failed", e);
-          }
-
-          getUserProfile().then(response => {
-            if (response?.data) {
-              const { displayName } = response.data;
-              setUser(prev => ({ ...prev, name: displayName || prev.name, displayName }));
-              try {
-                if (window.faro && window.faro.api) {
-                  window.faro.api.setUser({
-                    id: safeId,
-                    username: String(displayName || name || 'Anonymous User'),
-                    email: safeEmail
-                  });
-                }
-              } catch (e) { }
-            }
-          }).catch(err => {
-            console.warn("[Auth] Failed to fetch extended profile during salvage:", err);
-          });
-
+          syncProfileData(initKeycloak);
           return;
         }
-        // --- END SALVAGE ---
 
         const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
 
