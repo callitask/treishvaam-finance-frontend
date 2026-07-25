@@ -10,6 +10,9 @@
  * - EDITED (Vol 2 - Hydration Mismatch Resolution):
  * • ROOT CAUSE: Inline evaluation of `window.location.hash` during render created an SSR/CSR HTML attribute mismatch on NavLink components, triggering React Hydration Error #423 and forcing React to unmount/remount the client DOM tree.
  * • FIX: Deferred `hash` state population to a post-mount `useEffect` hook, guaranteeing 100% byte-for-byte SSR/CSR hydration parity.
+ * - EDITED (Vol 3 - Search String Hydration Shield):
+ * • ROOT CAUSE: Inline evaluation of `searchParams.toString()` caused SSR/CSR HTML mismatch (#425) when OAuth parameters were present in the URL, violently unmounting the app mid-authentication.
+ * • FIX: Deferred `search` string population to a post-mount `useEffect` hook, completing the 100% byte-for-byte SSR/CSR hydration parity.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -34,16 +37,18 @@ export const useLocation = () => {
     const pathname = usePathname();
     const searchParams = useNextSearchParams();
     const [hash, setHash] = React.useState('');
+    const [search, setSearch] = React.useState('');
 
     React.useEffect(() => {
         if (typeof window !== 'undefined') {
             setHash(window.location.hash || '');
+            setSearch(window.location.search || '');
         }
     }, []);
 
     return {
         pathname: pathname || '/',
-        search: searchParams && searchParams.toString() ? `?${searchParams.toString()}` : '',
+        search: search,
         hash: hash,
         state: null
     };

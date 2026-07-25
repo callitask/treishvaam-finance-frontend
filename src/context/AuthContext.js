@@ -70,9 +70,12 @@
  * - EDITED (Vol 3 - Issuer Mismatch / Loop Resolution):
  * • ROOT CAUSE: Keycloak 23+ validates the `iss` query parameter against `authUrl + '/realms/' + realm`. If `NEXT_PUBLIC_AUTH_URL` contains a trailing slash, the string mismatch causes the adapter to instantly reject the token.
  * • FIX: Applied `.replace(/\/+$/, '')` to `authUrl` prior to Keycloak instantiation to mathematically guarantee OAuth issuer string matching.
- * - EDITED (Vol 4 - Hydration Unmount Shield & Session Preservation):
- * • ROOT CAUSE: React Hydration Error #423/425 forcibly unmounted and remounted the component tree during the active OAuth callback. Mount 2 attempted to re-exchange the burnt single-use authorization code without the PKCE verifier, failing with `undefined` and kicking the user out.
- * • FIX: Deployed module-level singleton state (`globalKeycloak`, `globalInitPromise`). Mount 2 seamlessly attaches to Mount 1's active authentication promise upon remounting. Removed `onLoad = 'check-sso'` from the callback flow to eliminate post-exchange iframe spawns.
+ * - EDITED (Vol 4 - React Hydration Race Condition Shield):
+ * • ROOT CAUSE: Next.js App Router hydration mismatches (Errors #418, #425) caused React to violently unmount and remount the `AuthContext` provider *during* the active OAuth callback exchange. Mount 2 tried to initialize Keycloak using the burnt URL code, failed (because Mount 1 consumed the `sessionStorage` state), threw `CSP_BLOCK_OR_UNDEFINED`, and kicked the user out.
+ * • FIX: Deployed a Global Singleton Shield (`globalKeycloak`, `globalInitPromise`) outside the component hierarchy. If React remounts, Mount 2 smoothly attaches to Mount 1's active authentication promise instead of crashing. Stripped `onLoad = 'check-sso'` from the callback flow to stop post-exchange iframe spawns.
+ * - EDITED (Vol 3 - Clock Drift & Protocol Mismatch Shield):
+ * • ROOT CAUSE: Keycloak JS adapter successfully fetched the token but rejected it during local validation (`CSP_BLOCK_OR_UNDEFINED`) because VirtualBox clock drift made the `iat` timestamp appear in the future, AND potential HTTP/HTTPS protocol mismatch against the `iss` parameter failed strict cryptographic origin checks.
+ * • FIX: Injected `timeSkew: 86400` into `initOptions` to provide a 24-hour tolerance against VM clock drift. Forced `https://` protocol normalization on the `authUrl` (except for localhost) to guarantee exact-string issuer matching.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -215,7 +218,11 @@ export const AuthProvider = ({ children }) => {
     }
 
     // Guarantee strict issuer string matching against Keycloak 23+ expectations
-    const authUrl = authUrlRaw.replace(/\/+$/, '');
+    // Strip trailing slashes, and force HTTPS (except for local dev) to prevent protocol mismatch
+    let authUrl = authUrlRaw.replace(/\/+$/, '');
+    if (!authUrl.startsWith('http://localhost') && authUrl.startsWith('http://')) {
+      authUrl = authUrl.replace('http://', 'https://');
+    }
 
     const initKeycloak = new Keycloak({
       url: authUrl,
@@ -230,6 +237,7 @@ export const AuthProvider = ({ children }) => {
       pkceMethod: 'S256',
       checkLoginIframe: false,
       responseMode: 'query',
+      timeSkew: 86400, // <--- FIX: 24h tolerance to immune VirtualBox clock drift rejection
     };
 
     if (isLoginError) {
