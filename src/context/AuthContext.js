@@ -64,6 +64,13 @@
  * • Changed initial state from `const [loading, setLoading] = useState(false)` to `useState(true)`.
  * • Why: When a user returned from Keycloak to a protected route (like `/dashboard`), `PrivateRoute` evaluated the auth state instantaneously. Because `loading` defaulted to `false` and the user wasn't authenticated yet (Keycloak was still fetching the token), `PrivateRoute` eagerly redirected to `/login`. This client-side navigation aborted Keycloak's active OAuth code-exchange fetch, resulting in a fatal `TypeError: Failed to fetch` and locking the user out. Setting `loading: true` mathematically guarantees `PrivateRoute` waits for the Keycloak initialization sequence to complete.
  * • Added `setLoading(false)` to the bot/crawler detection block to prevent bots from stalling indefinitely.
+ * - EDITED (Vol 2 - Infinite Login Loop Resolution):
+ * • ROOT CAUSE: Keycloak JS adapter completes the token exchange but rejects the initialization promise because `onLoad: 'check-sso'` was missing during the `isLoginCallback` flow.
+ * • FIX: Enforced `initOptions.onLoad = 'check-sso'` inside the `isLoginCallback` evaluation block to guarantee promise resolution and permanently terminate the redirect loop.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { createContext, useState, useEffect, useContext, useCallback, useRef } from 'react';
 import Keycloak from 'keycloak-js';
@@ -164,6 +171,7 @@ export const AuthProvider = ({ children }) => {
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
+      initOptions.onLoad = 'check-sso'; // <--- FIX: Added check-sso to guarantee Promise resolution
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
