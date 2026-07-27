@@ -74,6 +74,9 @@
  * - EDITED (Vol 3 / Current Phase):
  *   ROOT CAUSE: Keycloak `error=temporarily_unavailable&error_description=authentication_expired` was bouncing users into an infinite login loop. The silent SSO iframe created a stale session cookie, and `AuthContext.js` previously only intercepted `error=login_required`.
  *   FIX: Expanded `isLoginError` to catch all `error=` URL parameters. Implemented a specific `hasAuthExpiredError` interceptor with a 1-attempt `kc_auth_retry` circuit breaker. When triggered, it clears the tainted URL and forcefully commands `keycloak.login({ prompt: 'login' })` after init to seamlessly generate a fresh session without risking a DoS loop against the identity provider. Also explicitly enforced `initOptions.onLoad = 'check-sso'` in the `isLoginCallback` flow to satisfy promise resolution.
+ * - EDITED (Current Phase - OAuth Callback Iframe Loop Fix):
+ *   ROOT CAUSE: The browser blocked the hidden '3p-cookies/step1.html' iframe during the OAuth callback phase because 'onLoad: check-sso' was erroneously re-applied to the callback flow in the previous edit. This blockage caused the JS adapter to reject the initialization promise and destroy the valid token it just received.
+ *   FIX: Stripped 'initOptions.onLoad = check-sso' from the 'isLoginCallback' branch. The adapter will now purely exchange the code and resolve the promise without attempting to spawn a 3rd-party session-checking iframe, neutralizing the browser cookie block.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -258,7 +261,9 @@ export const AuthProvider = ({ children }) => {
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      initOptions.onLoad = 'check-sso'; // Added per Vol 2 history mandate
+      // INTENTIONAL: Do NOT set initOptions.onLoad = 'check-sso' here.
+      // Setting it causes Keycloak to spawn a 3rd-party cookie iframe check immediately
+      // after the token exchange, which modern browsers block, destroying the valid token.
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
