@@ -15,6 +15,11 @@ import ThirdPartyScripts from './components/ThirdPartyScripts';
  * Update:
  * - Added LandingPage at "/" for "Zero-Trust Entry".
  * - Moved BlogPage (Feed) to "/home".
+ *
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ *   Removed dead legacy `LoginPage` import to clean up technical debt from Next.js App Router migration.
+ *   Why: The actual login page is natively handled by `app/login/page.tsx` and the dead file is bypassed by the router.
  */
 
 // --- Lazy-loaded Page Components ---
@@ -23,7 +28,6 @@ const BlogPage = lazy(() => import('./pages/BlogPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const VisionPage = lazy(() => import('./pages/VisionPage'));
 const ContactPage = lazy(() => import('./pages/ContactPage'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
 const SinglePostPage = lazy(() => import('./pages/SinglePostPage'));
 const MarketDetailPage = lazy(() => import('./pages/MarketDetailPage'));
 // --- Phase 1: AdSense Compliance Pages ---
@@ -76,7 +80,6 @@ function App() {
                 <Route path="/blog" element={<Navigate to="/home" replace />} />
 
                 <Route path="/category/:categorySlug/:userFriendlySlug/:urlArticleId" element={<SinglePostPage />} />
-                <Route path="/login" element={<LoginPage />} />
               </Route>
 
               <Route path="/manage-posts" element={<Navigate to="/dashboard/manage-posts" replace />} />
