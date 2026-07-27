@@ -77,6 +77,9 @@
  * - EDITED (Current Phase - OAuth Callback Iframe Loop Fix):
  *   ROOT CAUSE: The browser blocked the hidden '3p-cookies/step1.html' iframe during the OAuth callback phase because 'onLoad: check-sso' was erroneously re-applied to the callback flow in the previous edit. This blockage caused the JS adapter to reject the initialization promise and destroy the valid token it just received.
  *   FIX: Stripped 'initOptions.onLoad = check-sso' from the 'isLoginCallback' branch. The adapter will now purely exchange the code and resolve the promise without attempting to spawn a 3rd-party session-checking iframe, neutralizing the browser cookie block.
+ * - EDITED (Current Phase - OAuth Callback Promise Resolution Fix):
+ *   ROOT CAUSE: The previous edit stripped 'onLoad: check-sso' from the callback flow under the false assumption that it triggered the fatal browser iframe block. The iframe block was actually a non-fatal warning during guest SSO. Without 'onLoad', Keycloak successfully exchanged the token but refused to set authenticated=true, rejecting the initialization promise with undefined and dropping the user into guest mode.
+ *   FIX: Restored 'initOptions.onLoad = check-sso' in the 'isLoginCallback' branch to satisfy Keycloak's promise resolution requirement. Removed manual 'timeSkew' overrides to prevent artificial token expiration math corruption, and hardened 'https://' protocol normalization on the authUrl to prevent cryptographic 'Invalid issuer' rejections.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -218,7 +221,9 @@ export const AuthProvider = ({ children }) => {
     // Guarantee strict issuer string matching against Keycloak 23+ expectations
     // Strip trailing slashes, and force HTTPS (except for local dev) to prevent protocol mismatch
     let authUrl = authUrlRaw.replace(/\/+$/, '');
-    if (!authUrl.startsWith('http://localhost') && authUrl.startsWith('http://')) {
+    if (!authUrl.startsWith('http')) {
+      authUrl = (authUrl.startsWith('localhost') ? 'http://' : 'https://') + authUrl;
+    } else if (!authUrl.startsWith('http://localhost') && authUrl.startsWith('http://')) {
       authUrl = authUrl.replace('http://', 'https://');
     }
 
@@ -234,8 +239,8 @@ export const AuthProvider = ({ children }) => {
     let initOptions = {
       pkceMethod: 'S256',
       checkLoginIframe: false,
-      responseMode: 'query',
-      timeSkew: 86400, // <--- FIX: 24h tolerance to immune VirtualBox clock drift rejection
+      responseMode: 'query'
+      // removed timeSkew: 86400 to prevent artificial math corruption natively
     };
 
     let forceLoginRetry = false;
@@ -261,9 +266,7 @@ export const AuthProvider = ({ children }) => {
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      // INTENTIONAL: Do NOT set initOptions.onLoad = 'check-sso' here.
-      // Setting it causes Keycloak to spawn a 3rd-party cookie iframe check immediately
-      // after the token exchange, which modern browsers block, destroying the valid token.
+      initOptions.onLoad = 'check-sso'; // RESTORED: Satisfies Keycloak JS internal promise resolution
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
