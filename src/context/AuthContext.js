@@ -80,6 +80,9 @@
  * - EDITED (Current Phase - OAuth Callback Promise Resolution Fix):
  *   ROOT CAUSE: The previous edit stripped 'onLoad: check-sso' from the callback flow under the false assumption that it triggered the fatal browser iframe block. The iframe block was actually a non-fatal warning during guest SSO. Without 'onLoad', Keycloak successfully exchanged the token but refused to set authenticated=true, rejecting the initialization promise with undefined and dropping the user into guest mode.
  *   FIX: Restored 'initOptions.onLoad = check-sso' in the 'isLoginCallback' branch to satisfy Keycloak's promise resolution requirement. Removed manual 'timeSkew' overrides to prevent artificial token expiration math corruption, and hardened 'https://' protocol normalization on the authUrl to prevent cryptographic 'Invalid issuer' rejections.
+ * - EDITED (Current Phase - Clock Drift Token Rejection Fix):
+ *   ROOT CAUSE: After removing timeSkew, the JS adapter successfully fetched the token but rejected it locally because VirtualBox clock drift caused the token's iat/exp claims to fail the browser's strict temporal validation. This resulted in an undefined promise rejection mapped to CSP_BLOCK_OR_UNDEFINED.
+ *   FIX: Restored timeSkew: 86400 to immune the client against VirtualBox clock drift and permit successful client-side validation of the backend tokens.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -239,8 +242,8 @@ export const AuthProvider = ({ children }) => {
     let initOptions = {
       pkceMethod: 'S256',
       checkLoginIframe: false,
-      responseMode: 'query'
-      // removed timeSkew: 86400 to prevent artificial math corruption natively
+      responseMode: 'query',
+      timeSkew: 86400 // RESTORED: Tolerates VirtualBox clock drift against browser validation
     };
 
     let forceLoginRetry = false;
