@@ -83,6 +83,9 @@
  * - EDITED (Current Phase - Clock Drift Token Rejection Fix):
  *   ROOT CAUSE: After removing timeSkew, the JS adapter successfully fetched the token but rejected it locally because VirtualBox clock drift caused the token's iat/exp claims to fail the browser's strict temporal validation. This resulted in an undefined promise rejection mapped to CSP_BLOCK_OR_UNDEFINED.
  *   FIX: Restored timeSkew: 86400 to immune the client against VirtualBox clock drift and permit successful client-side validation of the backend tokens.
+ * - EDITED (Current Phase - Iframe/Clock Drift Misdiagnosis Resolution):
+ *   ROOT CAUSE: In Vol 5, we removed both onLoad and timeSkew simultaneously, and misattributed the resulting token failure to the missing onLoad parameter instead of the clock drift. Restoring onLoad caused Keycloak to spawn an internal 3p-cookies iframe immediately after the token exchange. This iframe has a strict connect-src 'none' CSP, which threw errors, and modern browsers blocked the iframe entirely. Keycloak interpreted this iframe crash as a session failure, wiping the valid token and dropping the user to guest mode.
+ *   FIX: Stripped initOptions.onLoad = 'check-sso' from the isLoginCallback flow to prevent the malicious iframe from spawning, while permanently retaining timeSkew: 86400 to immune the client against VirtualBox clock drift.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -243,7 +246,7 @@ export const AuthProvider = ({ children }) => {
       pkceMethod: 'S256',
       checkLoginIframe: false,
       responseMode: 'query',
-      timeSkew: 86400 // RESTORED: Tolerates VirtualBox clock drift against browser validation
+      timeSkew: 86400 // Tolerates VirtualBox clock drift against browser validation
     };
 
     let forceLoginRetry = false;
@@ -269,7 +272,9 @@ export const AuthProvider = ({ children }) => {
     } else if (isLoginCallback) {
       console.log("[Auth] Processing Login Callback (Code Exchange)...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      initOptions.onLoad = 'check-sso'; // RESTORED: Satisfies Keycloak JS internal promise resolution
+      // INTENTIONAL: Do NOT set initOptions.onLoad = 'check-sso' here.
+      // Setting it causes Keycloak to spawn a 3rd-party cookie iframe check immediately
+      // after the token exchange, which modern browsers block, destroying the valid token.
     } else if (hasPriorFailure) {
       console.log("[Auth] Skipping Silent SSO (Previous failure detected). Guest mode active.");
     } else {
