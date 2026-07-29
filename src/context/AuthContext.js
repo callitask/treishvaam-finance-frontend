@@ -87,9 +87,12 @@
  *   ROOT CAUSE: In Vol 5, we removed both onLoad and timeSkew simultaneously, and misattributed the resulting token failure to the missing onLoad parameter instead of the clock drift. Restoring onLoad caused Keycloak to spawn an internal 3p-cookies iframe immediately after the token exchange. This iframe has a strict connect-src 'none' CSP, which threw errors, and modern browsers blocked the iframe entirely. Keycloak interpreted this iframe crash as a session failure, wiping the valid token and dropping the user to guest mode.
  *   FIX: Stripped initOptions.onLoad = 'check-sso' from the isLoginCallback flow to prevent the malicious iframe from spawning, while permanently retaining timeSkew: 86400 to immune the client against VirtualBox clock drift.
  * - EDITED (Current Phase - Nonce Overwrite & Loop Fix):
- *   ROOT CAUSE: React 18 Strict Mode double-invokes the `login()` callback synchronously. Keycloak generated Nonce A, saved it to sessionStorage, then immediately generated Nonce B and overwrote sessionStorage before the browser navigated away. Upon returning, Keycloak exchanged the code but local validation failed (Nonce A != Nonce B), so it silently resolved `authenticated: false` and dropped the user to guest mode, triggering an infinite redirect loop.
+ *   ROOT CAUSE: React 18 Strict Mode double-invokes the `login()` callback synchronously during component mount. Keycloak generated Nonce A, saved it to sessionStorage, then immediately generated Nonce B and overwrote sessionStorage before the browser navigated away. Upon returning, Keycloak exchanged the code but local validation failed (Nonce A != Nonce B), so it silently resolved `authenticated: false` and dropped the user to guest mode, triggering an infinite redirect loop.
  *   FIX: Injected an atomic `kc_login_in_progress` lock into `login()` to abort the duplicate Strict Mode invocation. Cleared the lock early in the mount `useEffect`.
  *   FIX: Upgraded the `Promise.race().then()` block to evaluate `!authenticated && isLoginCallback`. If true, it explicitly triggers the `kc_fatal_loop_breaker` to hard-halt the application instead of looping endlessly, closing the circuit breaker bypass.
+ * - EDITED (Current Phase - Strict Mode Lock & Hard-Halt UI):
+ *   ROOT CAUSE: React 18 Strict Mode double-mounting cleared the `kc_login_in_progress` lock too early in the `useEffect`, leading to Nonce overwrites. The circuit breaker also failed to display the error, causing confusing silent loops.
+ *   FIX: Upgraded the lock to a 5-second temporal lock (`kc_login_lock_time`). Replaced the `fatalError` state with a hard-halt Error UI rendered directly inside `AuthContext.Provider` that visually displays the exact validation error (e.g., Nonce mismatch) and unmounts the application routing tree to definitively kill the redirect loop.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -115,14 +118,12 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [keycloak, setKeycloak] = useState(null);
   const [fatalError, setFatalError] = useState(false);
+  const [fatalErrorMsg, setFatalErrorMsg] = useState("");
 
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
-
-    // Clear duplicate-invocation lock from previous sessions/mounts
-    sessionStorage.removeItem('kc_login_in_progress');
 
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
@@ -191,7 +192,6 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           syncProfileData(globalKeycloak);
         } else {
-          // If Mount 1 failed validation, ensure Mount 2 also accurately reflects that failure
           setIsAuthenticated(false);
           setAuthToken(null);
         }
@@ -222,6 +222,7 @@ export const AuthProvider = ({ children }) => {
     if (hasFatalFailure) {
       console.error("[Auth] Fatal loop breaker active from prior session. Halting init.");
       setFatalError(true);
+      setFatalErrorMsg(sessionStorage.getItem('kc_fatal_error_msg') || "Unknown Fatal Error");
       setLoading(false);
       return;
     }
@@ -270,9 +271,12 @@ export const AuthProvider = ({ children }) => {
         window.history.replaceState({}, document.title, window.location.pathname);
         forceLoginRetry = true;
       } else {
-        console.error("[Auth] Repeated authentication expired errors. Engaging circuit breaker.");
+        const errStr = "Repeated authentication expired errors from Keycloak. Engaging circuit breaker.";
+        console.error(`[Auth] ${errStr}`);
         sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+        sessionStorage.setItem('kc_fatal_error_msg', errStr);
         setFatalError(true);
+        setFatalErrorMsg(errStr);
         setLoading(false);
         return;
       }
@@ -326,9 +330,12 @@ export const AuthProvider = ({ children }) => {
         } else {
           // Trigger fatal breaker if we exchanged the code but local validation (like Nonce) failed
           if (isLoginCallback) {
-            console.error("[Auth] FATAL: Token exchanged but validation failed (Nonce mismatch). Engaging Anti-Loop breaker.");
+            const exactError = "Local validation failed (Nonce mismatch or issuer mismatch) - Keycloak resolved authenticated: false";
+            console.error("[Auth] FATAL: " + exactError);
             sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+            sessionStorage.setItem('kc_fatal_error_msg', exactError);
             setFatalError(true);
+            setFatalErrorMsg(exactError);
             window.history.replaceState({}, document.title, window.location.pathname);
           }
           setIsAuthenticated(false);
@@ -356,9 +363,21 @@ export const AuthProvider = ({ children }) => {
 
         const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
         if (callbackCodeDetected && err !== "CSP_BLOCK_OR_UNDEFINED") {
-          console.error("[Auth] FATAL: Token exchange failed after callback. Engaging Anti-Loop breaker.");
+          const exactError = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : String(err));
+          console.error("[Auth] FATAL: Token exchange failed after callback. Engaging Anti-Loop breaker. Error:", exactError);
           sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+          sessionStorage.setItem('kc_fatal_error_msg', exactError);
           setFatalError(true);
+          setFatalErrorMsg(exactError);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (callbackCodeDetected && err === "CSP_BLOCK_OR_UNDEFINED") {
+          // Fix the blindspot: If we have a code, an undefined rejection is a token validation failure, not an iframe CSP block.
+          const exactError = "Token validation rejected by adapter (Promise rejected with undefined). Likely Nonce mismatch or strict cryptographic failure.";
+          console.error("[Auth] FATAL: " + exactError);
+          sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+          sessionStorage.setItem('kc_fatal_error_msg', exactError);
+          setFatalError(true);
+          setFatalErrorMsg(exactError);
           window.history.replaceState({}, document.title, window.location.pathname);
         } else {
           console.warn("[Auth] Non-fatal init failure (or CSP Block). Degrading to guest mode.", err);
@@ -375,24 +394,20 @@ export const AuthProvider = ({ children }) => {
 
   const login = useCallback(() => {
     if (sessionStorage.getItem('kc_fatal_loop_breaker') === 'true') {
-      console.warn("[Auth] Fatal breaker active. Clearing state and reloading login page.");
-      sessionStorage.removeItem('kc_fatal_loop_breaker');
-      sessionStorage.removeItem('kc_silent_sso_failed');
-      sessionStorage.removeItem('kc_login_in_progress');
-      window.location.href = '/login';
+      console.warn("[Auth] Fatal breaker active. Screen is already halting execution.");
       return;
     }
 
-    // Prevent React 18 Strict Mode double-invocation bug from overriding the Nonce
-    if (sessionStorage.getItem('kc_login_in_progress') === 'true') {
-      console.warn("[Auth] Login already in progress. Aborting duplicate Strict Mode invocation.");
+    const lockTime = parseInt(sessionStorage.getItem('kc_login_lock_time') || '0', 10);
+    if (Date.now() - lockTime < 5000) {
+      console.warn("[Auth] Login already triggered recently. Aborting duplicate Strict Mode invocation.");
       return;
     }
 
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
-      sessionStorage.setItem('kc_login_in_progress', 'true');
+      sessionStorage.setItem('kc_login_lock_time', Date.now().toString());
       keycloak.login({ redirectUri: window.location.origin + '/dashboard' });
     } else {
       console.warn("[Auth] Keycloak not ready. Reloading page to retry init.");
@@ -405,7 +420,7 @@ export const AuthProvider = ({ children }) => {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
       sessionStorage.removeItem('kc_fatal_loop_breaker');
-      sessionStorage.removeItem('kc_login_in_progress');
+      sessionStorage.removeItem('kc_login_lock_time');
       try {
         if (window.faro && window.faro.api) window.faro.api.resetUser();
       } catch (e) { }
@@ -433,8 +448,32 @@ export const AuthProvider = ({ children }) => {
   }, [keycloak, isAuthenticated, logout]);
 
   return (
-    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token, fatalError }, login, logout, loading }}>
-      {children}
+    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token, fatalError, fatalErrorMsg }, login, logout, loading }}>
+      {fatalError ? (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', padding: '20px' }}>
+          <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #ef4444', padding: '30px', borderRadius: '12px', fontFamily: 'monospace', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '24px' }}>⚠️</span> Authentication Security Halt
+            </h2>
+            <p style={{ marginBottom: '16px', lineHeight: '1.5' }}>
+              The authentication flow was securely halted to prevent an infinite redirect loop. Your token exchange succeeded, but local cryptographic validation failed.
+            </p>
+            <div style={{ backgroundColor: '#7f1d1d', color: '#fca5a5', padding: '12px', borderRadius: '6px', marginBottom: '20px', wordBreak: 'break-all' }}>
+              <strong>Exact Error:</strong><br />
+              {fatalErrorMsg}
+            </div>
+            <button
+              onClick={() => {
+                sessionStorage.clear();
+                window.location.href = '/login';
+              }}
+              style={{ backgroundColor: '#b91c1c', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+            >
+              Clear State & Retry
+            </button>
+          </div>
+        </div>
+      ) : children}
     </AuthContext.Provider>
   );
 };
