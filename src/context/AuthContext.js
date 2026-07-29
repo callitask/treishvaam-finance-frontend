@@ -86,6 +86,10 @@
  * - EDITED (Current Phase - Iframe/Clock Drift Misdiagnosis Resolution):
  *   ROOT CAUSE: In Vol 5, we removed both onLoad and timeSkew simultaneously, and misattributed the resulting token failure to the missing onLoad parameter instead of the clock drift. Restoring onLoad caused Keycloak to spawn an internal 3p-cookies iframe immediately after the token exchange. This iframe has a strict connect-src 'none' CSP, which threw errors, and modern browsers blocked the iframe entirely. Keycloak interpreted this iframe crash as a session failure, wiping the valid token and dropping the user to guest mode.
  *   FIX: Stripped initOptions.onLoad = 'check-sso' from the isLoginCallback flow to prevent the malicious iframe from spawning, while permanently retaining timeSkew: 86400 to immune the client against VirtualBox clock drift.
+ * - EDITED (Current Phase - Nonce Overwrite & Loop Fix):
+ *   ROOT CAUSE: React 18 Strict Mode double-invokes the `login()` callback synchronously. Keycloak generated Nonce A, saved it to sessionStorage, then immediately generated Nonce B and overwrote sessionStorage before the browser navigated away. Upon returning, Keycloak exchanged the code but local validation failed (Nonce A != Nonce B), so it silently resolved `authenticated: false` and dropped the user to guest mode, triggering an infinite redirect loop.
+ *   FIX: Injected an atomic `kc_login_in_progress` lock into `login()` to abort the duplicate Strict Mode invocation. Cleared the lock early in the mount `useEffect`.
+ *   FIX: Upgraded the `Promise.race().then()` block to evaluate `!authenticated && isLoginCallback`. If true, it explicitly triggers the `kc_fatal_loop_breaker` to hard-halt the application instead of looping endlessly, closing the circuit breaker bypass.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -116,6 +120,9 @@ export const AuthProvider = ({ children }) => {
     if (typeof window === 'undefined') {
       return;
     }
+
+    // Clear duplicate-invocation lock from previous sessions/mounts
+    sessionStorage.removeItem('kc_login_in_progress');
 
     const userAgent = (navigator.userAgent || "").toLowerCase();
     const isHeadless = navigator.webdriver || false;
@@ -183,6 +190,10 @@ export const AuthProvider = ({ children }) => {
           setAuthToken(globalKeycloak.token);
           setIsAuthenticated(true);
           syncProfileData(globalKeycloak);
+        } else {
+          // If Mount 1 failed validation, ensure Mount 2 also accurately reflects that failure
+          setIsAuthenticated(false);
+          setAuthToken(null);
         }
         setLoading(false);
       }).catch(() => setLoading(false));
@@ -313,6 +324,13 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           syncProfileData(initKeycloak);
         } else {
+          // Trigger fatal breaker if we exchanged the code but local validation (like Nonce) failed
+          if (isLoginCallback) {
+            console.error("[Auth] FATAL: Token exchanged but validation failed (Nonce mismatch). Engaging Anti-Loop breaker.");
+            sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
+            setFatalError(true);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
           setIsAuthenticated(false);
           setAuthToken(null);
         }
@@ -360,12 +378,21 @@ export const AuthProvider = ({ children }) => {
       console.warn("[Auth] Fatal breaker active. Clearing state and reloading login page.");
       sessionStorage.removeItem('kc_fatal_loop_breaker');
       sessionStorage.removeItem('kc_silent_sso_failed');
+      sessionStorage.removeItem('kc_login_in_progress');
       window.location.href = '/login';
       return;
     }
+
+    // Prevent React 18 Strict Mode double-invocation bug from overriding the Nonce
+    if (sessionStorage.getItem('kc_login_in_progress') === 'true') {
+      console.warn("[Auth] Login already in progress. Aborting duplicate Strict Mode invocation.");
+      return;
+    }
+
     if (keycloak && typeof window !== 'undefined') {
       console.log("[Auth] Redirecting to Keycloak...");
       sessionStorage.removeItem('kc_silent_sso_failed');
+      sessionStorage.setItem('kc_login_in_progress', 'true');
       keycloak.login({ redirectUri: window.location.origin + '/dashboard' });
     } else {
       console.warn("[Auth] Keycloak not ready. Reloading page to retry init.");
@@ -378,6 +405,7 @@ export const AuthProvider = ({ children }) => {
       console.log("[Auth] Logging out...");
       sessionStorage.removeItem('kc_silent_sso_failed');
       sessionStorage.removeItem('kc_fatal_loop_breaker');
+      sessionStorage.removeItem('kc_login_in_progress');
       try {
         if (window.faro && window.faro.api) window.faro.api.resetUser();
       } catch (e) { }
