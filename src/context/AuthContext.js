@@ -93,6 +93,9 @@
  * - EDITED (Current Phase - Strict Mode Lock & Hard-Halt UI):
  *   ROOT CAUSE: React 18 Strict Mode double-mounting cleared the `kc_login_in_progress` lock too early in the `useEffect`, leading to Nonce overwrites. The circuit breaker also failed to display the error, causing confusing silent loops.
  *   FIX: Upgraded the lock to a 5-second temporal lock (`kc_login_lock_time`). Replaced the `fatalError` state with a hard-halt Error UI rendered directly inside `AuthContext.Provider` that visually displays the exact validation error (e.g., Nonce mismatch) and unmounts the application routing tree to definitively kill the redirect loop.
+ * - EDITED (Current Phase - Observability & Telemetry Extraction):
+ *   ROOT CAUSE: The `undefined` promise rejection swallowed the exact cryptographic failure reason during local token validation.
+ *   FIX: Injected `enableLogging: true` into `initOptions` to force Keycloak JS to dump internal validation state. Upgraded the Red Screen to extract and dump all `kc-` keys from `sessionStorage` at the exact moment of failure, providing incontrovertible proof of Nonce/State overwrites or Temporal anomalies.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -192,6 +195,7 @@ export const AuthProvider = ({ children }) => {
           setIsAuthenticated(true);
           syncProfileData(globalKeycloak);
         } else {
+          // If Mount 1 failed validation, ensure Mount 2 also accurately reflects that failure
           setIsAuthenticated(false);
           setAuthToken(null);
         }
@@ -258,7 +262,8 @@ export const AuthProvider = ({ children }) => {
       pkceMethod: 'S256',
       checkLoginIframe: false,
       responseMode: 'query',
-      timeSkew: 86400 // Tolerates VirtualBox clock drift against browser validation
+      timeSkew: 86400, // Tolerates VirtualBox clock drift against browser validation
+      enableLogging: true // Diagnostic mode to surface exact validation failures in the console
     };
 
     let forceLoginRetry = false;
@@ -303,6 +308,22 @@ export const AuthProvider = ({ children }) => {
       setTimeout(() => reject(new Error("Auth Timeout")), CONNECTION_TIMEOUT)
     );
 
+    // Helper to safely dump relevant Keycloak storage items for diagnostics
+    const getStorageDump = () => {
+      let dump = "";
+      try {
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const key = sessionStorage.key(i);
+          if (key && key.startsWith('kc-')) {
+            dump += `[${key}] = ${sessionStorage.getItem(key)}\n`;
+          }
+        }
+      } catch (e) {
+        dump = "Unable to read sessionStorage: " + e.message;
+      }
+      return dump || "No 'kc-' keys found in sessionStorage";
+    };
+
     globalInitPromise = initKeycloak.init(initOptions);
 
     Promise.race([globalInitPromise, timeoutPromise])
@@ -330,7 +351,8 @@ export const AuthProvider = ({ children }) => {
         } else {
           // Trigger fatal breaker if we exchanged the code but local validation (like Nonce) failed
           if (isLoginCallback) {
-            const exactError = "Local validation failed (Nonce mismatch or issuer mismatch) - Keycloak resolved authenticated: false";
+            const exactError = "Local validation failed (Nonce mismatch or issuer mismatch) - Keycloak resolved authenticated: false\n\n" +
+              "--- SESSION STORAGE DUMP ---\n" + getStorageDump();
             console.error("[Auth] FATAL: " + exactError);
             sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
             sessionStorage.setItem('kc_fatal_error_msg', exactError);
@@ -362,9 +384,13 @@ export const AuthProvider = ({ children }) => {
         }
 
         const callbackCodeDetected = snapshotSearch.includes('code=') || snapshotHash.includes('code=');
+
         if (callbackCodeDetected && err !== "CSP_BLOCK_OR_UNDEFINED") {
-          const exactError = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : String(err));
-          console.error("[Auth] FATAL: Token exchange failed after callback. Engaging Anti-Loop breaker. Error:", exactError);
+          const rawErrStr = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : String(err));
+          const exactError = `Token exchange failed after callback. Engaging Anti-Loop breaker.\nError: ${rawErrStr}\n\n` +
+            `--- SESSION STORAGE DUMP ---\n` + getStorageDump();
+
+          console.error("[Auth] FATAL: " + exactError);
           sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
           sessionStorage.setItem('kc_fatal_error_msg', exactError);
           setFatalError(true);
@@ -372,7 +398,8 @@ export const AuthProvider = ({ children }) => {
           window.history.replaceState({}, document.title, window.location.pathname);
         } else if (callbackCodeDetected && err === "CSP_BLOCK_OR_UNDEFINED") {
           // Fix the blindspot: If we have a code, an undefined rejection is a token validation failure, not an iframe CSP block.
-          const exactError = "Token validation rejected by adapter (Promise rejected with undefined). Likely Nonce mismatch or strict cryptographic failure.";
+          const exactError = "Token validation rejected by adapter (Promise rejected with undefined). Likely Nonce mismatch, Expired TimeSkew, or strict cryptographic failure.\n\n" +
+            "--- SESSION STORAGE DUMP ---\n" + getStorageDump();
           console.error("[Auth] FATAL: " + exactError);
           sessionStorage.setItem('kc_fatal_loop_breaker', 'true');
           sessionStorage.setItem('kc_fatal_error_msg', exactError);
@@ -458,7 +485,7 @@ export const AuthProvider = ({ children }) => {
             <p style={{ marginBottom: '16px', lineHeight: '1.5' }}>
               The authentication flow was securely halted to prevent an infinite redirect loop. Your token exchange succeeded, but local cryptographic validation failed.
             </p>
-            <div style={{ backgroundColor: '#7f1d1d', color: '#fca5a5', padding: '12px', borderRadius: '6px', marginBottom: '20px', wordBreak: 'break-all' }}>
+            <div style={{ backgroundColor: '#7f1d1d', color: '#fca5a5', padding: '12px', borderRadius: '6px', marginBottom: '20px', wordBreak: 'break-all', whiteSpace: 'pre-wrap' }}>
               <strong>Exact Error:</strong><br />
               {fatalErrorMsg}
             </div>
