@@ -96,6 +96,9 @@
  * - EDITED (Current Phase - Observability & Telemetry Extraction):
  *   ROOT CAUSE: The `undefined` promise rejection swallowed the exact cryptographic failure reason during local token validation.
  *   FIX: Injected `enableLogging: true` into `initOptions` to force Keycloak JS to dump internal validation state. Upgraded the Red Screen to extract and dump all `kc-` keys from `sessionStorage` at the exact moment of failure, providing incontrovertible proof of Nonce/State overwrites or Temporal anomalies.
+ * - EDITED (Current Phase - Session Collision & Issuer Mismatch Fix):
+ *   ROOT CAUSE: An OIDC Issuer (`iss`) mismatch between the backend token and the frontend `NEXT_PUBLIC_AUTH_URL` caused local token rejection. The subsequent retry passed `prompt: 'login'` to Keycloak, which collided with an active browser `KEYCLOAK_SESSION` cookie, triggering `RESTART_AUTHENTICATION_ERROR` and an endless refresh loop.
+ *   FIX: Removed the destructive `prompt: 'login'` forcing parameter from the `forceLoginRetry` block to prevent session cookie collisions. (Also relies on the engineer updating the `NEXT_PUBLIC_AUTH_URL` variable perfectly).
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -331,7 +334,7 @@ export const AuthProvider = ({ children }) => {
         if (forceLoginRetry) {
           console.log("[Auth] Forcing fresh login prompt to clear stale Keycloak session...");
           sessionStorage.removeItem('kc_silent_sso_failed');
-          initKeycloak.login({ prompt: 'login', redirectUri: window.location.origin + '/dashboard' });
+          initKeycloak.login({ redirectUri: window.location.origin + '/dashboard' });
           return;
         }
 
