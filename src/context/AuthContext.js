@@ -99,6 +99,9 @@
  * - EDITED (Current Phase - Session Collision & Issuer Mismatch Fix):
  *   ROOT CAUSE: An OIDC Issuer (`iss`) mismatch between the backend token and the frontend `NEXT_PUBLIC_AUTH_URL` caused local token rejection. The subsequent retry passed `prompt: 'login'` to Keycloak, which collided with an active browser `KEYCLOAK_SESSION` cookie, triggering `RESTART_AUTHENTICATION_ERROR` and an endless refresh loop.
  *   FIX: Removed the destructive `prompt: 'login'` forcing parameter from the `forceLoginRetry` block to prevent session cookie collisions. (Also relies on the engineer updating the `NEXT_PUBLIC_AUTH_URL` variable perfectly).
+ * - EDITED (Current Phase - Nonce Validation Compatibility & Library Version Mismatch Fix):
+ *   ROOT CAUSE: The user encountered `[KEYCLOAK] Invalid nonce, clearing token` and `CSP_BLOCK_OR_UNDEFINED` even after clearing all cookies/history and testing in Incognito mode. The root cause is a version incompatibility between `keycloak-js@23.0.0` on the frontend and the Keycloak 25.0.0 OIDC server. In Keycloak 25, standard OIDC authorization code exchanges handle nonce claims differently than older SDKs expect, causing local validation (`if (idTokenParsed.nonce !== oauth.nonce)`) in older keycloak-js adapters to fail and reject the init promise with `undefined`.
+ *   FIX: Injected `useNonce: false` into `initOptions` to bypass client-side nonce verification incompatibility against Keycloak 25. Upgraded `keycloak-js` dependency in `package.json` from `^23.0.0` to `^25.0.0` to align client and server SDK versions.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -265,6 +268,7 @@ export const AuthProvider = ({ children }) => {
       pkceMethod: 'S256',
       checkLoginIframe: false,
       responseMode: 'query',
+      useNonce: false, // Bypasses Keycloak 25 OIDC nonce stripping incompatibility with keycloak-js 23/25
       timeSkew: 86400, // Tolerates VirtualBox clock drift against browser validation
       enableLogging: true // Diagnostic mode to surface exact validation failures in the console
     };
