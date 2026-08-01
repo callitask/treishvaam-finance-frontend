@@ -43,6 +43,9 @@
  * - EDITED (Phase 7 - High Availability API KV Caching):
  *   Integrated `TREISHFIN_SEO_CACHE` for `/api/v1/posts/url/` and `/api/v1/market/widget` JSON payloads inside the SEO Intelligence block.
  *   Why: Guarantees 100% SEO and rendering uptime. If the backend is offline, the Edge Worker now pulls the API JSON from KV, successfully rewrites the HTML `<title>`, and injects `__PRELOADED_STATE__` for the frontend to consume.
+ * - EDITED (BUG_FIX_REPORT_001 - Edge MTD Public Telemetry Exemption):
+ *   Hardened `isPublicExempt` string matching to use strict prefix matches (`.startsWith("/api/v1/analytics/event")` and `/api/v1/aegis/telemetry`) instead of broad `.includes()`.
+ *   Why: Prevents administrative dashboard paths from bypassing MTD obfuscation while ensuring public telemetry endpoints are not inadvertently flagged by L4-ADA deception poisoning.
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -209,7 +212,7 @@ export default {
 
         if (targetPath.startsWith("/api")) {
             // Bypass MTD Translation for Public API endpoints to prevent Spring Security 401 Rejections
-            const isPublicExempt = targetPath.includes("/analytics/") || targetPath.includes("/posts/") || targetPath.includes("/market/") || targetPath.includes("/categories");
+            const isPublicExempt = targetPath.startsWith("/api/v1/analytics/event") || targetPath.startsWith("/api/v1/aegis/telemetry") || targetPath.includes("/posts/") || targetPath.includes("/market/") || targetPath.includes("/categories");
 
             if (isTarpit) {
                 targetPath = "/api/v1/aegis/tarpit/trap";
@@ -440,7 +443,7 @@ export default {
 
             const staticPages = {
                 "/about": { title: "About Us | Treishvaam Finance", description: "Learn about Treishvaam Finance." },
-                "/vision": { title: "Treishvaam Finance   Our Vision", description: "Philosophy driving Treishvaam." }
+                "/vision": { title: "Treishvaam Finance - Our Vision", description: "Philosophy driving Treishvaam." }
             };
 
             if (staticPages[url.pathname]) {
