@@ -22,6 +22,8 @@
  * • Replaced the `isGroupedView` boolean toggle with a native parent-child rendering approach supporting dynamic multi-session device cards.
  * • Added `Re-Align Historical Data` button to trigger the ZKP-gated Data Healer endpoint.
  * • Date: 2026-08-05
+ * - EDITED (Incident 48/49 - Legacy Hardware Isolation):
+ * • Updated UI rendering to safely isolate and label legacy un-hashed visitors, preventing grouping collapse.
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
@@ -498,9 +500,18 @@ const AudiencePage = () => {
                                                 </div>
 
                                                 <div className="space-y-1 text-sm">
-                                                    <p className="text-gray-900 font-bold"><FaMobileAlt className="inline mr-1 text-gray-400" /> {deviceGroup.deviceBrand} {deviceGroup.deviceModel}</p>
-                                                    <p className="text-gray-500"><FaGlobe className="inline mr-1 text-gray-400" /> {deviceGroup.operatingSystem} {deviceGroup.osVersion}</p>
-                                                    <p className="text-xs font-mono text-gray-400 truncate w-32" title={deviceGroup.fingerprintId}>Hash: {deviceGroup.fingerprintId}</p>
+                                                    <p className="text-gray-900 font-bold">
+                                                        <FaMobileAlt className="inline mr-1 text-gray-400" />
+                                                        {deviceGroup.deviceBrand || (deviceGroup.fingerprintId.startsWith('legacy-') ? 'Legacy' : 'Unknown')} {deviceGroup.deviceModel || (deviceGroup.fingerprintId.startsWith('legacy-') ? 'Visitor' : 'Device')}
+                                                    </p>
+                                                    <p className="text-gray-500">
+                                                        <FaGlobe className="inline mr-1 text-gray-400" /> {deviceGroup.operatingSystem} {deviceGroup.osVersion}
+                                                    </p>
+                                                    <p className="text-xs font-mono text-gray-400 truncate w-48" title={deviceGroup.fingerprintId}>
+                                                        {deviceGroup.fingerprintId.startsWith('legacy-')
+                                                            ? 'Legacy Visitor (Un-Hashed)'
+                                                            : `Hash: ${deviceGroup.fingerprintId}`}
+                                                    </p>
                                                 </div>
 
                                                 <div className="flex items-center text-sm text-gray-500">
