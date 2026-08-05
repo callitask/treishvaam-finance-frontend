@@ -6,6 +6,7 @@
  * - EDITED: Added getMarketData and getQuoteData to fix Next.js import crash.
  * - EDITED: Exported refreshGA4Data POST endpoint for Audience Dashboard manual syncing.
  * - EDITED: Migrated process.env.REACT_APP_ to process.env.NEXT_PUBLIC_ for Next.js compatibility.
+ * - EDITED (Incident 41): Added `getGroupedAudienceData` and `healHistoricalAnalytics` to support Zero-Trust device grouping and ZKP-gated retroactive telemetry healing. Date: 2026-08-05.
  */
 import axios from 'axios';
 
@@ -100,6 +101,15 @@ export const getHistoricalAudienceData = (params) => {
   return api.get(`/analytics`, { params: cleanParams });
 };
 
+// Aliased to cleanly reflect the new backend aggregation payload
+export const getGroupedAudienceData = (params) => {
+  const cleanParams = {};
+  for (const key in params) {
+    if (params[key] && params[key].length > 0) cleanParams[key] = params[key];
+  }
+  return api.get(`/analytics`, { params: cleanParams });
+};
+
 export const getFilterOptions = (params) => {
   const cleanParams = {};
   for (const key in params) {
@@ -109,5 +119,10 @@ export const getFilterOptions = (params) => {
 };
 
 export const refreshGA4Data = (startDate, endDate) => api.post('/analytics/refresh', { startDate, endDate });
+
+/* -------------------- Admin Actions -------------------- */
+export const healHistoricalAnalytics = (zkpProof) => api.post('/admin/actions/analytics/heal', {}, {
+  headers: { 'X-AEGIS-ZKP': zkpProof }
+});
 
 export default api;

@@ -17,14 +17,19 @@
  * • Implemented memory-safe `useMemo` table grouping for User ID isolation.
  * • Removed conditional hiding of `First Visit Date`.
  * • Added inline `<FaCrosshairs />` isolate action directly to the engagement cell.
+ * - EDITED (Incident 41 - Zero-Trust Device Clustering):
+ * • Refactored `useMemo` tableData generation to group by `deviceFingerprint` mapping natively to the new `GroupedAudienceDataDto`.
+ * • Replaced the `isGroupedView` boolean toggle with a native parent-child rendering approach supporting dynamic multi-session device cards.
+ * • Added `Re-Align Historical Data` button to trigger the ZKP-gated Data Healer endpoint.
+ * • Date: 2026-08-05
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { getHistoricalAudienceData, getFilterOptions, refreshGA4Data } from '../apiConfig';
+import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
     FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash,
     FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle, FaLayerGroup,
-    FaChevronDown, FaChevronRight
+    FaChevronDown, FaChevronRight, FaDatabase, FaShieldAlt
 } from 'react-icons/fa';
 
 const DetailCell = ({ icon: Icon, value, label }) => (
@@ -146,6 +151,7 @@ const AudiencePage = () => {
     const [loading, setLoading] = useState(false);
     const [optionsLoading, setOptionsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [isHealing, setIsHealing] = useState(false);
     const [error, setError] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
 
@@ -160,8 +166,7 @@ const AudiencePage = () => {
     const [filters, setFilters] = useState([]);
     const [filterOptions, setFilterOptions] = useState(null);
 
-    // Grouping State
-    const [isGroupedView, setIsGroupedView] = useState(false);
+    // Grouping State (Accordions)
     const [expandedGroups, setExpandedGroups] = useState({});
 
     const buildApiParams = useCallback(() => {
@@ -193,7 +198,7 @@ const AudiencePage = () => {
         try {
             const [optionsResponse, dataResponse] = await Promise.all([
                 getFilterOptions(params),
-                getHistoricalAudienceData(params)
+                getGroupedAudienceData(params) // Hit the new Grouped API endpoint
             ]);
             setFilterOptions(optionsResponse.data);
             setData(dataResponse.data);
@@ -230,6 +235,25 @@ const AudiencePage = () => {
         }
     };
 
+    const handleZkpDataHealer = async () => {
+        const proof = window.prompt("AEGIS Zero-Knowledge Proof Required:\nPlease enter your admin ZKP token to trigger a background data reconciliation.");
+        if (!proof) return;
+
+        setIsHealing(true);
+        setError('');
+        setSuccessMsg('');
+
+        try {
+            const res = await healHistoricalAnalytics(proof);
+            setSuccessMsg(res.data.message || 'Historical data healing initiated.');
+            // We do not await fetchDataAndOptions here because healing is an async backend process
+        } catch (err) {
+            setError(err.response?.data?.error || err.response?.data?.message || 'Failed to authenticate ZKP or trigger healer.');
+        } finally {
+            setIsHealing(false);
+        }
+    };
+
     const addFilter = () => setFilters(prev => [...prev, { id: Date.now(), type: '', value: '' }]);
     const removeFilter = (id) => setFilters(prev => prev.filter(f => f.id !== id));
     const updateFilter = (id, field, newValue) => {
@@ -251,142 +275,21 @@ const AudiencePage = () => {
         });
     };
 
-    // Memoized flat or grouped table data structure
-    const tableData = useMemo(() => {
-        if (!isGroupedView) {
-            return data.map(d => ({ ...d, isChild: false, isParent: false, groupCount: 0 }));
-        }
+    const toggleGroup = (fingerprintId) => {
+        setExpandedGroups(prev => ({
+            ...prev,
+            [fingerprintId]: !prev[fingerprintId]
+        }));
+    };
 
-        const groups = {};
-        data.forEach(item => {
-            const id = item.userIdentifier || 'Unknown';
-            if (!groups[id]) groups[id] = [];
-            groups[id].push(item);
-        });
+    const expandAllGroups = () => {
+        const newExpanded = {};
+        data.forEach(group => { newExpanded[group.fingerprintId] = true; });
+        setExpandedGroups(newExpanded);
+    };
 
-        // Sort parent groups by their most recent activity
-        const sortedGroups = Object.values(groups).sort((a, b) => {
-            const dateA = new Date(a[0].sessionStartTime || a[0].sessionDate);
-            const dateB = new Date(b[0].sessionStartTime || b[0].sessionDate);
-            return dateB - dateA;
-        });
-
-        const result = [];
-        sortedGroups.forEach(group => {
-            const parent = { ...group[0], isParent: true, groupCount: group.length };
-            result.push(parent);
-            if (expandedGroups[parent.userIdentifier]) {
-                group.slice(1).forEach(child => {
-                    result.push({ ...child, isChild: true });
-                });
-            }
-        });
-        return result;
-    }, [data, isGroupedView, expandedGroups]);
-
-
-    const columns = [
-        {
-            key: 'sessionDate',
-            title: 'Date & Time',
-            render: (item) => {
-                const exactTimeIST = item.sessionStartTime ? formatIST(item.sessionStartTime) : null;
-                const displayTime = exactTimeIST || item.sessionDate;
-
-                return (
-                    <div className="space-y-1 relative pl-5">
-                        {item.isParent && item.groupCount > 1 && (
-                            <button
-                                onClick={() => setExpandedGroups(prev => ({ ...prev, [item.userIdentifier]: !prev[item.userIdentifier] }))}
-                                className="absolute left-0 top-0.5 text-sky-500 hover:text-sky-700 p-1"
-                            >
-                                {expandedGroups[item.userIdentifier] ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
-                            </button>
-                        )}
-                        {item.isParent && item.groupCount > 1 && (
-                            <span className="inline-block bg-sky-100 text-sky-800 text-[10px] px-1.5 py-0.5 rounded font-bold mb-1 mr-2">
-                                {item.groupCount} Sessions
-                            </span>
-                        )}
-                        <p className="text-xs text-gray-800 font-semibold border-b border-gray-100 pb-1">
-                            <FaCalendarAlt className="inline mr-1 text-sky-500" /> {displayTime}
-                        </p>
-                        {item.firstVisitDate && (
-                            <p className="text-[11px] text-green-700 font-bold tracking-tight bg-green-50 px-2 py-0.5 rounded inline-flex items-center mt-0.5" title="Historical First Visit Date">
-                                <FaClock className="mr-1 text-green-500" /> 1st Visit: {item.firstVisitDate}
-                            </p>
-                        )}
-                    </div>
-                );
-            }
-        },
-        {
-            key: 'location',
-            title: 'Location',
-            render: (item) => (
-                <DetailCell icon={FaMapMarkedAlt} value={`${item.city || 'N/A'}, ${item.region || 'N/A'}, ${item.country || 'N/A'}`} label="Location" />
-            )
-        },
-        {
-            key: 'device',
-            title: 'Device & OS',
-            render: (item) => (
-                <div className="space-y-1 text-xs">
-                    <p className="text-gray-700 font-semibold"><FaMobileAlt className="inline mr-1 text-sky-500" /> {item.deviceCategory} ({item.deviceModel || 'N/A'})</p>
-                    <p className="text-gray-500"><FaGlobe className="inline mr-1 text-sky-500" /> {item.operatingSystem} ({item.osVersion || 'N/A'})</p>
-                    <p className="text-gray-500"><FaDesktop className="inline mr-1 text-sky-500" /> Res: {item.screenResolution || 'N/A'}</p>
-                </div>
-            )
-        },
-        {
-            key: 'traffic',
-            title: 'Traffic & Entry',
-            render: (item) => (
-                <div className="space-y-1 text-xs">
-                    <p className="text-gray-700 font-semibold break-words">Source: {item.sessionSource}</p>
-                    <p className="text-gray-500 truncate max-w-xs" title={item.landingPage}>Land: {item.landingPage}</p>
-                </div>
-            )
-        },
-        {
-            key: 'time',
-            title: 'Engagement',
-            render: (item) => (
-                <div className="space-y-1 text-xs flex flex-col justify-start">
-                    <p className="text-gray-700 font-semibold mb-0.5"><FaClock className="inline mr-1 text-sky-500" /> {item.timeOnSiteFormatted}</p>
-                    <p className="text-gray-500 mb-1"><FaChartBar className="inline mr-1 text-sky-500" /> Views: {item.views}</p>
-                    <div className="flex items-center justify-between font-mono text-gray-500 break-all bg-gray-100 p-1.5 rounded border border-gray-200 shadow-inner text-[10px]" title={item.userIdentifier}>
-                        <span>ID: <span className="font-semibold text-gray-700">{item.userIdentifier || 'N/A'}</span></span>
-                        {item.userIdentifier && item.userIdentifier !== 'Not available (GA4)' && (
-                            <button
-                                onClick={() => {
-                                    if (!targetClientIds.includes(item.userIdentifier)) {
-                                        setTargetClientIds([...targetClientIds, item.userIdentifier]);
-                                    }
-                                }}
-                                className="ml-2 text-sky-500 hover:text-sky-700 focus:outline-none transition-transform hover:scale-110"
-                                title="Isolate this user"
-                            >
-                                <FaCrosshairs size={13} />
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )
-        }
-    ];
-
-    const getOptionsForFilterType = (type) => {
-        if (!filterOptions) return [];
-        switch (type) {
-            case 'country': return filterOptions.countries || [];
-            case 'region': return filterOptions.regions || [];
-            case 'city': return filterOptions.cities || [];
-            case 'operatingSystem': return filterOptions.operatingSystems || [];
-            case 'osVersion': return filterOptions.osVersions || [];
-            case 'sessionSource': return filterOptions.sessionSources || [];
-            default: return [];
-        }
+    const collapseAllGroups = () => {
+        setExpandedGroups({});
     };
 
     return (
@@ -394,16 +297,27 @@ const AudiencePage = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-800">Audience Intelligence</h1>
-                    <p className="text-gray-600 mt-1">Real-time Faro telemetry combined with historical GA4 records.</p>
+                    <p className="text-gray-600 mt-1">Zero-Trust grouped telemetry with historic YAUAA analysis.</p>
                 </div>
-                <button
-                    onClick={handleManualRefresh}
-                    disabled={isRefreshing || loading}
-                    className="mt-4 md:mt-0 flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
-                >
-                    <FaSyncAlt className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    {isRefreshing ? 'Syncing GA4...' : 'Refresh GA4 Data'}
-                </button>
+                <div className="mt-4 md:mt-0 flex space-x-3">
+                    <button
+                        onClick={handleZkpDataHealer}
+                        disabled={isHealing || loading}
+                        className="flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
+                        title="Retroactively reprocess legacy telemetry via YAUAA and BouncyCastle SHA3-256."
+                    >
+                        {isHealing ? <FaSyncAlt className="mr-2 animate-spin" /> : <FaShieldAlt className="mr-2" />}
+                        Re-Align Historical Data
+                    </button>
+                    <button
+                        onClick={handleManualRefresh}
+                        disabled={isRefreshing || loading}
+                        className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
+                    >
+                        <FaDatabase className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        Refresh GA4 Data
+                    </button>
+                </div>
             </div>
 
             {successMsg && (
@@ -442,7 +356,7 @@ const AudiencePage = () => {
                 </div>
             </div>
 
-            {/* --- MULTI-SELECT USER ID FILTERS & GROUPING TOGGLE --- */}
+            {/* --- MULTI-SELECT USER ID FILTERS --- */}
             <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-6 border-l-4 border-sky-500">
                 <div className="flex-1 w-full">
                     <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
@@ -468,17 +382,9 @@ const AudiencePage = () => {
                         disabled={loading || optionsLoading}
                     />
                 </div>
-                <div className="flex items-center space-x-3 lg:ml-auto border border-gray-200 p-2.5 rounded-lg bg-gray-50 w-full lg:w-auto mt-4 lg:mt-0">
-                    <label className="text-sm font-semibold text-gray-700 flex items-center cursor-pointer select-none" onClick={() => setIsGroupedView(!isGroupedView)}>
-                        <FaLayerGroup className={`mr-2 ${isGroupedView ? 'text-sky-500' : 'text-gray-400'} transition-colors`} />
-                        Group by ID
-                    </label>
-                    <button
-                        onClick={() => setIsGroupedView(!isGroupedView)}
-                        className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 focus:outline-none ${isGroupedView ? 'bg-sky-500' : 'bg-gray-300'}`}
-                    >
-                        <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${isGroupedView ? 'translate-x-6' : 'translate-x-0'}`} />
-                    </button>
+                <div className="flex items-center space-x-3 lg:ml-auto w-full lg:w-auto mt-4 lg:mt-0">
+                    <button onClick={expandAllGroups} className="text-xs text-sky-600 hover:text-sky-800 font-semibold px-2 py-1 bg-sky-50 rounded">Expand All</button>
+                    <button onClick={collapseAllGroups} className="text-xs text-gray-600 hover:text-gray-800 font-semibold px-2 py-1 bg-gray-100 rounded">Collapse All</button>
                 </div>
             </div>
 
@@ -558,43 +464,130 @@ const AudiencePage = () => {
                         <p className="font-medium text-lg">Crunching telemetry data...</p>
                     </div>
                 ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                {columns.map(col => (
-                                    <th key={col.key} className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider whitespace-nowrap">
-                                        {col.title}
-                                    </th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
-                            {tableData.length > 0 ? (
-                                tableData.map((item, index) => (
-                                    <tr
-                                        key={item.id || `${item.userIdentifier}-${index}`}
-                                        className={`transition-colors ${item.isChild ? 'bg-gray-50/70 border-l-4 border-l-sky-300' : 'hover:bg-sky-50/40 bg-white'}`}
-                                    >
-                                        {columns.map(col => (
-                                            <td key={col.key} className={`px-6 py-4 whitespace-nowrap align-top ${item.isChild ? 'opacity-90' : ''}`}>
-                                                {col.render(item)}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))
+                    <div className="min-w-full divide-y divide-gray-200">
+                        {/* Header */}
+                        <div className="bg-gray-50 grid grid-cols-4 px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                            <div>Date & Time</div>
+                            <div>Device & Hardware</div>
+                            <div>Traffic & Entry</div>
+                            <div>Engagement & Location</div>
+                        </div>
+
+                        {/* Body */}
+                        <div className="bg-white divide-y divide-gray-100">
+                            {data.length > 0 ? (
+                                data.map((deviceGroup) => {
+                                    const isExpanded = expandedGroups[deviceGroup.fingerprintId];
+                                    return (
+                                        <div key={deviceGroup.fingerprintId} className="flex flex-col">
+                                            {/* Parent Row (Device Node) */}
+                                            <div
+                                                className="grid grid-cols-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 border-transparent hover:border-sky-400"
+                                                onClick={() => toggleGroup(deviceGroup.fingerprintId)}
+                                            >
+                                                <div className="flex items-center">
+                                                    {isExpanded ? <FaChevronDown className="text-sky-500 mr-3" /> : <FaChevronRight className="text-gray-400 mr-3" />}
+                                                    <div>
+                                                        <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full mb-1 inline-block">
+                                                            {deviceGroup.totalGroupedSessions} Sessions
+                                                        </span>
+                                                        <div className="text-sm font-semibold text-gray-900 mt-0.5">
+                                                            Last: {formatIST(deviceGroup.lastSeen) || deviceGroup.lastSeen}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-1 text-sm">
+                                                    <p className="text-gray-900 font-bold"><FaMobileAlt className="inline mr-1 text-gray-400" /> {deviceGroup.deviceBrand} {deviceGroup.deviceModel}</p>
+                                                    <p className="text-gray-500"><FaGlobe className="inline mr-1 text-gray-400" /> {deviceGroup.operatingSystem} {deviceGroup.osVersion}</p>
+                                                    <p className="text-xs font-mono text-gray-400 truncate w-32" title={deviceGroup.fingerprintId}>Hash: {deviceGroup.fingerprintId}</p>
+                                                </div>
+
+                                                <div className="flex items-center text-sm text-gray-500">
+                                                    <span className="italic">Multiple Entry Points...</span>
+                                                </div>
+
+                                                <div className="flex items-center text-sm text-gray-500">
+                                                    <span className="italic">Aggregated Locations...</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Child Rows (Individual Sessions) */}
+                                            {isExpanded && (
+                                                <div className="bg-slate-50 border-t border-gray-100">
+                                                    {deviceGroup.sessions.map((session, sIdx) => (
+                                                        <div key={session.rawSessionId || sIdx} className="grid grid-cols-4 px-6 py-3 border-b border-gray-100 last:border-b-0 pl-14 hover:bg-white transition-colors">
+
+                                                            {/* Child Date */}
+                                                            <div className="space-y-1 relative">
+                                                                <div className="absolute -left-6 top-2 w-4 h-px bg-gray-300"></div>
+                                                                <div className="absolute -left-6 -top-3 w-px h-5 bg-gray-300"></div>
+                                                                <p className="text-xs text-gray-800">
+                                                                    <FaCalendarAlt className="inline mr-1 text-gray-400" /> {formatIST(session.sessionStartTime) || session.sessionDate}
+                                                                </p>
+                                                                {session.firstVisitDate && (
+                                                                    <p className="text-[10px] text-green-700 font-medium tracking-tight bg-green-50 px-1.5 py-0.5 rounded inline-flex items-center mt-0.5" title="Historical First Visit Date">
+                                                                        <FaClock className="mr-1 text-green-500" /> 1st Visit: {session.firstVisitDate}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Child Device overrides (usually match parent, but kept for legacy tracking) */}
+                                                            <div className="space-y-0.5 text-xs text-gray-500">
+                                                                <p>Class: {session.deviceClass || 'N/A'}</p>
+                                                                <p>Res: {session.screenResolution || 'N/A'}</p>
+                                                            </div>
+
+                                                            {/* Child Traffic */}
+                                                            <div className="space-y-1 text-xs">
+                                                                <p className="text-gray-700 font-semibold break-words">Src: {session.sessionSource}</p>
+                                                                <p className="text-gray-500 truncate pr-4" title={session.landingPage}>Land: {session.landingPage}</p>
+                                                            </div>
+
+                                                            {/* Child Engagement & Location */}
+                                                            <div className="space-y-1 text-xs">
+                                                                <div className="flex justify-between items-center pr-4">
+                                                                    <span className="font-semibold text-gray-700"><FaClock className="inline mr-1 text-gray-400" /> {session.timeOnSiteFormatted}</span>
+                                                                    <span className="text-gray-500"><FaChartBar className="inline mr-1 text-gray-400" /> Views: {session.views}</span>
+                                                                </div>
+                                                                <DetailCell icon={FaMapMarkedAlt} value={`${session.city || 'N/A'}, ${session.region || 'N/A'}, ${session.country || 'N/A'}`} label="Location" />
+                                                                <div className="flex items-center justify-between font-mono text-gray-400 bg-gray-100/50 p-1 rounded border border-gray-200 text-[9px] mt-1 pr-1" title={session.userIdentifier}>
+                                                                    <span>ID: <span className="font-semibold text-gray-500">{session.userIdentifier || 'N/A'}</span></span>
+                                                                    {session.userIdentifier && session.userIdentifier !== 'Not available (GA4)' && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (!targetClientIds.includes(session.userIdentifier)) {
+                                                                                    setTargetClientIds([...targetClientIds, session.userIdentifier]);
+                                                                                }
+                                                                            }}
+                                                                            className="ml-2 text-sky-500 hover:text-sky-700 focus:outline-none transition-transform hover:scale-110"
+                                                                            title="Isolate this exact session ID"
+                                                                        >
+                                                                            <FaCrosshairs size={11} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
                             ) : (
                                 !error && !loading && (
-                                    <tr>
-                                        <td colSpan={columns.length} className="px-6 py-16 text-center text-gray-500">
-                                            <FaChartBar className="mx-auto text-5xl mb-4 text-gray-300" />
-                                            <p className="text-xl font-semibold text-gray-700">No visitor data found.</p>
-                                            <p className="text-sm mt-2">Adjust the date range, triggers, or hit 'Refresh GA4 Data'.</p>
-                                        </td>
-                                    </tr>
+                                    <div className="px-6 py-16 text-center text-gray-500">
+                                        <FaChartBar className="mx-auto text-5xl mb-4 text-gray-300" />
+                                        <p className="text-xl font-semibold text-gray-700">No visitor data found.</p>
+                                        <p className="text-sm mt-2">Adjust the date range, triggers, or hit 'Refresh GA4 Data'.</p>
+                                    </div>
                                 )
                             )}
-                        </tbody>
-                    </table>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
