@@ -11,6 +11,9 @@
  * - EDITED (Phase 6 Fix):
  * • Renamed payload properties (e.g., `id` -> `metricId`, `name` -> `metricName`).
  * • Why: Prevented namespace pollution and a fatal 500 Internal Server Error caused by sending an `id` string that collided with the backend's `Long` primary key.
+ * - EDITED (Incident 55/56 - Faro Telemetry Activation):
+ * • Dynamically imported and invoked initTimeTracking, initScrollTracking, initExitIntent, and trackPageView from faroConfig on mount.
+ * • Why: These behavioral listeners were orphaned, resulting in 0s engagement metrics in the DB. Attaching them on mount restores 1st-party timeOnPage and scrollDepth telemetry without blocking the render thread.
  */
 'use client';
 
@@ -18,6 +21,16 @@ import { useEffect } from 'react';
 
 export default function WebVitalsTracker() {
     useEffect(() => {
+        // 1. Initialize Faro Behavioral Tracking (Scroll, Time, Exit Intent)
+        // Dynamically imported to prevent blocking the main render thread
+        import('../faroConfig').then(({ initScrollTracking, initTimeTracking, initExitIntent, trackPageView }) => {
+            if (initScrollTracking) initScrollTracking();
+            if (initTimeTracking) initTimeTracking();
+            if (initExitIntent) initExitIntent();
+            if (trackPageView) trackPageView();
+        }).catch(e => console.warn("AEGIS L5-BIE: Faro behavioral tracking init failed", e));
+
+        // 2. Initialize Web Vitals Tracking
         // Dynamically import to avoid SSR issues and keep it out of initial bundle
         import('web-vitals').then(({ getCLS, getFID, getLCP, getTTFB, getFCP }) => {
             const report = (metric: any) => {
