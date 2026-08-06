@@ -24,6 +24,9 @@
  * • Date: 2026-08-05
  * - EDITED (Incident 48/49 - Legacy Hardware Isolation):
  * • Updated UI rendering to safely isolate and label legacy un-hashed visitors, preventing grouping collapse.
+ * - EDITED (Incident 66 - ReferenceError Fix):
+ * • Injected getOptionsForFilterType helper function safely mapping it from the filterOptions state.
+ * • Why: Resolved a fatal React white-screen crash triggered by invoking an undefined function in the dynamic filter row.
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
@@ -292,6 +295,11 @@ const AudiencePage = () => {
 
     const collapseAllGroups = () => {
         setExpandedGroups({});
+    };
+
+    const getOptionsForFilterType = (type) => {
+        if (!filterOptions) return [];
+        return filterOptions[type] || [];
     };
 
     return (
