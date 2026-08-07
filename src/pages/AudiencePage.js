@@ -27,24 +27,19 @@
  * - EDITED (Incident 66 - ReferenceError Fix):
  * • Injected getOptionsForFilterType helper function safely mapping it from the filterOptions state.
  * • Why: Resolved a fatal React white-screen crash triggered by invoking an undefined function in the dynamic filter row.
+ * - EDITED (Phase 7 - UI Redesign & Data Hierarchy):
+ * • Implemented Cloudflare-style monochromatic layout: simplified structural boundaries and removed visual noise (excessive borders, sky-500 overload).
+ * • Added dynamic `KPISummaryBar` to calculate and surface Top Level metrics (Total Visitors, Sessions, Top Entry Point).
+ * • Restructured multi-tier tables into minimalist parent-child accordions with clean gray-50/white separation.
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
 import {
-    FaCalendarAlt, FaMapMarkedAlt, FaMobileAlt, FaDesktop, FaClock, FaRedo,
-    FaExclamationTriangle, FaChartBar, FaGlobe, FaPlus, FaTimes, FaEyeSlash,
-    FaCrosshairs, FaCheckSquare, FaSquare, FaSyncAlt, FaCheckCircle, FaLayerGroup,
-    FaChevronDown, FaChevronRight, FaDatabase, FaShieldAlt
+    FaCalendarAlt, FaMapMarkedAlt, FaRedo, FaExclamationTriangle,
+    FaPlus, FaTimes, FaEyeSlash, FaCrosshairs, FaCheckSquare,
+    FaSquare, FaSyncAlt, FaCheckCircle, FaChevronDown, FaChevronRight,
+    FaDatabase, FaShieldAlt, FaCog
 } from 'react-icons/fa';
-
-const DetailCell = ({ icon: Icon, value, label }) => (
-    <div className="flex items-center text-sm text-gray-700">
-        <Icon className="text-sky-500 mr-2 flex-shrink-0" title={label} />
-        <span className="truncate" title={value || 'N/A'}>
-            {value || 'N/A'}
-        </span>
-    </div>
-);
 
 // Advanced Type-Ahead Combobox for robust User ID searching
 const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, disabled }) => {
@@ -75,12 +70,12 @@ const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, dis
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <div className={`p-1.5 border rounded-lg w-full text-sm min-h-[40px] flex flex-wrap gap-1 items-center ${disabled ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300 bg-white hover:border-sky-500'}`}>
+            <div className={`p-1.5 border rounded-lg w-full text-sm min-h-[40px] flex flex-wrap gap-1 items-center ${disabled ? 'bg-slate-100 border-slate-200 cursor-not-allowed' : 'border-slate-300 bg-white hover:border-blue-600 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-all'}`}>
                 {selectedValues.map(val => (
-                    <span key={val} className="bg-sky-100 text-sky-800 text-xs px-2 py-1 rounded-md flex items-center border border-sky-200">
+                    <span key={val} className="bg-slate-100 text-slate-800 text-xs px-2 py-1 rounded flex items-center border border-slate-200">
                         {val.substring(0, 10)}...
                         <FaTimes
-                            className="ml-1.5 cursor-pointer text-sky-500 hover:text-red-500 transition-colors"
+                            className="ml-1.5 cursor-pointer text-slate-400 hover:text-slate-800 transition-colors"
                             onClick={(e) => { e.stopPropagation(); toggleSelection(val); }}
                         />
                     </span>
@@ -88,7 +83,7 @@ const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, dis
                 <input
                     type="text"
                     disabled={disabled}
-                    className="flex-grow outline-none bg-transparent min-w-[120px] text-sm p-1 placeholder-gray-400"
+                    className="flex-grow outline-none bg-transparent min-w-[120px] text-sm p-1 placeholder-slate-400 text-slate-800"
                     placeholder={selectedValues.length === 0 ? placeholder : 'Type to add more...'}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -97,24 +92,24 @@ const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, dis
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 flex flex-col">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 flex flex-col">
                     <div className="overflow-y-auto flex-1 p-2 space-y-1">
                         {filteredOptions.length === 0 ? (
-                            <div className="text-center text-sm text-gray-500 py-2">No matching IDs found.</div>
+                            <div className="text-center text-sm text-slate-500 py-2">No matching IDs found.</div>
                         ) : (
                             filteredOptions.slice(0, 100).map(opt => (
                                 <div
                                     key={opt}
-                                    className="flex items-center text-sm p-1.5 hover:bg-sky-50 cursor-pointer rounded transition-colors"
+                                    className="flex items-center text-sm p-1.5 hover:bg-slate-50 cursor-pointer rounded transition-colors text-slate-800"
                                     onClick={() => toggleSelection(opt)}
                                 >
-                                    {selectedValues.includes(opt) ? <FaCheckSquare className="text-sky-500 mr-2" /> : <FaSquare className="text-gray-300 mr-2" />}
+                                    {selectedValues.includes(opt) ? <FaCheckSquare className="text-blue-600 mr-2" /> : <FaSquare className="text-slate-300 mr-2" />}
                                     <span className="truncate font-mono" title={opt}>{opt}</span>
                                 </div>
                             ))
                         )}
                         {filteredOptions.length > 100 && (
-                            <div className="text-xs text-center text-gray-400 py-1.5 border-t mt-1 bg-gray-50 rounded-b">Showing top 100 recommendations. Keep typing to filter.</div>
+                            <div className="text-xs text-center text-slate-400 py-1.5 border-t mt-1 bg-slate-50 rounded-b">Showing top 100 recommendations. Keep typing to filter.</div>
                         )}
                     </div>
                 </div>
@@ -145,7 +140,7 @@ const formatIST = (isoString) => {
     try {
         const d = new Date(isoString);
         if (isNaN(d)) return null;
-        return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) + ' (IST)';
+        return d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
     } catch (e) {
         return null;
     }
@@ -171,8 +166,14 @@ const AudiencePage = () => {
     const [filters, setFilters] = useState([]);
     const [filterOptions, setFilterOptions] = useState(null);
 
+    // Filter Panel toggle state
+    const [isFilterExpanded, setIsFilterExpanded] = useState(false);
+
     // Grouping State (Accordions)
     const [expandedGroups, setExpandedGroups] = useState({});
+
+    // Admin Tools dropdown
+    const [showAdminMenu, setShowAdminMenu] = useState(false);
 
     const buildApiParams = useCallback(() => {
         const params = { startDate, endDate };
@@ -228,6 +229,7 @@ const AudiencePage = () => {
         setIsRefreshing(true);
         setError('');
         setSuccessMsg('');
+        setShowAdminMenu(false);
 
         try {
             const res = await refreshGA4Data(startDate, endDate);
@@ -247,6 +249,7 @@ const AudiencePage = () => {
         setIsHealing(true);
         setError('');
         setSuccessMsg('');
+        setShowAdminMenu(false);
 
         try {
             const res = await healHistoricalAnalytics(proof);
@@ -302,290 +305,367 @@ const AudiencePage = () => {
         return filterOptions[type] || [];
     };
 
+    // Calculate Dynamic KPIs
+    const kpiMetrics = useMemo(() => {
+        if (!data || data.length === 0) return { visitors: 0, sessions: 0, topLanding: 'N/A' };
+
+        let totalSessions = 0;
+        const landingCounts = {};
+
+        data.forEach(group => {
+            totalSessions += group.totalGroupedSessions || 0;
+            if (group.sessions && Array.isArray(group.sessions)) {
+                group.sessions.forEach(s => {
+                    if (s.landingPage) {
+                        landingCounts[s.landingPage] = (landingCounts[s.landingPage] || 0) + 1;
+                    }
+                });
+            }
+        });
+
+        // Find the most frequent landing page
+        const topLanding = Object.entries(landingCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
+
+        return {
+            visitors: data.length,
+            sessions: totalSessions,
+            topLanding: topLanding.length > 25 ? topLanding.substring(0, 25) + '...' : topLanding
+        };
+    }, [data]);
+
     return (
-        <div className="container mx-auto p-6 md:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-800">Audience Intelligence</h1>
-                    <p className="text-gray-600 mt-1">Zero-Trust grouped telemetry with historic YAUAA analysis.</p>
+        <div className="container mx-auto p-4 md:p-8 bg-white min-h-screen font-sans text-slate-900">
+
+            {/* Header Area */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-200 pb-4">
+                <div className="flex items-center space-x-6">
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Audience Intelligence</h1>
+
+                    {/* Inline Date Picker */}
+                    <div className="flex items-center space-x-2 text-sm">
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-transparent border-0 border-b border-slate-300 focus:ring-0 focus:border-blue-600 text-slate-600 font-medium pb-1"
+                            disabled={loading || optionsLoading || isRefreshing}
+                        />
+                        <span className="text-slate-400">to</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-transparent border-0 border-b border-slate-300 focus:ring-0 focus:border-blue-600 text-slate-600 font-medium pb-1"
+                            disabled={loading || optionsLoading || isRefreshing}
+                        />
+                    </div>
                 </div>
-                <div className="mt-4 md:mt-0 flex space-x-3">
+
+                <div className="mt-4 md:mt-0 flex items-center space-x-4 relative">
+                    {(loading || optionsLoading) && <FaRedo className="animate-spin text-blue-600" />}
+
                     <button
-                        onClick={handleZkpDataHealer}
-                        disabled={isHealing || loading}
-                        className="flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
-                        title="Retroactively reprocess legacy telemetry via YAUAA and BouncyCastle SHA3-256."
+                        onClick={() => setShowAdminMenu(!showAdminMenu)}
+                        className="text-slate-500 hover:text-slate-800 p-2 rounded transition-colors"
+                        title="Advanced Admin Actions"
                     >
-                        {isHealing ? <FaSyncAlt className="mr-2 animate-spin" /> : <FaShieldAlt className="mr-2" />}
-                        Re-Align Historical Data
+                        <FaCog size={18} />
                     </button>
-                    <button
-                        onClick={handleManualRefresh}
-                        disabled={isRefreshing || loading}
-                        className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white rounded-lg shadow transition"
-                    >
-                        <FaDatabase className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                        Refresh GA4 Data
-                    </button>
+
+                    {showAdminMenu && (
+                        <div className="absolute top-10 right-0 z-50 w-56 bg-white border border-slate-200 rounded-lg shadow-lg flex flex-col overflow-hidden">
+                            <button
+                                onClick={handleManualRefresh}
+                                disabled={isRefreshing || loading}
+                                className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 disabled:text-slate-400 text-left border-b border-slate-100"
+                            >
+                                <FaDatabase className="mr-3 text-slate-400" />
+                                Refresh GA4 Data
+                            </button>
+                            <button
+                                onClick={handleZkpDataHealer}
+                                disabled={isHealing || loading}
+                                className="flex items-center px-4 py-3 text-sm text-amber-700 hover:bg-amber-50 disabled:text-slate-400 text-left font-medium"
+                            >
+                                <FaShieldAlt className="mr-3 text-amber-500" />
+                                Re-Align Historical Data
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {successMsg && (
-                <div className="mb-4 p-3 bg-green-100 text-green-800 border-l-4 border-green-500 flex items-center rounded">
-                    <FaCheckCircle className="mr-2" /> {successMsg}
+                <div className="mb-6 p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center rounded text-sm font-medium">
+                    <FaCheckCircle className="mr-2 text-emerald-500" /> {successMsg}
                 </div>
             )}
 
-            {/* --- DATE FILTER ROW --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 border-t-4 border-gray-800">
-                <div className="flex items-center space-x-2 w-full md:w-auto">
-                    <label htmlFor="startDate" className="text-sm font-medium text-gray-700 flex-shrink-0">From:</label>
-                    <input
-                        type="date"
-                        id="startDate"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-sky-500 focus:border-sky-500"
-                        disabled={loading || optionsLoading || isRefreshing}
-                    />
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Visitors</div>
+                    <div className="text-3xl font-bold text-slate-900">{kpiMetrics.visitors.toLocaleString()}</div>
                 </div>
-                <div className="flex items-center space-x-2 w-full md:w-auto">
-                    <label htmlFor="endDate" className="text-sm font-medium text-gray-700 flex-shrink-0">To:</label>
-                    <input
-                        type="date"
-                        id="endDate"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="p-2 border border-gray-300 rounded-lg w-full text-sm focus:ring-sky-500 focus:border-sky-500"
-                        disabled={loading || optionsLoading || isRefreshing}
-                    />
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Total Sessions</div>
+                    <div className="text-3xl font-bold text-slate-900">{kpiMetrics.sessions.toLocaleString()}</div>
                 </div>
-                <div className="text-sm text-gray-500 flex-grow text-right font-medium">
-                    {(loading || optionsLoading) && <FaRedo className="inline mr-2 animate-spin text-sky-500" />}
-                    {loading ? 'Evaluating...' : ''}
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Top Entry Point</div>
+                    <div className="text-xl font-bold text-slate-900 truncate mt-2">{kpiMetrics.topLanding}</div>
                 </div>
             </div>
 
-            {/* --- MULTI-SELECT USER ID FILTERS --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-4 flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-6 border-l-4 border-sky-500">
-                <div className="flex-1 w-full">
-                    <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
-                        <FaCrosshairs className="mr-2 text-sky-500" /> Target Specific Users
-                    </label>
-                    <TypeAheadDropdown
-                        options={filterOptions?.clientIds || []}
-                        selectedValues={targetClientIds}
-                        onChange={setTargetClientIds}
-                        placeholder="Type to search & include IDs..."
-                        disabled={loading || optionsLoading}
-                    />
-                </div>
-                <div className="flex-1 w-full">
-                    <label className="flex items-center text-sm font-semibold text-gray-700 mb-1">
-                        <FaEyeSlash className="mr-2 text-red-400" /> Hide Users
-                    </label>
-                    <TypeAheadDropdown
-                        options={filterOptions?.clientIds || []}
-                        selectedValues={excludeClientIds}
-                        onChange={setExcludeClientIds}
-                        placeholder="Type to search & exclude IDs..."
-                        disabled={loading || optionsLoading}
-                    />
-                </div>
-                <div className="flex items-center space-x-3 lg:ml-auto w-full lg:w-auto mt-4 lg:mt-0">
-                    <button onClick={expandAllGroups} className="text-xs text-sky-600 hover:text-sky-800 font-semibold px-2 py-1 bg-sky-50 rounded">Expand All</button>
-                    <button onClick={collapseAllGroups} className="text-xs text-gray-600 hover:text-gray-800 font-semibold px-2 py-1 bg-gray-100 rounded">Collapse All</button>
-                </div>
-            </div>
-
-            {/* --- DYNAMIC MULTI-LEVEL FILTER ROW --- */}
-            <div className="bg-white p-4 rounded-lg shadow-sm mb-6 space-y-3">
-                <label className="text-sm font-semibold text-gray-700 border-b pb-2 block">Dimension Filters</label>
-                {filters.length === 0 && (
-                    <p className="text-sm text-gray-500">No dimension filters applied. Click "Add Filter" to refine by OS, City, etc.</p>
-                )}
-
-                {filters.map((filter) => (
-                    <div key={filter.id} className="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2">
-                        <select
-                            aria-label="Filter type"
-                            value={filter.type}
-                            onChange={(e) => updateFilter(filter.id, 'type', e.target.value)}
-                            className="p-2 border border-gray-300 rounded-lg w-full md:w-1/3 text-sm focus:ring-sky-500 focus:border-sky-500"
-                            disabled={loading || optionsLoading}
-                        >
-                            <option value="">-- Select Filter Type --</option>
-                            {Object.entries(FILTER_TYPES).map(([key, label]) => (
-                                <option key={key} value={key}>{label}</option>
-                            ))}
-                        </select>
-
-                        <select
-                            aria-label="Filter value"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(filter.id, 'value', e.target.value)}
-                            className="p-2 border border-gray-300 rounded-lg w-full md:w-2/3 text-sm focus:ring-sky-500 focus:border-sky-500"
-                            disabled={!filter.type || loading || optionsLoading}
-                        >
-                            <option value="">-- Select Value --</option>
-                            {getOptionsForFilterType(filter.type).map(option => (
-                                <option key={option} value={option}>
-                                    {option || '(Not Set)'}
-                                </option>
-                            ))}
-                        </select>
-
-                        <button
-                            onClick={() => removeFilter(filter.id)}
-                            className="p-2 text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition"
-                            title="Remove filter"
-                            disabled={loading || optionsLoading}
-                        >
-                            <FaTimes />
-                        </button>
-                    </div>
-                ))}
-
-                <button
-                    onClick={addFilter}
-                    disabled={loading || optionsLoading}
-                    className="flex items-center px-4 py-2 text-sm rounded-lg transition duration-300 bg-sky-600 text-white hover:bg-sky-700 disabled:bg-gray-300 mt-2"
+            {/* Streamlined Filter Panel */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl mb-6">
+                <div
+                    className="flex justify-between items-center px-5 py-3 cursor-pointer hover:bg-slate-100 transition-colors rounded-xl"
+                    onClick={() => setIsFilterExpanded(!isFilterExpanded)}
                 >
-                    <FaPlus className="mr-2" />
-                    Add Filter
-                </button>
+                    <div className="flex items-center text-sm font-semibold text-slate-700">
+                        <FaLayerGroup className="mr-2 text-blue-600" />
+                        Audience Filters
+                        {((targetClientIds.length + excludeClientIds.length + filters.length) > 0) && (
+                            <span className="ml-3 bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full">
+                                {targetClientIds.length + excludeClientIds.length + filters.length} Active
+                            </span>
+                        )}
+                    </div>
+                    {isFilterExpanded ? <FaChevronDown className="text-slate-400" /> : <FaChevronRight className="text-slate-400" />}
+                </div>
+
+                {isFilterExpanded && (
+                    <div className="px-5 pb-5 pt-2 border-t border-slate-200 space-y-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
+                                    <FaCrosshairs className="mr-1.5 text-slate-400" /> Include Users
+                                </label>
+                                <TypeAheadDropdown
+                                    options={filterOptions?.clientIds || []}
+                                    selectedValues={targetClientIds}
+                                    onChange={setTargetClientIds}
+                                    placeholder="Search specific IDs..."
+                                    disabled={loading || optionsLoading}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
+                                    <FaEyeSlash className="mr-1.5 text-slate-400" /> Exclude Users
+                                </label>
+                                <TypeAheadDropdown
+                                    options={filterOptions?.clientIds || []}
+                                    selectedValues={excludeClientIds}
+                                    onChange={setExcludeClientIds}
+                                    placeholder="Search IDs to exclude..."
+                                    disabled={loading || optionsLoading}
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Dimension Constraints</label>
+                                <button
+                                    onClick={addFilter}
+                                    disabled={loading || optionsLoading}
+                                    className="text-xs font-medium text-blue-600 hover:text-blue-800 transition flex items-center"
+                                >
+                                    <FaPlus className="mr-1" /> Add Rule
+                                </button>
+                            </div>
+
+                            {filters.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic">No dimension constraints applied.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {filters.map((filter) => (
+                                        <div key={filter.id} className="flex items-center space-x-2">
+                                            <select
+                                                value={filter.type}
+                                                onChange={(e) => updateFilter(filter.id, 'type', e.target.value)}
+                                                className="p-1.5 border border-slate-300 rounded text-sm bg-white focus:border-blue-600 focus:ring-0 text-slate-700 w-1/3"
+                                                disabled={loading || optionsLoading}
+                                            >
+                                                <option value="">-- Field --</option>
+                                                {Object.entries(FILTER_TYPES).map(([key, label]) => (
+                                                    <option key={key} value={key}>{label}</option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={filter.value}
+                                                onChange={(e) => updateFilter(filter.id, 'value', e.target.value)}
+                                                className="p-1.5 border border-slate-300 rounded text-sm bg-white focus:border-blue-600 focus:ring-0 text-slate-700 w-full"
+                                                disabled={!filter.type || loading || optionsLoading}
+                                            >
+                                                <option value="">-- Value --</option>
+                                                {getOptionsForFilterType(filter.type).map(option => (
+                                                    <option key={option} value={option}>
+                                                        {option || '(Not Set)'}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <button
+                                                onClick={() => removeFilter(filter.id)}
+                                                className="p-1.5 text-slate-400 hover:text-red-600 transition"
+                                                title="Remove filter"
+                                            >
+                                                <FaTimes />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
 
-            {/* --- DATA TABLE --- */}
-            <div className="bg-white rounded-lg shadow-lg overflow-x-auto">
+            {/* DATA TABLE */}
+            <div>
                 {error && (
-                    <div className="p-4 bg-red-100 text-red-700 border-l-4 border-red-500 flex items-center">
-                        <FaExclamationTriangle className="mr-3 flex-shrink-0 text-xl" />
+                    <div className="mb-4 p-4 bg-red-50 text-red-700 border border-red-200 flex items-start rounded-lg">
+                        <FaExclamationTriangle className="mr-3 mt-0.5 flex-shrink-0 text-lg text-red-500" />
                         <div>
-                            <p className="font-semibold">{error}</p>
-                            <p className="text-sm">Check the network tab or retry the fetch operation.</p>
+                            <p className="font-semibold text-sm">{error}</p>
+                            <p className="text-xs mt-1 opacity-80">Check network diagnostics or adjust filter boundaries.</p>
                         </div>
                     </div>
                 )}
 
                 {loading && data.length === 0 ? (
-                    <div className="p-12 text-center text-gray-500">
-                        <FaRedo className="mx-auto text-4xl mb-3 animate-spin text-sky-500" />
-                        <p className="font-medium text-lg">Crunching telemetry data...</p>
+                    <div className="py-20 text-center">
+                        <FaRedo className="mx-auto text-3xl mb-4 animate-spin text-slate-300" />
+                        <p className="font-medium text-sm text-slate-500 tracking-wide">Compiling Telemetry Matrix...</p>
                     </div>
                 ) : (
-                    <div className="min-w-full divide-y divide-gray-200">
-                        {/* Header */}
-                        <div className="bg-gray-50 grid grid-cols-4 px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                            <div>Date & Time</div>
-                            <div>Device & Hardware</div>
-                            <div>Traffic & Entry</div>
-                            <div>Engagement & Location</div>
+                    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                        {/* Table Actions Header */}
+                        <div className="bg-white border-b border-slate-200 px-4 py-3 flex justify-end">
+                            <div className="flex space-x-4 text-xs font-medium">
+                                <button onClick={expandAllGroups} className="text-slate-500 hover:text-blue-600 transition-colors">Expand All</button>
+                                <span className="text-slate-300">|</span>
+                                <button onClick={collapseAllGroups} className="text-slate-500 hover:text-slate-800 transition-colors">Collapse All</button>
+                            </div>
                         </div>
 
-                        {/* Body */}
-                        <div className="bg-white divide-y divide-gray-100">
-                            {data.length > 0 ? (
-                                data.map((deviceGroup) => {
+                        {data.length > 0 ? (
+                            <div className="divide-y divide-slate-100">
+                                {data.map((deviceGroup) => {
                                     const isExpanded = expandedGroups[deviceGroup.fingerprintId];
                                     return (
                                         <div key={deviceGroup.fingerprintId} className="flex flex-col">
-                                            {/* Parent Row (Device Node) */}
+                                            {/* Parent Row (Device Group) */}
                                             <div
-                                                className="grid grid-cols-4 px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 border-transparent hover:border-sky-400"
+                                                className="grid grid-cols-1 lg:grid-cols-4 px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors items-center gap-4 lg:gap-0"
                                                 onClick={() => toggleGroup(deviceGroup.fingerprintId)}
                                             >
+                                                {/* 1. Chevron & Badge */}
                                                 <div className="flex items-center">
-                                                    {isExpanded ? <FaChevronDown className="text-sky-500 mr-3" /> : <FaChevronRight className="text-gray-400 mr-3" />}
-                                                    <div>
-                                                        <span className="bg-sky-100 text-sky-800 text-xs font-bold px-2 py-0.5 rounded-full mb-1 inline-block">
-                                                            {deviceGroup.totalGroupedSessions} Sessions
-                                                        </span>
-                                                        <div className="text-sm font-semibold text-gray-900 mt-0.5">
-                                                            Last: {formatIST(deviceGroup.lastSeen) || deviceGroup.lastSeen}
-                                                        </div>
+                                                    <div className="w-5 flex justify-center mr-2">
+                                                        {isExpanded ? <FaChevronDown className="text-slate-400 text-[10px]" /> : <FaChevronRight className="text-slate-400 text-[10px]" />}
+                                                    </div>
+                                                    <span className="bg-blue-50 text-blue-700 text-[11px] font-semibold px-2 py-0.5 rounded border border-blue-100">
+                                                        {deviceGroup.totalGroupedSessions} Sessions
+                                                    </span>
+                                                </div>
+
+                                                {/* 2. Device Identifier */}
+                                                <div className="lg:col-span-1">
+                                                    <div className="text-sm font-semibold text-slate-900">
+                                                        {deviceGroup.deviceBrand !== 'Unknown' ? `${deviceGroup.deviceBrand} ` : ''}
+                                                        {deviceGroup.deviceModel || (deviceGroup.fingerprintId.startsWith('legacy-') ? 'Visitor' : 'Device')}
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 mt-0.5">
+                                                        {deviceGroup.operatingSystem} {deviceGroup.osVersion !== 'N/A' && deviceGroup.osVersion !== '' ? deviceGroup.osVersion : ''}
                                                     </div>
                                                 </div>
 
-                                                <div className="space-y-1 text-sm">
-                                                    <p className="text-gray-900 font-bold">
-                                                        <FaMobileAlt className="inline mr-1 text-gray-400" />
-                                                        {deviceGroup.deviceBrand || (deviceGroup.fingerprintId.startsWith('legacy-') ? 'Legacy' : 'Unknown')} {deviceGroup.deviceModel || (deviceGroup.fingerprintId.startsWith('legacy-') ? 'Visitor' : 'Device')}
-                                                    </p>
-                                                    <p className="text-gray-500">
-                                                        <FaGlobe className="inline mr-1 text-gray-400" /> {deviceGroup.operatingSystem} {deviceGroup.osVersion}
-                                                    </p>
-                                                    <p className="text-xs font-mono text-gray-400 truncate w-48" title={deviceGroup.fingerprintId}>
-                                                        {deviceGroup.fingerprintId.startsWith('legacy-')
-                                                            ? 'Legacy Visitor (Un-Hashed)'
-                                                            : `Hash: ${deviceGroup.fingerprintId}`}
-                                                    </p>
+                                                {/* 3. Last Seen */}
+                                                <div className="text-sm text-slate-600 font-medium">
+                                                    {formatIST(deviceGroup.lastSeen) || deviceGroup.lastSeen}
                                                 </div>
 
-                                                <div className="flex items-center text-sm text-gray-500">
-                                                    <span className="italic">Multiple Entry Points...</span>
-                                                </div>
-
-                                                <div className="flex items-center text-sm text-gray-500">
-                                                    <span className="italic">Aggregated Locations...</span>
+                                                {/* 4. Location & Hash */}
+                                                <div className="flex justify-between items-center text-sm text-slate-600">
+                                                    <span className="truncate pr-4">
+                                                        {deviceGroup.sessions[0]?.city && deviceGroup.sessions[0]?.city !== 'Unknown'
+                                                            ? `${deviceGroup.sessions[0].city}, ${deviceGroup.sessions[0].country}`
+                                                            : (deviceGroup.sessions[0]?.country || 'Unknown Location')
+                                                        }
+                                                    </span>
+                                                    <span
+                                                        className="text-[10px] text-slate-400 font-mono group-hover:text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 truncate max-w-[80px]"
+                                                        title={deviceGroup.fingerprintId}
+                                                    >
+                                                        {deviceGroup.fingerprintId.startsWith('legacy-') ? 'UN-HASHED' : deviceGroup.fingerprintId.substring(0, 8)}
+                                                    </span>
                                                 </div>
                                             </div>
 
                                             {/* Child Rows (Individual Sessions) */}
                                             {isExpanded && (
-                                                <div className="bg-slate-50 border-t border-gray-100">
+                                                <div className="bg-slate-50/80 border-t border-slate-100">
                                                     {deviceGroup.sessions.map((session, sIdx) => (
-                                                        <div key={session.rawSessionId || sIdx} className="grid grid-cols-4 px-6 py-3 border-b border-gray-100 last:border-b-0 pl-14 hover:bg-white transition-colors">
+                                                        <div key={session.rawSessionId || sIdx} className="px-5 py-4 border-b border-slate-100 last:border-b-0 lg:pl-16 hover:bg-white transition-colors">
 
-                                                            {/* Child Date */}
-                                                            <div className="space-y-1 relative">
-                                                                <div className="absolute -left-6 top-2 w-4 h-px bg-gray-300"></div>
-                                                                <div className="absolute -left-6 -top-3 w-px h-5 bg-gray-300"></div>
-                                                                <p className="text-xs text-gray-800">
-                                                                    <FaCalendarAlt className="inline mr-1 text-gray-400" /> {formatIST(session.sessionStartTime) || session.sessionDate}
-                                                                </p>
-                                                                {session.firstVisitDate && (
-                                                                    <p className="text-[10px] text-green-700 font-medium tracking-tight bg-green-50 px-1.5 py-0.5 rounded inline-flex items-center mt-0.5" title="Historical First Visit Date">
-                                                                        <FaClock className="mr-1 text-green-500" /> 1st Visit: {session.firstVisitDate}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Child Device overrides (usually match parent, but kept for legacy tracking) */}
-                                                            <div className="space-y-0.5 text-xs text-gray-500">
-                                                                <p>Class: {session.deviceClass || 'N/A'}</p>
-                                                                <p>Res: {session.screenResolution || 'N/A'}</p>
-                                                            </div>
-
-                                                            {/* Child Traffic */}
-                                                            <div className="space-y-1 text-xs">
-                                                                <p className="text-gray-700 font-semibold break-words">Src: {session.sessionSource}</p>
-                                                                <p className="text-gray-500 truncate pr-4" title={session.landingPage}>Land: {session.landingPage}</p>
-                                                            </div>
-
-                                                            {/* Child Engagement & Location */}
-                                                            <div className="space-y-1 text-xs">
-                                                                <div className="flex justify-between items-center pr-4">
-                                                                    <span className="font-semibold text-gray-700"><FaClock className="inline mr-1 text-gray-400" /> {session.timeOnSiteFormatted}</span>
-                                                                    <span className="text-gray-500"><FaChartBar className="inline mr-1 text-gray-400" /> Views: {session.views}</span>
-                                                                </div>
-                                                                <DetailCell icon={FaMapMarkedAlt} value={`${session.city || 'N/A'}, ${session.region || 'N/A'}, ${session.country || 'N/A'}`} label="Location" />
-                                                                <div className="flex items-center justify-between font-mono text-gray-400 bg-gray-100/50 p-1 rounded border border-gray-200 text-[9px] mt-1 pr-1" title={session.userIdentifier}>
-                                                                    <span>ID: <span className="font-semibold text-gray-500">{session.userIdentifier || 'N/A'}</span></span>
-                                                                    {session.userIdentifier && session.userIdentifier !== 'Not available (GA4)' && (
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (!targetClientIds.includes(session.userIdentifier)) {
-                                                                                    setTargetClientIds([...targetClientIds, session.userIdentifier]);
-                                                                                }
-                                                                            }}
-                                                                            className="ml-2 text-sky-500 hover:text-sky-700 focus:outline-none transition-transform hover:scale-110"
-                                                                            title="Isolate this exact session ID"
-                                                                        >
-                                                                            <FaCrosshairs size={11} />
-                                                                        </button>
+                                                            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                                                                {/* Date / Entry */}
+                                                                <div>
+                                                                    <div className="text-xs text-slate-500 mb-1 tracking-wider uppercase font-semibold">Timeline</div>
+                                                                    <div className="text-sm font-medium text-slate-800">{formatIST(session.sessionStartTime) || session.sessionDate}</div>
+                                                                    {session.firstVisitDate && (
+                                                                        <div className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block mt-1.5">
+                                                                            1st Visit: {session.firstVisitDate}
+                                                                        </div>
                                                                     )}
+                                                                </div>
+
+                                                                {/* Source & Landing */}
+                                                                <div>
+                                                                    <div className="text-xs text-slate-500 mb-1 tracking-wider uppercase font-semibold">Acquisition</div>
+                                                                    <div className="text-sm text-slate-800 break-words mb-1">
+                                                                        <span className="text-slate-400 mr-1">Src:</span> {session.sessionSource}
+                                                                    </div>
+                                                                    <div className="text-xs text-slate-600 truncate" title={session.landingPage}>
+                                                                        <span className="text-slate-400 mr-1">Land:</span> {session.landingPage}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Engagement */}
+                                                                <div>
+                                                                    <div className="text-xs text-slate-500 mb-1 tracking-wider uppercase font-semibold">Engagement</div>
+                                                                    <div className="flex space-x-4 text-sm text-slate-800">
+                                                                        <div><span className="text-slate-400 mr-1">Time:</span> {session.timeOnSiteFormatted}</div>
+                                                                        <div><span className="text-slate-400 mr-1">Views:</span> {session.views}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Hardware / ID */}
+                                                                <div>
+                                                                    <div className="text-xs text-slate-500 mb-1 tracking-wider uppercase font-semibold">Context</div>
+                                                                    <div className="text-xs text-slate-600 mb-1.5">
+                                                                        {session.deviceClass !== 'Unknown' ? `${session.deviceClass} · ` : ''} {session.screenResolution !== 'N/A' ? session.screenResolution : 'Unknown Res'}
+                                                                    </div>
+
+                                                                    <div className="flex items-center justify-between bg-slate-100 px-2 py-1 rounded text-[10px] font-mono text-slate-500" title={session.userIdentifier}>
+                                                                        <span className="truncate pr-2">{session.userIdentifier || 'N/A'}</span>
+                                                                        {session.userIdentifier && session.userIdentifier !== 'Not available (GA4)' && (
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (!targetClientIds.includes(session.userIdentifier)) {
+                                                                                        setTargetClientIds([...targetClientIds, session.userIdentifier]);
+                                                                                    }
+                                                                                }}
+                                                                                className="text-blue-500 hover:text-blue-700 transition-colors flex-shrink-0"
+                                                                                title="Isolate this exact session ID"
+                                                                            >
+                                                                                <FaCrosshairs />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
                                                             </div>
 
@@ -598,14 +678,14 @@ const AudiencePage = () => {
                                 })
                             ) : (
                                 !error && !loading && (
-                                    <div className="px-6 py-16 text-center text-gray-500">
-                                        <FaChartBar className="mx-auto text-5xl mb-4 text-gray-300" />
-                                        <p className="text-xl font-semibold text-gray-700">No visitor data found.</p>
-                                        <p className="text-sm mt-2">Adjust the date range, triggers, or hit 'Refresh GA4 Data'.</p>
-                                    </div>
+                                <div className="px-6 py-20 text-center text-slate-500 bg-slate-50">
+                                    <FaChartBar className="mx-auto text-4xl mb-3 text-slate-300" />
+                                    <p className="text-base font-medium text-slate-700">No session telemetry found.</p>
+                                    <p className="text-sm mt-1">Adjust filters or date boundaries to search again.</p>
+                                </div>
                                 )
                             )}
-                        </div>
+                            </div>
                     </div>
                 )}
             </div>

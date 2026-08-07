@@ -19,6 +19,9 @@
  * • Added `extractHighEntropyPlatform()` to asynchronously request `platformVersion` from the User-Agent Client Hints API.
  * • Appended the `platformVersion` to `extraPayload` in `postEvent`.
  * • Why: Microsoft froze the standard UA string at Windows 10.0. The Client Hints API is the only $0.00 way to extract exact Windows 11 telemetry natively from modern Chromium browsers.
+ * - EDITED (Phase 7 - P0 Transport & Fidelity Fix):
+ * • Added `screenResolution` to the outbound JSON payload for high-fidelity hardware tracking.
+ * • Extended `sendBeacon` execution block to include `visibility_hidden` events, neutralizing HTTP 499 client abort drops from `fetch({ keepalive: true })`.
  */
 import { initializeFaro } from '@grafana/faro-web-sdk';
 import { API_URL } from './apiConfig';
@@ -76,14 +79,15 @@ export const postEvent = async (eventType, extraPayload = {}) => {
             browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : (navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Other'),
             os: navigator.platform || 'Unknown',
             userAgent: navigator.userAgent,
+            screenResolution: window.screen ? `${window.screen.width}x${window.screen.height}` : 'Unknown',
             extra: {
                 platformVersion: platformVersion, // Sends the extracted Client Hint explicitly
             },
             ...extraPayload
         };
 
-        // Use sendBeacon for non-blocking exit events, otherwise fetch
-        if (eventType === 'exit_intent' || eventType === 'page_unload') {
+        // Use sendBeacon for all non-blocking exit contexts to prevent HTTP 499 client aborts
+        if (eventType === 'exit_intent' || eventType === 'page_unload' || eventType === 'visibility_hidden') {
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
             navigator.sendBeacon(`${API_URL}/api/v1/analytics/event`, blob);
         } else {
