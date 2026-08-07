@@ -15,6 +15,10 @@
  * • Implemented `initTimeTracking` leveraging `beforeunload` and `visibilitychange`.
  * • Implemented `initExitIntent` based on mouse leaving the viewport top boundary.
  * • Why: Achieve 100% data ownership of user engagement metrics independent of Google Analytics.
+ * - EDITED (Incident 72 - High Entropy Client Hints):
+ * • Added `extractHighEntropyPlatform()` to asynchronously request `platformVersion` from the User-Agent Client Hints API.
+ * • Appended the `platformVersion` to `extraPayload` in `postEvent`.
+ * • Why: Microsoft froze the standard UA string at Windows 10.0. The Client Hints API is the only $0.00 way to extract exact Windows 11 telemetry natively from modern Chromium browsers.
  */
 import { initializeFaro } from '@grafana/faro-web-sdk';
 import { API_URL } from './apiConfig';
@@ -43,10 +47,25 @@ export function initFaro() {
 const SESSION_ID = typeof window !== 'undefined' ? crypto.randomUUID() : 'ssr-session';
 const pageLoadTime = Date.now();
 
+// Asynchronous helper to fetch High-Entropy Client Hints without blocking render
+const extractHighEntropyPlatform = async () => {
+    if (typeof navigator !== 'undefined' && navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+        try {
+            const hints = await navigator.userAgentData.getHighEntropyValues(["platformVersion"]);
+            return hints.platformVersion || 'Unknown';
+        } catch (e) {
+            return 'Unknown';
+        }
+    }
+    return 'Unknown';
+};
+
 export const postEvent = async (eventType, extraPayload = {}) => {
     if (typeof window === 'undefined') return;
 
     try {
+        const platformVersion = await extractHighEntropyPlatform();
+
         const payload = {
             sessionId: SESSION_ID,
             eventType: eventType,
@@ -57,6 +76,9 @@ export const postEvent = async (eventType, extraPayload = {}) => {
             browser: navigator.userAgent.includes('Chrome') ? 'Chrome' : (navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Other'),
             os: navigator.platform || 'Unknown',
             userAgent: navigator.userAgent,
+            extra: {
+                platformVersion: platformVersion, // Sends the extracted Client Hint explicitly
+            },
             ...extraPayload
         };
 
