@@ -31,6 +31,8 @@
  * • Implemented Cloudflare-style monochromatic layout: simplified structural boundaries and removed visual noise (excessive borders, sky-500 overload).
  * • Added dynamic `KPISummaryBar` to calculate and surface Top Level metrics (Total Visitors, Sessions, Top Entry Point).
  * • Restructured multi-tier tables into minimalist parent-child accordions with clean gray-50/white separation.
+ * - EDITED (Incident 75 - Build Failure Fix):
+ * • Restored missing closing `</div>` tag inside the JSX ternary operator for the data table wrapper, curing SWC compiler syntax error.
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
@@ -38,8 +40,17 @@ import {
     FaCalendarAlt, FaMapMarkedAlt, FaRedo, FaExclamationTriangle,
     FaPlus, FaTimes, FaEyeSlash, FaCrosshairs, FaCheckSquare,
     FaSquare, FaSyncAlt, FaCheckCircle, FaChevronDown, FaChevronRight,
-    FaDatabase, FaShieldAlt, FaCog
+    FaDatabase, FaShieldAlt, FaCog, FaChartBar, FaMobileAlt, FaGlobe, FaClock
 } from 'react-icons/fa';
+
+const DetailCell = ({ icon: Icon, value, label }) => (
+    <div className="flex items-center text-sm text-gray-700">
+        <Icon className="text-blue-500 mr-2 flex-shrink-0" title={label} />
+        <span className="truncate" title={value || 'N/A'}>
+            {value || 'N/A'}
+        </span>
+    </div>
+);
 
 // Advanced Type-Ahead Combobox for robust User ID searching
 const TypeAheadDropdown = ({ options, selectedValues, onChange, placeholder, disabled }) => {
@@ -424,7 +435,7 @@ const AudiencePage = () => {
                     onClick={() => setIsFilterExpanded(!isFilterExpanded)}
                 >
                     <div className="flex items-center text-sm font-semibold text-slate-700">
-                        <FaLayerGroup className="mr-2 text-blue-600" />
+                        <FaChartBar className="mr-2 text-blue-600" />
                         Audience Filters
                         {((targetClientIds.length + excludeClientIds.length + filters.length) > 0) && (
                             <span className="ml-3 bg-blue-100 text-blue-800 text-[10px] px-2 py-0.5 rounded-full">
@@ -675,17 +686,17 @@ const AudiencePage = () => {
                                             )}
                                         </div>
                                     );
-                                })
-                            ) : (
-                                !error && !loading && (
+                                })}
+                            </div>
+                        ) : (
+                            !error && !loading && (
                                 <div className="px-6 py-20 text-center text-slate-500 bg-slate-50">
                                     <FaChartBar className="mx-auto text-4xl mb-3 text-slate-300" />
                                     <p className="text-base font-medium text-slate-700">No session telemetry found.</p>
                                     <p className="text-sm mt-1">Adjust filters or date boundaries to search again.</p>
                                 </div>
-                                )
-                            )}
-                            </div>
+                            )
+                        )}
                     </div>
                 )}
             </div>
