@@ -1,4 +1,14 @@
 "use client";
+/**
+ * AI-CONTEXT:
+ * Purpose: Main dashboard landing page.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED: Migrated REACT_APP_API_BASE_URL to NEXT_PUBLIC_API_BASE_URL.
+ * - EDITED (Phase 7 - Cloudflare UI Overhaul):
+ * • Compacted KPI ribbon, removing heavily rounded corners and colored backgrounds in favor of a dense, monochromatic slate palette.
+ * • Condensed Quick Navigation and System Alerts into a high-density vertical list with 1px borders and text-[11px] tracking.
+ */
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin as getPosts } from '../apiConfig';
@@ -6,13 +16,6 @@ import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaE
 import Link from 'next/link';
 import ApiStatusPanel from '../components/ApiStatusPanel';
 
-/**
- * AI-CONTEXT:
- * Purpose: Main dashboard landing page.
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Migrated from react-router-dom to next/link.
- * - EDITED: Migrated REACT_APP_API_BASE_URL to NEXT_PUBLIC_API_BASE_URL.
- */
 const DashboardPage = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
@@ -41,58 +44,67 @@ const DashboardPage = () => {
     const totalDrafts = useMemo(() => posts.filter(p => p.status === 'DRAFT').length, [posts]);
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-6 font-sans text-slate-900 bg-white min-h-screen">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-                    <p className="text-slate-500 text-sm">Welcome back, {user?.name || 'Admin'}. Here's what's happening today.</p>
+                    <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
+                    <p className="text-slate-500 text-xs mt-0.5">Welcome back, {user?.name || 'Admin'}. System telemetry and metrics.</p>
                 </div>
                 <div className="flex gap-2">
-                    <Link href="/dashboard/profile" className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all">
-                        <FaUserEdit size={14} /> Profile
+                    <Link href="/dashboard/profile" className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3 py-1.5 rounded text-[11px] font-semibold transition-colors">
+                        <FaUserEdit size={12} /> Profile
                     </Link>
-                    <Link href="/dashboard/blog/new" className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-95">
-                        <FaPlus size={12} /> New Article
+                    <Link href="/dashboard/blog/new" className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 rounded text-[11px] font-semibold transition-colors">
+                        <FaPlus size={10} /> New Article
                     </Link>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Published Posts" value={totalPublished} icon={FaNewspaper} color="text-emerald-600" bg="bg-emerald-50 border-emerald-100" />
-                <StatCard label="Scheduled" value={totalScheduled} icon={FaClock} color="text-amber-600" bg="bg-amber-50 border-amber-100" />
-                <StatCard label="Drafts" value={totalDrafts} icon={FaFileAlt} color="text-slate-600" bg="bg-slate-50 border-slate-200" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <StatCard label="Published" value={totalPublished} icon={FaNewspaper} />
+                <StatCard label="Scheduled" value={totalScheduled} icon={FaClock} />
+                <StatCard label="Drafts" value={totalDrafts} icon={FaFileAlt} />
                 <IntegrationCard user={user} authUrl={linkedInAuthUrl} />
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-                <div className="xl:col-span-2">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                <div className="xl:col-span-3">
                     <ApiStatusPanel />
                 </div>
-                <div className="xl:col-span-1 space-y-6">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                            <h3 className="font-bold text-slate-800 text-sm">System Alerts</h3>
-                            {error && <span className="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded">ERROR</span>}
+                <div className="xl:col-span-1 space-y-4">
+                    <div className="bg-white rounded border border-slate-200 overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                            <h3 className="font-semibold text-slate-700 text-[11px] uppercase tracking-wider">System Alerts</h3>
+                            {error && <span className="text-[9px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">ERROR</span>}
                         </div>
-                        <div className="p-4">
+                        <div className="p-3">
                             {error ? (
-                                <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 p-3 rounded-lg">
+                                <div className="flex items-start gap-2 text-red-600 text-xs bg-red-50 p-2 rounded border border-red-100">
                                     <FaExclamationTriangle className="mt-0.5 flex-shrink-0" />
                                     <p>{error}</p>
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-3 text-emerald-700 text-sm bg-emerald-50 p-3 rounded-lg border border-emerald-100">
-                                    <FaCheckCircle className="flex-shrink-0" />
-                                    <p className="font-medium">All systems operational.</p>
+                                <div className="flex items-center gap-2 text-emerald-700 text-xs bg-emerald-50 p-2 rounded border border-emerald-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                                    <p className="font-medium">All infrastructure routing optimally.</p>
                                 </div>
                             )}
 
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                                <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Quick Navigation</h4>
-                                <nav className="space-y-2">
-                                    <Link href="/dashboard/manage-posts" className="block px-3 py-2 text-sm text-gray-600 hover:text-slate-900 hover:bg-gray-50 rounded-lg transition-colors">Manage All Posts &rarr;</Link>
-                                    <Link href="/dashboard/audience" className="block px-3 py-2 text-sm text-gray-600 hover:text-slate-900 hover:bg-gray-50 rounded-lg transition-colors">View Audience Report &rarr;</Link>
-                                    <Link href="/dashboard/api-status" className="block px-3 py-2 text-sm text-gray-600 hover:text-slate-900 hover:bg-gray-50 rounded-lg transition-colors">Full API Logs &rarr;</Link>
+                            <div className="mt-4 pt-3 border-t border-slate-100">
+                                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Quick Navigation</h4>
+                                <nav className="space-y-1">
+                                    <Link href="/dashboard/manage-posts" className="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded transition-colors">
+                                        <span>Manage Content</span>
+                                        <span className="text-slate-300">&rarr;</span>
+                                    </Link>
+                                    <Link href="/dashboard/audience" className="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded transition-colors">
+                                        <span>Audience Intelligence</span>
+                                        <span className="text-slate-300">&rarr;</span>
+                                    </Link>
+                                    <Link href="/dashboard/api-status" className="flex justify-between items-center px-2 py-1.5 text-xs text-slate-600 hover:text-blue-600 hover:bg-slate-50 rounded transition-colors">
+                                        <span>Gateway Logs</span>
+                                        <span className="text-slate-300">&rarr;</span>
+                                    </Link>
                                 </nav>
                             </div>
                         </div>
@@ -103,14 +115,14 @@ const DashboardPage = () => {
     );
 };
 
-const StatCard = ({ label, value, icon: Icon, color, bg }) => (
-    <div className={`p-5 rounded-xl border transition-all hover:shadow-md ${bg}`}>
-        <div className="flex justify-between items-start">
+const StatCard = ({ label, value, icon: Icon }) => (
+    <div className="p-4 rounded border border-slate-200 bg-white transition-colors hover:border-slate-300">
+        <div className="flex justify-between items-center">
             <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{label}</p>
-                <h3 className="text-3xl font-black text-slate-800">{value}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
+                <h3 className="text-xl font-semibold text-slate-900">{value}</h3>
             </div>
-            <div className={`p-2.5 rounded-lg bg-white/60 ${color}`}><Icon size={20} /></div>
+            <div className="text-slate-400"><Icon size={16} /></div>
         </div>
     </div>
 );
@@ -118,20 +130,20 @@ const StatCard = ({ label, value, icon: Icon, color, bg }) => (
 const IntegrationCard = ({ user, authUrl }) => {
     const isConnected = user && user.linkedinConnected;
     return (
-        <div className={`p-5 rounded-xl border transition-all hover:shadow-md ${isConnected ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-200'}`}>
-            <div className="flex justify-between items-start">
+        <div className="p-4 rounded border border-slate-200 bg-white transition-colors hover:border-slate-300">
+            <div className="flex justify-between items-center">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">LinkedIn</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">LinkedIn</p>
                     {isConnected ? (
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                            <span className="text-sm font-bold text-blue-700">Connected</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-[11px] font-medium text-slate-700">Connected</span>
                         </div>
                     ) : (
-                        <a href={authUrl} className="inline-block mt-1 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded shadow-sm transition-colors">Connect Now</a>
+                        <a href={authUrl} className="inline-block mt-0.5 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors">Connect Now &rarr;</a>
                     )}
                 </div>
-                <div className="p-2.5 rounded-lg bg-white/60 text-blue-700"><FaLinkedin size={20} /></div>
+                <div className="text-slate-400"><FaLinkedin size={16} /></div>
             </div>
         </div>
     );
