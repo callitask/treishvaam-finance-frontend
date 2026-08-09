@@ -1,3 +1,14 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Full rich text editor and content management system for posts.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED: Replaced `editorRef.current.getContents(true)` with `editorRef.current.getHTML()` to fix publishing crash with Tiptap.
+ * - EDITED (Phase 7 - Cloudflare UI Overhaul):
+ * • Redesigned the container to implement a "Zen-mode" canvas layout.
+ * • Stripped heavy panel borders, drop-shadows, and bright colors.
+ * • Implemented high-density monochromatic sidebar (`w-1/4`, `text-[11px]`) for meta controls.
+ */
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -15,14 +26,8 @@ import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
 import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
 import EditorForm from '../components/BlogEditor/EditorForm';
+import { FaCheck, FaExclamationTriangle, FaPenNib } from 'react-icons/fa';
 
-/**
- * AI-CONTEXT:
- * Purpose: Full rich text editor and content management system for posts.
- * IMMUTABLE CHANGE HISTORY:
- * - EDITED: Migrated from react-router-dom to next/navigation.
- * - EDITED: Replaced `editorRef.current.getContents(true)` with `editorRef.current.getHTML()` to fix publishing crash with Tiptap.
- */
 const BlogEditorPage = () => {
     const params = useParams();
     const id = params?.id;
@@ -261,7 +266,6 @@ const BlogEditorPage = () => {
 
     const handleAddFromPostClick = () => {
         if (!editorRef.current || typeof editorRef.current.getHTML !== 'function') return;
-        // FIX: Extract content via getHTML() instead of legacy getContents
         const editorContent = editorRef.current.getHTML();
         const parser = new DOMParser();
         const doc = parser.parseFromString(editorContent, 'text/html');
@@ -291,8 +295,6 @@ const BlogEditorPage = () => {
 
         const formData = new FormData();
         formData.append('title', title);
-
-        // FIX: Extract raw HTML output explicitly to ensure payload integrity 
         formData.append('content', editorRef.current.getHTML());
 
         if (version !== null && version !== undefined) formData.append('version', version);
@@ -348,36 +350,44 @@ const BlogEditorPage = () => {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+        <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
             <input type="file" id="file-upload" name="file-upload" ref={fileInputRef} className="hidden" accept="image/*" />
             <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
 
             <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-                <div className="w-full md:w-1/3 p-6 bg-white border-r border-gray-200 flex flex-col overflow-y-auto" style={{ maxHeight: '100vh' }}>
-                    <div className="flex justify-between items-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">{postId ? 'Edit Post' : 'Create New Post'}</h1>
-                        <div className="text-sm">
-                            {saveStatus === 'Saving...' && <span className="text-gray-500">Saving...</span>}
-                            {saveStatus === 'Saved' && <span className="text-green-600">Saved</span>}
-                            {saveStatus === 'Error' && <span className="text-red-600">Save Error!</span>}
+                {/* Meta Configuration Sidebar */}
+                <div className="w-full md:w-1/4 xl:w-[22%] bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto custom-scrollbar" style={{ maxHeight: '100vh' }}>
+                    <div className="sticky top-0 bg-slate-50/95 backdrop-blur z-10 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <div className="flex items-center text-sm font-semibold">
+                            <FaPenNib className="text-slate-400 mr-2" />
+                            {postId ? 'Update Post' : 'New Post'}
+                        </div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider">
+                            {saveStatus === 'Saving...' && <span className="text-slate-400 animate-pulse">Saving...</span>}
+                            {saveStatus === 'Saved' && <span className="text-emerald-600 flex items-center"><FaCheck className="mr-1" /> Saved</span>}
+                            {saveStatus === 'Error' && <span className="text-red-500 flex items-center"><FaExclamationTriangle className="mr-1" /> Error</span>}
                         </div>
                     </div>
 
-                    {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">{error}</p>}
+                    {error && <div className="mx-5 mt-4 p-2 bg-red-50 border-l-2 border-red-500 text-xs text-red-700">{error}</div>}
 
-                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col gap-6 flex-grow">
+                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col flex-grow px-5 py-6 space-y-6">
                         <MetaPanel title={title} onTitleChange={setTitle} userFriendlySlug={postUserFriendlySlug} onUserFriendlySlugChange={setPostUserFriendlySlug} />
-                        <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
                         <CategoryPanel selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} allCategories={allCategories} showNewCategoryInput={showNewCategoryInput} onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)} newCategoryName={newCategoryName} onNewCategoryNameChange={setNewCategoryName} onAddNewCategory={handleAddNewCategory} />
                         <PlacementPanel displaySection={displaySection} onDisplaySectionChange={setDisplaySection} tags={tags} onTagsChange={setTags} />
                         <ThumbnailPanel thumbnailMode={thumbnailMode} onThumbnailModeChange={setThumbnailMode} thumbPreview={thumbPreview} thumbnailAltText={thumbnailAltText} onThumbnailAltTextChange={setThumbnailAltText} onUploadSingleClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail'); fileInputRef.current.click(); }} storyThumbnails={storyThumbnails} setStoryThumbnails={setStoryThumbnails} onAddFromPostClick={handleAddFromPostClick} onUploadStoryClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio); fileInputRef.current.click(); }} />
                         <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
+                        <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
                         <PublishPanel scheduledTime={scheduledTime} onScheduledTimeChange={setScheduledTime} isFeatured={isFeatured} onIsFeaturedChange={setIsFeatured} isUpdating={!!postId} />
                     </form>
                 </div>
-                <EditorForm content={content} onContentChange={setContent} editorRef={editorRef} onImageUploadBefore={handleImageUploadBefore} onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }} />
+                
+                {/* Rich Text Editor Canvas */}
+                <div className="w-full md:w-3/4 xl:w-[78%] bg-white flex flex-col relative overflow-hidden">
+                    <EditorForm content={content} onContentChange={setContent} editorRef={editorRef} onImageUploadBefore={handleImageUploadBefore} onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }} />
+                </div>
             </div>
         </div>
     );
