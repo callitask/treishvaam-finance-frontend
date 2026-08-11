@@ -18,6 +18,11 @@
  * - EDITED (GEO Offline Syndication):
  * • Added explicit `NetworkFirst` caching strategy for Generative Engine Optimization payloads (`/llms.txt`, `/ai-feed.md`, `/ontology.json`).
  * • Why: Enables the Progressive Web App to function as an offline vector intelligence source, providing AI context even without network connectivity.
+ * 
+ * - EDITED (Phase 4 - Video PWA Crash Fix):
+ * • Updated the `/api/v1/posts/` Workbox matcher to explicitly filter `&& request.method === 'GET'`.
+ * • Why: Prevents the Service Worker from blindly intercepting `POST`/`PUT` multipart video uploads. Caching massive binary payloads in the background thread exhausted browser memory and crashed the PWA with `no-response`.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -37,7 +42,7 @@ const serwist = new Serwist({
     runtimeCaching: [
         // Public blog posts — NetworkFirst with 24h cache fallback
         {
-            matcher: /^https:\/\/.*\/api\/v1\/posts\//,
+            matcher: ({ request, url }) => !!url.href.match(/^https:\/\/.*\/api\/v1\/posts\//) && request.method === 'GET',
             handler: new NetworkFirst({
                 cacheName: 'blog-posts-cache',
                 networkTimeoutSeconds: 5,

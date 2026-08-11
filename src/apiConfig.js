@@ -7,6 +7,13 @@
  * - EDITED: Exported refreshGA4Data POST endpoint for Audience Dashboard manual syncing.
  * - EDITED: Migrated process.env.REACT_APP_ to process.env.NEXT_PUBLIC_ for Next.js compatibility.
  * - EDITED (Incident 41): Added `getGroupedAudienceData` and `healHistoricalAnalytics` to support Zero-Trust device grouping and ZKP-gated retroactive telemetry healing. Date: 2026-08-05.
+ * 
+ * - EDITED (Phase 4 - Video Pipeline Audit):
+ * • Verified `createPost` and `updatePost` correctly accept and pass raw `FormData` via `multipart/form-data`. No structural changes required, confirming readiness for `videoFile` appendage from the UI.
+ * 
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import axios from 'axios';
 

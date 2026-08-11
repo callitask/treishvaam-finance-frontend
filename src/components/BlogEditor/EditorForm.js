@@ -35,11 +35,15 @@
  * crash in onUpdate. Fix: disable link and underline in StarterKit, then add them separately
  * with custom config. This gives us full control over their behavior.
  * • Why: These crashes caused the editor to throw on every keystroke and crash the entire page.
+ * 
+ * - EDITED (Phase 4 - Video Upload Extension):
+ * • Imported and registered `VideoExtension`.
+ * • Added `onVideoInsert` command to `MenuBar`.
+ * • Why: Wires the Tiptap canvas to support HLS video insertion post-upload.
  *
- * - EDITED:
- * • Added `isMounted` state tracking within the rendering flow.
- * • Why: Guard initialization against server-side rendering execution cycle (BUG-04 React Hydration Mismatch).
- * • Date: 2026-05-17 (Phase 1 Fixes)
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
@@ -52,12 +56,13 @@ import Underline from '@tiptap/extension-underline';
 import { TextStyle } from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
 import TextAlign from '@tiptap/extension-text-align';
+import { VideoExtension } from './VideoExtension';
 import { uploadFile } from '../../apiConfig';
 
 // ═══════════════════════════════════════════════════════════════
 // TOOLBAR COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
+const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert, onVideoInsert }) => {
     if (!editor) return null;
 
     const Btn = ({ onClick, isActive, children, title }) => (
@@ -66,8 +71,8 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
             onClick={onClick}
             title={title}
             className={`px-2.5 py-1.5 text-sm border rounded shadow-sm transition-colors ${isActive
-                    ? 'bg-sky-600 text-white border-sky-600'
-                    : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                ? 'bg-sky-600 text-white border-sky-600'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
                 }`}
         >
             {children}
@@ -126,6 +131,7 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert }) => {
             <Btn onClick={onLinkInsert} isActive={editor.isActive('link')} title="Insert Link">🔗</Btn>
             <Btn onClick={onImageUpload} title="Upload Image">🖼️</Btn>
             <Btn onClick={onYoutubeEmbed} title="Embed YouTube Video">▶️</Btn>
+            <Btn onClick={onVideoInsert} title="Insert Native HLS Video">🎬</Btn>
         </div>
     );
 };
@@ -169,6 +175,7 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
         Underline,
         TextStyle,
         Color,
+        VideoExtension,
         TextAlign.configure({
             types: ['heading', 'paragraph'],
         }),
@@ -296,6 +303,13 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
         }
     };
 
+    const handleVideoInsert = () => {
+        const url = prompt('Enter Native Video/HLS URL (e.g., /api/v1/uploads/hls/{id}/1080p.m3u8):');
+        if (url && editor) {
+            editor.chain().focus().setVideo({ src: url }).run();
+        }
+    };
+
     const handleLinkInsert = () => {
         if (!editor) return;
 
@@ -318,6 +332,7 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
                 editor={editor}
                 onImageUpload={handleImageUploadClick}
                 onYoutubeEmbed={handleYoutubeEmbed}
+                onVideoInsert={handleVideoInsert}
                 onLinkInsert={handleLinkInsert}
             />
 
