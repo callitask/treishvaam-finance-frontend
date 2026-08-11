@@ -33,10 +33,10 @@
  * - EDITED (MTD Prefix Fix):
  *   Replaced exact string match lookup for `mtdManifest` with a `.startsWith()` prefix matching iteration, addressing the post-login infinite deception loop.
  * - EDITED (MTD Spring Security & Edge Signature Fix):
- * • Injected `isPublicExempt` to bypass MTD obfuscation for public APIs (`/analytics/`, `/posts/`, `/market/`). Why: MTD was translating public endpoints (like Faro analytics) into obfuscated paths which Spring Security rejected with 401 Unauthorized, breaking telemetry.
- * • Removed MTD translation from the Article SSR fetch. Why: It caused the backend to return 401, blocking the `__PRELOADED_STATE__` injection and causing a fatal Next.js hydration crash (`Cannot read properties of undefined (reading 'id')`).
- * • Stripped query strings (`.split('?')[0]`) from `apiPath` before calling `generateEdgeSignature` in the Market Widget block. Why: The backend `AegisEdgeValidationFilter` evaluates the URI without query parameters, causing a mathematical signature mismatch and throwing a 403 Forbidden.
- * • Relaxed COOP/CORP headers in `addSecurityHeaders` to mirror `middleware.ts` and cure the Keycloak iframe communication lock.
+ *   Injected `isPublicExempt` to bypass MTD obfuscation for public APIs (`/analytics/`, `/posts/`, `/market/`). Why: MTD was translating public endpoints (like Faro analytics) into obfuscated paths which Spring Security rejected with 401 Unauthorized, breaking telemetry.
+ *   Removed MTD translation from the Article SSR fetch. Why: It caused the backend to return 401, blocking the `__PRELOADED_STATE__` injection and causing a fatal Next.js hydration crash (`Cannot read properties of undefined (reading 'id')`).
+ *   Stripped query strings (`.split('?')[0]`) from `apiPath` before calling `generateEdgeSignature` in the Market Widget block. Why: The backend `AegisEdgeValidationFilter` evaluates the URI without query parameters, causing a mathematical signature mismatch and throwing a 403 Forbidden.
+ *   Relaxed COOP/CORP headers in `addSecurityHeaders` to mirror `middleware.ts` and cure the Keycloak iframe communication lock.
  * - EDITED (Phase 6 - Edge Fetch Content Negotiation Fix):
  *   Injected 'Accept: application/json' into the ssrHeaders for SEO metadata fetches (/category/ and /market/).
  *   Why: Resolves a 406 HttpMediaTypeNotAcceptableException loop where the Spring Boot backend rejected the Edge Worker's background fetches because the cloned browser headers demanded text/html. This fix restores dynamic SEO `<title>` and OpenGraph tags to the browser tab.
@@ -46,10 +46,13 @@
  * - EDITED (BUG_FIX_REPORT_001 - Edge MTD Public Telemetry Exemption):
  *   Hardened `isPublicExempt` string matching to use strict prefix matches (`.startsWith("/api/v1/analytics/event")` and `/api/v1/aegis/telemetry`) instead of broad `.includes()`.
  *   Why: Prevents administrative dashboard paths from bypassing MTD obfuscation while ensuring public telemetry endpoints are not inadvertently flagged by L4-ADA deception poisoning.
+ * - EDITED:
+ *   Added `/video-key/` interceptor for AES-128 HLS DRM key delivery.
+ *   Enforces strict `Referer` checks and AEGIS signatures to prevent hotlinking and direct downloads.
  * - DO-NOT-DELETE RULE:
- * This IMMUTABLE CHANGE HISTORY section must never be deleted,
- * truncated, rewritten, or regenerated.
- * Future AI must append only.
+ *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
+ *   truncated, rewritten, or regenerated.
+ *   Future AI must append only.
  */
 
 // =================================================================================
@@ -175,6 +178,7 @@ export default {
         }
 
         let userAgent = request.headers.get("User-Agent") || "";
+
         // Edge User-Agent Normalization: Bypass native backend anomalies for Google Live Test
         if (userAgent.includes("Google-InspectionTool")) {
             userAgent = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
@@ -183,7 +187,6 @@ export default {
         const isVerifiedCrawler = GLOBAL_CRAWLER_MATRIX.test(userAgent);
         const isAiBot = aiBotsOnly.test(userAgent);
         const clientIp = request.headers.get("CF-Connecting-IP") || "0.0.0.0";
-
         let targetPath = url.pathname;
         let isTarpit = false;
         let mtdManifest = null;
@@ -226,8 +229,8 @@ export default {
                 }
             }
         }
-        url.pathname = targetPath;
 
+        url.pathname = targetPath;
         const BACKEND_URL = env.BACKEND_API_URL || env.BACKEND_URL || "https://backend.treishvaamgroup.com";
         const FRONTEND_URL = env.FRONTEND_URL || "https://treishvaamfinance.com";
         const backendConfig = new URL(BACKEND_URL);
@@ -262,15 +265,58 @@ export default {
             redirect: request.redirect
         });
 
+        // =================================================================================
+        // HLS AES-128 DRM KEY DELIVERY PROXY (ZERO-TRUST)
+        // =================================================================================
+        if (url.pathname.startsWith("/video-key/")) {
+            const referer = request.headers.get("Referer");
+            if (!referer || (!referer.includes("treishvaamfinance.com") && !referer.includes("treishvaamagro.com") && !referer.includes("localhost"))) {
+                return new Response("Forbidden: Invalid Referer", { status: 403 });
+            }
+
+            const videoId = url.pathname.split("/video-key/")[1];
+            if (!videoId) return new Response("Not Found", { status: 404 });
+
+            try {
+                // Fetch key from backend securely
+                let apiPath = `/api/v1/video/internal/key/${videoId}`;
+                const apiTimestamp = Date.now().toString();
+                const apiSignature = await generateEdgeSignature(apiPath, apiTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+
+                const backendHeaders = new Headers(enhancedHeaders);
+                backendHeaders.set("X-Aegis-Edge-Signature", apiSignature);
+                backendHeaders.set("X-Aegis-Edge-Timestamp", apiTimestamp);
+
+                const keyResp = await fetch(`${BACKEND_URL}${apiPath}`, { headers: backendHeaders });
+
+                if (keyResp.ok) {
+                    const keyData = await keyResp.arrayBuffer();
+                    return new Response(keyData, {
+                        status: 200,
+                        headers: {
+                            "Content-Type": "application/octet-stream",
+                            "Cache-Control": "public, max-age=300" // Short lived
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("AES Key delivery failed", e);
+            }
+            return new Response("Forbidden", { status: 403 });
+        }
+
+
         //   THE FIX: EDGE SEO SPLIT-TAGGING
         const addSecurityHeaders = (response) => {
             if (!response) return response;
             const newHeaders = new Headers(response.headers);
+
             newHeaders.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
             newHeaders.set("X-Content-Type-Options", "nosniff");
             newHeaders.set("X-XSS-Protection", "1; mode=block");
             newHeaders.set("Referrer-Policy", "strict-origin-when-cross-origin");
             newHeaders.set("Permissions-Policy", "geolocation=(), microphone=(), camera=(), payment=()");
+
             newHeaders.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
             newHeaders.delete("Cross-Origin-Resource-Policy");
             newHeaders.set("X-Permitted-Cross-Domain-Policies", "none");
@@ -281,12 +327,15 @@ export default {
             if (url.pathname.startsWith("/api")) {
                 newHeaders.set("X-Robots-Tag", "noindex, noarchive");
             }
+
             if (isAiBot) {
                 newHeaders.set("X-GEO-Bot-Detected", "true");
             }
+
             if (newHeaders.has("X-SPA-Fallback") && response.status === 404) {
                 return new Response(response.body, { status: 200, headers: newHeaders });
             }
+
             return new Response(response.body, { status: response.status, headers: newHeaders });
         };
 
@@ -301,6 +350,7 @@ export default {
         if (isAiBot && request.method === "GET") {
             const isAsset = url.pathname.match(/\.(css|js|jpg|jpeg|png|gif|webp|ico|woff|woff2|ttf|eot|svg|xml|json)$/i);
             const isApi = url.pathname.startsWith("/api");
+
             if (!isAsset && !isApi && url.pathname !== '/llms.txt' && url.pathname !== '/ontology.json') {
                 const geoUrl = new URL('/ai-feed.md', request.url);
                 const geoResponse = await handleGeoFeedFromKV(new Request(geoUrl.toString(), baseEnhancedRequest), geoUrl, env, ctx, BACKEND_URL, clientIp);
@@ -359,6 +409,7 @@ export default {
                 // Fetch the API and append X-Robots-Tag: noindex via addSecurityHeaders
                 const apiResponse = await fetch(proxyReq);
                 return addSecurityHeaders(apiResponse);
+
             } catch (e) {
                 return new Response(JSON.stringify({ error: "Backend Service Unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } });
             }
@@ -380,12 +431,12 @@ export default {
         if (isRscRequest) {
             cacheUrl.searchParams.set("_rsc_cache", "1");
         }
-
         const cacheKey = new Request(cacheUrl.toString(), request);
         const cache = caches.default;
 
         try {
             response = await fetch(baseEnhancedRequest);
+
             const isKnownSpaRoute = KNOWN_SPA_ROUTES.some(route => url.pathname === route || url.pathname.startsWith(route + "/"));
             const hasNoExtension = !url.pathname.includes(".");
             const isNotApi = !url.pathname.startsWith("/api");
@@ -405,6 +456,7 @@ export default {
                 cacheHeaders.set("Cache-Control", "public, max-age=600");
                 ctx.waitUntil(cache.put(cacheKey, new Response(clone.body, { status: clone.status, headers: cacheHeaders })));
             }
+
         } catch (e) {
             response = null;
         }
@@ -425,6 +477,7 @@ export default {
             if (url.pathname === "/" || url.pathname === "" || url.pathname === "/home") {
                 const pageTitle = "Treishvaam Finance | Global Financial Analysis & News";
                 const pageDesc = "Treishvaam Finance provides real-time market data, financial news, and expert analysis.";
+
                 const websiteSchema = { "@context": "https://schema.org", "@type": "WebSite", "name": "Treishvaam Finance", "url": FRONTEND_URL + "/" };
 
                 const rewritten = new HTMLRewriter()
@@ -509,6 +562,7 @@ export default {
                         }
                     })
                     .transform(response);
+
                 return addSecurityHeaders(rewritten);
             }
 
@@ -560,6 +614,7 @@ export default {
                         }
                     })
                     .transform(response);
+
                 return addSecurityHeaders(rewritten);
             }
         }
@@ -608,6 +663,7 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("Content-Type", contentType);
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
+
             const cloneForKv = newResp.clone();
             ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
@@ -654,6 +710,7 @@ async function handleDynamicSitemapFromKV(request, url, env, ctx, backendUrl, cl
             const newResp = new Response(backendResp.body, backendResp);
             newResp.headers.set("Content-Type", "application/xml; charset=utf-8");
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
+
             const cloneForKv = newResp.clone();
             ctx.waitUntil(cloneForKv.text().then(text => env.TREISHFIN_SEO_CACHE.put(key, text, { expirationTtl: 86400 })));
             ctx.waitUntil(cache.put(cacheRequest, newResp.clone()));
