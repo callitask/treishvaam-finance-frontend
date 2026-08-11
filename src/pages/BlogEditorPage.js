@@ -8,6 +8,9 @@
  * • Redesigned the container to implement a "Zen-mode" canvas layout.
  * • Stripped heavy panel borders, drop-shadows, and bright colors.
  * • Implemented high-density monochromatic sidebar (`w-1/4`, `text-[11px]`) for meta controls.
+ * - EDITED (Phase 8 - Video Infrastructure Frontend):
+ * • Integrated `VideoPanel` component to support Enterprise HLS video uploads.
+ * • Added dedicated `videoInputRef` and FormData appending logic to pass `.mp4`/`.mov` files to the backend transcoder queue.
  */
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -24,6 +27,7 @@ import CategoryPanel from '../components/BlogEditor/CategoryPanel';
 import PlacementPanel from '../components/BlogEditor/PlacementPanel';
 import ThumbnailPanel from '../components/BlogEditor/thumbnail/ThumbnailPanel';
 import CoverImagePanel from '../components/BlogEditor/CoverImagePanel';
+import VideoPanel from '../components/BlogEditor/VideoPanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
 import EditorForm from '../components/BlogEditor/EditorForm';
 import { FaCheck, FaExclamationTriangle, FaPenNib } from 'react-icons/fa';
@@ -54,6 +58,11 @@ const BlogEditorPage = () => {
     const [canonicalUrl, setCanonicalUrl] = useState('');
     const [focusKeyword, setFocusKeyword] = useState('');
     const [coverImageAltText, setCoverImageAltText] = useState('');
+
+    // Video State
+    const [videoFile, setVideoFile] = useState(null);
+    const [videoPreview, setVideoPreview] = useState('');
+
     const [thumbnailMode, setThumbnailMode] = useState('single');
     const [storyThumbnails, setStoryThumbnails] = useState([]);
     const [thumbnailOrientation, setThumbnailOrientation] = useState(null);
@@ -73,6 +82,7 @@ const BlogEditorPage = () => {
 
     const editorRef = useRef(null);
     const fileInputRef = useRef(null);
+    const videoInputRef = useRef(null);
     const isContentLoaded = useRef(false);
     const autoSaveTimer = useRef(null);
 
@@ -176,6 +186,20 @@ const BlogEditorPage = () => {
             reader.readAsDataURL(e.target.files[0]);
         }
         e.target.value = null;
+    };
+
+    const handleVideoFileChange = (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const file = e.target.files[0];
+            setVideoFile(file);
+            setVideoPreview(URL.createObjectURL(file));
+        }
+        e.target.value = null;
+    };
+
+    const handleRemoveVideo = () => {
+        setVideoFile(null);
+        setVideoPreview('');
     };
 
     const handleImageUploadBefore = (files, info, uploadHandler) => {
@@ -308,10 +332,13 @@ const BlogEditorPage = () => {
         formData.append('focusKeyword', focusKeyword);
         formData.append('displaySection', displaySection);
         formData.append('coverImageAltText', coverImageAltText);
+        formData.append('userFriendlySlug', postUserFriendlySlug);
+
         tags.forEach(tag => formData.append('tags', tag));
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
+
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
-        formData.append('userFriendlySlug', postUserFriendlySlug);
+        if (videoFile) formData.append('videoFile', videoFile);
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
@@ -352,6 +379,8 @@ const BlogEditorPage = () => {
     return (
         <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
             <input type="file" id="file-upload" name="file-upload" ref={fileInputRef} className="hidden" accept="image/*" />
+            <input type="file" id="video-upload" name="video-upload" ref={videoInputRef} className="hidden" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideoFileChange} />
+
             <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
@@ -379,11 +408,12 @@ const BlogEditorPage = () => {
                         <PlacementPanel displaySection={displaySection} onDisplaySectionChange={setDisplaySection} tags={tags} onTagsChange={setTags} />
                         <ThumbnailPanel thumbnailMode={thumbnailMode} onThumbnailModeChange={setThumbnailMode} thumbPreview={thumbPreview} thumbnailAltText={thumbnailAltText} onThumbnailAltTextChange={setThumbnailAltText} onUploadSingleClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail'); fileInputRef.current.click(); }} storyThumbnails={storyThumbnails} setStoryThumbnails={setStoryThumbnails} onAddFromPostClick={handleAddFromPostClick} onUploadStoryClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio); fileInputRef.current.click(); }} />
                         <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
+                        <VideoPanel videoPreview={videoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveVideo} />
                         <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
                         <PublishPanel scheduledTime={scheduledTime} onScheduledTimeChange={setScheduledTime} isFeatured={isFeatured} onIsFeaturedChange={setIsFeatured} isUpdating={!!postId} />
                     </form>
                 </div>
-                
+
                 {/* Rich Text Editor Canvas */}
                 <div className="w-full md:w-3/4 xl:w-[78%] bg-white flex flex-col relative overflow-hidden">
                     <EditorForm content={content} onContentChange={setContent} editorRef={editorRef} onImageUploadBefore={handleImageUploadBefore} onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }} />
