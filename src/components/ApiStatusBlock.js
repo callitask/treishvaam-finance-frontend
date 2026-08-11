@@ -1,3 +1,15 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Individual health block rendering container pipeline status and logs.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`, 
+ * changed `rounded-xl` to `rounded`, removed `hover:shadow-md`, tightened padding to `p-3`, 
+ * and set typography to `text-[11px]` and `text-[10px]` tracking strings.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
+ */
 import React, { useState } from 'react';
 import { FaSync, FaTrash, FaCheckCircle, FaExclamationCircle, FaChevronDown, FaChevronUp, FaClock, FaTerminal, FaHistory } from 'react-icons/fa';
 import { useCountdown } from '../hooks/useCountdown';
@@ -18,7 +30,6 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
     const [isFlushing, setIsFlushing] = useState(false);
     const [showAllLogs, setShowAllLogs] = useState(false);
 
-    // FIX: Removed unused 'seconds'
     const { hours, minutes, isFinished } = useCountdown(nextRefreshTime);
 
     // Get the most recent log for the header status
@@ -52,71 +63,67 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
     const logsToShow = showAllLogs ? logs : logs.slice(0, 5);
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col h-full transition-all duration-200 hover:shadow-md">
+        <div className="bg-white rounded border border-slate-200 shadow-sm flex flex-col h-full transition-all duration-200">
             {/* --- CARD HEADER --- */}
-            <div className="p-5 border-b border-gray-100 flex justify-between items-start bg-gray-50/50 rounded-t-xl">
-                <div className="flex gap-3">
+            <div className="p-3 border-b border-slate-200 flex justify-between items-start bg-slate-50/80 rounded-t">
+                <div className="flex gap-2.5">
                     {/* Status Icon */}
-                    <div className={`mt-1 w-2.5 h-2.5 rounded-full shadow-sm ${isPending ? 'bg-amber-400 animate-pulse' : (isHealthy ? 'bg-emerald-500' : 'bg-red-500')}`}></div>
-
+                    <div className={`mt-1 w-2 h-2 rounded-full shadow-sm ${isPending ? 'bg-amber-400 animate-pulse' : (isHealthy ? 'bg-emerald-500' : 'bg-red-500')}`}></div>
                     <div>
-                        <h3 className="font-bold text-gray-900 text-base leading-none flex items-center gap-2">
+                        <h3 className="font-bold text-slate-800 text-[13px] leading-none flex items-center gap-2">
                             {title}
                         </h3>
-                        <p className="text-xs text-gray-500 mt-1.5 font-medium">{desc}</p>
-
+                        <p className="text-[10px] text-slate-500 mt-1 font-medium">{desc}</p>
                         {/* Next Run Indicator */}
                         {nextRefreshTime && (
-                            <div className="flex items-center gap-1.5 mt-2 text-[10px] uppercase tracking-wider font-bold text-gray-400">
-                                <FaClock size={10} />
-                                <span>Next Run: <span className="text-gray-600">{countdownText}</span></span>
+                            <div className="flex items-center gap-1.5 mt-2 text-[9px] uppercase tracking-wider font-bold text-slate-400">
+                                <FaClock size={9} />
+                                <span>Next Run: <span className="text-slate-600">{countdownText}</span></span>
                             </div>
                         )}
                     </div>
                 </div>
-
                 {/* Actions */}
                 <div className="flex items-center gap-1">
                     {onRefresh && (
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="p-2 text-gray-500 hover:text-sky-600 hover:bg-sky-50 rounded-lg transition-all disabled:opacity-50"
+                            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded transition-all disabled:opacity-50"
                             title="Run Pipeline Now"
                         >
-                            <FaSync size={14} className={isRefreshing ? 'animate-spin text-sky-600' : ''} />
+                            <FaSync size={12} className={isRefreshing ? 'animate-spin text-slate-800' : ''} />
                         </button>
                     )}
                     {onFlush && (
                         <button
                             onClick={() => onFlush(handleFlush)}
                             disabled={isFlushing}
-                            className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all disabled:opacity-50"
+                            className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition-all disabled:opacity-50"
                             title="Flush Data Cache"
                         >
-                            <FaTrash size={14} />
+                            <FaTrash size={12} />
                         </button>
                     )}
                 </div>
             </div>
 
             {/* --- LOGS SECTION --- */}
-            <div className="flex-1 p-0 flex flex-col min-h-[160px]">
-                <div className="px-5 py-3 bg-white border-b border-gray-100 flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                    <FaTerminal size={10} /> System Logs
+            <div className="flex-1 p-0 flex flex-col min-h-[140px]">
+                <div className="px-3 py-2 bg-white border-b border-slate-100 flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                    <FaTerminal size={9} /> System Logs
                 </div>
-
-                <div className="flex-1 overflow-y-auto max-h-60 custom-scrollbar p-0">
+                <div className="flex-1 overflow-y-auto max-h-48 custom-scrollbar p-0">
                     {logsToShow.length > 0 ? (
-                        <div className="divide-y divide-gray-50">
+                        <div className="divide-y divide-slate-50">
                             {logsToShow.map(log => (
                                 <LogItem key={log.id} log={log} />
                             ))}
                         </div>
                     ) : (
-                        <div className="h-32 flex flex-col items-center justify-center text-gray-300">
-                            <FaHistory size={24} className="mb-2 opacity-20" />
-                            <span className="text-xs">No logs recorded</span>
+                        <div className="h-24 flex flex-col items-center justify-center text-slate-300">
+                            <FaHistory size={16} className="mb-1.5 opacity-20" />
+                            <span className="text-[10px]">No logs recorded</span>
                         </div>
                     )}
                 </div>
@@ -124,9 +131,9 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
                 {logs.length > 5 && (
                     <button
                         onClick={() => setShowAllLogs(!showAllLogs)}
-                        className="w-full py-2 text-[10px] font-bold uppercase tracking-wider text-gray-400 hover:text-gray-600 hover:bg-gray-50 border-t border-gray-100 transition-colors flex items-center justify-center gap-2"
+                        className="w-full py-1.5 text-[9px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-600 hover:bg-slate-50 border-t border-slate-100 transition-colors flex items-center justify-center gap-1.5"
                     >
-                        {showAllLogs ? <FaChevronUp /> : <FaChevronDown />}
+                        {showAllLogs ? <FaChevronUp size={8} /> : <FaChevronDown size={8} />}
                         {showAllLogs ? 'Collapse History' : `Show ${logs.length - 5} More`}
                     </button>
                 )}
@@ -138,7 +145,6 @@ const ApiStatusBlock = ({ title, desc, logs, onRefresh, onFlush, nextRefreshTime
 const LogItem = ({ log }) => {
     const isSuccess = log.status === 'SUCCESS';
     const isPending = log.status === 'PENDING';
-
     const dateObj = parseJavaDate(log.lastFetchTime);
 
     // Exact Time Format: "Dec 2, 10:30:45 PM"
@@ -152,24 +158,23 @@ const LogItem = ({ log }) => {
     }) : 'Unknown Date';
 
     return (
-        <div className="px-5 py-3 hover:bg-gray-50 transition-colors group">
-            <div className="flex justify-between items-start mb-1">
-                <div className="flex items-center gap-2">
+        <div className="px-3 py-2 hover:bg-slate-50 transition-colors group">
+            <div className="flex justify-between items-start mb-0.5">
+                <div className="flex items-center gap-1.5">
                     {isPending ? (
-                        <FaSync size={10} className="animate-spin text-amber-500" />
+                        <FaSync size={9} className="animate-spin text-amber-500" />
                     ) : (
-                        isSuccess ? <FaCheckCircle size={10} className="text-emerald-500" /> : <FaExclamationCircle size={10} className="text-red-500" />
+                        isSuccess ? <FaCheckCircle size={9} className="text-emerald-500" /> : <FaExclamationCircle size={9} className="text-red-500" />
                     )}
-                    <span className={`text-xs font-bold ${isPending ? 'text-amber-600' : (isSuccess ? 'text-emerald-700' : 'text-red-700')}`}>
+                    <span className={`text-[10px] font-bold ${isPending ? 'text-amber-600' : (isSuccess ? 'text-emerald-700' : 'text-red-700')}`}>
                         {log.status}
                     </span>
                 </div>
-                <span className="text-[10px] font-mono text-gray-400 whitespace-nowrap">{dateStr}</span>
+                <span className="text-[9px] font-mono text-slate-400 whitespace-nowrap">{dateStr}</span>
             </div>
-
-            <div className="pl-5">
-                <div className="text-xs text-gray-700 font-medium break-words leading-relaxed">
-                    <span className="text-gray-400 font-normal mr-1">[{log.triggerSource}]:</span>
+            <div className="pl-4">
+                <div className="text-[10px] text-slate-600 font-medium break-words leading-relaxed">
+                    <span className="text-slate-400 font-normal mr-1">[{log.triggerSource}]:</span>
                     {log.details}
                 </div>
             </div>

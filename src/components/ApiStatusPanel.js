@@ -1,3 +1,14 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Container panel for API and system health status.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`, 
+ * changed `rounded-xl` to `rounded`, reduced padding from `p-6` to `p-4`, and removed soft shadows.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
 import { getApiStatusHistory, refreshMovers, refreshIndices, flushMovers, flushIndices } from '../apiConfig';
 import ApiStatusBlock from './ApiStatusBlock';
@@ -83,21 +94,21 @@ const ApiStatusPanel = () => {
     };
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-            <div className="flex justify-between items-center mb-6">
+        <div className="bg-white border border-slate-200 rounded shadow-sm p-4">
+            <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h2 className="text-lg font-bold text-gray-900">System Status & Data Feeds</h2>
-                    <p className="text-sm text-gray-500">Monitor data pipelines and API health.</p>
+                    <h2 className="text-[15px] font-bold text-slate-800">System Status & Data Feeds</h2>
+                    <p className="text-[11px] text-slate-500">Monitor data pipelines and API health.</p>
                 </div>
-                <button onClick={fetchLogs} className="px-3 py-1.5 text-sm font-medium text-sky-700 bg-sky-50 rounded-lg hover:bg-sky-100 transition-colors">
+                <button onClick={fetchLogs} className="px-3 py-1.5 text-[11px] font-bold text-slate-700 bg-slate-100 rounded hover:bg-slate-200 transition-colors border border-slate-200">
                     Refresh Logs
                 </button>
             </div>
 
             {isLoading ? (
-                <div className="p-8 text-center text-gray-400 text-sm italic">Loading status logs...</div>
+                <div className="p-8 text-center text-slate-400 text-[11px] uppercase tracking-wider font-bold animate-pulse">Loading status logs...</div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {blockConfigs.map((config) => (
                         <ApiStatusBlock
                             key={config.title}

@@ -1,3 +1,15 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Displays aggregate statistics for blog posts.
+ * IMMUTABLE CHANGE HISTORY:
+ * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`, 
+ * reduced padding from `p-4` to `p-3`, changed `rounded-xl` to `rounded`, and reduced shadows.
+ * Typography tightened to `text-[10px]` and `text-lg`.
+ *
+ * - DO-NOT-DELETE RULE:
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
+ */
 import React from 'react';
 import { FaFileAlt, FaCheckCircle, FaClock, FaEdit } from 'react-icons/fa';
 
@@ -5,20 +17,20 @@ const StatCard = ({ label, value, icon: Icon, color, active, onClick }) => (
     <div
         onClick={onClick}
         className={`
-            relative p-4 rounded-xl border cursor-pointer transition-all duration-200 group
+            relative p-3 rounded border cursor-pointer transition-all duration-200 group
             ${active
-                ? `bg-white border-${color}-500 shadow-md ring-1 ring-${color}-500`
-                : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                ? `bg-white border-slate-400 shadow-sm ring-1 ring-slate-200`
+                : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'
             }
         `}
     >
         <div className="flex justify-between items-start">
             <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">{label}</p>
-                <h3 className="text-2xl font-black text-gray-800 group-hover:text-gray-900">{value}</h3>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
+                <h3 className="text-lg font-black text-slate-800 group-hover:text-slate-900">{value}</h3>
             </div>
-            <div className={`p-2 rounded-lg bg-${color}-50 text-${color}-600`}>
-                <Icon size={18} />
+            <div className={`p-1.5 rounded bg-${color}-50 text-${color}-600`}>
+                <Icon size={14} />
             </div>
         </div>
     </div>
@@ -26,12 +38,12 @@ const StatCard = ({ label, value, icon: Icon, color, active, onClick }) => (
 
 const PostStatsRibbon = ({ stats, currentView, onViewChange }) => {
     return (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <StatCard
                 label="All Content"
                 value={stats.total}
                 icon={FaFileAlt}
-                color="blue"
+                color="sky"
                 active={currentView === 'ALL'}
                 onClick={() => onViewChange('ALL')}
             />
