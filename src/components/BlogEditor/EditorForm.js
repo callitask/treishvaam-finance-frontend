@@ -41,6 +41,12 @@
  * • Added `onVideoInsert` command to `MenuBar`.
  * • Why: Wires the Tiptap canvas to support HLS video insertion post-upload.
  *
+ * - EDITED (Phase 4 - Enterprise File Ingestion UX):
+ * • Rewrote `handleVideoInsert` to drop the Javascript prompt().
+ * • Wired a hidden `<input type="file" accept="video/mp4" />` triggered by the toolbar button.
+ * • Injected `onVideoFileSelect` prop to pass the raw video binary up to `BlogEditorPage.js` for the master `FormData` append.
+ * • Generated ephemeral `URL.createObjectURL(file)` to render the local preview instantly in Tiptap.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -71,18 +77,18 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert, onVideoI
             onClick={onClick}
             title={title}
             className={`px-2.5 py-1.5 text-sm border rounded shadow-sm transition-colors ${isActive
-                ? 'bg-sky-600 text-white border-sky-600'
-                : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-300'
+                ? 'bg-slate-800 text-white border-slate-800'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'
                 }`}
         >
             {children}
         </button>
     );
 
-    const Divider = () => <div className="w-px h-7 bg-slate-300 mx-1 self-center"></div>;
+    const Divider = () => <div className="w-px h-6 bg-slate-200 mx-1 self-center"></div>;
 
     return (
-        <div className="flex flex-wrap gap-1.5 p-3 border-b border-slate-200 bg-slate-50 rounded-t-lg items-center">
+        <div className="flex flex-wrap gap-1.5 p-2.5 border-b border-slate-200 bg-slate-50/80 rounded-t-lg items-center">
             {/* History */}
             <Btn onClick={() => editor.chain().focus().undo().run()} title="Undo (Ctrl+Z)">↶</Btn>
             <Btn onClick={() => editor.chain().focus().redo().run()} title="Redo (Ctrl+Y)">↷</Btn>
@@ -121,7 +127,7 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert, onVideoI
             <input
                 type="color"
                 onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-                className="w-7 h-7 rounded border border-slate-300 cursor-pointer"
+                className="w-7 h-7 rounded border border-slate-200 cursor-pointer p-0.5"
                 title="Text Color"
                 defaultValue="#000000"
             />
@@ -131,7 +137,7 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert, onVideoI
             <Btn onClick={onLinkInsert} isActive={editor.isActive('link')} title="Insert Link">🔗</Btn>
             <Btn onClick={onImageUpload} title="Upload Image">🖼️</Btn>
             <Btn onClick={onYoutubeEmbed} title="Embed YouTube Video">▶️</Btn>
-            <Btn onClick={onVideoInsert} title="Insert Native HLS Video">🎬</Btn>
+            <Btn onClick={onVideoInsert} title="Upload Native Video">🎬</Btn>
         </div>
     );
 };
@@ -139,11 +145,12 @@ const MenuBar = ({ editor, onImageUpload, onYoutubeEmbed, onLinkInsert, onVideoI
 // ═══════════════════════════════════════════════════════════════
 // MAIN EDITOR COMPONENT
 // ═══════════════════════════════════════════════════════════════
-const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUploadBefore, onLoad }) => {
+const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUploadBefore, onLoad, onVideoFileSelect }) => {
     const [isMounted, setIsMounted] = useState(false);
     const [wordCount, setWordCount] = useState(0);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
+    const videoInputRef = useRef(null);
 
     useEffect(() => {
         setIsMounted(true);
@@ -220,7 +227,7 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
         },
         editorProps: {
             attributes: {
-                class: 'prose prose-lg max-w-none focus:outline-none min-h-[400px] px-6 py-4',
+                class: 'prose prose-lg max-w-none focus:outline-none min-h-[500px] px-8 py-6',
             },
             handleKeyDown: (view, event) => {
                 if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -282,8 +289,8 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
 
     if (!isMounted) {
         return (
-            <div className="h-full flex items-center justify-center min-h-[400px]">
-                <div className="w-8 h-8 border-4 border-gray-200 border-t-sky-600 rounded-full animate-spin" />
+            <div className="h-full flex items-center justify-center min-h-[500px] bg-slate-50 rounded-lg">
+                <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
             </div>
         );
     }
@@ -303,11 +310,20 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
         }
     };
 
-    const handleVideoInsert = () => {
-        const url = prompt('Enter Native Video/HLS URL (e.g., /api/v1/uploads/hls/{id}/1080p.m3u8):');
-        if (url && editor) {
-            editor.chain().focus().setVideo({ src: url }).run();
+    // Phase 4 Enterprise Fix: Securely captures raw binary and delegates upward to BlogEditorPage
+    const handleVideoFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file && editor) {
+            // Step 1: Lift state to parent (BlogEditorPage.js) so it can append to FormData on publish
+            if (typeof onVideoFileSelect === 'function') {
+                onVideoFileSelect(file);
+            }
+
+            // Step 2: Generate an ephemeral local preview for the Tiptap canvas
+            const previewUrl = URL.createObjectURL(file);
+            editor.chain().focus().setVideo({ src: previewUrl }).run();
         }
+        e.target.value = '';
     };
 
     const handleLinkInsert = () => {
@@ -327,12 +343,12 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
     const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
     return (
-        <div className="border border-slate-200 rounded-lg shadow-sm bg-white overflow-hidden">
+        <div className="border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-full">
             <MenuBar
                 editor={editor}
                 onImageUpload={handleImageUploadClick}
                 onYoutubeEmbed={handleYoutubeEmbed}
-                onVideoInsert={handleVideoInsert}
+                onVideoInsert={() => videoInputRef.current?.click()}
                 onLinkInsert={handleLinkInsert}
             />
 
@@ -344,23 +360,31 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
                 className="hidden"
             />
 
+            <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/mp4,video/quicktime"
+                onChange={handleVideoFileChange}
+                className="hidden"
+            />
+
             <div
-                className={`relative transition-colors ${isDragging ? 'bg-sky-50 ring-2 ring-sky-300 ring-inset' : ''}`}
+                className={`relative flex-grow overflow-y-auto custom-scrollbar transition-colors ${isDragging ? 'bg-slate-50 ring-2 ring-slate-400 ring-inset' : ''}`}
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={() => setIsDragging(false)}
             >
                 {isDragging && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-sky-50/80 z-10 pointer-events-none">
-                        <p className="text-sky-700 font-bold text-sm">Drop image to upload</p>
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-50/90 z-10 pointer-events-none">
+                        <p className="text-slate-700 font-bold text-sm tracking-wide">Drop image to upload</p>
                     </div>
                 )}
                 <EditorContent editor={editor} />
             </div>
 
-            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 bg-slate-50 text-xs text-slate-500">
+            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 bg-white text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
                 <span>{wordCount} words · ~{readingTime} min read</span>
-                <span className="text-slate-400">Ctrl+S to save · Drag images to upload</span>
+                <span>Ctrl+S to save · Drag images to upload</span>
             </div>
         </div>
     );

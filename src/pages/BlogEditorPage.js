@@ -11,6 +11,15 @@
  * - EDITED (Phase 8 - Video Infrastructure Frontend):
  * • Integrated `VideoPanel` component to support Enterprise HLS video uploads.
  * • Added dedicated `videoInputRef` and FormData appending logic to pass `.mp4`/`.mov` files to the backend transcoder queue.
+ * 
+ * - EDITED (Phase 4 - Zen Mode UI & Video Payload State Lifting):
+ * • Refactored the 7 static configuration panels into collapsible Headless UI-style accordions to reduce visual noise.
+ * • Scaled grid to strict 75/25 split and removed nested scrollbars to optimize canvas space.
+ * • Added `onVideoFileSelect={setVideoFile}` to `EditorForm` to capture the raw binary from the Tiptap toolbar and sync it with the master `FormData` payload.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
@@ -31,6 +40,24 @@ import VideoPanel from '../components/BlogEditor/VideoPanel';
 import PublishPanel from '../components/BlogEditor/PublishPanel';
 import EditorForm from '../components/BlogEditor/EditorForm';
 import { FaCheck, FaExclamationTriangle, FaPenNib } from 'react-icons/fa';
+
+// --- Accordion Wrapper Component ---
+const SidebarAccordion = ({ title, defaultOpen = false, children }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    return (
+        <div className="border-b border-slate-200 bg-white">
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex justify-between items-center py-3 px-5 hover:bg-slate-50 transition-colors focus:outline-none"
+            >
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">{title}</span>
+                <span className="text-slate-400 text-[10px]">{isOpen ? '▼' : '▶'}</span>
+            </button>
+            {isOpen && <div className="px-5 pb-5 pt-2">{children}</div>}
+        </div>
+    );
+};
 
 const BlogEditorPage = () => {
     const params = useParams();
@@ -149,7 +176,6 @@ const BlogEditorPage = () => {
         if (!title.trim() && !content.trim()) return;
         setSaveStatus('Saving...');
         try {
-            // FIX: Explicitly call getHTML() to support Tiptap extension
             const editorContent = editorRef.current && typeof editorRef.current.getHTML === 'function'
                 ? editorRef.current.getHTML()
                 : content;
@@ -377,7 +403,7 @@ const BlogEditorPage = () => {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-white overflow-hidden text-slate-900 font-sans">
+        <div className="flex flex-col h-screen bg-slate-100 overflow-hidden text-slate-900 font-sans -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
             <input type="file" id="file-upload" name="file-upload" ref={fileInputRef} className="hidden" accept="image/*" />
             <input type="file" id="video-upload" name="video-upload" ref={videoInputRef} className="hidden" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideoFileChange} />
 
@@ -385,11 +411,12 @@ const BlogEditorPage = () => {
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
             <LockChoiceModal isOpen={isLockChoiceModalOpen} onChoice={handleLockChoice} />
 
-            <div className="flex flex-col md:flex-row flex-grow overflow-hidden">
-                {/* Meta Configuration Sidebar */}
-                <div className="w-full md:w-1/4 xl:w-[22%] bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto custom-scrollbar" style={{ maxHeight: '100vh' }}>
-                    <div className="sticky top-0 bg-slate-50/95 backdrop-blur z-10 px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-                        <div className="flex items-center text-sm font-semibold">
+            <div className="flex flex-col md:flex-row flex-grow overflow-hidden h-full">
+
+                {/* Meta Configuration Sidebar (25%) */}
+                <div className="w-full md:w-1/4 xl:w-[25%] bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto custom-scrollbar shadow-sm z-10" style={{ maxHeight: '100vh' }}>
+                    <div className="sticky top-0 bg-slate-50/95 backdrop-blur z-20 px-5 py-4 border-b border-slate-200 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center text-xs font-bold uppercase tracking-wider text-slate-700">
                             <FaPenNib className="text-slate-400 mr-2" />
                             {postId ? 'Update Post' : 'New Post'}
                         </div>
@@ -402,21 +429,52 @@ const BlogEditorPage = () => {
 
                     {error && <div className="mx-5 mt-4 p-2 bg-red-50 border-l-2 border-red-500 text-xs text-red-700">{error}</div>}
 
-                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col flex-grow px-5 py-6 space-y-6">
-                        <MetaPanel title={title} onTitleChange={setTitle} userFriendlySlug={postUserFriendlySlug} onUserFriendlySlugChange={setPostUserFriendlySlug} />
-                        <CategoryPanel selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} allCategories={allCategories} showNewCategoryInput={showNewCategoryInput} onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)} newCategoryName={newCategoryName} onNewCategoryNameChange={setNewCategoryName} onAddNewCategory={handleAddNewCategory} />
-                        <PlacementPanel displaySection={displaySection} onDisplaySectionChange={setDisplaySection} tags={tags} onTagsChange={setTags} />
-                        <ThumbnailPanel thumbnailMode={thumbnailMode} onThumbnailModeChange={setThumbnailMode} thumbPreview={thumbPreview} thumbnailAltText={thumbnailAltText} onThumbnailAltTextChange={setThumbnailAltText} onUploadSingleClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail'); fileInputRef.current.click(); }} storyThumbnails={storyThumbnails} setStoryThumbnails={setStoryThumbnails} onAddFromPostClick={handleAddFromPostClick} onUploadStoryClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio); fileInputRef.current.click(); }} />
-                        <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
-                        <VideoPanel videoPreview={videoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveVideo} />
-                        <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
-                        <PublishPanel scheduledTime={scheduledTime} onScheduledTimeChange={setScheduledTime} isFeatured={isFeatured} onIsFeaturedChange={setIsFeatured} isUpdating={!!postId} />
+                    <form id="blog-editor-form" onSubmit={handleSubmit} className="flex flex-col flex-grow bg-slate-100">
+                        <SidebarAccordion title="Meta & Routing" defaultOpen={true}>
+                            <MetaPanel title={title} onTitleChange={setTitle} userFriendlySlug={postUserFriendlySlug} onUserFriendlySlugChange={setPostUserFriendlySlug} />
+                        </SidebarAccordion>
+
+                        <SidebarAccordion title="Category & Layout" defaultOpen={false}>
+                            <CategoryPanel selectedCategory={selectedCategory} onCategoryChange={setSelectedCategory} allCategories={allCategories} showNewCategoryInput={showNewCategoryInput} onShowNewCategoryToggle={() => setShowNewCategoryInput(!showNewCategoryInput)} newCategoryName={newCategoryName} onNewCategoryNameChange={setNewCategoryName} onAddNewCategory={handleAddNewCategory} />
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                <PlacementPanel displaySection={displaySection} onDisplaySectionChange={setDisplaySection} tags={tags} onTagsChange={setTags} />
+                            </div>
+                        </SidebarAccordion>
+
+                        <SidebarAccordion title="Media: Thumbnails" defaultOpen={false}>
+                            <ThumbnailPanel thumbnailMode={thumbnailMode} onThumbnailModeChange={setThumbnailMode} thumbPreview={thumbPreview} thumbnailAltText={thumbnailAltText} onThumbnailAltTextChange={setThumbnailAltText} onUploadSingleClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'single-thumbnail'); fileInputRef.current.click(); }} storyThumbnails={storyThumbnails} setStoryThumbnails={setStoryThumbnails} onAddFromPostClick={handleAddFromPostClick} onUploadStoryClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (ev) => onSelectFile(ev, 'story-thumbnail', lockedAspectRatio); fileInputRef.current.click(); }} />
+                        </SidebarAccordion>
+
+                        <SidebarAccordion title="Media: Cover & Video" defaultOpen={false}>
+                            <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                <VideoPanel videoPreview={videoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveVideo} />
+                            </div>
+                        </SidebarAccordion>
+
+                        <SidebarAccordion title="SEO & Intelligence" defaultOpen={false}>
+                            <SeoPanel title={title} keywords={keywords} onKeywordsChange={setKeywords} metaDescription={metaDescription} onMetaDescriptionChange={setMetaDescription} customSnippet={customSnippet} onCustomSnippetChange={setCustomSnippet} seoTitle={seoTitle} onSeoTitleChange={setSeoTitle} canonicalUrl={canonicalUrl} onCanonicalUrlChange={setCanonicalUrl} focusKeyword={focusKeyword} onFocusKeywordChange={setFocusKeyword} />
+                        </SidebarAccordion>
+
+                        <SidebarAccordion title="Publish Settings" defaultOpen={true}>
+                            <PublishPanel scheduledTime={scheduledTime} onScheduledTimeChange={setScheduledTime} isFeatured={isFeatured} onIsFeaturedChange={setIsFeatured} isUpdating={!!postId} />
+                        </SidebarAccordion>
                     </form>
                 </div>
 
-                {/* Rich Text Editor Canvas */}
-                <div className="w-full md:w-3/4 xl:w-[78%] bg-white flex flex-col relative overflow-hidden">
-                    <EditorForm content={content} onContentChange={setContent} editorRef={editorRef} onImageUploadBefore={handleImageUploadBefore} onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }} />
+                {/* Zen-Mode Rich Text Editor Canvas (75%) */}
+                <div className="w-full md:w-3/4 xl:w-[75%] bg-slate-200/50 flex flex-col relative overflow-y-auto custom-scrollbar p-0 sm:p-6 lg:p-8">
+                    <div className="w-full max-w-5xl mx-auto h-full min-h-[700px] flex flex-col shadow-sm rounded-lg border border-slate-200 bg-white">
+                        <EditorForm
+                            content={content}
+                            setContent={setContent}
+                            editorRef={editorRef}
+                            handleAutoSave={handleAutoSave}
+                            onImageUploadBefore={handleImageUploadBefore}
+                            onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }}
+                            onVideoFileSelect={setVideoFile}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

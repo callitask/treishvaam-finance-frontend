@@ -5,6 +5,9 @@
  * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`,
  * updated selects to `h-8` with `text-[11px]`, and standardized label typography.
  *
+ * - EDITED (Phase 4 - Zen Mode UI):
+ * • Enforced strict `text-[11px]` sizing on the select menu to conform precisely to the newly refactored `BlogEditorPage` Headless accordions.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -14,7 +17,7 @@ import TagsInput from './TagsInput';
 
 const LayoutPanel = ({ layoutStyle, onLayoutStyleChange, tags, onTagsChange }) => {
     return (
-        <div className="space-y-4">
+        <div className="space-y-4 pt-2">
             <div>
                 <label htmlFor="layoutStyle" className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Layout Style</label>
                 <select
