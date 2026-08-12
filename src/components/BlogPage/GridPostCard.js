@@ -1,6 +1,16 @@
+/**
+ * AI-CONTEXT:
+ * Purpose: Renders grid-styled post cards.
+ * 
+ * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED:
+ * • Replaced `react-router-dom` with `next/link` to fix compiler crash.
+ * • Replaced `ResponsiveAuthImage` with `SmartMediaRenderer` to support video covers.
+ * • Date/Phase: Phase 2 (Smart Media Engine)
+ */
 import React, { memo, forwardRef } from 'react';
-import { Link } from 'react-router-dom';
-import ResponsiveAuthImage from '../ResponsiveAuthImage';
+import Link from 'next/link';
+import SmartMediaRenderer from './SmartMediaRenderer';
 import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
 
 const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
@@ -11,18 +21,20 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
-    const thumbnail = article.thumbnails && article.thumbnails.length > 0 ? article.thumbnails[0] : null;
+    const mediaUrl = (article.thumbnails && article.thumbnails.length > 0)
+        ? article.thumbnails[0].imageUrl
+        : article.coverImageUrl;
 
     return (
         <div ref={ref} className="flex flex-col h-full bg-white border-b border-gray-100 pb-4 mb-4 last:mb-0 last:pb-0 last:border-0 group">
 
-            {/* THUMBNAIL (16:9 for Grid to save vertical space) */}
-            {thumbnail && (
-                <Link to={postLink} className="block aspect-video mb-3 overflow-hidden rounded-sm bg-gray-100">
-                    <ResponsiveAuthImage
-                        baseName={thumbnail.imageUrl}
-                        alt={thumbnail.altText || article.title}
+            {mediaUrl && (
+                <Link href={postLink} className="block aspect-video mb-3 overflow-hidden rounded-sm bg-gray-100">
+                    <SmartMediaRenderer
+                        mediaUrl={mediaUrl}
+                        alt={article.thumbnails?.[0]?.altText || article.title}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        layoutContext="grid"
                         width={300}
                     />
                 </Link>
@@ -40,7 +52,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
                 </div>
 
                 <h3 className="text-lg font-bold text-gray-900 font-serif leading-tight mb-2 group-hover:text-sky-700 transition-colors">
-                    <Link to={postLink}>{article.title}</Link>
+                    <Link href={postLink}>{article.title}</Link>
                 </h3>
 
                 <p className="text-xs text-gray-500 font-medium mb-1">

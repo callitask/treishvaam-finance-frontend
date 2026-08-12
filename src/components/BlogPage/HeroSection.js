@@ -4,10 +4,14 @@
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED: Migrated from react-router-dom to next/link.
  * - EDITED: Optimized 'sizes' attribute for better Mobile LCP.
+ * 
+ * - EDITED:
+ * • Replaced `ResponsiveAuthImage` with `SmartMediaRenderer` to natively support video covers in the LCP slot.
+ * • Date/Phase: Phase 2 (Smart Media Engine)
  */
 import React from 'react';
 import Link from 'next/link';
-import ResponsiveAuthImage from '../ResponsiveAuthImage';
+import SmartMediaRenderer from './SmartMediaRenderer';
 import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
 
 const HeroSection = ({ featuredPost }) => {
@@ -18,7 +22,7 @@ const HeroSection = ({ featuredPost }) => {
     const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
     const postLink = `/category/${featuredPost.category?.slug || 'uncategorized'}/${featuredPost.userFriendlySlug}/${featuredPost.urlArticleId}`;
 
-    const heroImage = featuredPost.thumbnails && featuredPost.thumbnails.length > 0
+    const heroMedia = featuredPost.thumbnails && featuredPost.thumbnails.length > 0
         ? featuredPost.thumbnails[0].imageUrl
         : featuredPost.coverImageUrl;
 
@@ -26,10 +30,11 @@ const HeroSection = ({ featuredPost }) => {
         <div className="mb-10 pb-10 border-b border-gray-200 group">
             <Link href={postLink} className="block relative aspect-video overflow-hidden rounded-sm mb-5">
                 <div className="w-full h-full bg-gray-100">
-                    <ResponsiveAuthImage
-                        baseName={heroImage}
+                    <SmartMediaRenderer
+                        mediaUrl={heroMedia}
                         alt={featuredPost.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        layoutContext="hero"
                         eager={true}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 860px"
                         width={1280}
