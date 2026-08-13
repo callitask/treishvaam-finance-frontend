@@ -14,6 +14,10 @@
  * - ADDED:
  * • Built HLS Player with quality selection and multi-dock portal trigger.
  * • Date/Phase: Phase 2 (Enterprise Player)
+ *
+ * - EDITED:
+ * • Added disablePictureInPicture attribute to the video tag to block native OS PiP overriding the React Portal dock.
+ * • Date/Phase: Phase 3 (Enterprise Video Layer)
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -102,13 +106,16 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
     };
 
     return (
-        <div className={`relative group overflow-hidden rounded-xl bg-slate-950 shadow-2xl border border-slate-800 ${className}`}>
+        <div
+            className={`relative group overflow-hidden rounded-xl bg-slate-950 shadow-2xl border border-slate-800 ${className}`}
+            onContextMenu={(e) => e.preventDefault()}
+        >
             <video
                 ref={videoRef}
                 className="w-full h-auto max-h-[60vh] object-contain"
                 onTimeUpdate={handleTimeUpdate}
                 controlsList="nodownload"
-                onContextMenu={(e) => e.preventDefault()}
+                disablePictureInPicture
                 playsInline
             />
 

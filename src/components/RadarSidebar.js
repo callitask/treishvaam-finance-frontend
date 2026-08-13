@@ -14,6 +14,10 @@
  * - ADDED:
  * • Created RadarSidebar component.
  * • Date/Phase: Phase 2 (Radar UX Toolbar)
+ *
+ * - EDITED:
+ * • Added localStorage persistence for text highlights to persist user sessions without invoking backend database state.
+ * • Date/Phase: Phase 3 (Enterprise Video Layer)
  */
 
 import React, { useState } from 'react';
@@ -43,6 +47,11 @@ const RadarSidebar = ({ targetContainerId = 'article-content' }) => {
         try {
             range.surroundContents(mark);
             selection.removeAllRanges();
+
+            // Save state natively to localStorage
+            const saved = JSON.parse(localStorage.getItem('user_highlights') || '[]');
+            saved.push({ text: mark.innerText, timestamp: Date.now() });
+            localStorage.setItem('user_highlights', JSON.stringify(saved));
         } catch (e) {
             alert('Highlighting across complex HTML boundaries is not supported. Please select plain text.');
         }
