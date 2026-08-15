@@ -17,6 +17,10 @@
  * • Scaled grid to strict 75/25 split and removed nested scrollbars to optimize canvas space.
  * • Added `onVideoFileSelect={setVideoFile}` to `EditorForm` to capture the raw binary from the Tiptap toolbar and sync it with the master `FormData` payload.
  *
+ * - EDITED (Phase 5 - Incident 109 CMS Blob Leak Resolution):
+ * • Intercepted `handleSubmit` to isolate and resolve the `blob:` URL database leak.
+ * • Why: Tiptap preview injected local ephemeral `blob:https://...` URLs. Previously, `getHTML()` extracted this raw local string and persisted it to the backend, breaking public playback. The submit flow now detects local blobs, uploads the raw video binary to the server first, awaits the canonical MinIO/CDN URL, executes a Regex replacement on the HTML string, and only then submits the sanitized payload.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -343,9 +347,35 @@ const BlogEditorPage = () => {
         if (!editorRef.current || typeof editorRef.current.getHTML !== 'function') return setError("Editor is not yet available.");
         if (!selectedCategory) return setError("Please select a category.");
 
+        setSaveStatus('Saving...');
+        let finalContent = editorRef.current.getHTML();
+
+        // --- CMS BLOB INGESTION FLAW INTERCEPT ---
+        // If a video file exists in state AND the raw HTML contains an ephemeral blob URL
+        if (videoFile && finalContent.includes('blob:')) {
+            try {
+                // 1. Isolate and upload the video binary first
+                const videoFormData = new FormData();
+                videoFormData.append('file', videoFile);
+
+                const uploadRes = await uploadFile(videoFormData);
+                const serverVideoUrl = uploadRes.data; // e.g., "api/v1/uploads/raw/video.mp4"
+
+                // 2. Sanitize the HTML: Search and destroy the local blob string
+                // Replacing all instances of `src="blob:https://..."` with the permanent server URL.
+                finalContent = finalContent.replace(/src="blob:[^"]+"/g, `src="${serverVideoUrl}"`);
+
+            } catch (uploadErr) {
+                console.error("In-content video upload failed", uploadErr);
+                setError("Failed to upload the in-content video. Please try again.");
+                setSaveStatus('Error');
+                return; // Halt submission if the video fails to upload
+            }
+        }
+
         const formData = new FormData();
         formData.append('title', title);
-        formData.append('content', editorRef.current.getHTML());
+        formData.append('content', finalContent);
 
         if (version !== null && version !== undefined) formData.append('version', version);
         formData.append('category', selectedCategory.name);
@@ -364,7 +394,12 @@ const BlogEditorPage = () => {
         if (scheduledTime) formData.append('scheduledTime', new Date(scheduledTime).toISOString());
 
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
-        if (videoFile) formData.append('videoFile', videoFile);
+
+        // We only append videoFile here if it's the COVER video (not in-content), 
+        // as the backend handles cover videos natively.
+        if (videoFile && !finalContent.includes(videoFile.name)) {
+            formData.append('videoFile', videoFile);
+        }
 
         if (thumbnailMode === 'story') {
             formData.append('thumbnailOrientation', thumbnailOrientation);
@@ -393,6 +428,7 @@ const BlogEditorPage = () => {
             else await createPost(formData);
             router.push('/dashboard/manage-posts');
         } catch (err) {
+            setSaveStatus('Error');
             if (err.response && err.response.status === 409) {
                 if (window.confirm("CONFLICT DETECTED!\n\nSomeone else has updated this post. Click OK to reload (lose changes).")) window.location.reload();
                 else setError("CRITICAL: Version conflict. Please back up your text manually.");

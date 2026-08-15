@@ -18,6 +18,10 @@
  * - EDITED:
  * • Added disablePictureInPicture attribute to the video tag to block native OS PiP overriding the React Portal dock.
  * • Date/Phase: Phase 3 (Enterprise Video Layer)
+ *
+ * - EDITED (Hydration Crash Resolution - Incident 109):
+ * • Injected a strict `mounted` state check.
+ * • Why: Eradicates React #418/#423 Hydration crashes. HLS manifest parsing and conditional rendering was executing differently on SSR vs CSR. Yielding a static skeleton until client-side mount resolves the DOM parity failure.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -31,11 +35,18 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
     const [currentLevel, setCurrentLevel] = useState(-1);
     const [isPlaying, setIsPlaying] = useState(autoPlay);
     const [progress, setProgress] = useState(0);
+    const [mounted, setMounted] = useState(false);
 
     const dockContext = useFloatingDock();
     const pinVideo = dockContext ? dockContext.pinVideo : null;
 
     useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!mounted) return;
+
         const video = videoRef.current;
         if (!video || !src) return;
 
@@ -66,7 +77,7 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
         } else {
             video.src = src;
         }
-    }, [src, autoPlay]);
+    }, [src, autoPlay, mounted]);
 
     const handleQualityChange = (levelIndex) => {
         setCurrentLevel(levelIndex);
@@ -104,6 +115,13 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
             });
         }
     };
+
+    // Hydration Shield: Return stable skeleton during SSR
+    if (!mounted) {
+        return (
+            <div className={`relative w-full aspect-video bg-slate-950 rounded-xl animate-pulse ${className}`} />
+        );
+    }
 
     return (
         <div
