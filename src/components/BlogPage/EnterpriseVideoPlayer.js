@@ -22,6 +22,14 @@
  * - EDITED (Hydration Crash Resolution - Incident 109):
  * • Injected a strict `mounted` state check.
  * • Why: Eradicates React #418/#423 Hydration crashes. HLS manifest parsing and conditional rendering was executing differently on SSR vs CSR. Yielding a static skeleton until client-side mount resolves the DOM parity failure.
+ *
+ * - EDITED (Phase 5 - Enterprise Adaptive Buffering & Path Sanitation):
+ * • Injected absolute URL resolution to prevent route-relative resolution failures (`[object%20Object]`).
+ * • Configured enterprise adaptive buffer bounds (`maxBufferLength: 30`, `maxMaxBufferLength: 60`, `maxBufferSize: 30000000`) for YouTube-style segmented streaming without monolithic downloads.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -44,21 +52,27 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
         setMounted(true);
     }, []);
 
+    // Path normalization: Guarantee absolute pathing to prevent route-relative resolution
+    const cleanSrc = typeof src === 'string' && !src.includes('[object Object]')
+        ? (src.startsWith('http') || src.startsWith('/') ? src : `/${src}`)
+        : '';
+
     useEffect(() => {
-        if (!mounted) return;
+        if (!mounted || !cleanSrc) return;
 
         const video = videoRef.current;
-        if (!video || !src) return;
+        if (!video) return;
 
-        if (src.endsWith('.m3u8') && Hls.isSupported()) {
+        if (cleanSrc.endsWith('.m3u8') && Hls.isSupported()) {
             const hls = new Hls({
                 maxBufferLength: 30,
                 maxMaxBufferLength: 60,
+                maxBufferSize: 30 * 1000 * 1000, // 30MB buffer ceiling
                 capLevelToPlayerSize: true,
                 fastSwitchEnabled: true,
             });
 
-            hls.loadSource(src);
+            hls.loadSource(cleanSrc);
             hls.attachMedia(video);
 
             hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
@@ -66,18 +80,34 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
                 if (autoPlay) video.play().catch(() => { });
             });
 
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+
             hlsRef.current = hls;
 
             return () => {
                 hls.destroy();
             };
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = src;
+        } else if (video.canPlayType('application/vnd.apple.mpegurl') && cleanSrc.endsWith('.m3u8')) {
+            video.src = cleanSrc;
             if (autoPlay) video.play().catch(() => { });
         } else {
-            video.src = src;
+            video.src = cleanSrc;
         }
-    }, [src, autoPlay, mounted]);
+    }, [cleanSrc, autoPlay, mounted]);
 
     const handleQualityChange = (levelIndex) => {
         setCurrentLevel(levelIndex);
@@ -107,17 +137,17 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
     };
 
     const handlePinToDock = () => {
-        if (pinVideo) {
+        if (pinVideo && cleanSrc) {
             pinVideo({
                 id: `video-pip-${Date.now()}`,
-                src,
+                src: cleanSrc,
                 title: alt
             });
         }
     };
 
     // Hydration Shield: Return stable skeleton during SSR
-    if (!mounted) {
+    if (!mounted || !cleanSrc) {
         return (
             <div className={`relative w-full aspect-video bg-slate-950 rounded-xl animate-pulse ${className}`} />
         );

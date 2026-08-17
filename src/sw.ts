@@ -23,12 +23,16 @@
  * • Updated the `/api/v1/posts/` Workbox matcher to explicitly filter `&& request.method === 'GET'`.
  * • Why: Prevents the Service Worker from blindly intercepting `POST`/`PUT` multipart video uploads. Caching massive binary payloads in the background thread exhausted browser memory and crashed the PWA with `no-response`.
  *
+ * - EDITED (Phase 5 - Auth Navigation Exclusion Fix):
+ * • Added explicit `NetworkOnly` routing matcher for `/login`, `/auth`, `/dashboard`, `silent-check-sso.html`, `/api/v1/auth`, and `/api/v1/admin`.
+ * • Why: Eradicates `Uncaught (in promise) no-response` on `/login`. Guarantees live OIDC authentication and admin actions are never intercepted or broken by offline cache strategies.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import { defaultCache } from '@serwist/next/worker';
-import { Serwist, NetworkFirst, CacheFirst, ExpirationPlugin } from 'serwist';
+import { Serwist, NetworkFirst, CacheFirst, NetworkOnly, ExpirationPlugin } from 'serwist';
 
 declare const self: ServiceWorkerGlobalScope & {
     __SW_MANIFEST: any;
@@ -40,6 +44,21 @@ const serwist = new Serwist({
     clientsClaim: true,
     navigationPreload: true,
     runtimeCaching: [
+        // Auth, Login, and Admin routes — NetworkOnly (never cache)
+        {
+            matcher: ({ url }) => {
+                const pathname = url.pathname;
+                return (
+                    pathname.startsWith('/login') ||
+                    pathname.startsWith('/auth') ||
+                    pathname.startsWith('/dashboard') ||
+                    pathname.includes('silent-check-sso.html') ||
+                    pathname.startsWith('/api/v1/auth') ||
+                    pathname.startsWith('/api/v1/admin')
+                );
+            },
+            handler: new NetworkOnly(),
+        },
         // Public blog posts — NetworkFirst with 24h cache fallback
         {
             matcher: ({ request, url }) => !!url.href.match(/^https:\/\/.*\/api\/v1\/posts\//) && request.method === 'GET',

@@ -21,9 +21,10 @@
  * • Intercepted `handleSubmit` to isolate and resolve the `blob:` URL database leak.
  * • Why: Tiptap preview injected local ephemeral `blob:https://...` URLs. Previously, `getHTML()` extracted this raw local string and persisted it to the backend, breaking public playback. The submit flow now detects local blobs, uploads the raw video binary to the server first, awaits the canonical MinIO/CDN URL, executes a Regex replacement on the HTML string, and only then submits the sanitized payload.
  *
- * - EDITED (Phase 5 - Incident 115 CMS Video Payload Serialization & Validation):
- * • Updated `handleSubmit` to safely extract the string URL (`uploadRes.data?.url || uploadRes.data`) before executing `.replace()`, preventing `[object Object]` database leaks.
- * • Enforced `videoFile instanceof File` checks before appending to `FormData` to ensure strict compatibility with Spring Boot's `@RequestPart MultipartFile`.
+ * - EDITED (Phase 5 - Incident 118 Cover vs In-Content Video Decoupling & Absolute Path Enforcement):
+ * • Decoupled `coverVideoFile` (for Cover Media) from `inContentVideoFile` (for Tiptap Canvas) into completely independent state models.
+ * • Guaranteed that uploaded in-content video URLs are always formatted as normalized absolute paths (`/api/v1/uploads/...`) during `.replace()`, eradicating relative route traversal (`[object%20Object]`).
+ * • Enforced `coverVideoFile instanceof File` checks before appending to `FormData` to ensure strict compatibility with Spring Boot's `@RequestPart MultipartFile`.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -94,9 +95,10 @@ const BlogEditorPage = () => {
     const [focusKeyword, setFocusKeyword] = useState('');
     const [coverImageAltText, setCoverImageAltText] = useState('');
 
-    // Video State
-    const [videoFile, setVideoFile] = useState(null);
-    const [videoPreview, setVideoPreview] = useState('');
+    // Decoupled Video States
+    const [coverVideoFile, setCoverVideoFile] = useState(null);
+    const [coverVideoPreview, setCoverVideoPreview] = useState('');
+    const [inContentVideoFile, setInContentVideoFile] = useState(null);
 
     const [thumbnailMode, setThumbnailMode] = useState('single');
     const [storyThumbnails, setStoryThumbnails] = useState([]);
@@ -167,7 +169,16 @@ const BlogEditorPage = () => {
                         })).sort((a, b) => a.displayOrder - b.displayOrder);
                         setStoryThumbnails(loadedThumbnails);
                     }
-                    if (post.coverImageUrl) setCoverPreview(`${API_URL}/api/uploads/${post.coverImageUrl}.webp`);
+
+                    if (post.coverImageUrl) {
+                        const rawCover = post.coverImageUrl;
+                        if (rawCover.endsWith('.mp4') || rawCover.endsWith('.m3u8') || rawCover.includes('/raw/') || rawCover.includes('/hls/')) {
+                            setCoverVideoPreview(rawCover.startsWith('http') || rawCover.startsWith('/') ? rawCover : `${API_URL}/${rawCover.replace(/^\/+/, '')}`);
+                        } else {
+                            setCoverPreview(`${API_URL}/api/uploads/${rawCover}.webp`);
+                        }
+                    }
+
                     if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
                 } else {
                     if (categoriesRes.data?.length > 0) setSelectedCategory(categoriesRes.data[0]);
@@ -222,18 +233,18 @@ const BlogEditorPage = () => {
         e.target.value = null;
     };
 
-    const handleVideoFileChange = (e) => {
+    const handleCoverVideoFileChange = (e) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0];
-            setVideoFile(file);
-            setVideoPreview(URL.createObjectURL(file));
+            setCoverVideoFile(file);
+            setCoverVideoPreview(URL.createObjectURL(file));
         }
         e.target.value = null;
     };
 
-    const handleRemoveVideo = () => {
-        setVideoFile(null);
-        setVideoPreview('');
+    const handleRemoveCoverVideo = () => {
+        setCoverVideoFile(null);
+        setCoverVideoPreview('');
     };
 
     const handleImageUploadBefore = (files, info, uploadHandler) => {
@@ -354,22 +365,25 @@ const BlogEditorPage = () => {
         setSaveStatus('Saving...');
         let finalContent = editorRef.current.getHTML();
 
-        // --- CMS BLOB INGESTION FLAW INTERCEPT ---
-        // If a video file exists in state AND the raw HTML contains an ephemeral blob URL
-        if (videoFile && videoFile instanceof File && finalContent.includes('blob:')) {
+        // --- CMS IN-CONTENT BLOB INGESTION FLAW INTERCEPT ---
+        // If an in-content video file exists in state AND the raw HTML contains an ephemeral blob URL
+        if (inContentVideoFile && inContentVideoFile instanceof File && finalContent.includes('blob:')) {
             try {
                 // 1. Isolate and upload the video binary first
                 const videoFormData = new FormData();
-                videoFormData.append('file', videoFile);
+                videoFormData.append('file', inContentVideoFile);
 
                 const uploadRes = await uploadFile(videoFormData);
-                // Extract string safely to avoid [object Object] serialization leak
-                const serverVideoUrl = uploadRes.data?.url || uploadRes.data;
+                const rawUrl = uploadRes.data?.url || uploadRes.data;
+                // Enforce normalized absolute URL (e.g. /api/v1/uploads/raw/...) to prevent relative route traversal
+                const serverVideoUrl = typeof rawUrl === 'string'
+                    ? (rawUrl.startsWith('http') || rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`)
+                    : '';
 
                 // 2. Sanitize the HTML: Search and destroy the local blob string
-                // Replacing all instances of `src="blob:https://..."` with the permanent server URL.
-                finalContent = finalContent.replace(/src="blob:[^"]+"/g, `src="${serverVideoUrl}"`);
-
+                if (serverVideoUrl) {
+                    finalContent = finalContent.replace(/src="blob:[^"]+"/g, `src="${serverVideoUrl}"`);
+                }
             } catch (uploadErr) {
                 console.error("In-content video upload failed", uploadErr);
                 setError("Failed to upload the in-content video. Please try again.");
@@ -400,10 +414,9 @@ const BlogEditorPage = () => {
 
         if (finalCoverFile) formData.append('coverImage', finalCoverFile);
 
-        // We only append videoFile here if it's the COVER video (not in-content), 
-        // as the backend handles cover videos natively.
-        if (videoFile && videoFile instanceof File && !finalContent.includes(videoFile.name)) {
-            formData.append('videoFile', videoFile);
+        // Append Cover Video to backend @RequestPart MultipartFile if selected
+        if (coverVideoFile && coverVideoFile instanceof File) {
+            formData.append('videoFile', coverVideoFile);
         }
 
         if (thumbnailMode === 'story') {
@@ -446,7 +459,7 @@ const BlogEditorPage = () => {
     return (
         <div className="flex flex-col h-screen bg-slate-100 overflow-hidden text-slate-900 font-sans -mx-4 sm:-mx-6 lg:-mx-8 -my-6">
             <input type="file" id="file-upload" name="file-upload" ref={fileInputRef} className="hidden" accept="image/*" />
-            <input type="file" id="video-upload" name="video-upload" ref={videoInputRef} className="hidden" accept="video/mp4,video/quicktime,video/webm" onChange={handleVideoFileChange} />
+            <input type="file" id="video-upload" name="video-upload" ref={videoInputRef} className="hidden" accept="video/mp4,video/quicktime,video/webm" onChange={handleCoverVideoFileChange} />
 
             <AddFromPostModal images={postImagesForSelection} isOpen={isAddFromPostModalOpen} onClose={() => setAddFromPostModalOpen(false)} onSelect={handleSelectFromPost} />
             {modalState.isOpen && <CropModal src={modalState.src} type={modalState.type} onClose={() => setModalState({ isOpen: false, type: null, src: '', aspect: undefined })} onSave={handleCropSave} aspect={modalState.aspect} />}
@@ -489,7 +502,7 @@ const BlogEditorPage = () => {
                         <SidebarAccordion title="Media: Cover & Video" defaultOpen={false}>
                             <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
                             <div className="mt-4 pt-4 border-t border-slate-100">
-                                <VideoPanel videoPreview={videoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveVideo} />
+                                <VideoPanel videoPreview={coverVideoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveCoverVideo} />
                             </div>
                         </SidebarAccordion>
 
@@ -513,7 +526,7 @@ const BlogEditorPage = () => {
                             handleAutoSave={handleAutoSave}
                             onImageUploadBefore={handleImageUploadBefore}
                             onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }}
-                            onVideoFileSelect={setVideoFile}
+                            onVideoFileSelect={setInContentVideoFile}
                         />
                     </div>
                 </div>

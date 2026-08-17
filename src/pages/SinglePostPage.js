@@ -44,10 +44,14 @@
  * - EDITED (Phase 7 - Zero-Trust High Availability Preload Consumption):
  * • Refactored `useEffect` to intercept and consume `window.__PRELOADED_STATE__` instantly upon mount.
  * • Why: Elevates the component to 100% High Availability (HA). If the backend is completely offline, the component now successfully reads the cached JSON payload injected by the Edge Worker, skips the live API fetch entirely, and overrides the document title via `setTimeout` to defeat Next.js hydration anomalies.
+ * - EDITED (Phase 8 - Incident 118 UX Toolbar Integration & Media Path Sanitization):
+ * • Mounted `<RadarSidebar />` into the article view to restore the high-density interactive UX toolbar (Highlighter, Snapshot, and Floating Multi-PiP controls).
+ * • Replaced raw `<img>` cover rendering with `<SmartMediaRenderer />` to support adaptive HLS and MP4 cover videos seamlessly without gray box failures.
+ * • Sanitized legacy `[object Object]` video strings from the HTML content payload prior to `dangerouslySetInnerHTML` rendering.
  *
  * - DO-NOT-DELETE RULE:
- * This IMMUTABLE CHANGE HISTORY section must never be deleted,
- * truncated, rewritten, or regenerated. Future AI must append only.
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
@@ -57,6 +61,8 @@ import { Calendar, User, ArrowLeft, Clock, Share2, Tag, Loader2, BookmarkPlus } 
 import ShareModal from '../components/ShareModal';
 import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
+import RadarSidebar from '../components/RadarSidebar';
+import SmartMediaRenderer from '../components/BlogPage/SmartMediaRenderer';
 
 const SinglePostPage = () => {
     const params = useParams();
@@ -171,6 +177,12 @@ const SinglePostPage = () => {
         return extractedHeadings.filter(h => h && typeof h === 'object' && typeof h.id === 'string' && h.id.trim() !== '');
     }, [extractedHeadings]);
 
+    // Sanitizes broken [object Object] video paths from historical corrupt publishes
+    const sanitizedContent = useMemo(() => {
+        if (!post || !post.content || typeof post.content !== 'string') return '';
+        return post.content.replace(/src="\[object Object\]"/g, 'src=""');
+    }, [post?.content]);
+
     useEffect(() => {
         const handleScroll = () => {
             if (!articleRef.current) return;
@@ -244,17 +256,24 @@ const SinglePostPage = () => {
     const postUrl = clientUrl || `https://treishvaamfinance.com/category/${categorySlug}/${post?.userFriendlySlug}/${post?.urlArticleId}`;
 
     const activeImage = post?.coverImageUrl || post?.thumbnailUrl;
-    const coverImageUrl = activeImage
-        ? `${API_URL}/api/v1/files/download/${activeImage}`
-        : 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
+    let coverImageUrl = 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
+    if (activeImage && typeof activeImage === 'string') {
+        if (activeImage.startsWith('http') || activeImage.startsWith('/')) {
+            coverImageUrl = activeImage;
+        } else if (activeImage.endsWith('.mp4') || activeImage.endsWith('.m3u8') || activeImage.includes('/raw/') || activeImage.includes('/hls/')) {
+            coverImageUrl = `${API_URL}/${activeImage.replace(/^\/+/, '')}`;
+        } else {
+            coverImageUrl = `${API_URL}/api/v1/files/download/${activeImage}`;
+        }
+    }
 
     const imageAltText = post?.coverImageAltText || post?.thumbnailAltText || post?.title || 'Article cover image';
 
-    // Construct a defenisve post object to pass downwards ensuring 'id' always exists
+    // Construct a defensive post object to pass downwards ensuring 'id' always exists
     const defensivePostProp = { id: id || '', ...(post || {}) };
 
     return (
-        <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300">
+        <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300 relative">
             {validHeadings.length > 0 && (
                 <ReadingProgressBar
                     post={defensivePostProp}
@@ -263,6 +282,9 @@ const SinglePostPage = () => {
                     progress={progress}
                 />
             )}
+
+            {/* Enterprise Interactive UX Toolbar (Highlighter, Snapshot, Multi-PiP) */}
+            <RadarSidebar />
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
@@ -309,11 +331,12 @@ const SinglePostPage = () => {
                         </header>
 
                         {activeImage && (
-                            <figure className="mb-10">
-                                <img
-                                    src={coverImageUrl}
+                            <figure className="mb-10 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                <SmartMediaRenderer
+                                    mediaUrl={coverImageUrl}
                                     alt={imageAltText}
-                                    className="w-full h-auto max-h-[500px] object-cover rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800"
+                                    layoutContext="article"
+                                    className="w-full h-auto max-h-[500px] object-cover"
                                 />
                                 {imageAltText && imageAltText !== post.title && imageAltText !== 'Article cover image' && (
                                     <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
@@ -325,7 +348,7 @@ const SinglePostPage = () => {
 
                         <div
                             className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm"
-                            dangerouslySetInnerHTML={{ __html: post?.content || '' }}
+                            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
                         />
 
                         {Array.isArray(post?.tags) && post.tags.length > 0 && (
