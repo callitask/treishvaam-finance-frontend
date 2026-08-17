@@ -17,6 +17,10 @@
  * - EDITED:
  * • Wrapped VideoNodeView in React.memo to prevent scroll flashing during Tiptap editor DOM updates, and appended dynamic float attributes to the schema.
  * • Date/Phase: Phase 3 (Enterprise Video Layer)
+ * 
+ * - EDITED (Phase 5 - Editor UX & Native Resizing):
+ * • Injected native CSS resize handles (`resize: 'horizontal'`, `overflow: 'hidden'`, `minWidth: '250px'`, `maxWidth: '100%'`) into the NodeViewWrapper.
+ * • Why: Grants CMS authors the ability to natively drag-resize video elements directly in the DOM without introducing heavy third-party dependencies.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core';
@@ -38,7 +42,17 @@ const VideoNodeView = memo(({ node, updateAttributes, selected, editor }) => {
         : (alignmentClasses[alignment] || alignmentClasses.center);
 
     return (
-        <NodeViewWrapper className={`relative group transition-all ${wrapperClass}`} style={{ width: width || '100%', float: float || 'none' }}>
+        <NodeViewWrapper
+            className={`relative group transition-all ${wrapperClass}`}
+            style={{
+                width: width || '100%',
+                float: float || 'none',
+                resize: 'horizontal',
+                overflow: 'hidden',
+                minWidth: '250px',
+                maxWidth: '100%'
+            }}
+        >
             {isEditable && (selected || false) && (
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 bg-slate-900/90 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg shadow-xl border border-slate-700 whitespace-nowrap">
                     <span className="font-semibold text-slate-400 mr-1">Align:</span>
