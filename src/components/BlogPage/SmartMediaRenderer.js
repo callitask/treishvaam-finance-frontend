@@ -28,6 +28,9 @@
  * • Added defensive path normalization to ensure all video URLs resolve as absolute paths (`/api/v1/uploads/...`) instead of route-relative URLs.
  * • Added support for raw MP4s and HLS manifests in cover contexts, sanitizing invalid `[object Object]` strings.
  *
+ * - EDITED (Phase 8 - Media UX Animations):
+ * • Implemented React state-driven CSS opacity transitions (`isLoaded`) and blurred edge masking (`[mask-image:...]`) triggered by `onLoadedData` to provide seamless, enterprise-grade auto-play cover fades without violating Virtual DOM parity.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -51,6 +54,7 @@ const SmartMediaRenderer = memo(({
 }) => {
     const videoRef = useRef(null);
     const [mounted, setMounted] = useState(false);
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // Hydration Shield: Delay complex rendering until client mounts
     useEffect(() => {
@@ -102,7 +106,8 @@ const SmartMediaRenderer = memo(({
         <video
             ref={videoRef}
             src={optimizedVideoUrl}
-            className={`w-full h-full object-cover ${className}`}
+            className={`w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'} starting:opacity-0 [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)] ${className}`}
+            onLoadedData={() => setIsLoaded(true)}
             autoPlay
             muted
             loop

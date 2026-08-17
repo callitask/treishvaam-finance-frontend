@@ -49,6 +49,11 @@
  * • Replaced raw `<img>` cover rendering with `<SmartMediaRenderer />` to support adaptive HLS and MP4 cover videos seamlessly without gray box failures.
  * • Sanitized legacy `[object Object]` video strings from the HTML content payload prior to `dangerouslySetInnerHTML` rendering.
  *
+ * - EDITED (Phase 8 - Enterprise UX Integration):
+ * • Wrapped the `.prose` article container strictly with `AnnotationProvider` to isolate the Canvas overlay and highlight context without blocking external navigation elements.
+ * • Created `AnnotatableProse` to handle DOM `mouseup` events, executing safe cross-boundary DOM markup and serializing the ranges via XPath.
+ * • Injected `<FloatingCalculator />` React Portal for client-side financial operations.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -63,6 +68,66 @@ import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
 import RadarSidebar from '../components/RadarSidebar';
 import SmartMediaRenderer from '../components/BlogPage/SmartMediaRenderer';
+import { AnnotationProvider, useAnnotations } from '../context/AnnotationContext';
+import CanvasOverlay from '../components/annotations/CanvasOverlay';
+import FloatingCalculator from '../components/annotations/FloatingCalculator';
+import { wrapRangeInMarks, getXPath } from '../components/annotations/HighlightEngine';
+
+// Inner component to safely consume the AnnotationContext and apply event listeners
+const AnnotatableProse = ({ content }) => {
+    const { activeTool, addHighlight } = useAnnotations();
+    const proseRef = useRef(null);
+
+    useEffect(() => {
+        const handleMouseUp = () => {
+            if (activeTool !== 'highlight') return;
+
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0 && !selection.isCollapsed) {
+                const range = selection.getRangeAt(0);
+                const color = '#fbbf24'; // Default highlight color
+
+                // Wrap in <mark> tags supporting cross-boundary logic
+                const id = wrapRangeInMarks(range, color);
+
+                const root = proseRef.current;
+                const startXPath = getXPath(range.startContainer, root);
+                const endXPath = getXPath(range.endContainer, root);
+
+                // Serialize and persist
+                addHighlight({
+                    id,
+                    startXPath,
+                    startOffset: range.startOffset,
+                    endXPath,
+                    endOffset: range.endOffset,
+                    color,
+                    text: selection.toString()
+                });
+
+                selection.removeAllRanges();
+            }
+        };
+
+        const proseNode = proseRef.current;
+        if (proseNode) {
+            proseNode.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            if (proseNode) {
+                proseNode.removeEventListener('mouseup', handleMouseUp);
+            }
+        };
+    }, [activeTool, addHighlight]);
+
+    return (
+        <div
+            ref={proseRef}
+            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed relative z-20"
+            dangerouslySetInnerHTML={{ __html: content }}
+        />
+    );
+};
 
 const SinglePostPage = () => {
     const params = useParams();
@@ -288,13 +353,13 @@ const SinglePostPage = () => {
 
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
                 <div className="flex flex-col lg:flex-row gap-12">
-                    <article className="w-full lg:w-[70%]" ref={articleRef}>
+                    <article className="w-full lg:w-[70%] relative" ref={articleRef}>
                         <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
                             <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                             <span>/</span>
                             <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
                         </nav>
-                        <header className="mb-8">
+                        <header className="mb-8 relative z-20">
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
                                 {post.title}
                             </h1>
@@ -331,7 +396,7 @@ const SinglePostPage = () => {
                         </header>
 
                         {activeImage && (
-                            <figure className="mb-10 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                            <figure className="mb-10 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative z-20">
                                 <SmartMediaRenderer
                                     mediaUrl={coverImageUrl}
                                     alt={imageAltText}
@@ -346,13 +411,17 @@ const SinglePostPage = () => {
                             </figure>
                         )}
 
-                        <div
-                            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed prose-headings:font-serif prose-headings:font-bold prose-a:text-sky-600 dark:prose-a:text-sky-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-sm"
-                            dangerouslySetInnerHTML={{ __html: sanitizedContent }}
-                        />
+                        {/* ANNOTATION ENGINE ISOLATION: Wraps only the Prose and Canvas */}
+                        <div className="relative">
+                            <AnnotationProvider articleId={id}>
+                                <CanvasOverlay />
+                                <FloatingCalculator />
+                                <AnnotatableProse content={sanitizedContent} />
+                            </AnnotationProvider>
+                        </div>
 
                         {Array.isArray(post?.tags) && post.tags.length > 0 && (
-                            <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800">
+                            <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 relative z-20">
                                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
                                     <Tag className="w-4 h-4 mr-2" /> Topics
                                 </h3>
@@ -370,7 +439,7 @@ const SinglePostPage = () => {
                         )}
                     </article>
 
-                    <aside className="w-full lg:w-[30%]">
+                    <aside className="w-full lg:w-[30%] relative z-20">
                         <div className="sticky top-24 space-y-8">
                             {validHeadings.length > 0 && (
                                 <TableOfContents
