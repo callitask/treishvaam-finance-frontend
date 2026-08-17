@@ -19,9 +19,13 @@
  * - EDITED:
  * • Intercepts .m3u8 streams and locks grid cover videos strictly to 360p via native fallback logic, rendering a muted, looping, auto-playing video element with disabled PiP to preserve UI integrity.
  * • Date/Phase: Phase 3 (Enterprise Video Layer)
+ *
+ * - EDITED (Hydration Crash Resolution - Incident 109):
+ * • Injected a `mounted` state shield using `useState` and `useEffect`.
+ * • Why: Resolved severe React Minified Errors #418 and #423. Dynamic media resolution caused the Server-Side Rendered (SSR) HTML to fundamentally mismatch the Client-Side Rendered (CSR) HTML. Returning a stable placeholder until hydration completes guarantees render parity and stops the client-side fallback crashes.
  */
 
-import React, { memo, useRef } from 'react';
+import React, { memo, useEffect, useState, useRef } from 'react';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import EnterpriseVideoPlayer from './EnterpriseVideoPlayer';
 
@@ -38,9 +42,15 @@ const SmartMediaRenderer = memo(({
     sizes
 }) => {
     const videoRef = useRef(null);
+    const [mounted, setMounted] = useState(false);
 
-    if (!mediaUrl) {
-        return <div className={`bg-gray-200 ${className}`} style={{ width, height }} />;
+    // Hydration Shield: Delay complex rendering until client mounts
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted || !mediaUrl) {
+        return <div className={`bg-gray-200 animate-pulse ${className}`} style={{ width, height }} />;
     }
 
     const isVideo = VIDEO_EXT_REGEX.test(mediaUrl);

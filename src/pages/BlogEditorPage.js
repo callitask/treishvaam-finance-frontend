@@ -21,6 +21,10 @@
  * • Intercepted `handleSubmit` to isolate and resolve the `blob:` URL database leak.
  * • Why: Tiptap preview injected local ephemeral `blob:https://...` URLs. Previously, `getHTML()` extracted this raw local string and persisted it to the backend, breaking public playback. The submit flow now detects local blobs, uploads the raw video binary to the server first, awaits the canonical MinIO/CDN URL, executes a Regex replacement on the HTML string, and only then submits the sanitized payload.
  *
+ * - EDITED (Phase 5 - Incident 115 CMS Video Payload Serialization & Validation):
+ * • Updated `handleSubmit` to safely extract the string URL (`uploadRes.data?.url || uploadRes.data`) before executing `.replace()`, preventing `[object Object]` database leaks.
+ * • Enforced `videoFile instanceof File` checks before appending to `FormData` to ensure strict compatibility with Spring Boot's `@RequestPart MultipartFile`.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -352,14 +356,15 @@ const BlogEditorPage = () => {
 
         // --- CMS BLOB INGESTION FLAW INTERCEPT ---
         // If a video file exists in state AND the raw HTML contains an ephemeral blob URL
-        if (videoFile && finalContent.includes('blob:')) {
+        if (videoFile && videoFile instanceof File && finalContent.includes('blob:')) {
             try {
                 // 1. Isolate and upload the video binary first
                 const videoFormData = new FormData();
                 videoFormData.append('file', videoFile);
 
                 const uploadRes = await uploadFile(videoFormData);
-                const serverVideoUrl = uploadRes.data; // e.g., "api/v1/uploads/raw/video.mp4"
+                // Extract string safely to avoid [object Object] serialization leak
+                const serverVideoUrl = uploadRes.data?.url || uploadRes.data;
 
                 // 2. Sanitize the HTML: Search and destroy the local blob string
                 // Replacing all instances of `src="blob:https://..."` with the permanent server URL.
@@ -397,7 +402,7 @@ const BlogEditorPage = () => {
 
         // We only append videoFile here if it's the COVER video (not in-content), 
         // as the backend handles cover videos natively.
-        if (videoFile && !finalContent.includes(videoFile.name)) {
+        if (videoFile && videoFile instanceof File && !finalContent.includes(videoFile.name)) {
             formData.append('videoFile', videoFile);
         }
 
