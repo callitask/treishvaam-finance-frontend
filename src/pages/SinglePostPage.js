@@ -20,10 +20,12 @@
  * - EDITED (Phase 8.3 - Left-Sticky Toolbar Integration):
  * • Restructured the main `<main>` container into a 3-column layout (`w-16` / `flex-1` / `w-[30%]`).
  * • Moved `<RadarSidebar />` from a globally floating element into a dedicated sticky-left container immediately beside the article headline for professional enterprise layout.
- *
  * - EDITED (Phase 8.8 - 3-Column Enterprise Alignment):
  * • Replaced `AnnotatableProse` inline embedding with dynamic external import.
  * • Refined the `xl:flex-row` boundaries to ensure the 16-pixel margin locks the sticky capsule flawlessly aligned to the left of the `h1` headline.
+ *
+ * - EDITED (Phase 8.9 - Native Event Synchronization Support):
+ * • Removed inline synthetic `mouseup` handlers. Relies strictly on the externally imported `AnnotatableProse.js` component to handle native `document.addEventListener` bindings for mathematically flawless highlight tracking.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.

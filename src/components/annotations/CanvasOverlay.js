@@ -9,9 +9,12 @@
  * - EDITED (Phase 8.5 - Z-Index Layering Fix): Elevated z-index from 10 to 30 to bypass `.prose` z-index blockers.
  * 
  * - EDITED (Phase 8.6 - Samsung-Level Smoothing & Dynamic Cursors):
- * • Completely eradicated the jagged `lineTo` logic. Engineered a high-performance `useRef` buffering system that computes mathematically perfect Quadratic Bezier curves (`quadraticCurveTo`) operating at 60fps.
- * • Eliminated the ugly generic crosshair. The canvas dynamically generates an SVG base64 cursor scaled identically to the user's selected `penWidth` and `penColor`.
- * • Added distinct brush physics: 'pen' (solid), 'brush' (soft shadow aura), and 'fountain' (velocity-based square nibs).
+ * • Engineered a high-performance `useRef` buffering system computing mathematically perfect Quadratic Bezier curves (`quadraticCurveTo`).
+ * 
+ * - EDITED (Phase 8.7 - Velocity & Pressure Physics Engine):
+ * • Replaced static line weights with a dynamic Momentum Engine.
+ * • Captures high-resolution timestamps via `performance.now()`. Calculates velocity (`Math.hypot(dx, dy) / dt`).
+ * • Inversely maps velocity to stroke thickness (fast swipe = thin tail; slow drag = thick ink pool), multiplying by hardware `e.pressure` for hyper-realistic calligraphy.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -54,7 +57,6 @@ const CanvasOverlay = () => {
 
         const resize = () => {
             if (canvas.parentElement) {
-                // High-DPI Retina Scaling
                 const rect = canvas.parentElement.getBoundingClientRect();
                 canvas.width = rect.width * window.devicePixelRatio;
                 canvas.height = rect.height * window.devicePixelRatio;
@@ -68,31 +70,42 @@ const CanvasOverlay = () => {
         return () => window.removeEventListener('resize', resize);
     }, []);
 
-    const applyBrushPhysics = (ctx, pressure) => {
+    const applyBrushPhysics = (ctx, pressure, velocity) => {
         ctx.strokeStyle = penColor;
+
+        // Clamp velocity to a reasonable range to prevent infinite multipliers
+        const clampedVelocity = Math.min(Math.max(velocity, 0.1), 5.0);
+
+        // Inverse Velocity Mapping: Fast = Thin, Slow = Thick.
+        const velocityFactor = 1.5 / clampedVelocity;
+
+        // Base Dynamic Width = Target Width * Hardware Pressure * Velocity Modifier
+        const dynamicWidth = penWidth * pressure * velocityFactor;
+
+        // Prevent strokes from getting too thin or too massive
+        const finalWidth = Math.min(Math.max(dynamicWidth, penWidth * 0.2), penWidth * 2.5);
 
         switch (penStyle) {
             case 'brush':
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.lineWidth = penWidth * (pressure * 2.5);
-                ctx.shadowBlur = penWidth * 2;
+                ctx.lineWidth = finalWidth * 1.5;
+                ctx.shadowBlur = penWidth * 1.5;
                 ctx.shadowColor = penColor;
-                ctx.globalAlpha = 0.8;
+                ctx.globalAlpha = 0.7;
                 break;
             case 'fountain':
                 ctx.lineCap = 'square';
                 ctx.lineJoin = 'miter';
-                // Mimic angled calligraphy nib
-                ctx.lineWidth = penWidth * (pressure * 1.5);
+                ctx.lineWidth = finalWidth;
                 ctx.shadowBlur = 0;
-                ctx.globalAlpha = 1.0;
+                ctx.globalAlpha = 0.95;
                 break;
             case 'pen':
             default:
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.lineWidth = penWidth * (pressure * 1.5);
+                ctx.lineWidth = finalWidth;
                 ctx.shadowBlur = 0;
                 ctx.globalAlpha = 1.0;
                 break;
@@ -107,7 +120,8 @@ const CanvasOverlay = () => {
         pointsRef.current = [{
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
-            pressure: e.pointerType === 'pen' ? e.pressure : 0.5
+            pressure: e.pointerType === 'pen' ? e.pressure : 0.5,
+            time: performance.now()
         }];
     };
 
@@ -117,21 +131,30 @@ const CanvasOverlay = () => {
         const ctx = canvasRef.current.getContext('2d');
         const rect = canvasRef.current.getBoundingClientRect();
         const pts = pointsRef.current;
+        const now = performance.now();
 
         const newPoint = {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
-            pressure: e.pointerType === 'pen' ? e.pressure : 0.5
+            pressure: e.pointerType === 'pen' ? e.pressure : 0.5,
+            time: now
         };
 
+        // Calculate physics relative to the last point
+        const lastPoint = pts[pts.length - 1];
+        const dt = Math.max(now - lastPoint.time, 1); // ms passed (avoid div zero)
+        const dx = newPoint.x - lastPoint.x;
+        const dy = newPoint.y - lastPoint.y;
+        const velocity = Math.hypot(dx, dy) / dt; // pixels per ms
+
+        newPoint.velocity = velocity;
         pts.push(newPoint);
 
-        // Samsung-Grade Quadratic Bezier Smoothing (Requires at least 3 points)
+        // Samsung-Grade Quadratic Bezier Smoothing (Requires 3 points)
         if (pts.length >= 3) {
             const lastTwo = pts[pts.length - 2];
             const lastOne = pts[pts.length - 1];
 
-            // Calculate midpoint for bezier control
             const midPoint = {
                 x: lastTwo.x + (lastOne.x - lastTwo.x) / 2,
                 y: lastTwo.y + (lastOne.y - lastTwo.y) / 2
@@ -140,7 +163,7 @@ const CanvasOverlay = () => {
             ctx.beginPath();
             ctx.moveTo(pts[pts.length - 3].x, pts[pts.length - 3].y);
 
-            applyBrushPhysics(ctx, lastOne.pressure);
+            applyBrushPhysics(ctx, lastOne.pressure, lastOne.velocity);
 
             ctx.quadraticCurveTo(lastTwo.x, lastTwo.y, midPoint.x, midPoint.y);
             ctx.stroke();
@@ -149,7 +172,7 @@ const CanvasOverlay = () => {
 
     const handlePointerUp = () => {
         isDrawing.current = false;
-        pointsRef.current = []; // Clear buffer
+        pointsRef.current = [];
     };
 
     return (
