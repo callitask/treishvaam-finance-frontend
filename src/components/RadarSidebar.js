@@ -33,6 +33,11 @@
  * • Fixed hover hitboxes using a wrapper container to prevent accidental collapse when scrolling down the tools.
  * • Sub-tools now elegantly pop out to the *right* of the capsule with a fluid frosted glass aesthetic.
  *
+ * - EDITED (Phase 8.4 - CI/CD Syntax Fix & Hover Stabilization):
+ * • Fixed `SyntaxError: Expected '}', got ')'` on line 333 inside the Audio Reader `.map()` function, which crashed the Cloudflare Pages CI/CD pipeline.
+ * • Restructured the capsule's internal flexbox to eliminate dead-zone gaps that were causing the `onMouseLeave` event to misfire and prematurely collapse the capsule during vertical mouse travel.
+ * • Isolated the spinning `conic-gradient` animation specifically to the main trigger button rather than the entire capsule wrapper, enhancing the hyper-realistic liquid aesthetic.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -67,11 +72,11 @@ import html2canvas from 'html2canvas';
 const ToolButton = ({ icon: Icon, label, onClick, isActive }) => (
     <button
         onClick={onClick}
-        className="group relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 flex-shrink-0"
+        className="group relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:bg-slate-200/50 dark:hover:bg-slate-700/50 flex-shrink-0 my-0.5"
     >
         <Icon size={18} className={`transition-all duration-300 ${isActive ? 'text-sky-600 dark:text-sky-400 scale-110' : 'text-slate-600 dark:text-slate-400 group-hover:scale-110'}`} />
 
-        {/* Tooltip to the right */}
+        {/* Tooltip popping out to the right */}
         <span className="absolute left-full ml-3 px-2 py-1 bg-slate-800/90 text-white text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap backdrop-blur-md shadow-lg pointer-events-none z-50">
             {label}
         </span>
@@ -206,36 +211,36 @@ const RadarSidebar = () => {
 
             {/* CYLINDRICAL CAPSULE */}
             <div
-                className={`relative flex flex-col items-center py-1 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-2xl border border-white/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] ${isExpanded ? 'h-[360px] w-12 rounded-[24px]' : 'h-12 w-12 rounded-full'
+                className={`relative flex flex-col items-center p-1 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-2xl border border-white/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] ${isExpanded ? 'h-[360px] w-12 rounded-[24px]' : 'h-12 w-12 rounded-full'
                     }`}
             >
-                {/* Hyper-Realistic Circling Liquid Glass Animation */}
-                <div className={`absolute inset-0 pointer-events-none z-0 rounded-inherit overflow-hidden transition-opacity duration-500 ${isExpanded || hasActiveSubTool ? 'opacity-100' : 'opacity-0'}`}>
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200%] h-[200%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_270deg,rgba(14,165,233,0.3)_360deg)] dark:bg-[conic-gradient(from_0deg,transparent_0_270deg,rgba(14,165,233,0.15)_360deg)]" />
-                </div>
+                {/* Main Trigger Button (with Liquid Circling Boundaries) */}
+                <div className="relative w-10 h-10 mb-1 flex-shrink-0">
+                    {/* Hyper-Realistic Circling Gradient confined to the button */}
+                    <div className={`absolute -inset-[3px] rounded-full bg-gradient-to-tr from-sky-400 via-purple-500 to-emerald-400 opacity-80 blur-[4px] animate-[spin_3s_linear_infinite] transition-opacity duration-300 pointer-events-none ${isExpanded || hasActiveSubTool ? 'opacity-100' : 'opacity-0'}`} />
 
-                {/* Main Trigger Button */}
-                <button
-                    onClick={handleMainClick}
-                    className="relative z-10 w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full transition-transform duration-300 hover:scale-105 bg-transparent"
-                >
-                    {hasActiveSubTool ? (
-                        <X size={20} className="text-slate-700 dark:text-slate-200" />
-                    ) : (
-                        <Wand2 size={20} className="text-slate-700 dark:text-slate-200" />
-                    )}
-                </button>
+                    <button
+                        onClick={handleMainClick}
+                        className="relative z-10 w-full h-full flex items-center justify-center rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-md shadow-sm transition-transform duration-300 hover:scale-105"
+                    >
+                        {hasActiveSubTool ? (
+                            <X size={20} className="text-slate-700 dark:text-slate-200" />
+                        ) : (
+                            <Wand2 size={20} className="text-slate-700 dark:text-slate-200" />
+                        )}
+                    </button>
+                </div>
 
                 {/* Vertical Tools List */}
                 <div
-                    className={`relative z-10 flex flex-col gap-1.5 mt-2 transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none absolute top-12'
+                    className={`relative z-10 flex flex-col w-full items-center transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none absolute top-12'
                         }`}
                 >
                     <ToolButton icon={Highlighter} label="Highlighter" onClick={() => handleToolSelect('highlight', 'highlighter')} isActive={activeTool === 'highlight'} />
                     <ToolButton icon={PenTool} label="Stylus / Pen" onClick={() => handleToolSelect('pen', 'pen')} isActive={activeTool === 'pen'} />
                     <ToolButton icon={Volume2} label="Audio Reader" onClick={() => handleToolSelect('cursor', 'audio')} isActive={openPopover === 'audio'} />
                     <ToolButton icon={Type} label="Typography & Focus" onClick={() => handleToolSelect('cursor', 'type')} isActive={openPopover === 'type'} />
-                    <ToolButton icon={Calculator} label="Financial Calculator" onClick={() => { setIsCalculatorVisible(true); setOpenPopover(null); setActiveTool('cursor'); }} />
+                    <ToolButton icon={Calculator} label="Financial Calculator" onClick={() => { setIsCalculatorVisible(true); setOpenPopover(null); setActiveTool('cursor'); }} isActive={isCalculatorVisible} />
                     <ToolButton icon={snapshotStatus === 'copied' ? Check : Camera} label={snapshotStatus === 'capturing' ? "Capturing..." : "Snapshot"} onClick={handleCaptureSnapshot} />
                     <ToolButton icon={StickyNote} label="Margin Notes" onClick={() => handleToolSelect('cursor', 'notes')} isActive={openPopover === 'notes'} />
                 </div>
@@ -271,6 +276,7 @@ const RadarSidebar = () => {
                                 </button>
                             )}
                         </div>
+                        <p className="text-[9px] text-slate-400 text-center -mt-2">Select text to highlight. Shift+Click to erase.</p>
                     </div>
                 )}
 
@@ -330,79 +336,79 @@ const RadarSidebar = () => {
                                         if (synthRef.current) synthRef.current.cancel();
                                         setTimeout(handleToggleAudio, 100);
                                     }
-                                }))} className={`py-1 text-[11px] font-bold rounded-md transition-colors ${audioState.rate === r ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
-                            {r}x
-                        </button>
-                            ))}
-                    </div>
-                    </div>
-                )}
-
-            {/* Typography Panel */}
-            {openPopover === 'type' && (
-                <div className="w-56 bg-white/75 dark:bg-slate-900/75 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                        <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                            <span>Font Scale</span>
-                            <span className="font-mono text-slate-800 dark:text-slate-200">{fontSizeScale}%</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
-                                <ZoomOut size={16} />
-                            </button>
-                            <input type="range" min="85" max="135" step="5" value={fontSizeScale} onChange={(e) => updateTypography(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer" />
-                            <button onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
-                                <ZoomIn size={16} />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Typeface</span>
-                        <div className="grid grid-cols-3 gap-1.5">
-                            {[{ id: 'sans', label: 'Sans' }, { id: 'serif', label: 'Serif' }, { id: 'mono', label: 'Mono' }].map(f => (
-                                <button key={f.id} onClick={() => updateTypography(undefined, f.id)} className={`py-1.5 text-[11px] rounded-lg font-bold transition-colors ${fontFamily === f.id ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
-                                    {f.label}
+                                }} className={`py-1 text-[11px] font-bold rounded-md transition-colors ${audioState.rate === r ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
+                                    {r}x
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-between items-center">
-                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Focus Dimmer</span>
-                        <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-bold ${isFocusMode ? 'bg-amber-500 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300/50'}`}>
-                            {isFocusMode ? <Eye size={14} /> : <EyeOff size={14} />} {isFocusMode ? 'ON' : 'OFF'}
-                        </button>
-                    </div>
-                </div>
-            )}
+                )}
 
-            {/* Notes Panel */}
-            {openPopover === 'notes' && (
-                <div className="w-64 bg-white/75 dark:bg-slate-900/75 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-3">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margin Notes</span>
-                    <div className="flex flex-col gap-2">
-                        <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Type a note here..." rows={2} className="w-full text-xs p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-950/50 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-slate-400" />
-                        <button onClick={() => { if (newNoteText.trim()) { addNote(newNoteText.trim()); setNewNoteText(''); } }} disabled={!newNoteText.trim()} className="self-end px-4 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 shadow-md shadow-purple-600/20">
-                            <Plus size={12} /> Add
-                        </button>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
-                        {notes.length === 0 ? (
-                            <p className="text-[10px] text-slate-500 font-medium italic text-center py-4">No notes added.</p>
-                        ) : (
-                            notes.map(n => (
-                                <div key={n.id} className="p-2.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-slate-100/50 dark:border-slate-700/50 flex justify-between items-start gap-2 group shadow-sm">
-                                    <p className="text-[11px] text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">{n.text}</p>
-                                    <button onClick={() => deleteNote(n.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" title="Delete note">
-                                        <Trash2 size={12} />
+                {/* Typography Panel */}
+                {openPopover === 'type' && (
+                    <div className="w-56 bg-white/75 dark:bg-slate-900/75 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                <span>Font Scale</span>
+                                <span className="font-mono text-slate-800 dark:text-slate-200">{fontSizeScale}%</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <button onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
+                                    <ZoomOut size={16} />
+                                </button>
+                                <input type="range" min="85" max="135" step="5" value={fontSizeScale} onChange={(e) => updateTypography(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer" />
+                                <button onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
+                                    <ZoomIn size={16} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex flex-col gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Typeface</span>
+                            <div className="grid grid-cols-3 gap-1.5">
+                                {[{ id: 'sans', label: 'Sans' }, { id: 'serif', label: 'Serif' }, { id: 'mono', label: 'Mono' }].map(f => (
+                                    <button key={f.id} onClick={() => updateTypography(undefined, f.id)} className={`py-1.5 text-[11px] rounded-lg font-bold transition-colors ${fontFamily === f.id ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
+                                        {f.label}
                                     </button>
-                                </div>
-                            ))
-                        )}
+                                ))}
+                            </div>
+                        </div>
+                        <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-between items-center">
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Focus Dimmer</span>
+                            <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-bold ${isFocusMode ? 'bg-amber-500 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300/50'}`}>
+                                {isFocusMode ? <Eye size={14} /> : <EyeOff size={14} />} {isFocusMode ? 'ON' : 'OFF'}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+
+                {/* Notes Panel */}
+                {openPopover === 'notes' && (
+                    <div className="w-64 bg-white/75 dark:bg-slate-900/75 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margin Notes</span>
+                        <div className="flex flex-col gap-2">
+                            <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Type a note here..." rows={2} className="w-full text-xs p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-950/50 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-slate-400" />
+                            <button onClick={() => { if (newNoteText.trim()) { addNote(newNoteText.trim()); setNewNoteText(''); } }} disabled={!newNoteText.trim()} className="self-end px-4 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 shadow-md shadow-purple-600/20">
+                                <Plus size={12} /> Add
+                            </button>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
+                            {notes.length === 0 ? (
+                                <p className="text-[10px] text-slate-500 font-medium italic text-center py-4">No notes added.</p>
+                            ) : (
+                                notes.map(n => (
+                                    <div key={n.id} className="p-2.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-slate-100/50 dark:border-slate-700/50 flex justify-between items-start gap-2 group shadow-sm">
+                                        <p className="text-[11px] text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">{n.text}</p>
+                                        <button onClick={() => deleteNote(n.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5" title="Delete note">
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
-        </div >
     );
 };
 
