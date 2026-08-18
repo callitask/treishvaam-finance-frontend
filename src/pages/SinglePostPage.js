@@ -48,13 +48,15 @@
  * • Mounted `<RadarSidebar />` into the article view to restore the high-density interactive UX toolbar (Highlighter, Snapshot, and Floating Multi-PiP controls).
  * • Replaced raw `<img>` cover rendering with `<SmartMediaRenderer />` to support adaptive HLS and MP4 cover videos seamlessly without gray box failures.
  * • Sanitized legacy `[object Object]` video strings from the HTML content payload prior to `dangerouslySetInnerHTML` rendering.
- *
  * - EDITED (Phase 8 - Enterprise UX Integration):
  * • Wrapped the `.prose` article container strictly with `AnnotationProvider` to isolate the Canvas overlay and highlight context without blocking external navigation elements.
  * • Created `AnnotatableProse` to handle DOM `mouseup` events, executing safe cross-boundary DOM markup and serializing the ranges via XPath.
  * • Injected `<FloatingCalculator />` React Portal for client-side financial operations.
  *
- * - DO-NOT-DELETE RULE:
+ * - EDITED (Phase 8.1 - Enterprise UX Implementation):
+ * • Wrapped prose layer securely in AnnotationProvider, CanvasOverlay, and FloatingCalculator. Introduced AnnotatableProse to process mouseup selection events safely across the React lifecycle.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
@@ -71,12 +73,18 @@ import SmartMediaRenderer from '../components/BlogPage/SmartMediaRenderer';
 import { AnnotationProvider, useAnnotations } from '../context/AnnotationContext';
 import CanvasOverlay from '../components/annotations/CanvasOverlay';
 import FloatingCalculator from '../components/annotations/FloatingCalculator';
-import { wrapRangeInMarks, getXPath } from '../components/annotations/HighlightEngine';
+import { wrapRangeInMarks, getXPath, restoreHighlightsFromMemory, removeMarksById } from '../components/annotations/HighlightEngine';
 
-// Inner component to safely consume the AnnotationContext and apply event listeners
 const AnnotatableProse = ({ content }) => {
-    const { activeTool, addHighlight } = useAnnotations();
+    const { activeTool, addHighlight, removeHighlight, highlights, fontSizeScale, fontFamily } = useAnnotations();
     const proseRef = useRef(null);
+
+    // Initial Hydration of Highlights from State
+    useEffect(() => {
+        if (proseRef.current && highlights.length > 0) {
+            restoreHighlightsFromMemory(highlights, proseRef.current, removeHighlight);
+        }
+    }, [highlights, removeHighlight]);
 
     useEffect(() => {
         const handleMouseUp = () => {
@@ -85,26 +93,25 @@ const AnnotatableProse = ({ content }) => {
             const selection = window.getSelection();
             if (selection.rangeCount > 0 && !selection.isCollapsed) {
                 const range = selection.getRangeAt(0);
-                const color = '#fbbf24'; // Default highlight color
+                const color = '#fbbf24'; // Using amber as a default for quick highlight 
 
-                // Wrap in <mark> tags supporting cross-boundary logic
-                const id = wrapRangeInMarks(range, color);
-
+                const id = wrapRangeInMarks(range, color, crypto.randomUUID(), removeHighlight);
                 const root = proseRef.current;
+
                 const startXPath = getXPath(range.startContainer, root);
                 const endXPath = getXPath(range.endContainer, root);
 
-                // Serialize and persist
-                addHighlight({
-                    id,
-                    startXPath,
-                    startOffset: range.startOffset,
-                    endXPath,
-                    endOffset: range.endOffset,
-                    color,
-                    text: selection.toString()
-                });
-
+                if (id && startXPath && endXPath) {
+                    addHighlight({
+                        id,
+                        startXPath,
+                        startOffset: range.startOffset,
+                        endXPath,
+                        endOffset: range.endOffset,
+                        color,
+                        text: selection.toString()
+                    });
+                }
                 selection.removeAllRanges();
             }
         };
@@ -118,12 +125,13 @@ const AnnotatableProse = ({ content }) => {
                 proseNode.removeEventListener('mouseup', handleMouseUp);
             }
         };
-    }, [activeTool, addHighlight]);
+    }, [activeTool, addHighlight, removeHighlight]);
 
     return (
         <div
             ref={proseRef}
-            className="prose prose-lg dark:prose-invert prose-slate max-w-none font-sans leading-relaxed relative z-20"
+            className={`prose prose-lg dark:prose-invert prose-slate max-w-none font-${fontFamily} leading-relaxed relative z-20`}
+            style={{ fontSize: `${fontSizeScale}%`, transition: 'font-size 0.3s ease' }}
             dangerouslySetInnerHTML={{ __html: content }}
         />
     );
@@ -156,14 +164,12 @@ const SinglePostPage = () => {
 
         let isMounted = true;
 
-        // 1. Zero-Trust HA Fallback: Consume Worker's Preloaded State
         if (typeof window !== 'undefined' && window.__PRELOADED_STATE__) {
             const preloaded = window.__PRELOADED_STATE__;
-            // Ensure the preloaded state matches the current route ID or URL article ID
             if (preloaded.id == id || preloaded.urlArticleId == id || preloaded.userFriendlySlug == id) {
                 setPost(preloaded);
                 setLoading(false);
-                return; // Skip API fetch entirely!
+                return;
             }
         }
 
@@ -194,11 +200,8 @@ const SinglePostPage = () => {
         return () => { isMounted = false; };
     }, [id]);
 
-    // PROTECT TAB TITLE FROM NEXT.JS HYDRATION OVERWRITE
     useEffect(() => {
         if (post?.title) {
-            // setTimeout pushes the execution to the end of the event loop, 
-            // mathematically guaranteeing it fires AFTER Next.js router hydration completes.
             const timer = setTimeout(() => {
                 document.title = `${post.title} | Treishvaam Finance`;
             }, 50);
@@ -242,7 +245,6 @@ const SinglePostPage = () => {
         return extractedHeadings.filter(h => h && typeof h === 'object' && typeof h.id === 'string' && h.id.trim() !== '');
     }, [extractedHeadings]);
 
-    // Sanitizes broken [object Object] video paths from historical corrupt publishes
     const sanitizedContent = useMemo(() => {
         if (!post || !post.content || typeof post.content !== 'string') return '';
         return post.content.replace(/src="\[object Object\]"/g, 'src=""');
@@ -334,156 +336,153 @@ const SinglePostPage = () => {
 
     const imageAltText = post?.coverImageAltText || post?.thumbnailAltText || post?.title || 'Article cover image';
 
-    // Construct a defensive post object to pass downwards ensuring 'id' always exists
     const defensivePostProp = { id: id || '', ...(post || {}) };
 
     return (
-        <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300 relative">
-            {validHeadings.length > 0 && (
-                <ReadingProgressBar
-                    post={defensivePostProp}
-                    headings={validHeadings}
-                    activeId={activeId}
-                    progress={progress}
-                />
-            )}
+        <AnnotationProvider articleId={id}>
+            <div className="bg-white dark:bg-slate-900 min-h-screen transition-colors duration-300 relative">
+                {validHeadings.length > 0 && (
+                    <ReadingProgressBar
+                        post={defensivePostProp}
+                        headings={validHeadings}
+                        activeId={activeId}
+                        progress={progress}
+                    />
+                )}
 
-            {/* Enterprise Interactive UX Toolbar (Highlighter, Snapshot, Multi-PiP) */}
-            <RadarSidebar />
+                <RadarSidebar />
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-                <div className="flex flex-col lg:flex-row gap-12">
-                    <article className="w-full lg:w-[70%] relative" ref={articleRef}>
-                        <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
-                            <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
-                            <span>/</span>
-                            <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
-                        </nav>
-                        <header className="mb-8 relative z-20">
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
-                                {post.title}
-                            </h1>
-                            <div className="flex flex-wrap items-center justify-between border-y border-slate-200 dark:border-slate-800 py-4 gap-4">
-                                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
-                                    <div className="flex items-center font-semibold">
-                                        <User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
-                                        {authorName}
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+                    <div className="flex flex-col lg:flex-row gap-12">
+                        <article className="w-full lg:w-[70%] relative" ref={articleRef}>
+                            <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
+                                <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
+                                <span>/</span>
+                                <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
+                            </nav>
+                            <header className="mb-8 relative z-20">
+                                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
+                                    {post.title}
+                                </h1>
+                                <div className="flex flex-wrap items-center justify-between border-y border-slate-200 dark:border-slate-800 py-4 gap-4">
+                                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-600 dark:text-slate-400">
+                                        <div className="flex items-center font-semibold">
+                                            <User className="w-4 h-4 mr-2 text-sky-600 dark:text-sky-400" />
+                                            {authorName}
+                                        </div>
+                                        <div className="flex items-center">
+                                            <Calendar className="w-4 h-4 mr-2" />
+                                            {publishDate}
+                                        </div>
+                                        <div className="flex items-center">
+                                            <Clock className="w-4 h-4 mr-2" />
+                                            {post?.estimatedReadingTime || 5} min read
+                                        </div>
                                     </div>
-                                    <div className="flex items-center">
-                                        <Calendar className="w-4 h-4 mr-2" />
-                                        {publishDate}
-                                    </div>
-                                    <div className="flex items-center">
-                                        <Clock className="w-4 h-4 mr-2" />
-                                        {post?.estimatedReadingTime || 5} min read
+                                    <div className="flex items-center gap-3">
+                                        <button
+                                            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                                            title="Save to Bookmarks"
+                                        >
+                                            <BookmarkPlus className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => setIsShareModalOpen(true)}
+                                            className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"
+                                        >
+                                            <Share2 className="w-4 h-4 mr-2" /> Share
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button
-                                        className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
-                                        title="Save to Bookmarks"
-                                    >
-                                        <BookmarkPlus className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={() => setIsShareModalOpen(true)}
-                                        className="flex items-center px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-bold rounded-full transition-colors"
-                                    >
-                                        <Share2 className="w-4 h-4 mr-2" /> Share
-                                    </button>
-                                </div>
-                            </div>
-                        </header>
+                            </header>
 
-                        {activeImage && (
-                            <figure className="mb-10 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative z-20">
-                                <SmartMediaRenderer
-                                    mediaUrl={coverImageUrl}
-                                    alt={imageAltText}
-                                    layoutContext="article"
-                                    className="w-full h-auto max-h-[500px] object-cover"
-                                />
-                                {imageAltText && imageAltText !== post.title && imageAltText !== 'Article cover image' && (
-                                    <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
-                                        {imageAltText}
-                                    </figcaption>
-                                )}
-                            </figure>
-                        )}
+                            {activeImage && (
+                                <figure className="mb-10 overflow-hidden rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm relative z-20">
+                                    <SmartMediaRenderer
+                                        mediaUrl={coverImageUrl}
+                                        alt={imageAltText}
+                                        layoutContext="article"
+                                        className="w-full h-auto max-h-[500px] object-cover"
+                                    />
+                                    {imageAltText && imageAltText !== post.title && imageAltText !== 'Article cover image' && (
+                                        <figcaption className="text-center text-xs text-slate-500 mt-3 italic">
+                                            {imageAltText}
+                                        </figcaption>
+                                    )}
+                                </figure>
+                            )}
 
-                        {/* ANNOTATION ENGINE ISOLATION: Wraps only the Prose and Canvas */}
-                        <div className="relative">
-                            <AnnotationProvider articleId={id}>
+                            <div className="relative">
                                 <CanvasOverlay />
                                 <FloatingCalculator />
                                 <AnnotatableProse content={sanitizedContent} />
-                            </AnnotationProvider>
-                        </div>
-
-                        {Array.isArray(post?.tags) && post.tags.length > 0 && (
-                            <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 relative z-20">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
-                                    <Tag className="w-4 h-4 mr-2" /> Topics
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {post.tags.map((tag, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
-                                        >
-                                            #{tag}
-                                        </span>
-                                    ))}
-                                </div>
                             </div>
-                        )}
-                    </article>
 
-                    <aside className="w-full lg:w-[30%] relative z-20">
-                        <div className="sticky top-24 space-y-8">
-                            {validHeadings.length > 0 && (
-                                <TableOfContents
-                                    post={defensivePostProp}
-                                    headings={validHeadings}
-                                    activeId={activeId}
-                                    progress={progress}
-                                />
+                            {Array.isArray(post?.tags) && post.tags.length > 0 && (
+                                <div className="mt-12 pt-8 border-t border-slate-200 dark:border-slate-800 relative z-20">
+                                    <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 flex items-center">
+                                        <Tag className="w-4 h-4 mr-2" /> Topics
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {post.tags.map((tag, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
+                                            >
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
                             )}
-                            <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
-                                    Stay Ahead of the Market
-                                </h3>
-                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                                    Get institutional-grade analysis delivered directly to your inbox.
-                                </p>
-                                <div className="flex flex-col gap-2">
-                                    <label htmlFor="newsletter-email" className="sr-only">Email Address</label>
-                                    <input
-                                        id="newsletter-email"
-                                        name="email"
-                                        type="email"
-                                        autoComplete="email"
-                                        placeholder="Enter your email"
-                                        className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                        </article>
+
+                        <aside className="w-full lg:w-[30%] relative z-20">
+                            <div className="sticky top-24 space-y-8">
+                                {validHeadings.length > 0 && (
+                                    <TableOfContents
+                                        post={defensivePostProp}
+                                        headings={validHeadings}
+                                        activeId={activeId}
+                                        progress={progress}
                                     />
-                                    <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                                        Subscribe
-                                    </button>
+                                )}
+                                <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
+                                    <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
+                                        Stay Ahead of the Market
+                                    </h3>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                                        Get institutional-grade analysis delivered directly to your inbox.
+                                    </p>
+                                    <div className="flex flex-col gap-2">
+                                        <label htmlFor="newsletter-email" className="sr-only">Email Address</label>
+                                        <input
+                                            id="newsletter-email"
+                                            name="email"
+                                            type="email"
+                                            autoComplete="email"
+                                            placeholder="Enter your email"
+                                            className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                                        />
+                                        <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                            Subscribe
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    </aside>
-                </div>
-            </main>
+                        </aside>
+                    </div>
+                </main>
 
-            <ShareModal
-                post={defensivePostProp}
-                isOpen={isShareModalOpen}
-                onClose={() => setIsShareModalOpen(false)}
-                url={postUrl}
-                title={post?.title || ''}
-            />
-        </div>
+                <ShareModal
+                    post={defensivePostProp}
+                    isOpen={isShareModalOpen}
+                    onClose={() => setIsShareModalOpen(false)}
+                    url={postUrl}
+                    title={post?.title || ''}
+                />
+            </div>
+        </AnnotationProvider>
     );
 };
 

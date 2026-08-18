@@ -2,8 +2,16 @@
  * AI-CONTEXT:
  * Purpose: Absolutely positioned Stylus/Pen layer.
  * Scope: Conditionally intercepts pointer events over the `.prose` container for freehand drawing with Apple Pencil / S-Pen pressure tracking.
+ * 
  * IMMUTABLE CHANGE HISTORY:
  * - ADDED (Phase 8 - Enterprise UX): Created CanvasOverlay to support native Stylus annotations overlaying financial articles.
+ * 
+ * - EDITED (Phase 8.1 - Liquid Glass Enterprise UX):
+ * • Integrated with centralized AnnotationContext to support dynamic color/width selection and cross-tool pointer event delegation.
+ * 
+ * - DO-NOT-DELETE RULE (ABSOLUTE):
+ * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
+ * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { useRef, useEffect, useState } from 'react';
 import { useAnnotations } from '../../context/AnnotationContext';
@@ -26,7 +34,6 @@ const CanvasOverlay = () => {
                 canvas.height = canvas.parentElement.clientHeight;
             }
         };
-        // Initial sizing + observer
         resize();
         window.addEventListener('resize', resize);
 
@@ -43,7 +50,6 @@ const CanvasOverlay = () => {
         ctx.beginPath();
         ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
 
-        // Dynamic pressure sensitivity (Apple Pencil / S-Pen)
         const pressure = e.pointerType === 'pen' ? e.pressure : 0.5;
         ctx.lineWidth = currentWidth * (pressure * 2);
         ctx.strokeStyle = currentColor;

@@ -31,6 +31,9 @@
  * - EDITED (Phase 8 - Media UX Animations):
  * • Implemented React state-driven CSS opacity transitions (`isLoaded`) and blurred edge masking (`[mask-image:...]`) triggered by `onLoadedData` to provide seamless, enterprise-grade auto-play cover fades without violating Virtual DOM parity.
  *
+ * - EDITED (Phase 8.1 - React DOM Mutation Fix):
+ * • Eliminated vanilla JS classList manipulations. Applied strict React useState boolean toggles to manage opacity fade-in animations on video load, protecting SSR hydration parity.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
