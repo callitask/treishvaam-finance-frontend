@@ -52,9 +52,12 @@
  * • Wrapped the `.prose` article container strictly with `AnnotationProvider` to isolate the Canvas overlay and highlight context without blocking external navigation elements.
  * • Created `AnnotatableProse` to handle DOM `mouseup` events, executing safe cross-boundary DOM markup and serializing the ranges via XPath.
  * • Injected `<FloatingCalculator />` React Portal for client-side financial operations.
- *
  * - EDITED (Phase 8.1 - Enterprise UX Implementation):
  * • Wrapped prose layer securely in AnnotationProvider, CanvasOverlay, and FloatingCalculator. Introduced AnnotatableProse to process mouseup selection events safely across the React lifecycle.
+ *
+ * - EDITED (Phase 8.3 - Left-Sticky Toolbar Integration):
+ * • Restructured the main `<main>` container into a 3-column layout (`w-16` / `flex-1` / `w-[30%]`).
+ * • Moved `<RadarSidebar />` from a globally floating element into a dedicated sticky-left container immediately beside the article headline for professional enterprise layout.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -350,16 +353,25 @@ const SinglePostPage = () => {
                     />
                 )}
 
-                <RadarSidebar />
+                <main className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+                    {/* 3-Column Layout: Left Sticky Toolbar | Main Article | Right Sidebar */}
+                    <div className="flex flex-col lg:flex-row gap-8 xl:gap-12 relative">
 
-                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-                    <div className="flex flex-col lg:flex-row gap-12">
-                        <article className="w-full lg:w-[70%] relative" ref={articleRef}>
+                        {/* 1. LEFT STICKY TOOLBAR (Desktop) */}
+                        <div className="hidden lg:block w-14 flex-shrink-0 relative z-50">
+                            <div className="sticky top-32">
+                                <RadarSidebar />
+                            </div>
+                        </div>
+
+                        {/* 2. MAIN ARTICLE */}
+                        <article className="flex-1 min-w-0 relative" ref={articleRef}>
                             <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
                                 <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                                 <span>/</span>
                                 <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
                             </nav>
+
                             <header className="mb-8 relative z-20">
                                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight font-serif mb-6">
                                     {post.title}
@@ -412,6 +424,11 @@ const SinglePostPage = () => {
                                 </figure>
                             )}
 
+                            {/* Mobile Toolbar Fallback (Fixed Bottom Right) */}
+                            <div className="block lg:hidden">
+                                <RadarSidebar />
+                            </div>
+
                             <div className="relative">
                                 <CanvasOverlay />
                                 <FloatingCalculator />
@@ -437,7 +454,8 @@ const SinglePostPage = () => {
                             )}
                         </article>
 
-                        <aside className="w-full lg:w-[30%] relative z-20">
+                        {/* 3. RIGHT SIDEBAR */}
+                        <aside className="hidden lg:block w-full lg:w-[30%] max-w-sm flex-shrink-0 relative z-20">
                             <div className="sticky top-24 space-y-8">
                                 {validHeadings.length > 0 && (
                                     <TableOfContents
@@ -447,7 +465,7 @@ const SinglePostPage = () => {
                                         progress={progress}
                                     />
                                 )}
-                                <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700">
+                                <div className="bg-sky-50 dark:bg-slate-800 p-6 rounded-2xl border border-sky-100 dark:border-slate-700 shadow-sm">
                                     <h3 className="font-bold text-lg text-slate-900 dark:text-white mb-2 font-serif">
                                         Stay Ahead of the Market
                                     </h3>
@@ -464,7 +482,7 @@ const SinglePostPage = () => {
                                             placeholder="Enter your email"
                                             className="w-full px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
                                         />
-                                        <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                                        <button className="w-full bg-sky-700 hover:bg-sky-800 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-sm">
                                             Subscribe
                                         </button>
                                     </div>
