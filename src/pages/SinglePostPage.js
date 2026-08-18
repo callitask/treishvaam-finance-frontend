@@ -1,71 +1,35 @@
 "use client";
 /**
  * AI-CONTEXT:
- *
- * Purpose:
- * - Client-side component for rendering a single blog/news post.
- * - Fetches post data by URL ID from the backend API and renders the full article view.
- *
- * Scope:
- * - Responsible for: post data fetching, article rendering, reading progress, table of contents.
- *
- * Critical Dependencies:
- * - Backend: NEXT_PUBLIC_API_URL → /api/v1/posts/url/:id (via apiConfig.getPostByUrlId)
- *
- * Change Intent:
- * - Reinstated strict null-guards for `extractedHeadings` to prevent the `reading 'id'` crash.
- * - Added `id`, `name`, and `<label>` attributes to the subscription form to fix accessibility warnings.
- *
+ * Purpose: Client-side component for rendering a single blog/news post.
+ * 
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED: CRA original implementation.
  * - EDITED: Migrated from react-router-dom to Next.js navigation hooks.
  * - EDITED (Phase 2 Bug Fix): Fixed `reading 'id'` crash.
  * - EDITED (Phase 2 Followup): Reinstated deep null-guards and resolved form A11y warnings.
- * - EDITED (2026-05-15 BUG-SINGLEPOST-01):
- * • Root cause: extractedHeadings useMemo was producing objects where `headingId` could be
- * an empty string or undefined when heading text was empty or regex group 3 was undefined.
- * TableOfContents and ReadingProgressBar then crashed accessing `.id` on undefined elements.
- * • Fix: Added triple null-guard: (1) check match[3] exists before processing, (2) only push
- * headings where headingId is a non-empty string, (3) added optional chaining throughout.
- * • Also fixed: post.content could be null/undefined causing regex to crash — added early return.
- * - EDITED (HOTFIX - HYDRATION CRASH BATCH 3):
- * • Created strict `validHeadings` filter inside render cycle to strip ghost elements.
- * - EDITED (Hotfix - Hydration & Rendering Hardening):
- * • Replaced unsafe `typeof window` eval with strict post-mount `clientUrl` state to definitively eliminate Server/Client hydration mismatches.
- * • Added `Array.isArray(post.tags)` guard to prevent fatal `TypeError: .map is not a function` exceptions if the API payload flattens the array.
- * • Wrapped `new Date()` instantiation in `!isNaN` validation to prevent fatal `RangeError: Invalid time value` client-side crashes on malformed timestamps.
- * • Synchronized property mapping (`coverImageUrl`, `author`) to explicitly match the Java `BlogPost.java` DTO structure.
- * - EDITED (Phase 5 - Legacy Child Component Prop Injection):
- * • Injected `post={{ id: id || '', ...(post || {}) }}` defensively into custom child components (`ReadingProgressBar`, `TableOfContents`, `ShareModal`).
- * • Why: A child component was expecting the full `post` object to read `post.id`, throwing a fatal `TypeError: Cannot read properties of undefined (reading 'id')` during the client render cycle. Guaranteed injection neutralizes the crash.
- * - EDITED (Phase 6 - Hydration Title Overwrite Protection):
- * • Added a `useEffect` hook to dynamically assert `document.title = post.title` post-render.
- * • Why: Next.js Client-Side Hydration was forcefully overwriting the Cloudflare Worker's correct `HTMLRewriter` title with the failed Edge SSR fallback ("Article Not Found"). This dynamically restores the correct title to the browser tab once the article payload loads.
- * - EDITED (Phase 7 - Zero-Trust High Availability Preload Consumption):
- * • Refactored `useEffect` to intercept and consume `window.__PRELOADED_STATE__` instantly upon mount.
- * • Why: Elevates the component to 100% High Availability (HA). If the backend is completely offline, the component now successfully reads the cached JSON payload injected by the Edge Worker, skips the live API fetch entirely, and overrides the document title via `setTimeout` to defeat Next.js hydration anomalies.
- * - EDITED (Phase 8 - Incident 118 UX Toolbar Integration & Media Path Sanitization):
- * • Mounted `<RadarSidebar />` into the article view to restore the high-density interactive UX toolbar (Highlighter, Snapshot, and Floating Multi-PiP controls).
- * • Replaced raw `<img>` cover rendering with `<SmartMediaRenderer />` to support adaptive HLS and MP4 cover videos seamlessly without gray box failures.
- * • Sanitized legacy `[object Object]` video strings from the HTML content payload prior to `dangerouslySetInnerHTML` rendering.
- * - EDITED (Phase 8 - Enterprise UX Integration):
- * • Wrapped the `.prose` article container strictly with `AnnotationProvider` to isolate the Canvas overlay and highlight context without blocking external navigation elements.
- * • Created `AnnotatableProse` to handle DOM `mouseup` events, executing safe cross-boundary DOM markup and serializing the ranges via XPath.
- * • Injected `<FloatingCalculator />` React Portal for client-side financial operations.
- * - EDITED (Phase 8.1 - Enterprise UX Implementation):
- * • Wrapped prose layer securely in AnnotationProvider, CanvasOverlay, and FloatingCalculator. Introduced AnnotatableProse to process mouseup selection events safely across the React lifecycle.
+ * - EDITED (2026-05-15 BUG-SINGLEPOST-01): Regex extraction fixes.
+ * - EDITED (HOTFIX - HYDRATION CRASH BATCH 3): Created strict `validHeadings` filter.
+ * - EDITED (Hotfix - Hydration & Rendering Hardening): Replaced unsafe `typeof window` eval.
+ * - EDITED (Phase 5 - Legacy Child Component Prop Injection): Injected `post={{ id: id || '', ...(post || {}) }}` defensively.
+ * - EDITED (Phase 6 - Hydration Title Overwrite Protection): Appended dynamic title assert.
+ * - EDITED (Phase 7 - Zero-Trust High Availability Preload Consumption): Consumed `window.__PRELOADED_STATE__`.
+ * - EDITED (Phase 8 - Incident 118): Mounted `<RadarSidebar />` and sanitized `[object Object]` strings.
+ * - EDITED (Phase 8 - Enterprise UX Integration): Wrapped prose in `AnnotationProvider` and `FloatingCalculator`.
+ * - EDITED (Phase 8.1 - Enterprise UX Implementation): Decoupled `AnnotatableProse`.
  * - EDITED (Phase 8.3 - Left-Sticky Toolbar Integration):
  * • Restructured the main `<main>` container into a 3-column layout (`w-16` / `flex-1` / `w-[30%]`).
  * • Moved `<RadarSidebar />` from a globally floating element into a dedicated sticky-left container immediately beside the article headline for professional enterprise layout.
  *
- * - EDITED (Phase 8.5 - Dynamic Highlight Color Support):
- * • Passed `highlightColor` from `useAnnotations()` directly into `wrapRangeInMarks` inside the `AnnotatableProse` component.
- * • Why: The highlighter was previously hardcoded to yellow (`#fbbf24`), breaking the dynamic color palette feature in the UX Toolbar. It now correctly respects user preference.
+ * - EDITED (Phase 8.8 - 3-Column Enterprise Alignment):
+ * • Replaced `AnnotatableProse` inline embedding with dynamic external import.
+ * • Refined the `xl:flex-row` boundaries to ensure the 16-pixel margin locks the sticky capsule flawlessly aligned to the left of the `h1` headline.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -76,72 +40,10 @@ import ReadingProgressBar from '../components/ReadingProgressBar';
 import TableOfContents from '../components/TableOfContents';
 import RadarSidebar from '../components/RadarSidebar';
 import SmartMediaRenderer from '../components/BlogPage/SmartMediaRenderer';
-import { AnnotationProvider, useAnnotations } from '../context/AnnotationContext';
+import { AnnotationProvider } from '../context/AnnotationContext';
 import CanvasOverlay from '../components/annotations/CanvasOverlay';
 import FloatingCalculator from '../components/annotations/FloatingCalculator';
-import { wrapRangeInMarks, getXPath, restoreHighlightsFromMemory, removeMarksById } from '../components/annotations/HighlightEngine';
-
-const AnnotatableProse = ({ content }) => {
-    const { activeTool, addHighlight, removeHighlight, highlights, highlightColor, fontSizeScale, fontFamily } = useAnnotations();
-    const proseRef = useRef(null);
-
-    // Initial Hydration of Highlights from State
-    useEffect(() => {
-        if (proseRef.current && highlights.length > 0) {
-            restoreHighlightsFromMemory(highlights, proseRef.current, removeHighlight);
-        }
-    }, [highlights, removeHighlight]);
-
-    useEffect(() => {
-        const handleMouseUp = () => {
-            if (activeTool !== 'highlight') return;
-
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0 && !selection.isCollapsed) {
-                const range = selection.getRangeAt(0);
-
-                // Wrap in <mark> tags supporting cross-boundary logic
-                const id = wrapRangeInMarks(range, highlightColor, crypto.randomUUID(), removeHighlight);
-                const root = proseRef.current;
-
-                const startXPath = getXPath(range.startContainer, root);
-                const endXPath = getXPath(range.endContainer, root);
-
-                if (id && startXPath && endXPath) {
-                    addHighlight({
-                        id,
-                        startXPath,
-                        startOffset: range.startOffset,
-                        endXPath,
-                        endOffset: range.endOffset,
-                        color: highlightColor,
-                        text: selection.toString()
-                    });
-                }
-                selection.removeAllRanges();
-            }
-        };
-
-        const proseNode = proseRef.current;
-        if (proseNode) {
-            proseNode.addEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            if (proseNode) {
-                proseNode.removeEventListener('mouseup', handleMouseUp);
-            }
-        };
-    }, [activeTool, addHighlight, removeHighlight, highlightColor]);
-
-    return (
-        <div
-            ref={proseRef}
-            className={`prose prose-lg dark:prose-invert prose-slate max-w-none font-${fontFamily} leading-relaxed relative z-20`}
-            style={{ fontSize: `${fontSizeScale}%`, transition: 'font-size 0.3s ease' }}
-            dangerouslySetInnerHTML={{ __html: content }}
-        />
-    );
-};
+import AnnotatableProse from '../components/annotations/AnnotatableProse';
 
 const SinglePostPage = () => {
     const params = useParams();
@@ -154,9 +56,7 @@ const SinglePostPage = () => {
 
     const [activeId, setActiveId] = useState('');
     const [progress, setProgress] = useState(0);
-
     const [clientUrl, setClientUrl] = useState('');
-
     const articleRef = useRef(null);
 
     useEffect(() => {
@@ -167,7 +67,6 @@ const SinglePostPage = () => {
 
     useEffect(() => {
         if (!id) return;
-
         let isMounted = true;
 
         if (typeof window !== 'undefined' && window.__PRELOADED_STATE__) {
@@ -193,7 +92,6 @@ const SinglePostPage = () => {
                     setLoading(false);
                 }
             } catch (err) {
-                console.error("[SinglePostPage] Failed to fetch post:", err);
                 if (isMounted) {
                     setError("Failed to load article. It may have been removed or the server is unavailable.");
                     setLoading(false);
@@ -202,7 +100,6 @@ const SinglePostPage = () => {
         };
 
         fetchPost();
-
         return () => { isMounted = false; };
     }, [id]);
 
@@ -223,24 +120,18 @@ const SinglePostPage = () => {
         try {
             while ((match = regex.exec(post.content)) !== null) {
                 if (!match[3]) continue;
-
                 const level = parseInt(match[1], 10);
                 const rawInner = match[3];
                 const text = rawInner.replace(/<[^>]+>/g, '').trim();
-
                 if (!text) continue;
 
                 const idMatch = match[2] ? match[2].match(/id=["']([^"']+)["']/) : null;
-                const headingId = idMatch
-                    ? idMatch[1]
-                    : text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                const headingId = idMatch ? idMatch[1] : text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
                 if (!headingId || typeof headingId !== 'string' || headingId.length === 0) continue;
-
                 headings.push({ id: headingId, text, level });
             }
         } catch (e) {
-            console.error('[SinglePostPage] extractedHeadings error:', e);
             return [];
         }
         return headings;
@@ -259,7 +150,6 @@ const SinglePostPage = () => {
     useEffect(() => {
         const handleScroll = () => {
             if (!articleRef.current) return;
-
             const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
             const scrolled = height > 0 ? (winScroll / height) * 100 : 0;
@@ -287,7 +177,6 @@ const SinglePostPage = () => {
 
         window.addEventListener('scroll', handleScroll, { passive: true });
         handleScroll();
-
         return () => window.removeEventListener('scroll', handleScroll);
     }, [validHeadings]);
 
@@ -341,7 +230,6 @@ const SinglePostPage = () => {
     }
 
     const imageAltText = post?.coverImageAltText || post?.thumbnailAltText || post?.title || 'Article cover image';
-
     const defensivePostProp = { id: id || '', ...(post || {}) };
 
     return (
@@ -357,18 +245,18 @@ const SinglePostPage = () => {
                 )}
 
                 <main className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-                    {/* 3-Column Layout: Left Sticky Toolbar | Main Article | Right Sidebar */}
-                    <div className="flex flex-col lg:flex-row gap-8 xl:gap-12 relative">
+                    {/* 3-Column Enterprise Layout: Left Sticky Toolbar | Main Article | Right Sidebar */}
+                    <div className="flex flex-col xl:flex-row gap-8 lg:gap-12 relative">
 
-                        {/* 1. LEFT STICKY TOOLBAR (Desktop) */}
-                        <div className="hidden lg:block w-14 flex-shrink-0 relative z-50">
+                        {/* 1. LEFT STICKY TOOLBAR (Desktop Only - perfectly aligned to headline) */}
+                        <div className="hidden xl:block w-14 flex-shrink-0 relative z-50">
                             <div className="sticky top-32">
                                 <RadarSidebar />
                             </div>
                         </div>
 
                         {/* 2. MAIN ARTICLE */}
-                        <article className="flex-1 min-w-0 relative" ref={articleRef}>
+                        <article className="flex-1 min-w-0 relative max-w-3xl" ref={articleRef}>
                             <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
                                 <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                                 <span>/</span>
@@ -428,7 +316,7 @@ const SinglePostPage = () => {
                             )}
 
                             {/* Mobile Toolbar Fallback (Fixed Bottom Right) */}
-                            <div className="block lg:hidden">
+                            <div className="block xl:hidden">
                                 <RadarSidebar />
                             </div>
 

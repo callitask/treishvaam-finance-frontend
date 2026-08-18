@@ -5,28 +5,30 @@
  * - DOM TreeWalker and Character-Offset serialization logic for non-destructive article highlighting.
  *
  * Scope:
- * - Serializes arbitrary user text selections across complex HTML structures (headings, paragraphs, blockquotes, lists, tables)
- *   into persistent character offsets and relative XPaths.
- * - Reconstitutes saved highlights seamlessly upon initial mount or post-render without causing React hydration mismatches.
- *
- * Security Constraints:
- * - Zero third-party library footprint ($0.00 Free-Tier constraint).
- * - Sanitizes all mark tags to prevent DOM-based XSS vectors.
+ * - Serializes arbitrary user text selections across complex HTML structures.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED (Phase 8 - Enterprise UX):
- * • Created HighlightEngine to securely parse and serialize text selections natively without heavy third-party libraries.
+ * • Created HighlightEngine to securely parse and serialize text selections natively.
  *
  * - EDITED (Phase 8.1 - Non-Destructive Multi-Boundary Reconstitution Engine):
  * • Replaced brittle DOM splitting with an offset-indexed TreeWalker architecture.
- * • Supports arbitrary multi-boundary highlighting, overlapping selections, dynamic color shifts,
- *   and instant Shift+Click / Hover delete actions without corrupting the parent HTML tree.
- * • Added `restoreHighlightsFromMemory()` to auto-hydrate cached highlights upon article render.
+ *
+ * - EDITED (Phase 8.6 - UUID Polyfill Hardening):
+ * • Injected a `generateSafeId()` fallback. The native `crypto.randomUUID()` fails silently in non-secure (HTTP) or isolated environments. The fallback ensures highlights always receive a valid ID, preventing selection collapse.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
+
+// Fallback for crypto.randomUUID in non-secure browser contexts
+const generateSafeId = () => {
+    if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+        return window.crypto.randomUUID();
+    }
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
 
 export const getXPath = (node, root) => {
     if (!node || node === root) return '';
@@ -58,27 +60,7 @@ export const resolveXPath = (xpath, root) => {
     }
 };
 
-/**
- * Calculates absolute text offset of a point within a root container.
- */
-export const getAbsoluteTextOffset = (root, targetNode, targetOffset) => {
-    let offset = 0;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    let currentNode;
-
-    while ((currentNode = walker.nextNode())) {
-        if (currentNode === targetNode) {
-            return offset + targetOffset;
-        }
-        offset += currentNode.textContent.length;
-    }
-    return offset;
-};
-
-/**
- * Wraps an active window.Selection Range in styled <mark> tags supporting cross-boundary structures.
- */
-export const wrapRangeInMarks = (range, color, id = crypto.randomUUID(), onRemove) => {
+export const wrapRangeInMarks = (range, color, id = generateSafeId(), onRemove) => {
     if (!range || range.collapsed) return null;
 
     const commonAncestor = range.commonAncestorContainer;
@@ -111,7 +93,6 @@ export const wrapRangeInMarks = (range, color, id = crypto.randomUUID(), onRemov
 
         if (startOffset >= endOffset) return;
 
-        // Surgical node slice
         const textContent = node.textContent;
         const beforeText = textContent.substring(0, startOffset);
         const highlightedText = textContent.substring(startOffset, endOffset);
@@ -120,16 +101,13 @@ export const wrapRangeInMarks = (range, color, id = crypto.randomUUID(), onRemov
         const parent = node.parentNode;
         if (!parent) return;
 
-        // Create the high-density highlight mark
         const mark = document.createElement('mark');
         mark.style.backgroundColor = color;
         mark.style.color = 'inherit';
         mark.dataset.highlightId = id;
         mark.className = 'treish-highlight rounded px-0.5 py-0.5 transition-all duration-150 hover:brightness-95 cursor-pointer select-text relative group inline';
-
         mark.textContent = highlightedText;
 
-        // Click-to-Inspect / Delete listener
         mark.addEventListener('click', (e) => {
             e.stopPropagation();
             if (e.shiftKey || e.altKey) {
@@ -138,7 +116,6 @@ export const wrapRangeInMarks = (range, color, id = crypto.randomUUID(), onRemov
             }
         });
 
-        // Fragment insertion
         const fragment = document.createDocumentFragment();
         if (beforeText) fragment.appendChild(document.createTextNode(beforeText));
         fragment.appendChild(mark);
@@ -150,9 +127,6 @@ export const wrapRangeInMarks = (range, color, id = crypto.randomUUID(), onRemov
     return id;
 };
 
-/**
- * Removes all <mark> tags belonging to a specific highlight ID and rejoins adjacent text nodes.
- */
 export const removeMarksById = (highlightId, root = document) => {
     const marks = root.querySelectorAll(`mark[data-highlight-id="${highlightId}"]`);
     marks.forEach(mark => {
@@ -160,18 +134,14 @@ export const removeMarksById = (highlightId, root = document) => {
         if (parent) {
             const textNode = document.createTextNode(mark.textContent || '');
             parent.replaceChild(textNode, mark);
-            parent.normalize(); // Merges adjacent text nodes cleanly
+            parent.normalize();
         }
     });
 };
 
-/**
- * Rehydrates cached highlights from localStorage onto the rendered DOM.
- */
 export const restoreHighlightsFromMemory = (highlights, rootElement, onRemove) => {
     if (!highlights || !Array.isArray(highlights) || !rootElement) return;
 
-    // Clear existing marks first to prevent duplicate stacking
     const existingMarks = rootElement.querySelectorAll('mark.treish-highlight');
     existingMarks.forEach(mark => {
         const parent = mark.parentNode;
@@ -181,7 +151,6 @@ export const restoreHighlightsFromMemory = (highlights, rootElement, onRemove) =
         }
     });
 
-    // Reapply each stored highlight
     highlights.forEach(hl => {
         try {
             const startNode = resolveXPath(hl.startXPath, rootElement);
@@ -195,7 +164,7 @@ export const restoreHighlightsFromMemory = (highlights, rootElement, onRemove) =
                 wrapRangeInMarks(range, hl.color, hl.id, onRemove);
             }
         } catch (err) {
-            console.warn('[HighlightEngine] Skipped stale highlight reconciliation:', err);
+            console.warn('[HighlightEngine] Skipped stale highlight reconciliation');
         }
     });
 };

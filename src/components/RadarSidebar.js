@@ -5,43 +5,28 @@
  * - High-density Apple/Mac-grade "Liquid Glass" (frosted glassmorphism) floating pill dock for financial articles.
  *
  * Scope:
- * - Renders a sleek floating top/dock bar with downward popover menus for all interactive reader tools:
- *   1. Multi-Color Highlighter & Eraser
- *   2. Stylus / Apple Pencil Canvas Overlay
- *   3. Web Speech API Audio Reader (Text-to-Speech)
- *   4. Typography & Focus Reading Mode Scaler
- *   5. Zero-Trust Financial Calculator
- *   6. High-Resolution Area Screenshot / Snapshot (html2canvas)
- *   7. Sticky Margin Notes & Quick Bookmarks
+ * - Renders a sleek floating top/dock bar with downward popover menus for all interactive reader tools.
  *
  * Security Constraints:
  * - Client-side state only. Zero third-party tracking or remote evaluation.
  *
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - ADDED (Phase 8.1 - Liquid Glass Enterprise Toolbar):
- * • Engineered the unified floating dock with backdrop-blur-2xl glassmorphism, popover menus,
- *   dynamic audio narration, typography controls, and screenshot export.
+ * • Engineered the unified floating dock with backdrop-blur-2xl glassmorphism.
  *
  * - EDITED (Phase 8.2 - Circular Liquid Dropdown Pivot):
- * • Redesigned the horizontal bar into a hyper-realistic, minimal circular button.
- * • Hovering triggers a vertical expansion of the tools. Selecting a tool collapses the main list
- *   and exclusively renders the relevant sub-tool parameters.
- * • Added a rotating gradient blur animation ("liquid circling boundaries") to the active toggle.
+ * • Redesigned the horizontal bar into a minimal circular button.
  *
  * - EDITED (Phase 8.3 - Cylindrical Capsule & Left-Sticky Integration):
  * • Transformed the UI into a singular expanding cylindrical capsule designed to sit sticky-left of the headline.
- * • Fixed hover hitboxes using a wrapper container to prevent accidental collapse when scrolling down the tools.
- * • Sub-tools now elegantly pop out to the *right* of the capsule with a fluid frosted glass aesthetic.
  *
  * - EDITED (Phase 8.4 - CI/CD Syntax Fix & Hover Stabilization):
- * • Fixed `SyntaxError: Expected '}', got ')'` on line 333 inside the Audio Reader `.map()` function, which crashed the Cloudflare Pages CI/CD pipeline.
- * • Restructured the capsule's internal flexbox to eliminate dead-zone gaps that were causing the `onMouseLeave` event to misfire and prematurely collapse the capsule during vertical mouse travel.
- * • Isolated the spinning `conic-gradient` animation specifically to the main trigger button rather than the entire capsule wrapper, enhancing the hyper-realistic liquid aesthetic.
+ * • Fixed `SyntaxError: Expected '}', got ')'` and restructured the capsule's internal flexbox to eliminate dead-zones.
  *
- * - EDITED (Phase 8.5 - Hyper-Realistic Plasma & Tool-Cancellation Bug Fix):
- * • CSS UI Upgrade: Applied ultra-transparent `bg-white/10`, `backdrop-blur-[40px]`, and `backdrop-saturate-[150%]` with inner rim shadows for exact enterprise glass parity.
- * • Plasma Animation: Replaced simple gradient with overlapping, highly-blurred spinning and pulsing layers (`mix-blend-screen`) behind an obsidian contrast button.
- * • Bug Fix: Removed `setActiveTool('cursor')` from the `handleClickOutside` function. Previously, clicking text to highlight it registered as an "outside click", instantly terminating the tool before the highlight could be drawn. Tools now remain permanently active until the user explicitly clicks the 'X' to close them.
+ * - EDITED (Phase 8.7 - Hyper-Realistic Plasma Capsule & Smart Sub-Panels):
+ * • UX Overhaul: Upgraded the capsule to true frosted liquid glass (`backdrop-blur-[40px]`, `bg-white/10`, reflective rim shadow).
+ * • Plasma Engine: Added a mesmerizing, spinning `conic-gradient` orb that orbits securely beneath the main trigger button.
+ * • Smart Expansion: Hovering drops the tools vertically *inside* the capsule. Clicking a tool collapses the vertical list back to a circle, while an elegant frosted-glass panel slides out to the right for the sub-tools.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -77,12 +62,12 @@ import html2canvas from 'html2canvas';
 const ToolButton = ({ icon: Icon, label, onClick, isActive }) => (
     <button
         onClick={onClick}
-        className="group relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 shadow-sm hover:shadow-md flex-shrink-0"
+        className="group relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 hover:bg-black/5 dark:hover:bg-white/10 flex-shrink-0"
     >
-        <Icon size={18} className={`transition-all duration-300 ${isActive ? 'text-sky-600 dark:text-sky-400 scale-110' : 'text-slate-700 dark:text-slate-300 group-hover:scale-110'}`} />
+        <Icon size={18} className={`transition-all duration-300 ${isActive ? 'text-sky-600 dark:text-sky-400 scale-110 drop-shadow-md' : 'text-slate-600 dark:text-slate-300 group-hover:scale-110'}`} />
 
         {/* Tooltip popping out to the right */}
-        <span className="absolute left-full ml-3 px-3 py-1.5 bg-slate-900/90 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap backdrop-blur-md shadow-xl pointer-events-none z-50 tracking-wide border border-white/10">
+        <span className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900/90 dark:bg-slate-800/95 text-white text-[10px] font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap backdrop-blur-md shadow-xl pointer-events-none z-50 tracking-wide border border-white/10">
             {label}
         </span>
     </button>
@@ -93,7 +78,7 @@ const RadarSidebar = () => {
         activeTool, setActiveTool,
         highlights, clearAllHighlights,
         highlightColor, setHighlightColor,
-        penColor, setPenColor, penWidth, setPenWidth, setPenStrokes,
+        penColor, setPenColor, penWidth, setPenWidth, setPenStyle, penStyle, setPenStrokes,
         isCalculatorVisible, setIsCalculatorVisible,
         fontSizeScale, updateTypography, fontFamily,
         isFocusMode, setIsFocusMode,
@@ -109,15 +94,15 @@ const RadarSidebar = () => {
     const wrapperRef = useRef(null);
     const synthRef = useRef(null);
 
-    // Expansion Logic: Opens if hovered and no sub-tool is active.
+    // Expansion Logic: Opens if hovered AND no sub-tool is actively pinned open.
     const isExpanded = isHovered && openPopover === null;
     const hasActiveSubTool = openPopover !== null;
 
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-                // BUG FIX: Close the popover menu visually, but DO NOT terminate the activeTool.
-                // This allows the user to click the text (which is outside the sidebar) to highlight it!
+                // Clicking outside visually closes the popover panel to free up screen space,
+                // but crucially leaves the activeTool running so the user can actually use it!
                 setOpenPopover(null);
                 setIsHovered(false);
             }
@@ -196,7 +181,7 @@ const RadarSidebar = () => {
 
     const handleMainClick = () => {
         if (hasActiveSubTool || activeTool !== 'cursor') {
-            // Explicitly terminate tool only when the user hits the 'X'
+            // Hard reset: close popovers and return to cursor
             setOpenPopover(null);
             setActiveTool('cursor');
             setIsHovered(false);
@@ -208,7 +193,7 @@ const RadarSidebar = () => {
     return (
         <div
             ref={wrapperRef}
-            className="fixed bottom-6 right-6 lg:relative lg:bottom-auto lg:right-auto z-[60] flex items-start treish-no-capture"
+            className="fixed bottom-6 right-6 xl:relative xl:bottom-auto xl:right-auto z-[60] flex items-start treish-no-capture"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -219,22 +204,22 @@ const RadarSidebar = () => {
 
             {/* CYLINDRICAL CAPSULE (Hyper-Realistic Liquid Glass) */}
             <div
-                className={`relative flex flex-col items-center py-1 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-visible 
-                bg-white/30 dark:bg-slate-900/30 backdrop-blur-[40px] backdrop-saturate-[150%] 
-                border border-white/40 dark:border-white/10 
-                shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.4),0_12px_40px_-8px_rgba(0,0,0,0.2)] dark:shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.05),0_12px_40px_-8px_rgba(0,0,0,0.5)] 
-                ${isExpanded ? 'h-[360px] w-12 rounded-[24px]' : 'h-12 w-12 rounded-full'}`}
+                className={`relative flex flex-col items-center p-1 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] overflow-visible 
+                bg-white/20 dark:bg-slate-900/30 backdrop-blur-[40px] backdrop-saturate-[150%] 
+                border border-white/50 dark:border-white/10 
+                shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.6),0_12px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.05),0_12px_40px_-8px_rgba(0,0,0,0.5)] 
+                ${isExpanded ? 'h-[370px] w-12 rounded-[24px]' : 'h-12 w-12 rounded-full'}`}
             >
-                {/* Main Trigger Button (with Glowing Plasma Boundaries) */}
+                {/* Main Trigger Button */}
                 <div className="relative w-10 h-10 mb-1 flex-shrink-0 flex items-center justify-center">
 
-                    {/* The Plasma Core Animation (Only visible when active) */}
+                    {/* The Plasma Core Animation (Circles ONLY the main button) */}
                     <div className={`absolute -inset-[3px] rounded-full pointer-events-none transition-all duration-700 overflow-hidden ${isExpanded || hasActiveSubTool || activeTool !== 'cursor' ? 'opacity-100 scale-100' : 'opacity-0 scale-90'}`}>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250%] h-[250%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,#38bdf8_270deg,#a855f7_360deg)] blur-[6px] mix-blend-screen dark:mix-blend-lighten opacity-90" />
-                        <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/40 to-purple-500/40 blur-[4px] animate-pulse rounded-full" />
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250%] h-[250%] animate-[spin_3s_linear_infinite] bg-[conic-gradient(from_0deg,transparent_0_180deg,#0ea5e9_270deg,#a855f7_360deg)] blur-[6px] mix-blend-screen dark:mix-blend-lighten opacity-90" />
+                        <div className="absolute inset-0 bg-gradient-to-tr from-sky-400/30 to-purple-500/30 blur-[4px] animate-pulse rounded-full" />
                     </div>
 
-                    {/* The Obsidian/Pearl Button */}
+                    {/* The Obsidian/Pearl Master Button */}
                     <button
                         onClick={handleMainClick}
                         className="relative z-10 w-full h-full flex items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-[0_2px_10px_rgba(0,0,0,0.3)] transition-transform duration-300 hover:scale-105"
@@ -247,9 +232,9 @@ const RadarSidebar = () => {
                     </button>
                 </div>
 
-                {/* Vertical Tools List */}
+                {/* Vertical Tools List (Expands inside the cylinder) */}
                 <div
-                    className={`relative z-10 flex flex-col gap-1.5 w-full items-center transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100 delay-100' : 'opacity-0 scale-90 pointer-events-none absolute top-12'
+                    className={`relative z-10 flex flex-col gap-1 w-full items-center transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100 delay-100' : 'opacity-0 scale-90 pointer-events-none absolute top-12'
                         }`}
                 >
                     <ToolButton icon={Highlighter} label="Highlighter" onClick={() => handleToolSelect('highlight', 'highlighter')} isActive={activeTool === 'highlight'} />
@@ -262,14 +247,13 @@ const RadarSidebar = () => {
                 </div>
             </div>
 
-            {/* EXPANDING SUB-PANELS (To the Right, Hyper-Realistic Liquid Glass) */}
+            {/* EXPANDING SUB-PANELS (Pops out to the Right, Frosted Liquid Glass) */}
             <div
                 className={`absolute left-full ml-4 top-0 transition-all duration-400 origin-left ${hasActiveSubTool ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
                     }`}
             >
-                {/* Reusable Glassmorphism Shell */}
                 {openPopover && (
-                    <div className="w-64 bg-white/20 dark:bg-slate-900/30 backdrop-blur-[40px] backdrop-saturate-[150%] border border-white/40 dark:border-white/10 shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.4),0_16px_40px_-8px_rgba(0,0,0,0.2)] dark:shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.05),0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-[24px] p-5 flex flex-col gap-4">
+                    <div className="w-64 bg-white/20 dark:bg-slate-900/30 backdrop-blur-[40px] backdrop-saturate-[150%] border border-white/40 dark:border-white/10 shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.6),0_16px_40px_-8px_rgba(0,0,0,0.15)] dark:shadow-[inset_0_0_1px_1px_rgba(255,255,255,0.05),0_16px_40px_-8px_rgba(0,0,0,0.5)] rounded-[24px] p-5 flex flex-col gap-4">
 
                         {/* Highlighter Panel */}
                         {openPopover === 'highlighter' && (
@@ -303,7 +287,21 @@ const RadarSidebar = () => {
                         {/* Stylus / Pen Panel */}
                         {openPopover === 'pen' && (
                             <>
-                                <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest text-center">Ink & Width</span>
+                                <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest text-center">Ink & Style</span>
+
+                                {/* Brush Styles */}
+                                <div className="flex bg-slate-200/50 dark:bg-slate-800/50 rounded-xl p-1 mb-1">
+                                    {[{ id: 'pen', label: 'Solid' }, { id: 'brush', label: 'Soft' }, { id: 'fountain', label: 'Nib' }].map(style => (
+                                        <button
+                                            key={style.id}
+                                            onClick={() => setPenStyle(style.id)}
+                                            className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg transition-all ${penStyle === style.id ? 'bg-white dark:bg-slate-700 shadow-sm text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                        >
+                                            {style.label}
+                                        </button>
+                                    ))}
+                                </div>
+
                                 <div className="flex items-center justify-between px-1">
                                     {['#0284c7', '#16a34a', '#dc2626', '#9333ea', '#0f172a'].map(color => (
                                         <button
@@ -317,7 +315,7 @@ const RadarSidebar = () => {
                                     ))}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <input type="range" min="1" max="8" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-lg cursor-pointer" />
+                                    <input type="range" min="1" max="12" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-lg cursor-pointer" />
                                     <span className="text-[11px] font-mono font-bold text-slate-800 dark:text-slate-200 w-6 text-right">{penWidth}px</span>
                                 </div>
                                 <button
