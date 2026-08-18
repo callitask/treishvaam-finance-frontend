@@ -23,10 +23,13 @@
  * - EDITED (Phase 8.4 - CI/CD Syntax Fix & Hover Stabilization):
  * • Fixed `SyntaxError: Expected '}', got ')'` and restructured the capsule's internal flexbox to eliminate dead-zones.
  *
- * - EDITED (Phase 8.8 - Hyper-Realistic Plasma UX & Snipping Tool Portal):
+ * - EDITED (Phase 8.7 - Hyper-Realistic Plasma UX & Snipping Tool Portal):
  * • UX Overhaul: Upgraded the capsule to true frosted liquid glass (`backdrop-blur-[60px]`, `backdrop-saturate-[200%]`, `bg-white/10`, and inner light-refraction rim shadows).
  * • Plasma Engine: Replaced basic gradients with a 3-tier volumetric plasma orb (`mix-blend-screen`, counter-rotating corona, pulsing core) locked exactly behind the Obsidian trigger button.
  * • Snipping Tool: Deprecated full-page `html2canvas`. Integrated `SnippingToolOverlay.js` to allow precision click-and-drag coordinate cropping (Windows Snipping Tool style).
+ *
+ * - EDITED (Phase 8.9 - CI/CD Build Syntax Fix):
+ * • Fixed `SyntaxError: Expected corresponding JSX closing tag for <>` by appending the missing `</>` root fragment closer at the bottom of the return statement, unblocking the Cloudflare Pages pipeline.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -449,7 +452,7 @@ const RadarSidebar = () => {
                     )}
                 </div>
             </div>
-        </div >
+        </>
     );
 };
 
