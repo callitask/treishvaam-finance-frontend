@@ -22,6 +22,12 @@
  * • Engineered the unified floating dock with backdrop-blur-2xl glassmorphism, popover menus,
  *   dynamic audio narration, typography controls, and screenshot export.
  *
+ * - EDITED (Phase 8.2 - Circular Liquid Dropdown Pivot):
+ * • Redesigned the horizontal bar into a hyper-realistic, minimal circular button.
+ * • Hovering triggers a vertical expansion of the tools. Selecting a tool collapses the main list
+ *   and exclusively renders the relevant sub-tool parameters.
+ * • Added a rotating gradient blur animation ("liquid circling boundaries") to the active toggle.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -33,7 +39,6 @@ import {
     PenTool,
     Calculator,
     Volume2,
-    VolumeX,
     Play,
     Pause,
     RotateCcw,
@@ -45,13 +50,26 @@ import {
     EyeOff,
     Check,
     X,
-    ChevronDown,
     Plus,
     ZoomIn,
-    ZoomOut
+    ZoomOut,
+    Wand2
 } from 'lucide-react';
 import { useAnnotations, HIGHLIGHT_COLORS } from '../context/AnnotationContext';
 import html2canvas from 'html2canvas';
+
+// Helper component for the vertical tool buttons
+const ToolButton = ({ icon: Icon, label, onClick, isActive }) => (
+    <button
+        onClick={onClick}
+        className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/50 dark:border-slate-700/50 shadow-sm hover:bg-white/80 dark:hover:bg-slate-700/80 transition-all duration-300 hover:scale-110"
+    >
+        <Icon size={18} className={`transition-colors ${isActive ? 'text-sky-600 dark:text-sky-400' : 'text-slate-600 dark:text-slate-300'}`} />
+        <span className="absolute right-full mr-3 px-2 py-1 bg-slate-800/80 text-white text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all whitespace-nowrap backdrop-blur-md pointer-events-none shadow-lg">
+            {label}
+        </span>
+    </button>
+);
 
 const RadarSidebar = () => {
     const {
@@ -60,30 +78,36 @@ const RadarSidebar = () => {
         highlightColor, setHighlightColor,
         penColor, setPenColor, penWidth, setPenWidth, setPenStrokes,
         isCalculatorVisible, setIsCalculatorVisible,
-        fontSizeScale, setFontSizeScale, fontFamily, setFontFamily, updateTypography,
+        fontSizeScale, updateTypography, fontFamily,
         isFocusMode, setIsFocusMode,
         audioState, setAudioState,
-        notes, addNote, deleteNote, isNotesOpen, setIsNotesOpen
+        notes, addNote, deleteNote
     } = useAnnotations();
 
-    // Active Popover State (null | 'highlighter' | 'pen' | 'audio' | 'type' | 'notes')
+    // UI States
+    const [isHovered, setIsHovered] = useState(false);
     const [openPopover, setOpenPopover] = useState(null);
     const [newNoteText, setNewNoteText] = useState('');
-    const [snapshotStatus, setSnapshotStatus] = useState('idle'); // 'idle' | 'capturing' | 'copied'
+    const [snapshotStatus, setSnapshotStatus] = useState('idle');
 
     const dockRef = useRef(null);
     const synthRef = useRef(null);
 
-    // Close popovers on click outside
+    // Derived expansion state
+    const isExpanded = isHovered && activeTool === 'cursor' && !openPopover;
+    const hasActiveSubTool = activeTool !== 'cursor' || openPopover !== null;
+
+    // Close on click outside
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (dockRef.current && !dockRef.current.contains(e.target)) {
                 setOpenPopover(null);
+                setActiveTool('cursor');
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
+    }, [setActiveTool]);
 
     // Web Speech API Initialization
     useEffect(() => {
@@ -95,140 +119,132 @@ const RadarSidebar = () => {
         };
     }, []);
 
-    // ─── AUDIO READER HANDLERS ──────────────────────────────────────────────
     const handleToggleAudio = () => {
-        if (!synthRef.current) {
-            alert('Speech Synthesis is not supported in your browser.');
-            return;
-        }
-
+        if (!synthRef.current) return;
         if (audioState.isPlaying && !audioState.isPaused) {
             synthRef.current.pause();
             setAudioState(prev => ({ ...prev, isPaused: true }));
             return;
         }
-
         if (audioState.isPaused) {
             synthRef.current.resume();
             setAudioState(prev => ({ ...prev, isPaused: false }));
             return;
         }
-
-        // Start Fresh Narration
         synthRef.current.cancel();
         const articleElement = document.querySelector('.prose');
         const textToRead = articleElement ? articleElement.innerText : '';
-
         if (!textToRead) return;
 
         const utterance = new SpeechSynthesisUtterance(textToRead);
         utterance.rate = audioState.rate;
-
-        utterance.onend = () => {
-            setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false, progress: 100 }));
-        };
-
-        utterance.onerror = () => {
-            setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
-        };
+        utterance.onend = () => setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
+        utterance.onerror = () => setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false }));
 
         synthRef.current.speak(utterance);
         setAudioState(prev => ({ ...prev, isPlaying: true, isPaused: false, currentText: textToRead }));
     };
 
-    const handleStopAudio = () => {
-        if (synthRef.current) synthRef.current.cancel();
-        setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false, progress: 0 }));
-    };
-
-    const handleChangeAudioRate = (newRate) => {
-        setAudioState(prev => ({ ...prev, rate: newRate }));
-        if (audioState.isPlaying) {
-            handleStopAudio();
-            setTimeout(handleToggleAudio, 100);
-        }
-    };
-
-    // ─── HIGH-RES SCREENSHOT HANDLER ─────────────────────────────────────────
     const handleCaptureSnapshot = async () => {
         const articleElement = document.querySelector('article');
         if (!articleElement) return;
 
         setSnapshotStatus('capturing');
         setOpenPopover(null);
+        setActiveTool('cursor');
 
         try {
             const canvas = await html2canvas(articleElement, {
-                scale: 2, // Retina resolution
+                scale: 2,
                 useCORS: true,
                 backgroundColor: document.documentElement.classList.contains('dark') ? '#0f172a' : '#ffffff',
                 ignoreElements: (element) => element.classList.contains('treish-no-capture')
             });
 
-            // Auto download screenshot
             const link = document.createElement('a');
-            link.download = `Treishvaam-Article-Snapshot-${Date.now()}.png`;
+            link.download = `Treishvaam-Snapshot-${Date.now()}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
 
             setSnapshotStatus('copied');
             setTimeout(() => setSnapshotStatus('idle'), 2500);
         } catch (e) {
-            console.error('[RadarSidebar] Snapshot failed:', e);
             setSnapshotStatus('idle');
         }
     };
 
+    const handleToolSelect = (toolId, popoverId) => {
+        setActiveTool(toolId);
+        setOpenPopover(popoverId);
+        setIsHovered(false);
+    };
+
+    const handleCloseTool = () => {
+        setActiveTool('cursor');
+        setOpenPopover(null);
+        setIsHovered(false);
+    };
+
     return (
         <>
-            {/* Focus Mode Dimming Backdrop */}
             {isFocusMode && (
-                <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity duration-300 pointer-events-none"
-                />
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity duration-300 pointer-events-none" />
             )}
 
-            {/* Apple/Mac Liquid Glass Floating Pill Dock */}
-            <nav
-                aria-label="Article Reading and Annotation Tools"
+            <div
                 ref={dockRef}
-                className="fixed top-20 left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 px-3 py-2 bg-white/75 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-full transition-all duration-300 treish-no-capture"
+                className="fixed top-24 right-6 z-40 flex flex-col items-center gap-3 treish-no-capture"
+                onMouseEnter={() => !hasActiveSubTool && setIsHovered(true)}
+                onMouseLeave={() => !hasActiveSubTool && setIsHovered(false)}
             >
-                {/* 1. HIGHLIGHTER TOOL */}
-                <div className="relative">
+                {/* 1. MAIN TOGGLE BUTTON (Liquid Glass Circle) */}
+                <div className="relative z-50">
+                    {/* Liquid circling animation border */}
+                    <div className={`absolute -inset-[3px] rounded-full bg-gradient-to-tr from-sky-400 via-purple-500 to-emerald-400 opacity-70 blur-[4px] animate-[spin_3s_linear_infinite] transition-opacity duration-300 ${isExpanded || hasActiveSubTool ? 'opacity-100' : 'opacity-0'}`} />
+
                     <button
-                        onClick={() => {
-                            if (activeTool === 'highlight') {
-                                setOpenPopover(openPopover === 'highlighter' ? null : 'highlighter');
-                            } else {
-                                setActiveTool('highlight');
-                                setOpenPopover('highlighter');
-                            }
-                        }}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeTool === 'highlight'
-                            ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 ring-2 ring-amber-400/50 shadow-sm'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        title="Highlight Text (Shift+Click to erase)"
+                        onClick={handleCloseTool}
+                        className="relative flex items-center justify-center w-12 h-12 rounded-full bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all duration-300 hover:scale-105"
                     >
-                        <Highlighter size={14} style={{ color: highlightColor }} />
-                        <span className="hidden sm:inline">Highlight</span>
-                        <ChevronDown size={12} className="opacity-60" />
+                        {hasActiveSubTool ? (
+                            <X size={20} className="text-slate-700 dark:text-slate-200" />
+                        ) : (
+                            <Wand2 size={20} className="text-slate-700 dark:text-slate-200" />
+                        )}
                     </button>
 
-                    {/* Highlighter Popover Dropdown */}
+                    {/* Hover Tooltip for Main Button */}
+                    {!isExpanded && !hasActiveSubTool && (
+                        <span className="absolute right-full mr-4 top-1/2 -translate-y-1/2 px-2 py-1 bg-slate-800/80 text-white text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap backdrop-blur-md shadow-lg pointer-events-none">
+                            Tools
+                        </span>
+                    )}
+                </div>
+
+                {/* 2. VERTICAL TOOL LIST (Expands downwards on hover) */}
+                <div className={`flex flex-col gap-2.5 transition-all duration-300 origin-top absolute top-16 ${isExpanded ? 'scale-y-100 opacity-100 pointer-events-auto' : 'scale-y-50 opacity-0 pointer-events-none'}`}>
+                    <ToolButton icon={Highlighter} label="Highlighter" onClick={() => handleToolSelect('highlight', 'highlighter')} />
+                    <ToolButton icon={PenTool} label="Stylus / Pen" onClick={() => handleToolSelect('pen', 'pen')} />
+                    <ToolButton icon={Volume2} label="Audio Reader" onClick={() => handleToolSelect('cursor', 'audio')} />
+                    <ToolButton icon={Type} label="Typography & Focus" onClick={() => handleToolSelect('cursor', 'type')} />
+                    <ToolButton icon={Calculator} label="Financial Calculator" onClick={() => { setIsCalculatorVisible(true); handleCloseTool(); }} />
+                    <ToolButton icon={snapshotStatus === 'copied' ? Check : Camera} label={snapshotStatus === 'capturing' ? "Capturing..." : "Snapshot"} onClick={handleCaptureSnapshot} />
+                    <ToolButton icon={StickyNote} label="Margin Notes" onClick={() => handleToolSelect('cursor', 'notes')} />
+                </div>
+
+                {/* 3. EXCLUSIVE SUB-TOOL PANELS (Hyper-realistic Liquid Glass) */}
+                <div className={`absolute top-16 right-0 transition-all duration-300 origin-top ${hasActiveSubTool ? 'scale-100 opacity-100 pointer-events-auto' : 'scale-95 opacity-0 pointer-events-none'}`}>
+
+                    {/* Highlighter Panel */}
                     {openPopover === 'highlighter' && (
-                        <div className="absolute top-full mt-2 left-0 w-52 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-3 flex flex-col gap-2.5 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Highlight Color</span>
+                        <div className="w-56 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Highlight Color</span>
                             <div className="flex items-center justify-between">
                                 {HIGHLIGHT_COLORS.map(c => (
                                     <button
                                         key={c.id}
-                                        onClick={() => {
-                                            setHighlightColor(c.hex);
-                                            setActiveTool('highlight');
-                                        }}
-                                        className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 flex items-center justify-center"
+                                        onClick={() => setHighlightColor(c.hex)}
+                                        className="w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 shadow-sm flex items-center justify-center"
                                         style={{ backgroundColor: c.hex, borderColor: c.border }}
                                         title={c.label}
                                     >
@@ -236,322 +252,136 @@ const RadarSidebar = () => {
                                     </button>
                                 ))}
                             </div>
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-[11px]">
-                                <span className="text-slate-500">{highlights.length} saved</span>
+                            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-between items-center text-[11px]">
+                                <span className="text-slate-500 font-medium">{highlights.length} saved</span>
                                 {highlights.length > 0 && (
-                                    <button
-                                        onClick={clearAllHighlights}
-                                        className="text-red-500 hover:text-red-600 font-semibold flex items-center gap-1"
-                                    >
-                                        <Trash2 size={12} /> Clear all
+                                    <button onClick={clearAllHighlights} className="text-red-500 hover:text-red-600 font-bold flex items-center gap-1">
+                                        <Trash2 size={12} /> Clear
                                     </button>
                                 )}
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* 2. STYLUS / PEN TOOL */}
-                <div className="relative">
-                    <button
-                        onClick={() => {
-                            if (activeTool === 'pen') {
-                                setOpenPopover(openPopover === 'pen' ? null : 'pen');
-                            } else {
-                                setActiveTool('pen');
-                                setOpenPopover('pen');
-                            }
-                        }}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeTool === 'pen'
-                            ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-800 dark:text-sky-300 ring-2 ring-sky-400/50 shadow-sm'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        title="Stylus / Freehand Pen"
-                    >
-                        <PenTool size={14} style={{ color: penColor }} />
-                        <span className="hidden sm:inline">Pen</span>
-                        <ChevronDown size={12} className="opacity-60" />
-                    </button>
-
-                    {/* Pen Popover Dropdown */}
+                    {/* Stylus / Pen Panel */}
                     {openPopover === 'pen' && (
-                        <div className="absolute top-full mt-2 left-0 w-56 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-3 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ink Color & Width</span>
+                        <div className="w-56 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Ink & Width</span>
                             <div className="flex items-center justify-between">
                                 {['#0284c7', '#16a34a', '#dc2626', '#9333ea', '#0f172a'].map(color => (
                                     <button
                                         key={color}
                                         onClick={() => setPenColor(color)}
-                                        className="w-6 h-6 rounded-full border-2 border-white dark:border-slate-800 shadow-sm transition-transform hover:scale-110 flex items-center justify-center"
+                                        className="w-6 h-6 rounded-full border-2 border-white/80 dark:border-slate-700 shadow-sm transition-transform hover:scale-110 flex items-center justify-center"
                                         style={{ backgroundColor: color }}
                                     >
                                         {penColor === color && <Check size={12} className="text-white" />}
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-slate-500">Size:</span>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="8"
-                                    value={penWidth}
-                                    onChange={(e) => setPenWidth(Number(e.target.value))}
-                                    className="w-full accent-sky-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                                />
-                                <span className="text-[11px] font-mono text-slate-700 dark:text-slate-300">{penWidth}px</span>
+                            <div className="flex items-center gap-3">
+                                <input type="range" min="1" max="8" value={penWidth} onChange={(e) => setPenWidth(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer" />
+                                <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-300 w-6 text-right">{penWidth}px</span>
                             </div>
                             <button
                                 onClick={() => {
                                     const canvas = document.querySelector('canvas');
-                                    if (canvas) {
-                                        const ctx = canvas.getContext('2d');
-                                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                                    }
+                                    if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
                                     setPenStrokes([]);
                                 }}
-                                className="w-full py-1 text-center text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg font-medium transition-colors"
+                                className="w-full py-1.5 text-center text-xs text-red-500 bg-red-50/50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-lg font-bold transition-colors"
                             >
-                                Clear Canvas Strokes
+                                Clear Canvas
                             </button>
                         </div>
                     )}
-                </div>
 
-                {/* 3. AUDIO READER (TTS) */}
-                <div className="relative">
-                    <button
-                        onClick={() => setOpenPopover(openPopover === 'audio' ? null : 'audio')}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${audioState.isPlaying
-                            ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-300 ring-2 ring-indigo-400/50 shadow-sm animate-pulse'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        title="Listen to Article (Audio Narration)"
-                    >
-                        {audioState.isPlaying ? <Volume2 size={14} /> : <Volume2 size={14} className="opacity-70" />}
-                        <span className="hidden sm:inline">Listen</span>
-                        <ChevronDown size={12} className="opacity-60" />
-                    </button>
-
-                    {/* Audio Popover Dropdown */}
+                    {/* Audio Reader Panel */}
                     {openPopover === 'audio' && (
-                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-64 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="w-56 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Audio Narration</span>
-                                <span className="text-[10px] font-mono bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-bold">{audioState.rate}x Speed</span>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Narration</span>
+                                <span className="text-[10px] font-mono bg-sky-100/50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400 px-2 py-0.5 rounded-md font-bold">{audioState.rate}x</span>
                             </div>
-
-                            {/* Play / Pause / Stop Controls */}
-                            <div className="flex items-center justify-center gap-3 py-1">
-                                <button
-                                    onClick={handleStopAudio}
-                                    disabled={!audioState.isPlaying && !audioState.isPaused}
-                                    className="p-2 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 disabled:opacity-40 transition-colors"
-                                    title="Restart"
-                                >
-                                    <RotateCcw size={14} />
+                            <div className="flex items-center justify-center gap-4 py-2">
+                                <button onClick={() => { if (synthRef.current) synthRef.current.cancel(); setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false })); }} disabled={!audioState.isPlaying && !audioState.isPaused} className="p-2 rounded-full bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 disabled:opacity-40 transition-colors">
+                                    <RotateCcw size={16} />
                                 </button>
-                                <button
-                                    onClick={handleToggleAudio}
-                                    className="p-3 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-transform hover:scale-105"
-                                >
-                                    {audioState.isPlaying && !audioState.isPaused ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+                                <button onClick={handleToggleAudio} className="p-4 rounded-full bg-sky-600 hover:bg-sky-700 text-white shadow-lg shadow-sky-600/30 transition-transform hover:scale-105">
+                                    {audioState.isPlaying && !audioState.isPaused ? <Pause size={20} /> : <Play size={20} className="ml-1" />}
                                 </button>
                             </div>
-
-                            {/* Rate Selector */}
-                            <div className="grid grid-cols-4 gap-1 pt-2 border-t border-slate-100 dark:border-slate-800">
+                            <div className="grid grid-cols-4 gap-1.5 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
                                 {[0.75, 1.0, 1.25, 1.5].map(r => (
-                                    <button
-                                        key={r}
-                                        onClick={() => handleChangeAudioRate(r)}
-                                        className={`py-1 text-[11px] font-semibold rounded-md transition-colors ${audioState.rate === r
-                                            ? 'bg-indigo-600 text-white'
-                                            : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                                            }`}
-                                    >
+                                    <button key={r} onClick={() => {
+                                        setAudioState(prev => ({ ...prev, rate: r }));
+                                        if (audioState.isPlaying) {
+                                            if (synthRef.current) synthRef.current.cancel();
+                                            setTimeout(handleToggleAudio, 100);
+                                        }
+                                    }} className={`py-1 text-[11px] font-bold rounded-md transition-colors ${audioState.rate === r ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
                                         {r}x
                                     </button>
                                 ))}
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* 4. TYPOGRAPHY & READER MODE */}
-                <div className="relative">
-                    <button
-                        onClick={() => setOpenPopover(openPopover === 'type' ? null : 'type')}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        title="Typography & Focus Mode"
-                    >
-                        <Type size={14} />
-                        <span className="hidden sm:inline">Aa</span>
-                        <ChevronDown size={12} className="opacity-60" />
-                    </button>
-
-                    {/* Typography Popover Dropdown */}
+                    {/* Typography Panel */}
                     {openPopover === 'type' && (
-                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-64 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                            {/* Font Size Scaler */}
-                            <div className="flex flex-col gap-1.5">
-                                <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <div className="w-56 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-4">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                                     <span>Font Scale</span>
-                                    <span className="font-mono text-slate-700 dark:text-slate-300">{fontSizeScale}%</span>
+                                    <span className="font-mono text-slate-800 dark:text-slate-200">{fontSizeScale}%</span>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))}
-                                        className="p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
-                                    >
-                                        <ZoomOut size={14} />
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
+                                        <ZoomOut size={16} />
                                     </button>
-                                    <input
-                                        type="range"
-                                        min="85"
-                                        max="135"
-                                        step="5"
-                                        value={fontSizeScale}
-                                        onChange={(e) => updateTypography(Number(e.target.value))}
-                                        className="w-full accent-sky-600 h-1 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer"
-                                    />
-                                    <button
-                                        onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))}
-                                        className="p-1.5 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300"
-                                    >
-                                        <ZoomIn size={14} />
+                                    <input type="range" min="85" max="135" step="5" value={fontSizeScale} onChange={(e) => updateTypography(Number(e.target.value))} className="w-full accent-sky-600 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg cursor-pointer" />
+                                    <button onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))} className="p-1.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/50 hover:bg-slate-300/50 text-slate-700 dark:text-slate-300 transition-colors">
+                                        <ZoomIn size={16} />
                                     </button>
                                 </div>
                             </div>
-
-                            {/* Font Family Selector */}
-                            <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Typeface</span>
-                                <div className="grid grid-cols-3 gap-1">
-                                    {[
-                                        { id: 'sans', label: 'Sans', font: 'font-sans' },
-                                        { id: 'serif', label: 'Serif', font: 'font-serif' },
-                                        { id: 'mono', label: 'Mono', font: 'font-mono' }
-                                    ].map(f => (
-                                        <button
-                                            key={f.id}
-                                            onClick={() => updateTypography(undefined, f.id)}
-                                            className={`py-1 text-xs rounded font-medium transition-colors ${f.font} ${fontFamily === f.id
-                                                ? 'bg-sky-600 text-white'
-                                                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                                                }`}
-                                        >
+                            <div className="flex flex-col gap-2 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center">Typeface</span>
+                                <div className="grid grid-cols-3 gap-1.5">
+                                    {[{ id: 'sans', label: 'Sans' }, { id: 'serif', label: 'Serif' }, { id: 'mono', label: 'Mono' }].map(f => (
+                                        <button key={f.id} onClick={() => updateTypography(undefined, f.id)} className={`py-1.5 text-[11px] rounded-lg font-bold transition-colors ${fontFamily === f.id ? 'bg-sky-600 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
                                             {f.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Focus Mode Toggle */}
-                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
-                                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Focus Dimmer</span>
-                                <button
-                                    onClick={() => setIsFocusMode(!isFocusMode)}
-                                    className={`p-1.5 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold ${isFocusMode
-                                        ? 'bg-amber-500 text-white'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                                        }`}
-                                >
-                                    {isFocusMode ? <Eye size={14} /> : <EyeOff size={14} />}
-                                    <span>{isFocusMode ? 'ON' : 'OFF'}</span>
+                            <div className="pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex justify-between items-center">
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Focus Dimmer</span>
+                                <button onClick={() => setIsFocusMode(!isFocusMode)} className={`p-1.5 px-3 rounded-lg transition-colors flex items-center gap-1.5 text-[10px] font-bold ${isFocusMode ? 'bg-amber-500 text-white' : 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300/50'}`}>
+                                    {isFocusMode ? <Eye size={14} /> : <EyeOff size={14} />} {isFocusMode ? 'ON' : 'OFF'}
                                 </button>
                             </div>
                         </div>
                     )}
-                </div>
 
-                {/* 5. FINANCIAL CALCULATOR TOGGLE */}
-                <button
-                    onClick={() => setIsCalculatorVisible(!isCalculatorVisible)}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isCalculatorVisible
-                        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 ring-2 ring-emerald-400/50 shadow-sm'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    title="Toggle Financial Calculator"
-                >
-                    <Calculator size={14} />
-                    <span className="hidden md:inline">Calc</span>
-                </button>
-
-                {/* 6. HIGH-RES SNAPSHOT TOOL */}
-                <button
-                    onClick={handleCaptureSnapshot}
-                    disabled={snapshotStatus === 'capturing'}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${snapshotStatus === 'copied'
-                        ? 'bg-green-600 text-white'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                    title="Export High-Res PNG Snapshot"
-                >
-                    {snapshotStatus === 'copied' ? <Check size={14} /> : <Camera size={14} />}
-                    <span className="hidden md:inline">{snapshotStatus === 'capturing' ? 'Capturing...' : snapshotStatus === 'copied' ? 'Saved!' : 'Snapshot'}</span>
-                </button>
-
-                {/* 7. STICKY MARGIN NOTES */}
-                <div className="relative">
-                    <button
-                        onClick={() => setOpenPopover(openPopover === 'notes' ? null : 'notes')}
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${notes.length > 0
-                            ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 ring-2 ring-purple-400/50'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                            }`}
-                        title="Margin Notes & Bookmarks"
-                    >
-                        <StickyNote size={14} />
-                        <span className="hidden md:inline">Notes</span>
-                        {notes.length > 0 && (
-                            <span className="w-4 h-4 bg-purple-600 text-white rounded-full text-[10px] flex items-center justify-center font-bold">
-                                {notes.length}
-                            </span>
-                        )}
-                    </button>
-
-                    {/* Notes Popover Dropdown */}
+                    {/* Notes Panel */}
                     {openPopover === 'notes' && (
-                        <div className="absolute top-full mt-2 right-0 w-72 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-slate-700 shadow-2xl rounded-2xl p-4 flex flex-col gap-3 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100">Article Margin Notes</span>
-
-                            {/* New Note Form */}
-                            <div className="flex flex-col gap-1.5">
-                                <textarea
-                                    value={newNoteText}
-                                    onChange={(e) => setNewNoteText(e.target.value)}
-                                    placeholder="Write a quick note on this article..."
-                                    rows={2}
-                                    className="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-purple-500"
-                                />
-                                <button
-                                    onClick={() => {
-                                        if (newNoteText.trim()) {
-                                            addNote(newNoteText.trim());
-                                            setNewNoteText('');
-                                        }
-                                    }}
-                                    disabled={!newNoteText.trim()}
-                                    className="self-end px-3 py-1 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-xs font-semibold rounded-md transition-colors flex items-center gap-1"
-                                >
-                                    <Plus size={12} /> Add Note
+                        <div className="w-64 bg-white/70 dark:bg-slate-900/70 backdrop-blur-3xl border border-white/60 dark:border-slate-700/60 shadow-[0_16px_40px_rgba(0,0,0,0.15)] rounded-2xl p-4 flex flex-col gap-3">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margin Notes</span>
+                            <div className="flex flex-col gap-2">
+                                <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Type a note here..." rows={2} className="w-full text-xs p-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-950/50 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500/50 placeholder-slate-400" />
+                                <button onClick={() => { if (newNoteText.trim()) { addNote(newNoteText.trim()); setNewNoteText(''); } }} disabled={!newNoteText.trim()} className="self-end px-4 py-1.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 shadow-md shadow-purple-600/20">
+                                    <Plus size={12} /> Add
                                 </button>
                             </div>
-
-                            {/* Notes List */}
-                            <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                            <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar pt-2 border-t border-slate-200/50 dark:border-slate-700/50">
                                 {notes.length === 0 ? (
-                                    <p className="text-[11px] text-slate-400 italic text-center py-2">No notes added yet.</p>
+                                    <p className="text-[10px] text-slate-500 font-medium italic text-center py-4">No notes added.</p>
                                 ) : (
                                     notes.map(n => (
-                                        <div key={n.id} className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex justify-between items-start gap-2 group">
-                                            <p className="text-[11px] text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">{n.text}</p>
-                                            <button
-                                                onClick={() => deleteNote(n.id)}
-                                                className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                title="Delete note"
-                                            >
+                                        <div key={n.id} className="p-2.5 rounded-xl bg-white/40 dark:bg-slate-800/40 border border-slate-100/50 dark:border-slate-700/50 flex justify-between items-start gap-2 group shadow-sm">
+                                            <p className="text-[11px] text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">{n.text}</p>
+                                            <button onClick={() => deleteNote(n.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
                                                 <Trash2 size={12} />
                                             </button>
                                         </div>
@@ -561,21 +391,7 @@ const RadarSidebar = () => {
                         </div>
                     )}
                 </div>
-
-                {/* Reset to Default Cursor */}
-                {activeTool !== 'cursor' && (
-                    <button
-                        onClick={() => {
-                            setActiveTool('cursor');
-                            setOpenPopover(null);
-                        }}
-                        className="p-1 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ml-1"
-                        title="Exit active tool (Return to cursor)"
-                    >
-                        <X size={14} />
-                    </button>
-                )}
-            </nav>
+            </div>
         </>
     );
 };
