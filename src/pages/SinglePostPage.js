@@ -54,10 +54,13 @@
  * • Injected `<FloatingCalculator />` React Portal for client-side financial operations.
  * - EDITED (Phase 8.1 - Enterprise UX Implementation):
  * • Wrapped prose layer securely in AnnotationProvider, CanvasOverlay, and FloatingCalculator. Introduced AnnotatableProse to process mouseup selection events safely across the React lifecycle.
- *
  * - EDITED (Phase 8.3 - Left-Sticky Toolbar Integration):
  * • Restructured the main `<main>` container into a 3-column layout (`w-16` / `flex-1` / `w-[30%]`).
  * • Moved `<RadarSidebar />` from a globally floating element into a dedicated sticky-left container immediately beside the article headline for professional enterprise layout.
+ *
+ * - EDITED (Phase 8.5 - Dynamic Highlight Color Support):
+ * • Passed `highlightColor` from `useAnnotations()` directly into `wrapRangeInMarks` inside the `AnnotatableProse` component.
+ * • Why: The highlighter was previously hardcoded to yellow (`#fbbf24`), breaking the dynamic color palette feature in the UX Toolbar. It now correctly respects user preference.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -79,7 +82,7 @@ import FloatingCalculator from '../components/annotations/FloatingCalculator';
 import { wrapRangeInMarks, getXPath, restoreHighlightsFromMemory, removeMarksById } from '../components/annotations/HighlightEngine';
 
 const AnnotatableProse = ({ content }) => {
-    const { activeTool, addHighlight, removeHighlight, highlights, fontSizeScale, fontFamily } = useAnnotations();
+    const { activeTool, addHighlight, removeHighlight, highlights, highlightColor, fontSizeScale, fontFamily } = useAnnotations();
     const proseRef = useRef(null);
 
     // Initial Hydration of Highlights from State
@@ -96,9 +99,9 @@ const AnnotatableProse = ({ content }) => {
             const selection = window.getSelection();
             if (selection.rangeCount > 0 && !selection.isCollapsed) {
                 const range = selection.getRangeAt(0);
-                const color = '#fbbf24'; // Using amber as a default for quick highlight 
 
-                const id = wrapRangeInMarks(range, color, crypto.randomUUID(), removeHighlight);
+                // Wrap in <mark> tags supporting cross-boundary logic
+                const id = wrapRangeInMarks(range, highlightColor, crypto.randomUUID(), removeHighlight);
                 const root = proseRef.current;
 
                 const startXPath = getXPath(range.startContainer, root);
@@ -111,7 +114,7 @@ const AnnotatableProse = ({ content }) => {
                         startOffset: range.startOffset,
                         endXPath,
                         endOffset: range.endOffset,
-                        color,
+                        color: highlightColor,
                         text: selection.toString()
                     });
                 }
@@ -128,7 +131,7 @@ const AnnotatableProse = ({ content }) => {
                 proseNode.removeEventListener('mouseup', handleMouseUp);
             }
         };
-    }, [activeTool, addHighlight, removeHighlight]);
+    }, [activeTool, addHighlight, removeHighlight, highlightColor]);
 
     return (
         <div

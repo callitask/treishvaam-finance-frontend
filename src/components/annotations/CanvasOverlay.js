@@ -8,6 +8,10 @@
  * 
  * - EDITED (Phase 8.1 - Liquid Glass Enterprise UX):
  * • Integrated with centralized AnnotationContext to support dynamic color/width selection and cross-tool pointer event delegation.
+ *
+ * - EDITED (Phase 8.5 - Z-Index Layering Fix):
+ * • Elevated z-index from 10 to 30.
+ * • Why: The `.prose` container was operating at `z-20`, physically blocking all pointer events from reaching the `z-10` canvas. This elevation restores Stylus tracking perfectly.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -67,7 +71,7 @@ const CanvasOverlay = () => {
         <canvas
             ref={canvasRef}
             className={`absolute top-0 left-0 w-full h-full ${isPenActive ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'}`}
-            style={{ zIndex: 10 }}
+            style={{ zIndex: 30 }}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={() => setIsDrawing(false)}
