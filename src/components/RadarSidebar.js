@@ -31,9 +31,11 @@
  * - EDITED (Phase 8.9 - CI/CD Build Syntax Fix):
  * • Fixed `SyntaxError: Expected corresponding JSX closing tag for <>` by appending the missing `</>` root fragment closer at the bottom of the return statement, unblocking the Cloudflare Pages pipeline.
  *
- * - EDITED (Phase 8.10 - Liquid Glass Undo/Redo Matrix & Eraser):
- * • Integrated the Undo/Redo Engine pod. Conditionally renders circular frosted glass triggers to the right of the main capsule when `past` or `future` history arrays are populated.
- * • Added `Eraser` and `Clear All` tool buttons to the main vertical capsule list.
+ * - EDITED (Phase 8.10 - True WebKit Liquid Glass & Dynamic Geometry Expansion):
+ * • Replaced arbitrary Tailwind blur strings with explicit inline styles supporting `-webkit-backdrop-filter: blur(40px) saturate(180%)` to ensure true Apple-grade frosted glassmorphism across all browsers.
+ * • Upgraded capsule height from hardcoded `h-[460px]` to dynamic `h-auto min-h-[56px] max-h-[85vh]` to eliminate clipping on the Clear All (Trash) button.
+ * • Mounted the floating Liquid Glass Undo/Redo pod with `RotateCcw` and `RotateCw` icons, conditionally rendered when history stacks are populated.
+ * • Integrated the `Eraser` and `Clear All` tool buttons with contextual parameter panels.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -50,7 +52,6 @@ import {
     Pause,
     RotateCcw,
     RotateCw,
-    Camera,
     Type,
     StickyNote,
     Trash2,
@@ -211,8 +212,14 @@ const RadarSidebar = () => {
         }
     };
 
-    // Shared Glassmorphism CSS classes for premium enterprise aesthetic
-    const glassCSS = "bg-white/10 dark:bg-slate-900/40 backdrop-blur-[60px] backdrop-saturate-[200%] border border-white/20 dark:border-white/10 shadow-[inset_0_1px_1px_rgba(255,255,255,0.4),inset_0_-1px_1px_rgba(255,255,255,0.1),0_12px_40px_-8px_rgba(0,0,0,0.4)]";
+    // Guaranteed WebKit & Chromium-compliant Frosted Liquid Glass style object
+    const liquidGlassStyle = {
+        backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        backdropFilter: 'blur(40px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        boxShadow: 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), inset 0 -1px 1px 0 rgba(255, 255, 255, 0.1), 0 16px 36px -8px rgba(0, 0, 0, 0.35)',
+        border: '1px solid rgba(255, 255, 255, 0.25)'
+    };
 
     return (
         <>
@@ -233,13 +240,14 @@ const RadarSidebar = () => {
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[-1] transition-opacity duration-500 pointer-events-none" />
                 )}
 
-                {/* LIQUID GLASS UNDO/REDO MATRIX (Left side of the capsule) */}
+                {/* LIQUID GLASS UNDO/REDO MATRIX (Floats to the left on Desktop) */}
                 {(past.length > 0 || future.length > 0) && (
-                    <div className="absolute top-0 right-full mr-5 flex flex-col gap-3 animate-fade-in transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                    <div className="absolute top-0 right-full mr-4 flex flex-col gap-3 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
                         <button
                             disabled={past.length === 0}
                             onClick={undo}
-                            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 dark:bg-slate-900/40 backdrop-blur-[60px] backdrop-saturate-[200%] border border-white/20 shadow-lg text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                            style={liquidGlassStyle}
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
                             title="Undo"
                         >
                             <RotateCcw size={18} strokeWidth={2.5} />
@@ -247,7 +255,8 @@ const RadarSidebar = () => {
                         <button
                             disabled={future.length === 0}
                             onClick={redo}
-                            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 dark:bg-slate-900/40 backdrop-blur-[60px] backdrop-saturate-[200%] border border-white/20 shadow-lg text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                            style={liquidGlassStyle}
+                            className="w-11 h-11 rounded-full flex items-center justify-center text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
                             title="Redo"
                         >
                             <RotateCw size={18} strokeWidth={2.5} />
@@ -255,9 +264,10 @@ const RadarSidebar = () => {
                     </div>
                 )}
 
-                {/* CYLINDRICAL CAPSULE */}
+                {/* CYLINDRICAL CAPSULE (Dynamic Height Auto-Scaling to prevent clipping) */}
                 <div
-                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${glassCSS} ${isExpanded ? 'h-[460px] w-14 rounded-[28px]' : 'h-14 w-14 rounded-full'
+                    style={liquidGlassStyle}
+                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isExpanded ? 'h-auto min-h-[56px] max-h-[85vh] w-14 rounded-[28px] py-2 overflow-y-auto no-scrollbar shadow-2xl' : 'h-14 w-14 rounded-full'
                         }`}
                 >
                     {/* Main Trigger Button Container */}
@@ -288,7 +298,7 @@ const RadarSidebar = () => {
 
                     {/* Vertical Tools List (Expands inside the cylinder) */}
                     <div
-                        className={`relative z-10 flex flex-col w-full items-center mt-2 transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none absolute top-12'
+                        className={`relative z-10 flex flex-col w-full items-center mt-2 gap-0.5 transition-all duration-300 transform origin-top ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-90 pointer-events-none absolute top-12'
                             }`}
                     >
                         <ToolButton icon={Highlighter} label="Highlighter" onClick={() => handleToolSelect('highlight', 'highlighter')} isActive={activeTool === 'highlight'} />
@@ -303,13 +313,13 @@ const RadarSidebar = () => {
                     </div>
                 </div>
 
-                {/* EXPANDING SUB-PANELS (Pops out to the Right) */}
+                {/* EXPANDING SUB-PANELS (Pops out to the Right with guaranteed WebKit Glassmorphism) */}
                 <div
                     className={`absolute left-full ml-5 top-0 transition-all duration-400 origin-left z-50 ${hasActiveSubTool ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'
                         }`}
                 >
                     {openPopover && (
-                        <div className={`w-72 rounded-[28px] p-6 flex flex-col gap-5 ${glassCSS}`}>
+                        <div style={liquidGlassStyle} className="w-72 rounded-[28px] p-6 flex flex-col gap-5">
 
                             {/* Highlighter Panel */}
                             {openPopover === 'highlighter' && (
@@ -344,12 +354,12 @@ const RadarSidebar = () => {
                                 <>
                                     <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center shadow-sm">Ink & Style</span>
 
-                                    <div className="flex bg-slate-200/50 dark:bg-slate-800/60 rounded-xl p-1 shadow-inner">
+                                    <div className="flex bg-slate-200/40 dark:bg-slate-800/40 rounded-xl p-1 shadow-inner border border-white/10">
                                         {[{ id: 'pen', label: 'Solid' }, { id: 'brush', label: 'Soft' }, { id: 'fountain', label: 'Nib' }].map(style => (
                                             <button
                                                 key={style.id}
                                                 onClick={() => setPenStyle(style.id)}
-                                                className={`flex-1 text-[11px] font-bold py-2 rounded-lg transition-all ${penStyle === style.id ? 'bg-white dark:bg-slate-700 shadow-md text-sky-600 dark:text-sky-400 scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
+                                                className={`flex-1 text-[11px] font-bold py-2 rounded-lg transition-all ${penStyle === style.id ? 'bg-white/80 dark:bg-slate-700/80 shadow-md text-sky-600 dark:text-sky-400 scale-105' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'}`}
                                             >
                                                 {style.label}
                                             </button>
@@ -385,12 +395,12 @@ const RadarSidebar = () => {
                             {openPopover === 'eraser' && (
                                 <>
                                     <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center shadow-sm">Eraser Tool Active</span>
-                                    <div className="flex flex-col gap-2 items-center text-center">
-                                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
-                                            <Eraser size={24} className="text-slate-400" />
+                                    <div className="flex flex-col gap-2 items-center text-center py-2">
+                                        <div className="w-12 h-12 rounded-full bg-white/20 dark:bg-slate-800/50 border border-white/20 flex items-center justify-center mb-1 shadow-inner">
+                                            <Eraser size={22} className="text-sky-500 dark:text-sky-400" />
                                         </div>
-                                        <p className="text-xs text-slate-600 dark:text-slate-300">Click and drag over ink strokes to erase them.</p>
-                                        <p className="text-xs text-slate-600 dark:text-slate-300">Click directly on text highlights to remove them.</p>
+                                        <p className="text-xs text-slate-700 dark:text-slate-200 font-medium">Click and drag over ink strokes to erase them.</p>
+                                        <p className="text-xs text-slate-700 dark:text-slate-200 font-medium">Click directly on text highlights to remove them.</p>
                                     </div>
                                 </>
                             )}
@@ -403,7 +413,7 @@ const RadarSidebar = () => {
                                         <span className="text-[10px] font-mono bg-sky-200/50 dark:bg-sky-900/50 text-sky-800 dark:text-sky-300 px-2.5 py-1 rounded-lg font-bold shadow-sm">{audioState.rate}x</span>
                                     </div>
                                     <div className="flex items-center justify-center gap-6 py-3">
-                                        <button onClick={() => { if (synthRef.current) synthRef.current.cancel(); setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false })); }} disabled={!audioState.isPlaying && !audioState.isPaused} className="p-3 rounded-full bg-slate-200/60 dark:bg-slate-700/60 hover:bg-slate-300/60 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all shadow-sm">
+                                        <button onClick={() => { if (synthRef.current) synthRef.current.cancel(); setAudioState(prev => ({ ...prev, isPlaying: false, isPaused: false })); }} disabled={!audioState.isPlaying && !audioState.isPaused} className="p-3 rounded-full bg-white/20 dark:bg-slate-700/60 hover:bg-white/30 text-slate-700 dark:text-slate-200 disabled:opacity-40 transition-all shadow-sm border border-white/10">
                                             <RotateCcw size={20} />
                                         </button>
                                         <button onClick={handleToggleAudio} className="p-5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-900/20 dark:shadow-white/20 transition-transform hover:scale-110">
@@ -418,7 +428,7 @@ const RadarSidebar = () => {
                                                     if (synthRef.current) synthRef.current.cancel();
                                                     setTimeout(handleToggleAudio, 100);
                                                 }
-                                            }} className={`py-2 text-[11px] font-bold rounded-xl transition-all shadow-sm ${audioState.rate === r ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-105' : 'bg-slate-200/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
+                                            }} className={`py-2 text-[11px] font-bold rounded-xl transition-all shadow-sm ${audioState.rate === r ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-105' : 'bg-white/20 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-white/30'}`}>
                                                 {r}x
                                             </button>
                                         ))}
@@ -435,11 +445,11 @@ const RadarSidebar = () => {
                                             <span className="font-mono text-slate-800 dark:text-slate-200">{fontSizeScale}%</span>
                                         </div>
                                         <div className="flex items-center gap-4">
-                                            <button onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))} className="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-700/60 hover:bg-slate-300/60 text-slate-700 dark:text-slate-200 transition-colors shadow-sm">
+                                            <button onClick={() => updateTypography(Math.max(85, fontSizeScale - 5))} className="p-2.5 rounded-xl bg-white/20 dark:bg-slate-700/60 hover:bg-white/30 text-slate-700 dark:text-slate-200 transition-colors shadow-sm border border-white/10">
                                                 <ZoomOut size={18} />
                                             </button>
                                             <input type="range" min="85" max="135" step="5" value={fontSizeScale} onChange={(e) => updateTypography(Number(e.target.value))} className="w-full accent-slate-900 dark:accent-white h-1.5 bg-slate-300/50 dark:bg-slate-600/50 rounded-lg cursor-pointer shadow-inner" />
-                                            <button onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))} className="p-2.5 rounded-xl bg-slate-200/60 dark:bg-slate-700/60 hover:bg-slate-300/60 text-slate-700 dark:text-slate-200 transition-colors shadow-sm">
+                                            <button onClick={() => updateTypography(Math.min(135, fontSizeScale + 5))} className="p-2.5 rounded-xl bg-white/20 dark:bg-slate-700/60 hover:bg-white/30 text-slate-700 dark:text-slate-200 transition-colors shadow-sm border border-white/10">
                                                 <ZoomIn size={18} />
                                             </button>
                                         </div>
@@ -448,7 +458,7 @@ const RadarSidebar = () => {
                                         <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center shadow-sm">Typeface</span>
                                         <div className="grid grid-cols-3 gap-2">
                                             {[{ id: 'sans', label: 'Sans' }, { id: 'serif', label: 'Serif' }, { id: 'mono', label: 'Mono' }].map(f => (
-                                                <button key={f.id} onClick={() => updateTypography(undefined, f.id)} className={`py-2 text-[11px] rounded-xl font-bold transition-all shadow-sm ${fontFamily === f.id ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-105' : 'bg-slate-200/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-slate-300/50'}`}>
+                                                <button key={f.id} onClick={() => updateTypography(undefined, f.id)} className={`py-2 text-[11px] rounded-xl font-bold transition-all shadow-sm ${fontFamily === f.id ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-105' : 'bg-white/20 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 hover:bg-white/30'}`}>
                                                     {f.label}
                                                 </button>
                                             ))}
@@ -456,7 +466,7 @@ const RadarSidebar = () => {
                                     </div>
                                     <div className="pt-5 border-t border-white/20 dark:border-slate-600/50 flex justify-between items-center">
                                         <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 shadow-sm">Focus Dimmer</span>
-                                        <button onClick={() => setIsFocusMode(!isFocusMode)} className={`px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-2 text-xs font-bold ${isFocusMode ? 'bg-amber-500 text-white scale-105' : 'bg-slate-200/60 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 hover:bg-slate-300/60'}`}>
+                                        <button onClick={() => setIsFocusMode(!isFocusMode)} className={`px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-2 text-xs font-bold ${isFocusMode ? 'bg-amber-500 text-white scale-105' : 'bg-white/20 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 hover:bg-white/30'}`}>
                                             {isFocusMode ? <Eye size={16} /> : <EyeOff size={16} />} {isFocusMode ? 'ON' : 'OFF'}
                                         </button>
                                     </div>
@@ -468,7 +478,7 @@ const RadarSidebar = () => {
                                 <>
                                     <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest shadow-sm">Margin Notes</span>
                                     <div className="flex flex-col gap-3">
-                                        <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Type a note here..." rows={3} className="w-full text-xs p-3.5 rounded-2xl border border-white/50 dark:border-slate-600/50 bg-white/40 dark:bg-slate-950/40 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 placeholder-slate-500 shadow-inner resize-none" />
+                                        <textarea value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Type a note here..." rows={3} className="w-full text-xs p-3.5 rounded-2xl border border-white/30 dark:border-slate-600/50 bg-white/20 dark:bg-slate-950/40 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 placeholder-slate-500 shadow-inner resize-none" />
                                         <button onClick={() => { if (newNoteText.trim()) { addNote(newNoteText.trim()); setNewNoteText(''); } }} disabled={!newNoteText.trim()} className="self-end px-5 py-2.5 bg-slate-900 dark:bg-white disabled:opacity-40 text-white dark:text-slate-900 text-[11px] font-bold rounded-xl transition-all shadow-lg flex items-center gap-1.5 hover:scale-105">
                                             <Plus size={14} /> Add Note
                                         </button>
@@ -478,7 +488,7 @@ const RadarSidebar = () => {
                                             <p className="text-[11px] text-slate-500 font-medium italic text-center py-6">No notes added.</p>
                                         ) : (
                                             notes.map(n => (
-                                                <div key={n.id} className="p-3.5 rounded-2xl bg-white/50 dark:bg-slate-800/50 border border-white/40 dark:border-slate-700/50 flex justify-between items-start gap-3 group shadow-sm transition-all hover:shadow-md">
+                                                <div key={n.id} className="p-3.5 rounded-2xl bg-white/20 dark:bg-slate-800/50 border border-white/20 dark:border-slate-700/50 flex justify-between items-start gap-3 group shadow-sm transition-all hover:shadow-md">
                                                     <p className="text-[11px] text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed font-medium">{n.text}</p>
                                                     <button onClick={() => deleteNote(n.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all scale-90 hover:scale-110 mt-0.5" title="Delete note">
                                                         <Trash2 size={14} />

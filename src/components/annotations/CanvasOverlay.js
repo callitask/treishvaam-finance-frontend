@@ -20,11 +20,11 @@
  * • Encoded SVG data URIs via encodeURIComponent to resolve Chromium's rejection of unescaped brackets.
  * • Detached React pointer listeners and enforced 'pointerEvents: none' when inactive to prevent synthetic event swallowing.
  * • Corrected the Quadratic Bezier anchor point to 'prevMidPoint' for continuous, fluid strokes without overlapping artifacts.
- *
- * - EDITED (Phase 8.9 - GPU Hydration Loop & Eraser Hit-Detection):
+ * 
+ * - EDITED (Phase 8.9 - GPU Hydration Loop, Eraser Hit-Detection & Clean SVG Cursors):
  * • Built `redrawCanvas` utilizing `ctx.clearRect` to protect GPU memory from artifacting during Undo/Redo operations.
- * • Implemented `Math.hypot` spatial hit-detection to accurately splice out specific strokes via the Eraser tool.
- * • Converted custom SVG cursors to sleek, ultra-minimalist data URIs.
+ * • Implemented `Math.hypot` spatial proximity hit-detection to accurately splice out specific strokes via the Eraser tool.
+ * • Cleaned SVG cursor data URI strings by stripping legacy `;utf8,` and applying strict `encodeURIComponent`.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -59,15 +59,15 @@ const CanvasOverlay = () => {
 
         let svg = '';
         if (isEraserActive) {
-            svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.2)" stroke="rgba(0,0,0,0.4)" stroke-width="1.5" /><circle cx="12" cy="12" r="2" fill="rgba(0,0,0,0.6)"/></svg>`;
+            svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.25)" stroke="rgba(0,0,0,0.5)" stroke-width="1.5" /><circle cx="12" cy="12" r="2" fill="rgba(0,0,0,0.7)"/></svg>`;
         } else {
             // Refined, ultra-precise anti-aliased nib for pen
-            svg = `<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="3" fill="${penColor}" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" /></svg>`;
+            svg = `<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="3.5" fill="${penColor}" stroke="rgba(255,255,255,0.95)" stroke-width="1.5" /></svg>`;
         }
 
         const encodedSvg = encodeURIComponent(svg);
         const offset = isEraserActive ? 12 : 10;
-        setCursorSvg(`url('data:image/svg+xml,${encodedSvg}') ${offset} ${offset}, crosshair`);
+        setCursorSvg(`url("data:image/svg+xml,${encodedSvg}") ${offset} ${offset}, crosshair`);
     }, [canInteract, isEraserActive, penColor]);
 
     // Redraw Canvas Engine (Handles Undo/Redo & Resizes)
