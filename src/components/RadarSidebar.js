@@ -31,6 +31,10 @@
  * - EDITED (Phase 8.9 - CI/CD Build Syntax Fix):
  * • Fixed `SyntaxError: Expected corresponding JSX closing tag for <>` by appending the missing `</>` root fragment closer at the bottom of the return statement, unblocking the Cloudflare Pages pipeline.
  *
+ * - EDITED (Phase 8.10 - Liquid Glass Undo/Redo Matrix & Eraser):
+ * • Integrated the Undo/Redo Engine pod. Conditionally renders circular frosted glass triggers to the right of the main capsule when `past` or `future` history arrays are populated.
+ * • Added `Eraser` and `Clear All` tool buttons to the main vertical capsule list.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -45,10 +49,12 @@ import {
     Play,
     Pause,
     RotateCcw,
+    RotateCw,
     Camera,
     Type,
     StickyNote,
     Trash2,
+    Eraser,
     Eye,
     EyeOff,
     Check,
@@ -82,6 +88,7 @@ const RadarSidebar = () => {
         highlights, clearAllHighlights,
         highlightColor, setHighlightColor,
         penColor, setPenColor, penWidth, setPenWidth, setPenStyle, penStyle, setPenStrokes,
+        past, future, undo, redo, handleClearAll,
         isCalculatorVisible, setIsCalculatorVisible,
         fontSizeScale, updateTypography, fontFamily,
         isFocusMode, setIsFocusMode,
@@ -226,9 +233,31 @@ const RadarSidebar = () => {
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[-1] transition-opacity duration-500 pointer-events-none" />
                 )}
 
+                {/* LIQUID GLASS UNDO/REDO MATRIX (Left side of the capsule) */}
+                {(past.length > 0 || future.length > 0) && (
+                    <div className="absolute top-0 right-full mr-5 flex flex-col gap-3 animate-fade-in transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]">
+                        <button
+                            disabled={past.length === 0}
+                            onClick={undo}
+                            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 dark:bg-slate-900/40 backdrop-blur-[60px] backdrop-saturate-[200%] border border-white/20 shadow-lg text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                            title="Undo"
+                        >
+                            <RotateCcw size={18} strokeWidth={2.5} />
+                        </button>
+                        <button
+                            disabled={future.length === 0}
+                            onClick={redo}
+                            className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 dark:bg-slate-900/40 backdrop-blur-[60px] backdrop-saturate-[200%] border border-white/20 shadow-lg text-slate-700 dark:text-slate-200 transition-transform hover:scale-110 hover:bg-white/20 disabled:opacity-30 disabled:hover:scale-100 disabled:cursor-not-allowed"
+                            title="Redo"
+                        >
+                            <RotateCw size={18} strokeWidth={2.5} />
+                        </button>
+                    </div>
+                )}
+
                 {/* CYLINDRICAL CAPSULE */}
                 <div
-                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${glassCSS} ${isExpanded ? 'h-[400px] w-14 rounded-[28px]' : 'h-14 w-14 rounded-full'
+                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${glassCSS} ${isExpanded ? 'h-[460px] w-14 rounded-[28px]' : 'h-14 w-14 rounded-full'
                         }`}
                 >
                     {/* Main Trigger Button Container */}
@@ -264,11 +293,13 @@ const RadarSidebar = () => {
                     >
                         <ToolButton icon={Highlighter} label="Highlighter" onClick={() => handleToolSelect('highlight', 'highlighter')} isActive={activeTool === 'highlight'} />
                         <ToolButton icon={PenTool} label="Stylus / Pen" onClick={() => handleToolSelect('pen', 'pen')} isActive={activeTool === 'pen'} />
+                        <ToolButton icon={Eraser} label="Eraser" onClick={() => handleToolSelect('eraser', 'eraser')} isActive={activeTool === 'eraser'} />
                         <ToolButton icon={Volume2} label="Audio Reader" onClick={() => handleToolSelect('cursor', 'audio')} isActive={openPopover === 'audio'} />
                         <ToolButton icon={Type} label="Typography" onClick={() => handleToolSelect('cursor', 'type')} isActive={openPopover === 'type'} />
                         <ToolButton icon={Calculator} label="Calculator" onClick={() => { setIsCalculatorVisible(true); setOpenPopover(null); setActiveTool('cursor'); setIsHovered(false); }} isActive={isCalculatorVisible} />
                         <ToolButton icon={snapshotStatus === 'copied' ? Check : Crop} label={snapshotStatus === 'capturing' ? "Processing..." : "Snipping Tool"} onClick={handleStartSnip} />
                         <ToolButton icon={StickyNote} label="Margin Notes" onClick={() => handleToolSelect('cursor', 'notes')} isActive={openPopover === 'notes'} />
+                        <ToolButton icon={Trash2} label="Clear All" onClick={handleClearAll} />
                     </div>
                 </div>
 
@@ -342,15 +373,25 @@ const RadarSidebar = () => {
                                         <span className="text-[12px] font-mono font-bold text-slate-800 dark:text-slate-200 w-8 text-right">{penWidth}px</span>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            const canvas = document.querySelector('canvas');
-                                            if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-                                            setPenStrokes([]);
-                                        }}
+                                        onClick={handleClearAll}
                                         className="w-full py-2.5 text-center text-xs text-red-600 dark:text-red-400 bg-red-100/50 dark:bg-red-900/40 hover:bg-red-200/50 dark:hover:bg-red-800/40 rounded-xl font-bold transition-all shadow-sm hover:shadow-md"
                                     >
                                         Clear Canvas
                                     </button>
+                                </>
+                            )}
+
+                            {/* Eraser Panel */}
+                            {openPopover === 'eraser' && (
+                                <>
+                                    <span className="text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-widest text-center shadow-sm">Eraser Tool Active</span>
+                                    <div className="flex flex-col gap-2 items-center text-center">
+                                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-2">
+                                            <Eraser size={24} className="text-slate-400" />
+                                        </div>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300">Click and drag over ink strokes to erase them.</p>
+                                        <p className="text-xs text-slate-600 dark:text-slate-300">Click directly on text highlights to remove them.</p>
+                                    </div>
                                 </>
                             )}
 

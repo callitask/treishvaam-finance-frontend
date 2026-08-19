@@ -20,6 +20,11 @@
  * • Encoded SVG data URIs via encodeURIComponent to resolve Chromium's rejection of unescaped brackets.
  * • Detached React pointer listeners and enforced 'pointerEvents: none' when inactive to prevent synthetic event swallowing.
  * • Corrected the Quadratic Bezier anchor point to 'prevMidPoint' for continuous, fluid strokes without overlapping artifacts.
+ *
+ * - EDITED (Phase 8.9 - GPU Hydration Loop & Eraser Hit-Detection):
+ * • Built `redrawCanvas` utilizing `ctx.clearRect` to protect GPU memory from artifacting during Undo/Redo operations.
+ * • Implemented `Math.hypot` spatial hit-detection to accurately splice out specific strokes via the Eraser tool.
+ * • Converted custom SVG cursors to sleek, ultra-minimalist data URIs.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -28,8 +33,15 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useAnnotations } from '../../context/AnnotationContext';
 
+const ERASE_RADIUS = 10; // Precision target radius for hit detection
+
 const CanvasOverlay = () => {
-    const { activeTool, penColor, penWidth, penStyle } = useAnnotations();
+    const {
+        activeTool,
+        penColor, penWidth, penStyle,
+        penStrokes, saveStateToHistory, highlights
+    } = useAnnotations();
+
     const canvasRef = useRef(null);
     const [cursorSvg, setCursorSvg] = useState('crosshair');
 
@@ -38,23 +50,69 @@ const CanvasOverlay = () => {
     const pointsRef = useRef([]);
 
     const isPenActive = activeTool === 'pen';
+    const isEraserActive = activeTool === 'eraser';
+    const canInteract = isPenActive || isEraserActive;
 
-    // Dynamic High-Fidelity SVG Cursor Generator
+    // Dynamic High-Fidelity Minimalist SVG Cursor Generator
     useEffect(() => {
-        if (!isPenActive) return;
-        const radius = Math.max(penWidth / 2, 2);
-        const svgSize = radius * 2 + 4;
+        if (!canInteract) return;
 
         let svg = '';
-        if (penStyle === 'fountain') {
-            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><rect x="2" y="2" width="${radius * 2}" height="${radius * 2}" fill="${penColor}" stroke="white" stroke-width="1.5" transform="rotate(45 ${svgSize / 2} ${svgSize / 2})"/></svg>`;
+        if (isEraserActive) {
+            svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="10" fill="rgba(255,255,255,0.2)" stroke="rgba(0,0,0,0.4)" stroke-width="1.5" /><circle cx="12" cy="12" r="2" fill="rgba(0,0,0,0.6)"/></svg>`;
         } else {
-            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><circle cx="${svgSize / 2}" cy="${svgSize / 2}" r="${radius}" fill="${penColor}" stroke="white" stroke-width="1.5"/></svg>`;
+            // Refined, ultra-precise anti-aliased nib for pen
+            svg = `<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="3" fill="${penColor}" stroke="rgba(255,255,255,0.9)" stroke-width="1.5" /></svg>`;
         }
 
         const encodedSvg = encodeURIComponent(svg);
-        setCursorSvg(`url('data:image/svg+xml;utf8,${encodedSvg}') ${svgSize / 2} ${svgSize / 2}, auto`);
-    }, [isPenActive, penColor, penWidth, penStyle]);
+        const offset = isEraserActive ? 12 : 10;
+        setCursorSvg(`url('data:image/svg+xml,${encodedSvg}') ${offset} ${offset}, crosshair`);
+    }, [canInteract, isEraserActive, penColor]);
+
+    // Redraw Canvas Engine (Handles Undo/Redo & Resizes)
+    const redrawCanvas = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        // 1. Absolute GPU purge
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 2. Iterate and replay serialized strokes
+        penStrokes.forEach(stroke => {
+            const pts = stroke.points;
+            if (!pts || pts.length < 3) return;
+
+            for (let i = 2; i < pts.length; i++) {
+                const lastTwo = pts[i - 1];
+                const lastOne = pts[i];
+
+                const midPoint = {
+                    x: lastTwo.x + (lastOne.x - lastTwo.x) / 2,
+                    y: lastTwo.y + (lastOne.y - lastTwo.y) / 2
+                };
+
+                const prevMidPoint = {
+                    x: pts[i - 2].x + (lastTwo.x - pts[i - 2].x) / 2,
+                    y: pts[i - 2].y + (lastTwo.y - pts[i - 2].y) / 2
+                };
+
+                ctx.beginPath();
+                ctx.moveTo(prevMidPoint.x, prevMidPoint.y);
+
+                applyBrushPhysics(ctx, lastOne.pressure, lastOne.velocity, stroke.width, stroke.color, stroke.style);
+
+                ctx.quadraticCurveTo(lastTwo.x, lastTwo.y, midPoint.x, midPoint.y);
+                ctx.stroke();
+            }
+        });
+    };
+
+    // Trigger Hydration on state changes
+    useEffect(() => {
+        redrawCanvas();
+    }, [penStrokes]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -68,35 +126,29 @@ const CanvasOverlay = () => {
                 canvas.style.width = `${rect.width}px`;
                 canvas.style.height = `${rect.height}px`;
                 canvas.getContext('2d').scale(window.devicePixelRatio, window.devicePixelRatio);
+                redrawCanvas(); // Redraw ink after resolution scaling
             }
         };
         resize();
         window.addEventListener('resize', resize);
         return () => window.removeEventListener('resize', resize);
-    }, []);
+    }, [penStrokes]);
 
-    const applyBrushPhysics = (ctx, pressure, velocity) => {
-        ctx.strokeStyle = penColor;
+    const applyBrushPhysics = (ctx, pressure, velocity, targetWidth, targetColor, targetStyle) => {
+        ctx.strokeStyle = targetColor;
 
-        // Clamp velocity to a reasonable range to prevent infinite multipliers
         const clampedVelocity = Math.min(Math.max(velocity, 0.1), 5.0);
-
-        // Inverse Velocity Mapping: Fast = Thin, Slow = Thick.
         const velocityFactor = 1.5 / clampedVelocity;
+        const dynamicWidth = targetWidth * pressure * velocityFactor;
+        const finalWidth = Math.min(Math.max(dynamicWidth, targetWidth * 0.2), targetWidth * 2.5);
 
-        // Base Dynamic Width = Target Width * Hardware Pressure * Velocity Modifier
-        const dynamicWidth = penWidth * pressure * velocityFactor;
-
-        // Prevent strokes from getting too thin or too massive
-        const finalWidth = Math.min(Math.max(dynamicWidth, penWidth * 0.2), penWidth * 2.5);
-
-        switch (penStyle) {
+        switch (targetStyle) {
             case 'brush':
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
                 ctx.lineWidth = finalWidth * 1.5;
-                ctx.shadowBlur = penWidth * 1.5;
-                ctx.shadowColor = penColor;
+                ctx.shadowBlur = targetWidth * 1.5;
+                ctx.shadowColor = targetColor;
                 ctx.globalAlpha = 0.7;
                 break;
             case 'fountain':
@@ -118,13 +170,31 @@ const CanvasOverlay = () => {
     };
 
     const handlePointerDown = (e) => {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+
+        if (isEraserActive) {
+            // Hit-Detection Math: Find stroke intersecting with pointer coordinates
+            const strokeIndex = penStrokes.findIndex(stroke =>
+                stroke.points.some(pt => Math.hypot(pt.x - px, pt.y - py) <= ERASE_RADIUS)
+            );
+
+            if (strokeIndex !== -1) {
+                const updatedStrokes = [...penStrokes];
+                updatedStrokes.splice(strokeIndex, 1);
+                // Save to history engine
+                saveStateToHistory(highlights, updatedStrokes);
+            }
+            return;
+        }
+
         if (!isPenActive) return;
         isDrawing.current = true;
-        const rect = canvasRef.current.getBoundingClientRect();
 
         pointsRef.current = [{
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
+            x: px,
+            y: py,
             pressure: e.pointerType === 'pen' ? e.pressure : 0.5,
             time: performance.now()
         }];
@@ -145,17 +215,15 @@ const CanvasOverlay = () => {
             time: now
         };
 
-        // Calculate physics relative to the last point
         const lastPoint = pts[pts.length - 1];
-        const dt = Math.max(now - lastPoint.time, 1); // ms passed (avoid div zero)
+        const dt = Math.max(now - lastPoint.time, 1);
         const dx = newPoint.x - lastPoint.x;
         const dy = newPoint.y - lastPoint.y;
-        const velocity = Math.hypot(dx, dy) / dt; // pixels per ms
+        const velocity = Math.hypot(dx, dy) / dt;
 
         newPoint.velocity = velocity;
         pts.push(newPoint);
 
-        // Samsung-Grade Quadratic Bezier Smoothing (Requires 3 points)
         if (pts.length >= 3) {
             const lastTwo = pts[pts.length - 2];
             const lastOne = pts[pts.length - 1];
@@ -173,7 +241,7 @@ const CanvasOverlay = () => {
             ctx.beginPath();
             ctx.moveTo(prevMidPoint.x, prevMidPoint.y);
 
-            applyBrushPhysics(ctx, lastOne.pressure, lastOne.velocity);
+            applyBrushPhysics(ctx, lastOne.pressure, lastOne.velocity, penWidth, penColor, penStyle);
 
             ctx.quadraticCurveTo(lastTwo.x, lastTwo.y, midPoint.x, midPoint.y);
             ctx.stroke();
@@ -181,6 +249,20 @@ const CanvasOverlay = () => {
     };
 
     const handlePointerUp = () => {
+        if (isEraserActive) return;
+
+        if (isDrawing.current && pointsRef.current.length >= 3) {
+            const newStroke = {
+                id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+                points: [...pointsRef.current],
+                color: penColor,
+                width: penWidth,
+                style: penStyle
+            };
+            // Package into history engine
+            saveStateToHistory(highlights, [...penStrokes, newStroke]);
+        }
+
         isDrawing.current = false;
         pointsRef.current = [];
     };
@@ -191,14 +273,14 @@ const CanvasOverlay = () => {
             className="absolute top-0 left-0 w-full h-full"
             style={{
                 zIndex: 30,
-                cursor: isPenActive ? cursorSvg : 'auto',
-                pointerEvents: isPenActive ? 'auto' : 'none'
+                cursor: canInteract ? cursorSvg : 'auto',
+                pointerEvents: canInteract ? 'auto' : 'none'
             }}
-            onPointerDown={isPenActive ? handlePointerDown : undefined}
-            onPointerMove={isPenActive ? handlePointerMove : undefined}
-            onPointerUp={isPenActive ? handlePointerUp : undefined}
-            onPointerLeave={isPenActive ? handlePointerUp : undefined}
-            onPointerCancel={isPenActive ? handlePointerUp : undefined}
+            onPointerDown={canInteract ? handlePointerDown : undefined}
+            onPointerMove={canInteract ? handlePointerMove : undefined}
+            onPointerUp={canInteract ? handlePointerUp : undefined}
+            onPointerLeave={canInteract ? handlePointerUp : undefined}
+            onPointerCancel={canInteract ? handlePointerUp : undefined}
         />
     );
 };

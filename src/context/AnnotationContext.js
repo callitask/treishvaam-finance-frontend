@@ -19,6 +19,10 @@
  * • Added `penStyle` ('pen', 'brush', 'fountain') for advanced Samsung-level drawing interpolation.
  * • Upgraded color states to support infinite hex codes from native color pickers.
  *
+ * - EDITED (Phase 8.9 - Unified State Machine & Persistence Engine):
+ * • Engineered `past` and `future` stacks to support rigorous Undo/Redo mechanics for both DOM highlights and Canvas strokes.
+ * • Designed `handleClearAll` master reset to purge DOM nodes, React state, and browser localStorage synchronously.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -49,6 +53,10 @@ export const AnnotationProvider = ({ children, articleId }) => {
     const [penStyle, setPenStyle] = useState('pen'); // 'pen' | 'brush' | 'fountain'
     const [penStrokes, setPenStrokes] = useState([]);
 
+    // Undo/Redo History Stacks
+    const [past, setPast] = useState([]);
+    const [future, setFuture] = useState([]);
+
     // Financial Calculator
     const [isCalculatorVisible, setIsCalculatorVisible] = useState(false);
 
@@ -66,6 +74,68 @@ export const AnnotationProvider = ({ children, articleId }) => {
     const [notes, setNotes] = useState([]);
     const [isNotesOpen, setIsNotesOpen] = useState(false);
 
+    // 1. Core Persistence Logic
+    const persistState = useCallback((newHighlights, newStrokes) => {
+        if (articleId && typeof window !== 'undefined') {
+            localStorage.setItem(`treish_hl_${articleId}`, JSON.stringify(newHighlights));
+            localStorage.setItem(`treish_strokes_${articleId}`, JSON.stringify(newStrokes));
+        }
+    }, [articleId]);
+
+    // 2. Master History Engine (For all DOM and Canvas changes)
+    const saveStateToHistory = useCallback((newHighlights, newStrokes) => {
+        setPast(prev => [...prev, { highlights, penStrokes }]);
+        setFuture([]); // Clear future on new action
+        setHighlights(newHighlights);
+        setPenStrokes(newStrokes);
+        persistState(newHighlights, newStrokes);
+    }, [highlights, penStrokes, persistState]);
+
+    const undo = useCallback(() => {
+        if (past.length === 0) return;
+        const previous = past[past.length - 1];
+        const newPast = past.slice(0, past.length - 1);
+
+        setPast(newPast);
+        setFuture(prev => [{ highlights, penStrokes }, ...prev]);
+
+        setHighlights(previous.highlights);
+        setPenStrokes(previous.penStrokes);
+        persistState(previous.highlights, previous.penStrokes);
+    }, [past, highlights, penStrokes, persistState]);
+
+    const redo = useCallback(() => {
+        if (future.length === 0) return;
+        const next = future[0];
+        const newFuture = future.slice(1);
+
+        setFuture(newFuture);
+        setPast(prev => [...prev, { highlights, penStrokes }]);
+
+        setHighlights(next.highlights);
+        setPenStrokes(next.penStrokes);
+        persistState(next.highlights, next.penStrokes);
+    }, [future, highlights, penStrokes, persistState]);
+
+    const handleClearAll = useCallback(() => {
+        // Save current state so the clear action can be undone
+        saveStateToHistory([], []);
+
+        // Purge physical DOM marks
+        document.querySelectorAll('mark.treish-highlight').forEach(mark => {
+            const parent = mark.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+                parent.normalize();
+            }
+        });
+    }, [saveStateToHistory]);
+
+    // Legacy Wrappers routed through History Engine
+    const addHighlight = useCallback((highlight) => saveStateToHistory([...highlights, highlight], penStrokes), [highlights, penStrokes, saveStateToHistory]);
+    const removeHighlight = useCallback((id) => saveStateToHistory(highlights.filter(h => h.id !== id), penStrokes), [highlights, penStrokes, saveStateToHistory]);
+
+    // 3. Hydration
     useEffect(() => {
         if (!articleId || typeof window === 'undefined') return;
         try {
@@ -88,17 +158,6 @@ export const AnnotationProvider = ({ children, articleId }) => {
             console.warn('[AnnotationContext] Failed to load cached preferences');
         }
     }, [articleId]);
-
-    const saveHighlights = useCallback((newHighlights) => {
-        setHighlights(newHighlights);
-        if (articleId && typeof window !== 'undefined') {
-            localStorage.setItem(`treish_hl_${articleId}`, JSON.stringify(newHighlights));
-        }
-    }, [articleId]);
-
-    const addHighlight = useCallback((highlight) => saveHighlights([...highlights, highlight]), [highlights, saveHighlights]);
-    const removeHighlight = useCallback((id) => saveHighlights(highlights.filter(h => h.id !== id)), [highlights, saveHighlights]);
-    const clearAllHighlights = useCallback(() => saveHighlights([]), [saveHighlights]);
 
     const saveNotes = useCallback((newNotes) => {
         setNotes(newNotes);
@@ -128,9 +187,11 @@ export const AnnotationProvider = ({ children, articleId }) => {
         <AnnotationContext.Provider value={{
             articleId,
             activeTool, setActiveTool,
-            highlights, addHighlight, removeHighlight, clearAllHighlights,
+            highlights, addHighlight, removeHighlight, handleClearAll,
             highlightColor, setHighlightColor,
-            penColor, setPenColor, penWidth, setPenWidth, penStyle, setPenStyle, penStrokes, setPenStrokes,
+            penColor, setPenColor, penWidth, setPenWidth, penStyle, setPenStyle,
+            penStrokes, setPenStrokes,
+            past, future, undo, redo, saveStateToHistory,
             isCalculatorVisible, setIsCalculatorVisible,
             fontSizeScale, setFontSizeScale, fontFamily, setFontFamily, updateTypography,
             isFocusMode, setIsFocusMode,

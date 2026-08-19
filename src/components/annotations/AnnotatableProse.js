@@ -19,6 +19,10 @@
  * - EDITED (Phase 8.8 - Cursor SVG Encoding):
  * • Encoded the custom SVG cursor string via encodeURIComponent to resolve rendering failures in modern Chromium browsers that reject unescaped characters in data URIs.
  *
+ * - EDITED (Phase 8.9 - Eraser Engine Integration):
+ * • Implemented a delegated `onClick` event listener on the `.prose` container to intercept clicks on `<mark>` elements when the Eraser tool is active.
+ * • Delegated the 'none' cursor state to the Eraser tool to allow `CanvasOverlay` to control the crosshair precision visually.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -47,8 +51,8 @@ const AnnotatableProse = ({ content }) => {
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${highlightColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`;
             const encodedSvg = encodeURIComponent(svg);
             setCursor(`url("data:image/svg+xml;utf8,${encodedSvg}") 12 12, text`);
-        } else if (activeTool === 'pen') {
-            setCursor('none'); // Handled by CanvasOverlay
+        } else if (activeTool === 'pen' || activeTool === 'eraser') {
+            setCursor('none'); // Handled by CanvasOverlay for precision hit-detection
         } else {
             setCursor('auto');
         }
@@ -107,9 +111,24 @@ const AnnotatableProse = ({ content }) => {
         };
     }, [addHighlight, removeHighlight]);
 
+    // 5. Delegated Eraser Click Handler for Text Highlights
+    const handleProseClick = (e) => {
+        if (activeToolRef.current === 'eraser' || e.shiftKey || e.altKey) {
+            const mark = e.target.closest('mark.treish-highlight');
+            if (mark) {
+                // Ensure we capture either the custom data attribute or ID
+                const id = mark.getAttribute('data-highlight-id') || mark.id;
+                if (id) {
+                    removeHighlight(id);
+                }
+            }
+        }
+    };
+
     return (
         <div
             ref={proseRef}
+            onClick={handleProseClick}
             className={`prose prose-lg dark:prose-invert prose-slate max-w-none font-${fontFamily} leading-relaxed relative z-20`}
             style={{
                 fontSize: `${fontSizeScale}%`,
