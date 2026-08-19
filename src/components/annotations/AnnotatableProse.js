@@ -28,6 +28,10 @@
  * • Reordered `wrapRangeInMarks` execution. We now strictly evaluate `getXPath` *before* wrapping nodes to prevent DOM splitting from invalidating the native selection range container.
  * • Added `selection.removeAllRanges()` immediately upon completion for true Adobe Acrobat-style seamless visual clearing.
  *
+ * - EDITED (Phase 8.12 - Selection Caching Engine):
+ * • Implemented native 'selectionchange' listener to passively cache the DOM Range object.
+ * • Why: Clicking the Liquid Glass toolbar in WebKit/Safari natively collapses the text selection before React can process it. Caching the range deeply decouples the selection phase from the tool activation phase.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -43,9 +47,9 @@ const AnnotatableProse = ({ content }) => {
     const [cursor, setCursor] = useState('auto');
 
     // 1. Ref-Backed State Synchronization
-    // Prevents stale closures in native event listeners without requiring constant re-binding
     const activeToolRef = useRef(activeTool);
     const highlightColorRef = useRef(highlightColor);
+    const cachedRangeRef = useRef(null);
 
     useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
     useEffect(() => { highlightColorRef.current = highlightColor; }, [highlightColor]);
@@ -70,7 +74,53 @@ const AnnotatableProse = ({ content }) => {
         }
     }, [highlights, removeHighlight]);
 
-    // 4. Native DOM Event Listener (Solves the React Synthetic Event Race Condition)
+    // 4. Zero-Trust Range Caching (Solves WebKit/Safari Toolbar Focus-Steal Race Condition)
+    useEffect(() => {
+        const handleSelectionChange = () => {
+            const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+                const range = selection.getRangeAt(0);
+                if (proseRef.current && proseRef.current.contains(range.commonAncestorContainer)) {
+                    cachedRangeRef.current = range.cloneRange();
+                }
+            }
+        };
+
+        document.addEventListener('selectionchange', handleSelectionChange);
+        return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    }, []);
+
+    // 4.5. Reactive Highlighting (Processes cached range when user selects text FIRST, then clicks the tool)
+    useEffect(() => {
+        if (activeTool === 'highlight' && cachedRangeRef.current) {
+            const range = cachedRangeRef.current;
+            const root = proseRef.current;
+
+            if (!root || !root.contains(range.commonAncestorContainer)) return;
+
+            const startXPath = getXPath(range.startContainer, root);
+            const endXPath = getXPath(range.endContainer, root);
+            const startOffset = range.startOffset;
+            const endOffset = range.endOffset;
+            const textStr = range.toString();
+
+            if (!startXPath || !endXPath) return;
+
+            const tempId = window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+            const id = wrapRangeInMarks(range, highlightColor, tempId, removeHighlight);
+
+            if (id) {
+                addHighlight({
+                    id, startXPath, startOffset, endXPath, endOffset, color: highlightColor, text: textStr
+                });
+            }
+
+            cachedRangeRef.current = null;
+            window.getSelection().removeAllRanges();
+        }
+    }, [activeTool, highlightColor, addHighlight, removeHighlight]);
+
+    // 5. Native DOM Event Listener (Handles highlighting when tool is ALREADY active)
     useEffect(() => {
         const handleNativeMouseUp = () => {
             if (activeToolRef.current !== 'highlight') return;
@@ -80,11 +130,8 @@ const AnnotatableProse = ({ content }) => {
                 const range = selection.getRangeAt(0);
                 const root = proseRef.current;
 
-                // Ensure selection is actually inside our article body
                 if (!root || !root.contains(range.commonAncestorContainer)) return;
 
-                // EXTREMELY CRITICAL: Calculate XPaths BEFORE DOM wrapping.
-                // Mutating the DOM splits TextNodes and immediately invalidates the Range objects.
                 const startXPath = getXPath(range.startContainer, root);
                 const endXPath = getXPath(range.endContainer, root);
                 const startOffset = range.startOffset;
@@ -110,12 +157,11 @@ const AnnotatableProse = ({ content }) => {
                     });
                 }
 
-                // Acrobat-style instant selection clearing
+                cachedRangeRef.current = null;
                 selection.removeAllRanges();
             }
         };
 
-        // Bind natively to guarantee synchronous execution
         document.addEventListener('mouseup', handleNativeMouseUp);
         document.addEventListener('touchend', handleNativeMouseUp);
 
@@ -125,7 +171,7 @@ const AnnotatableProse = ({ content }) => {
         };
     }, [addHighlight, removeHighlight]);
 
-    // 5. Delegated Eraser Click Handler for Text Highlights
+    // 6. Delegated Eraser Click Handler
     const handleProseClick = (e) => {
         if (activeToolRef.current === 'eraser' || e.shiftKey || e.altKey) {
             const mark = e.target.closest('mark.treish-highlight');

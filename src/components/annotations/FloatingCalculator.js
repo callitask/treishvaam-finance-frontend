@@ -15,6 +15,10 @@
  * • Finance Engine: Built a dual-mode state machine (Standard vs Finance). Integrated PV, FV, PMT, and ROI algorithmic calculations.
  * • Notes Integration: Added direct-to-margin-notes export formatting (e.g., "[Finance Calc] PV: $10k...").
  * 
+ * - EDITED (Phase 8.12 - Grid Alignment & Interstitial UX):
+ * • Restored Apple-standard 5x4 CSS Grid geometry to reclaim the missing '=' operator.
+ * • Replaced obstructive absolute modal with a sleek 'translate-y' slide-up portal for the Notes integration.
+ * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -40,6 +44,10 @@ const FloatingCalculator = () => {
 
     // Finance Ops State
     const [finState, setFinState] = useState({ rate: '', nper: '', pmt: '', pv: '', fv: '' });
+
+    // UX Interstitial State
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+    const [noteDraft, setNoteDraft] = useState('');
 
     useEffect(() => {
         setMounted(true);
@@ -156,14 +164,25 @@ const FloatingCalculator = () => {
         setWaitingForNewValue(true);
     };
 
-    const sendToNotes = () => {
+    const openNoteModal = () => {
+        setIsNoteModalOpen(true);
+        setNoteDraft('');
+    };
+
+    const confirmSendToNotes = () => {
         let noteString = '';
         if (calcMode === 'standard') {
             noteString = `[Calculation] Result: ${display}`;
         } else {
             noteString = `[Finance Calc]\nRate: ${finState.rate || 0}%\nPeriods: ${finState.nper || 0}\nPMT: $${finState.pmt || 0}\nPV: $${finState.pv || 0}\nFV: $${finState.fv || 0}\nResult: ${display}`;
         }
+
+        if (noteDraft.trim()) {
+            noteString = `${noteDraft.trim()}\n\n${noteString}`;
+        }
+
         addNote(noteString);
+        setIsNoteModalOpen(false);
     };
 
     const glassStyle = {
@@ -194,29 +213,30 @@ const FloatingCalculator = () => {
                 <button onClick={() => setIsCalculatorVisible(false)} className="w-6 h-6 rounded-full bg-red-500/80 hover:bg-red-500 text-white flex items-center justify-center text-xs transition-colors shadow-sm">✕</button>
             </div>
 
-            <div className="p-4 flex flex-col gap-3">
+            <div className="p-4 flex flex-col gap-3 relative">
                 <div className="w-full p-3 bg-white/40 dark:bg-slate-950/40 border border-white/30 dark:border-slate-700/50 rounded-xl text-right text-3xl font-mono text-slate-800 dark:text-slate-100 overflow-hidden text-ellipsis shadow-inner">
                     {display}
                 </div>
 
                 {calcMode === 'standard' ? (
                     <div className="grid grid-cols-4 gap-2">
-                        <button onClick={handleClear} className="col-span-2 p-3 bg-slate-200/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 font-bold rounded-xl hover:bg-white/40 transition-colors shadow-sm">AC</button>
+                        <button onClick={handleClear} className="col-span-1 p-3 bg-slate-200/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 font-bold rounded-xl hover:bg-white/40 transition-colors shadow-sm">AC</button>
                         <button onClick={() => handleAdvancedOp('+/-')} className="p-3 bg-slate-200/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 font-bold rounded-xl hover:bg-white/40 transition-colors shadow-sm">+/-</button>
                         <button onClick={() => handleAdvancedOp('%')} className="p-3 bg-slate-200/50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 font-bold rounded-xl hover:bg-white/40 transition-colors shadow-sm">%</button>
-
-                        {[7, 8, 9].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
                         <button onClick={() => handleOp('/')} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">÷</button>
 
-                        {[4, 5, 6].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
+                        {[7, 8, 9].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
                         <button onClick={() => handleOp('*')} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">×</button>
 
-                        {[1, 2, 3].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
+                        {[4, 5, 6].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
                         <button onClick={() => handleOp('-')} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">−</button>
+
+                        {[1, 2, 3].map(n => <button key={n} onClick={() => handleNum(n)} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">{n}</button>)}
+                        <button onClick={() => handleOp('+')} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">+</button>
 
                         <button onClick={() => handleNum(0)} className="col-span-2 p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">0</button>
                         <button onClick={() => handleNum('.')} className="p-3 bg-white/30 dark:bg-slate-800/30 text-slate-900 dark:text-slate-100 font-semibold rounded-xl hover:bg-white/50 transition-colors shadow-sm">.</button>
-                        <button onClick={handleEqual} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">+</button>
+                        <button onClick={handleEqual} className="p-3 bg-sky-500/80 text-white font-bold rounded-xl hover:bg-sky-400 transition-colors shadow-sm">=</button>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
@@ -237,12 +257,27 @@ const FloatingCalculator = () => {
                 )}
 
                 <button
-                    onClick={sendToNotes}
+                    onClick={openNoteModal}
                     className="mt-2 w-full p-2.5 bg-slate-900/80 dark:bg-white/80 hover:bg-slate-900 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-extrabold rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2"
                 >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
                     Send to Notes
                 </button>
+            </div>
+
+            {/* Interstitial Slide-up Modal */}
+            <div className={`absolute bottom-0 left-0 right-0 h-full z-50 bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-xl border-t border-white/20 p-4 flex flex-col justify-center gap-3 transition-transform duration-300 ${isNoteModalOpen ? 'translate-y-0' : 'translate-y-full'}`}>
+                <label className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Add a custom note (optional):</label>
+                <textarea
+                    value={noteDraft}
+                    onChange={e => setNoteDraft(e.target.value)}
+                    placeholder="Enter notes..."
+                    className="w-full bg-white/10 border border-white/20 rounded p-2 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-400 resize-none h-24"
+                />
+                <div className="flex gap-2 justify-end mt-2">
+                    <button onClick={() => setIsNoteModalOpen(false)} className="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-white text-[10px] font-bold transition-colors">Cancel</button>
+                    <button onClick={confirmSendToNotes} className="px-4 py-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-[10px] font-bold transition-colors shadow-lg">Confirm Send</button>
+                </div>
             </div>
         </div>,
         document.body

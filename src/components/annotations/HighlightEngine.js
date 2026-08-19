@@ -21,6 +21,9 @@
  * • Fixed the "Dead Highlighter" bug. When selections cross block boundaries (e.g., multiple `<p>` tags), `commonAncestorContainer` resolves to the parent `div`.
  * • Implemented a robust `NodeFilter.SHOW_TEXT` iteration that explicitly checks `range.intersectsNode(currentNode)` and ignores empty whitespace nodes, ensuring all text segments within the multi-paragraph selection are successfully serialized and wrapped.
  *
+ * - EDITED (Phase 8.12 - Focus-Steal Race Condition Fix):
+ * • Altered root resolution to support '.' for exact node matches, curing the cross-paragraph TreeWalker abort.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -35,7 +38,8 @@ const generateSafeId = () => {
 };
 
 export const getXPath = (node, root) => {
-    if (!node || node === root) return '';
+    if (!node) return '';
+    if (node === root) return '.';
     if (node.nodeType === Node.TEXT_NODE) {
         const parent = node.parentNode;
         if (!parent) return '';
