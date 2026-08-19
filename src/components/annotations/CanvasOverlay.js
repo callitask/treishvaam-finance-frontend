@@ -15,6 +15,11 @@
  * • Replaced static line weights with a dynamic Momentum Engine.
  * • Captures high-resolution timestamps via `performance.now()`. Calculates velocity (`Math.hypot(dx, dy) / dt`).
  * • Inversely maps velocity to stroke thickness (fast swipe = thin tail; slow drag = thick ink pool), multiplying by hardware `e.pressure` for hyper-realistic calligraphy.
+ *
+ * - EDITED (Phase 8.8 - Cursor SVG Encoding & Physics Continuity):
+ * • Encoded SVG data URIs via encodeURIComponent to resolve Chromium's rejection of unescaped brackets.
+ * • Detached React pointer listeners and enforced 'pointerEvents: none' when inactive to prevent synthetic event swallowing.
+ * • Corrected the Quadratic Bezier anchor point to 'prevMidPoint' for continuous, fluid strokes without overlapping artifacts.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -39,16 +44,16 @@ const CanvasOverlay = () => {
         if (!isPenActive) return;
         const radius = Math.max(penWidth / 2, 2);
         const svgSize = radius * 2 + 4;
-        const encodedColor = encodeURIComponent(penColor);
 
         let svg = '';
         if (penStyle === 'fountain') {
-            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><rect x="2" y="2" width="${radius * 2}" height="${radius * 2}" fill="${encodedColor}" stroke="white" stroke-width="1.5" transform="rotate(45 ${svgSize / 2} ${svgSize / 2})"/></svg>`;
+            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><rect x="2" y="2" width="${radius * 2}" height="${radius * 2}" fill="${penColor}" stroke="white" stroke-width="1.5" transform="rotate(45 ${svgSize / 2} ${svgSize / 2})"/></svg>`;
         } else {
-            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><circle cx="${svgSize / 2}" cy="${svgSize / 2}" r="${radius}" fill="${encodedColor}" stroke="white" stroke-width="1.5"/></svg>`;
+            svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}"><circle cx="${svgSize / 2}" cy="${svgSize / 2}" r="${radius}" fill="${penColor}" stroke="white" stroke-width="1.5"/></svg>`;
         }
 
-        setCursorSvg(`url('data:image/svg+xml;utf8,${svg}') ${svgSize / 2} ${svgSize / 2}, auto`);
+        const encodedSvg = encodeURIComponent(svg);
+        setCursorSvg(`url('data:image/svg+xml;utf8,${encodedSvg}') ${svgSize / 2} ${svgSize / 2}, auto`);
     }, [isPenActive, penColor, penWidth, penStyle]);
 
     useEffect(() => {
@@ -160,8 +165,13 @@ const CanvasOverlay = () => {
                 y: lastTwo.y + (lastOne.y - lastTwo.y) / 2
             };
 
+            const prevMidPoint = {
+                x: pts[pts.length - 3].x + (lastTwo.x - pts[pts.length - 3].x) / 2,
+                y: pts[pts.length - 3].y + (lastTwo.y - pts[pts.length - 3].y) / 2
+            };
+
             ctx.beginPath();
-            ctx.moveTo(pts[pts.length - 3].x, pts[pts.length - 3].y);
+            ctx.moveTo(prevMidPoint.x, prevMidPoint.y);
 
             applyBrushPhysics(ctx, lastOne.pressure, lastOne.velocity);
 
@@ -178,15 +188,17 @@ const CanvasOverlay = () => {
     return (
         <canvas
             ref={canvasRef}
-            className={`absolute top-0 left-0 w-full h-full ${isPenActive ? 'pointer-events-auto' : 'pointer-events-none'}`}
+            className="absolute top-0 left-0 w-full h-full"
             style={{
                 zIndex: 30,
-                cursor: isPenActive ? cursorSvg : 'auto'
+                cursor: isPenActive ? cursorSvg : 'auto',
+                pointerEvents: isPenActive ? 'auto' : 'none'
             }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
+            onPointerDown={isPenActive ? handlePointerDown : undefined}
+            onPointerMove={isPenActive ? handlePointerMove : undefined}
+            onPointerUp={isPenActive ? handlePointerUp : undefined}
+            onPointerLeave={isPenActive ? handlePointerUp : undefined}
+            onPointerCancel={isPenActive ? handlePointerUp : undefined}
         />
     );
 };

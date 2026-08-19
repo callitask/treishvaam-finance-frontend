@@ -14,6 +14,10 @@
  * • Utilizes strict `setPointerCapture` to freeze background interactions while the user drags the crop rectangle.
  * • Features a CSS `clip-path` inverted mask to simulate a spotlight effect over the selected content.
  *
+ * - EDITED (Phase 8.8 - Snipping Tool Truncation Fix):
+ * • Removed the destructive 'overflow: hidden' DOM mutation on document.body during capture.
+ * • Why: The mutation artificially truncated the body height, causing absolute coordinate mapping in html2canvas to clip out-of-bounds when scrolled.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -33,12 +37,8 @@ const SnippingToolOverlay = ({ onCapture, onCancel }) => {
         };
         window.addEventListener('keydown', handleKeyDown);
 
-        // Prevent body scrolling while snipping
-        document.body.style.overflow = 'hidden';
-
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
-            document.body.style.overflow = 'auto';
         };
     }, [onCancel]);
 
