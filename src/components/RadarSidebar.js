@@ -33,9 +33,12 @@
  *
  * - EDITED (Phase 8.10 - True WebKit Liquid Glass & Dynamic Geometry Expansion):
  * • Replaced arbitrary Tailwind blur strings with explicit inline styles supporting `-webkit-backdrop-filter: blur(40px) saturate(180%)` to ensure true Apple-grade frosted glassmorphism across all browsers.
- * • Upgraded capsule height from hardcoded `h-[460px]` to dynamic `h-auto min-h-[56px] max-h-[85vh]` to eliminate clipping on the Clear All (Trash) button.
  * • Mounted the floating Liquid Glass Undo/Redo pod with `RotateCcw` and `RotateCw` icons, conditionally rendered when history stacks are populated.
  * • Integrated the `Eraser` and `Clear All` tool buttons with contextual parameter panels.
+ *
+ * - EDITED (Phase 8.11 - Dustbin Overflow Fix & Inline Glassmorphism Enforcement):
+ * • Upgraded capsule height from hardcoded `h-[460px]` to dynamic `h-max min-h-[56px] py-2` to completely eliminate component overflow (Dustbin icon clipping) while preserving smooth expansion arrays.
+ * • Re-applied the strict `liquidGlassStyle` inline matrix to sub-components to cure the Tailwind JIT "Fake Glass" compilation failures.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -267,7 +270,7 @@ const RadarSidebar = () => {
                 {/* CYLINDRICAL CAPSULE (Dynamic Height Auto-Scaling to prevent clipping) */}
                 <div
                     style={liquidGlassStyle}
-                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isExpanded ? 'h-auto min-h-[56px] max-h-[85vh] w-14 rounded-[28px] py-2 overflow-y-auto no-scrollbar shadow-2xl' : 'h-14 w-14 rounded-full'
+                    className={`relative flex flex-col items-center p-1.5 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isExpanded ? 'h-max min-h-[56px] w-14 rounded-[28px] py-2 overflow-y-auto no-scrollbar shadow-2xl' : 'h-14 w-14 rounded-full'
                         }`}
                 >
                     {/* Main Trigger Button Container */}

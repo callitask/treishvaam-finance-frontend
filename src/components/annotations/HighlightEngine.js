@@ -17,6 +17,10 @@
  * - EDITED (Phase 8.6 - UUID Polyfill Hardening):
  * • Injected a `generateSafeId()` fallback. The native `crypto.randomUUID()` fails silently in non-secure (HTTP) or isolated environments. The fallback ensures highlights always receive a valid ID, preventing selection collapse.
  *
+ * - EDITED (Phase 8.11 - Cross-Paragraph TreeWalker Resolution):
+ * • Fixed the "Dead Highlighter" bug. When selections cross block boundaries (e.g., multiple `<p>` tags), `commonAncestorContainer` resolves to the parent `div`.
+ * • Implemented a robust `NodeFilter.SHOW_TEXT` iteration that explicitly checks `range.intersectsNode(currentNode)` and ignores empty whitespace nodes, ensuring all text segments within the multi-paragraph selection are successfully serialized and wrapped.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -64,9 +68,13 @@ export const wrapRangeInMarks = (range, color, id = generateSafeId(), onRemove) 
     if (!range || range.collapsed) return null;
 
     const commonAncestor = range.commonAncestorContainer;
+
+    // Create a TreeWalker to find all text nodes within the common ancestor
     const walker = document.createTreeWalker(
         commonAncestor.nodeType === Node.TEXT_NODE ? commonAncestor.parentNode : commonAncestor,
-        NodeFilter.SHOW_TEXT
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
     );
 
     const textNodes = [];
@@ -76,8 +84,12 @@ export const wrapRangeInMarks = (range, color, id = generateSafeId(), onRemove) 
         textNodes.push(commonAncestor);
     } else {
         while ((currentNode = walker.nextNode())) {
+            // Robust cross-paragraph intersection check
             if (range.intersectsNode(currentNode)) {
-                textNodes.push(currentNode);
+                // Skip empty whitespace nodes between paragraphs
+                if (currentNode.textContent.trim().length > 0) {
+                    textNodes.push(currentNode);
+                }
             }
         }
     }
@@ -108,9 +120,10 @@ export const wrapRangeInMarks = (range, color, id = generateSafeId(), onRemove) 
         mark.className = 'treish-highlight rounded px-0.5 py-0.5 transition-all duration-150 hover:brightness-95 cursor-pointer select-text relative group inline';
         mark.textContent = highlightedText;
 
+        // Binds eraser/click handler natively to the element
         mark.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (e.shiftKey || e.altKey) {
+            if (e.shiftKey || e.altKey || window.__ACTIVE_TOOL === 'eraser') {
                 removeMarksById(id);
                 if (onRemove) onRemove(id);
             }

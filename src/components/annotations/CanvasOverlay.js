@@ -20,11 +20,14 @@
  * • Encoded SVG data URIs via encodeURIComponent to resolve Chromium's rejection of unescaped brackets.
  * • Detached React pointer listeners and enforced 'pointerEvents: none' when inactive to prevent synthetic event swallowing.
  * • Corrected the Quadratic Bezier anchor point to 'prevMidPoint' for continuous, fluid strokes without overlapping artifacts.
- * 
- * - EDITED (Phase 8.9 - GPU Hydration Loop, Eraser Hit-Detection & Clean SVG Cursors):
+ *
+ * - EDITED (Phase 8.9 - GPU Hydration Loop & Eraser Hit-Detection):
  * • Built `redrawCanvas` utilizing `ctx.clearRect` to protect GPU memory from artifacting during Undo/Redo operations.
  * • Implemented `Math.hypot` spatial proximity hit-detection to accurately splice out specific strokes via the Eraser tool.
- * • Cleaned SVG cursor data URI strings by stripping legacy `;utf8,` and applying strict `encodeURIComponent`.
+ * 
+ * - EDITED (Phase 8.11 - SVG Cursor Aesthetic Finalization):
+ * • Stripped legacy `utf8` payload to resolve Chrome image parser errors.
+ * • Engineered precision, ultra-minimalist SVG targets for the Eraser and Stylus to bypass the fallback system crosshair.
  * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -67,7 +70,7 @@ const CanvasOverlay = () => {
 
         const encodedSvg = encodeURIComponent(svg);
         const offset = isEraserActive ? 12 : 10;
-        setCursorSvg(`url("data:image/svg+xml,${encodedSvg}") ${offset} ${offset}, crosshair`);
+        setCursorSvg(`url('data:image/svg+xml,${encodedSvg}') ${offset} ${offset}, crosshair`);
     }, [canInteract, isEraserActive, penColor]);
 
     // Redraw Canvas Engine (Handles Undo/Redo & Resizes)

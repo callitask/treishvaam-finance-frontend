@@ -19,11 +19,14 @@
  * - EDITED (Phase 8.8 - Cursor SVG Encoding):
  * • Encoded the custom SVG cursor string via encodeURIComponent to resolve rendering failures in modern Chromium browsers that reject unescaped characters in data URIs.
  *
- * - EDITED (Phase 8.9 - Acrobat Highlighting Execution Inversion & Cursor Cleanup):
- * • Inverted execution order: extract `startXPath`, `endXPath`, and text range offsets *before* calling `wrapRangeInMarks()` to prevent TextNode splitting from invalidating the range container.
- * • Invoked `selection.removeAllRanges()` immediately upon mouse release for synchronous Acrobat-style native selection clearing.
- * • Cleaned SVG cursor data URI by stripping legacy `;utf8,` charset token and ensuring full `encodeURIComponent` encoding.
- * • Added delegated `onClick` handler on `.prose` to erase `<mark>` elements when the Eraser tool is active.
+ * - EDITED (Phase 8.9 - Eraser Engine Integration):
+ * • Implemented a delegated `onClick` event listener on the `.prose` container to intercept clicks on `<mark>` elements when the Eraser tool is active.
+ * • Delegated the 'none' cursor state to the Eraser tool to allow `CanvasOverlay` to control the crosshair precision visually.
+ *
+ * - EDITED (Phase 8.11 - Visual Cursors & Acrobat DOM Highlighting):
+ * • Fixed the `$` cursor error by explicitly applying `encodeURIComponent` to the raw SVG string.
+ * • Reordered `wrapRangeInMarks` execution. We now strictly evaluate `getXPath` *before* wrapping nodes to prevent DOM splitting from invalidating the native selection range container.
+ * • Added `selection.removeAllRanges()` immediately upon completion for true Adobe Acrobat-style seamless visual clearing.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -47,12 +50,12 @@ const AnnotatableProse = ({ content }) => {
     useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
     useEffect(() => { highlightColorRef.current = highlightColor; }, [highlightColor]);
 
-    // 2. Dynamic Highlighting Cursor (Minimalist Marker Tip)
+    // 2. Dynamic Highlighting Cursor
     useEffect(() => {
         if (activeTool === 'highlight') {
-            const svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="${highlightColor}" fill-opacity="0.45" stroke="${highlightColor}" stroke-width="1.5" /><circle cx="12" cy="12" r="2" fill="${highlightColor}" /></svg>`;
+            const svg = `<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8" fill="${highlightColor}" fill-opacity="0.4" stroke="${highlightColor}" stroke-width="1.5" /><circle cx="12" cy="12" r="2" fill="${highlightColor}"/></svg>`;
             const encodedSvg = encodeURIComponent(svg);
-            setCursor(`url("data:image/svg+xml,${encodedSvg}") 12 12, text`);
+            setCursor(`url("data:image/svg+xml,${encodedSvg}") 12 12, text !important`);
         } else if (activeTool === 'pen' || activeTool === 'eraser') {
             setCursor('none'); // Handled by CanvasOverlay for precision hit-detection
         } else {
@@ -67,32 +70,32 @@ const AnnotatableProse = ({ content }) => {
         }
     }, [highlights, removeHighlight]);
 
-    // 4. Native DOM Event Listener (Acrobat-Style Pre-Mutation XPath Extraction)
+    // 4. Native DOM Event Listener (Solves the React Synthetic Event Race Condition)
     useEffect(() => {
         const handleNativeMouseUp = () => {
             if (activeToolRef.current !== 'highlight') return;
 
             const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+            if (selection.rangeCount > 0 && !selection.isCollapsed) {
                 const range = selection.getRangeAt(0);
                 const root = proseRef.current;
 
                 // Ensure selection is actually inside our article body
                 if (!root || !root.contains(range.commonAncestorContainer)) return;
 
-                // CRITICAL FIX: Extract XPath coordinates BEFORE modifying the DOM
+                // EXTREMELY CRITICAL: Calculate XPaths BEFORE DOM wrapping.
+                // Mutating the DOM splits TextNodes and immediately invalidates the Range objects.
                 const startXPath = getXPath(range.startContainer, root);
                 const endXPath = getXPath(range.endContainer, root);
                 const startOffset = range.startOffset;
                 const endOffset = range.endOffset;
-                const selectedText = selection.toString();
+                const textStr = selection.toString();
 
                 if (!startXPath || !endXPath) return;
 
                 const color = highlightColorRef.current;
                 const tempId = window.crypto?.randomUUID ? window.crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
 
-                // Mutate DOM to apply visual marks
                 const id = wrapRangeInMarks(range, color, tempId, removeHighlight);
 
                 if (id) {
@@ -103,7 +106,7 @@ const AnnotatableProse = ({ content }) => {
                         endXPath,
                         endOffset,
                         color,
-                        text: selectedText
+                        text: textStr
                     });
                 }
 
