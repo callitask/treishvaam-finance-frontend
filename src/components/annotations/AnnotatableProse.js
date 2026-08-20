@@ -32,6 +32,10 @@
  * • Implemented native 'selectionchange' listener to passively cache the DOM Range object.
  * • Why: Clicking the Liquid Glass toolbar in WebKit/Safari natively collapses the text selection before React can process it. Caching the range deeply decouples the selection phase from the tool activation phase.
  *
+ * - EDITED (Phase 8.13 - Re-Render DOM Wipe Loop Fix):
+ * • Bound the highlight hydration `useEffect` strictly to `highlights.length` rather than the array reference or context functions.
+ * • Why: Contextual re-renders (like scrolling) were mutating the dependency array, causing `restoreHighlightsFromMemory` to fire continuously. This executed `parent.normalize()` repeatedly, destroying the original TextNode splits, permanently corrupting the XPath resolution, and causing applied highlights to instantly vanish.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -47,6 +51,7 @@ const AnnotatableProse = ({ content }) => {
     const [cursor, setCursor] = useState('auto');
 
     // 1. Ref-Backed State Synchronization
+    // Prevents stale closures in native event listeners without requiring constant re-binding
     const activeToolRef = useRef(activeTool);
     const highlightColorRef = useRef(highlightColor);
     const cachedRangeRef = useRef(null);
@@ -67,12 +72,15 @@ const AnnotatableProse = ({ content }) => {
         }
     }, [activeTool, highlightColor]);
 
-    // 3. Rehydrate stored highlights
+    // 3. Rehydrate stored highlights (Optimized to prevent DOM wipe loops)
+    const highlightsLength = highlights.length;
+    
     useEffect(() => {
-        if (proseRef.current && highlights.length > 0) {
+        if (proseRef.current && highlightsLength > 0) {
             restoreHighlightsFromMemory(highlights, proseRef.current, removeHighlight);
         }
-    }, [highlights, removeHighlight]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [highlightsLength]); // strictly bounded to length changes to prevent DOM wipe loops
 
     // 4. Zero-Trust Range Caching (Solves WebKit/Safari Toolbar Focus-Steal Race Condition)
     useEffect(() => {
@@ -114,7 +122,7 @@ const AnnotatableProse = ({ content }) => {
                     id, startXPath, startOffset, endXPath, endOffset, color: highlightColor, text: textStr
                 });
             }
-
+            
             cachedRangeRef.current = null;
             window.getSelection().removeAllRanges();
         }
