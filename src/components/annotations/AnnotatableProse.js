@@ -35,6 +35,10 @@
  * - EDITED (Phase 8.13 - Re-Render DOM Wipe Loop Fix):
  * • Bound the highlight hydration `useEffect` strictly to `highlights.length` rather than the array reference or context functions.
  * • Why: Contextual re-renders (like scrolling) were mutating the dependency array, causing `restoreHighlightsFromMemory` to fire continuously. This executed `parent.normalize()` repeatedly, destroying the original TextNode splits, permanently corrupting the XPath resolution, and causing applied highlights to instantly vanish.
+ * 
+ * - EDITED (Phase 8.14 - React Re-Render DOM Wipe Shield):
+ * • Wrapped the component export in `React.memo()`.
+ * • Why: Scrolling the page updated the parent's read-progress state, forcing `AnnotatableProse` to re-render. This triggered `dangerouslySetInnerHTML` to blindly reset the DOM to the raw database string, instantly wiping out all imperative `<mark>` highlights. `React.memo` perfectly shields the component from parent state updates while preserving Context reactivity.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -74,7 +78,7 @@ const AnnotatableProse = ({ content }) => {
 
     // 3. Rehydrate stored highlights (Optimized to prevent DOM wipe loops)
     const highlightsLength = highlights.length;
-    
+
     useEffect(() => {
         if (proseRef.current && highlightsLength > 0) {
             restoreHighlightsFromMemory(highlights, proseRef.current, removeHighlight);
@@ -122,7 +126,7 @@ const AnnotatableProse = ({ content }) => {
                     id, startXPath, startOffset, endXPath, endOffset, color: highlightColor, text: textStr
                 });
             }
-            
+
             cachedRangeRef.current = null;
             window.getSelection().removeAllRanges();
         }
@@ -207,4 +211,4 @@ const AnnotatableProse = ({ content }) => {
     );
 };
 
-export default AnnotatableProse;
+export default React.memo(AnnotatableProse);
