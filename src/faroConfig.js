@@ -5,32 +5,40 @@
  * - Originally configured for Grafana Faro (RUM & Error tracking).
  * - Now extended to handle First-Party Treishvaam Analytics (Scroll, Time, Exit Intent).
  * Security Constraints: 
- * - Relies on API Config to determine backend endpoint.
+ * - Relies on API Config / Environment variables to determine backend endpoints.
  * - Does NOT collect PII (IPs are handled at the Edge).
- * * IMMUTABLE CHANGE HISTORY:
+ * 
+ * IMMUTABLE CHANGE HISTORY:
  * - ADDED (Phase 6 Init): Basic Grafana Faro initialization for RUM.
  * - EDITED (Phase 5 - First-Party Analytics):
- * • Implemented `postEvent` to dispatch payloads to `/api/v1/analytics/event`.
- * • Implemented `initScrollTracking` for 25%, 50%, 75%, 90%, 100% read depth milestones.
- * • Implemented `initTimeTracking` leveraging `beforeunload` and `visibilitychange`.
- * • Implemented `initExitIntent` based on mouse leaving the viewport top boundary.
- * • Why: Achieve 100% data ownership of user engagement metrics independent of Google Analytics.
+ *   • Implemented `postEvent` to dispatch payloads to `/api/v1/analytics/event`.
+ *   • Implemented `initScrollTracking` for 25%, 50%, 75%, 90%, 100% read depth milestones.
+ *   • Implemented `initTimeTracking` leveraging `beforeunload` and `visibilitychange`.
+ *   • Implemented `initExitIntent` based on mouse leaving the viewport top boundary.
+ *   • Why: Achieve 100% data ownership of user engagement metrics independent of Google Analytics.
  * - EDITED (Incident 72 - High Entropy Client Hints):
- * • Added `extractHighEntropyPlatform()` to asynchronously request `platformVersion` from the User-Agent Client Hints API.
- * • Appended the `platformVersion` to `extraPayload` in `postEvent`.
- * • Why: Microsoft froze the standard UA string at Windows 10.0. The Client Hints API is the only $0.00 way to extract exact Windows 11 telemetry natively from modern Chromium browsers.
+ *   • Added `extractHighEntropyPlatform()` to asynchronously request `platformVersion` from the User-Agent Client Hints API.
+ *   • Appended the `platformVersion` to `extraPayload` in `postEvent`.
+ *   • Why: Microsoft froze the standard UA string at Windows 10.0. The Client Hints API is the only $0.00 way to extract exact Windows 11 telemetry natively from modern Chromium browsers.
  * - EDITED (Phase 7 - P0 Transport & Fidelity Fix):
- * • Added `screenResolution` to the outbound JSON payload for high-fidelity hardware tracking.
- * • Extended `sendBeacon` execution block to include `visibility_hidden` events, neutralizing HTTP 499 client abort drops from `fetch({ keepalive: true })`.
+ *   • Added `screenResolution` to the outbound JSON payload for high-fidelity hardware tracking.
+ *   • Extended `sendBeacon` execution block to include `visibility_hidden` events, neutralizing HTTP 499 client abort drops from `fetch({ keepalive: true })`.
+ * - EDITED (Zero-Trust Decoupling & Config Hardening):
+ *   • Decoupled Grafana Faro collector URL to consume `NEXT_PUBLIC_FARO_URL` with resilient production fallback.
+ *   • Added safe environment validation ensuring zero crashes if environment variables are unset.
+ * - EDITED (Regression Fix — Exit Intent Event Type):
+ *   • Reverted accidental 'mouseenter' registration back to 'mouseleave'; the mismatch broke exit-intent detection and defeated the once-per-session removal guard.
  */
 import { initializeFaro } from '@grafana/faro-web-sdk';
 import { API_URL } from './apiConfig';
 
 export function initFaro() {
-    // Only initialize in production to save bandwidth
+    // Only initialize in production and on the client to save bandwidth and prevent Edge SSR crashes
     if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
+        const faroEndpoint = process.env.NEXT_PUBLIC_FARO_URL || 'https://backend.treishvaamgroup.com/faro/collect';
+
         initializeFaro({
-            url: 'https://backend.treishvaamgroup.com/faro/collect', // Assuming a gateway routes this to Tempo/Loki
+            url: faroEndpoint,
             app: {
                 name: 'treishvaam-finance-frontend',
                 version: '1.0.0',

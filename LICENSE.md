@@ -2,7 +2,7 @@
 
 **Copyright © 2024–2026 Amitsagar Kandpal and Treishvaam Group. All Rights Reserved.**
 
-This source code, including all associated files, components, styles, configurations, Cloudflare Edge Worker scripts, PWA service worker code, documentation, and architectural designs (collectively, the "Software"), is the exclusive proprietary property of Amitsagar Kandpal ("Owner") and is protected by copyright laws, trade secret laws, the Digital Personal Data Protection Act, 2023 (India), and international intellectual property treaties.
+This source code, including all associated files, components, styles, configurations, Cloudflare Edge Worker scripts, PWA service worker code, telemetry and analytics pipelines, documentation, and architectural designs (collectively, the "Software"), is the exclusive proprietary property of Amitsagar Kandpal ("Owner") and is protected by copyright laws, trade secret laws, the Digital Personal Data Protection Act, 2023 (India), and international intellectual property treaties.
 
 ---
 
@@ -12,7 +12,7 @@ Subject to the terms of this Agreement, the Owner grants authorised contributors
 
 - Access and read the source code solely for the purpose of contributing to or maintaining the Treishvaam Finance frontend application
 - Modify the source code strictly in accordance with documented architectural standards and under the Owner's direction
-- Deploy compiled versions of the Software to authorised Cloudflare Pages infrastructure
+- Deploy compiled versions of the Software to authorised Cloudflare Pages and Cloudflare Workers infrastructure
 
 This licence does not transfer any ownership of the Software or any intellectual property rights whatsoever.
 
@@ -28,7 +28,7 @@ You are **expressly and absolutely prohibited** from:
 - Disclosing the internal architecture, Cloudflare Edge Worker logic, AEGIS Biometric Telemetry implementation, GEO interception strategy, or multi-tenant routing design to any unauthorised party
 
 ### 2.2 Competing Use
-- Using this Software or any portion of it — including the AEGIS Biometric Telemetry system, the Cloudflare Edge Worker architecture, the Generative Engine Optimization (GEO) framework, or the multi-tenant routing logic — to create a competing product, service, SaaS platform, financial data application, template, boilerplate, or starter kit of any kind
+- Using this Software or any portion of it — including the AEGIS Biometric Telemetry system, the Cloudflare Edge Worker architecture, the Generative Engine Optimization (GEO) framework, the multi-tenant routing logic, the HMAC-SHA-512 Edge Signature scheme, the Moving Target Defense (MTD) temporal path-mapping design, the KV threat-manifest and crawler-classification architecture, or the three-tier edge cache-shielding design — to create a competing product, service, SaaS platform, financial data application, template, boilerplate, or starter kit of any kind
 - Reverse engineering the Software for any competitive purpose
 
 ### 2.3 AI & Machine Learning — Absolute Prohibition
@@ -49,8 +49,8 @@ This Software integrates with proprietary security systems (the "AEGIS Framework
 
 Authorised contributors must:
 
-- Never disclose the Edge Worker signing logic, KV cache key structure, or GEO interception mechanism to any unauthorised person or entity
-- Manage all environment variables exclusively through Cloudflare Pages Environment Variables — never committed to the repository
+- Never disclose the Edge Worker signing logic, KV cache key structure, GEO interception mechanism, MTD route-manifest structure, threat-intelligence KV key formats, or crawler classification matrix to any unauthorised person or entity
+- Manage all environment variables and secrets exclusively through Cloudflare environment stores (Pages Environment Variables and Worker Secrets) — never committed to the repository
 - Never use the `REACT_APP_*` variable prefix (this is a Next.js application — only `NEXT_PUBLIC_*` is valid)
 - Immediately report any suspected credential exposure or security breach to the Owner
 

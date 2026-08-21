@@ -1,12 +1,11 @@
 {
     "compilerOptions": {
-        "baseUrl": "src",
         "paths": {
             "apiConfig": [
-                "apiConfig.js"
+                "./src/apiConfig.js"
             ],
             "apiConfig/*": [
-                "apiConfig/*"
+                "./src/apiConfig/*"
             ]
         },
         "allowJs": true,
