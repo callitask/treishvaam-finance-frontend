@@ -2,7 +2,7 @@
 
 **Project:** `treishvaam-finance-frontend`
 **Classification:** Internal — Engineering Reference
-**Verified against:** `app/terms|vision/page.tsx` metadata exports, `app/category/.../page.tsx` (per FIN-02), `worker/worker.js` SEO intelligence (per FIN-03), `src/utils/schemaGenerator.js`, GEO route handlers, `public/sitemap*.xml`, `robots.txt` (existence)
+**Verified against:** `app/terms|vision/page.tsx` metadata exports, `app/category/.../page.tsx` (per FIN-02), `worker/worker.js` SEO intelligence (per FIN-03), `src/utils/schemaGenerator.js`, GEO route handlers, `public/sitemap*.xml`, `robots.txt` — **and re-verified against the repository on 2026-08-23** (corrections: `schemaGenerator.js` is dead code; no Article JSON-LD in `generateMetadata`; cron warms all sitemaps; search endpoint path).
 
 ---
 
@@ -53,7 +53,7 @@ export const metadata = {
 };
 ```
 
-**Dynamic route** `/category/[categorySlug]/[postSlug]/[id]` uses `generateMetadata({ params })`: Edge-side post fetch (**must include `X-Tenant-ID: finance`** — omission breaks tenant isolation), then unique title/description/OG image/twitter card, Article JSON-LD (`datePublished`, `dateModified`, `author`, `publisher`), and exact production canonical. `/market/[ticker]` applies equivalent per-ticker metadata.
+**Dynamic route** `/category/[categorySlug]/[postSlug]/[id]` uses `generateMetadata({ params })`: Edge-side post fetch (**includes `X-Tenant-ID: finance`** — verified at `page.tsx:119`; the only SSR fetch that does), then unique title/description/keywords/OG image/twitter card, alternates, and the exact production canonical. **⚠ Corrected 2026-08-23: `generateMetadata` emits metadata only — no Article JSON-LD** (`page.tsx:144-164` returns title/description/keywords/alternates/openGraph/twitter). Article structured data reaches crawlers via the **Worker's Edge injection** (§3) and the preloaded state — not from the Next.js metadata layer. `/market/[ticker]`'s `generateMetadata` fetch sends no custom headers.
 
 **Migration rule:** `react-helmet-async` metadata in legacy `src/pages/*` caused Edge SSR crashes (`TypeError: Cannot read properties of undefined (reading 'add')`); all pages migrate to App Router metadata exports — wrappers that had `"use client"` cannot export metadata and must be restructured (see `/privacy` vs `/terms`).
 
@@ -72,10 +72,11 @@ Guards: entire block wrapped in `if (!isRscRequest)` (RSC stream corruption fix 
 
 | Schema | Emitter | Where |
 | :--- | :--- | :--- |
-| `Article` (incl. dates/author/publisher) | `generateMetadata` route + `schemaGenerator.js` | Post pages |
-| `BreadcrumbList` | `schemaGenerator.js` | Post pages |
-| `WebPage`, `Organization` | `schemaGenerator.js` | Site-wide |
-| `WebSite` | Worker injection | `/`, `/home` |
+| `WebSite` | Worker injection (`worker.js:481`) | `/`, `/home` |
+| Site-wide `Organization` / `WebSite` graph | **inline `enterpriseGraphSchema` in `app/layout.tsx:141-278`** (*corrected 2026-08-23 — this, not schemaGenerator, is the live emitter*) | Every page |
+| Article structured data (title/description/OG) | Worker Edge injection from the post payload (`__PRELOADED_STATE__`) | Post pages |
+| ~~`Article` JSON-LD via `generateMetadata`~~ | **Does not exist** (*corrected 2026-08-23*) | — |
+| ~~`BreadcrumbList` / `WebPage` / `Organization` via `schemaGenerator.js`~~ | **Dead code** — `src/utils/schemaGenerator.js` implements these schemas (+ Dataset/ClaimReview) but is **imported nowhere** (*verified 2026-08-23*) | — |
 | Ontology graph (JSON-LD) | `GET /ontology.json` (backend `/api/public/geo/ontology.json`, KV-cached) | LLM consumption |
 
 Validation guidance: run structured-data validators against the **Worker-served HTML** (not raw React output), since injection happens at the Edge.
@@ -93,10 +94,10 @@ Behavior: AI bots in `aiBotsOnly` requesting **any** HTML GET are aggressively i
 ## 6. Sitemaps & robots.txt
 
 - **Static index:** `public/sitemap.xml` (+ `sitemap-static.xml`) points to backend dynamic sitemaps.
-- **Dynamic pipeline:** `/sitemap-dynamic/{blog,market}/N.xml` → Worker three-tier cache → KV keys `sitemap:finance:*` (TTL 90000) → backend `/api/public/sitemap/*`. Hourly cron pre-warms meta + first 5 sitemaps with per-path fresh signatures (FE-02 §9).
-- **robots.txt:** served as a static asset through the Worker with security headers; directives as maintained in `public/robots.txt` (⚠ specific directive values not present in provided excerpts — consult the repository file).
+- **Dynamic pipeline:** `/sitemap-dynamic/{blog,market}/N.xml` → Worker three-tier cache → KV keys `sitemap:finance:*` (TTL 90000) → backend `/api/public/sitemap/*`. Hourly cron pre-warms the meta + **all sitemap files in batches of 10** with per-path fresh signatures (*corrected 2026-08-23 — not "the first 5"*; FE-02 §9).
+- **robots.txt:** served as a static asset through the Worker with security headers; directives as maintained in `public/robots.txt` — verified 2026-08-23 to include detailed per-UA rules (e.g. Googlebot allowed on `/api/v1/posts|categories|market`, `Disallow: /api/v1/analytics`, AI-crawler blocks).
 - **Search verification:** `public/googleba974015553e7035.html` (Google Search Console ownership).
-- **OpenSearch:** `/opensearch.xml` (self-generated) enables browser search-engine registration; site search itself runs through `/api/v1/search/query` (Elasticsearch-backed) with 300 ms debounced autocomplete.
+- **OpenSearch:** `/opensearch.xml` (self-generated) enables browser search-engine registration; site search itself runs through **`/api/v1/search?q=`** (Elasticsearch-backed) with 300 ms debounced autocomplete (*endpoint corrected 2026-08-23*).
 
 ## 7. Open Graph & Social Cards — Current Implementation
 

@@ -4,13 +4,16 @@
 **Domain:** Frontend & Edge Tier (Treishvaam Group Enterprise Platform)
 **Classification:** Internal — Engineering Reference
 **Status:** Authoritative. Supersedes in-repo `/docs/FIN-01/02/03` documents, which were absorbed into this suite as verified source material.
-**Verified against:** `FRONTEND_Finance_00_DirectoryMap.md`, `FRONTEND_Finance_00_IndexMap.md`, Frontend Code Parts 1–5, `MASTER_DOCUMENTATION_BLUEPRINT.md`, `TREISHVAAM_ENTERPRISE_ARCHITECTURE_STRATEGY.md`
+**Verified against:** `FRONTEND_Finance_00_DirectoryMap.md`, `FRONTEND_Finance_00_IndexMap.md`, Frontend Code Parts 1–5, `MASTER_DOCUMENTATION_BLUEPRINT.md`, `TREISHVAAM_ENTERPRISE_ARCHITECTURE_STRATEGY.md` — **and re-verified directly against the full frontend repository on 2026-08-23** (corrections: `/` route rendering, ModSecurity reference, audience/api-status endpoint rows, §4.1 tenant-header claim, component count, `.roo/`).
+
+> [!NOTE]
+> **2026-08-23 correction summary:** ① `app/page.tsx` renders `src/pages/BlogPage.js` (same as `/home`) — **not** `LandingPage` (that component is only reachable from the dead CRA entry `src/App.js`); ② "Nginx/ModSecurity" below is corrected to OpenResty (ModSecurity was stripped from the origin — see backend DOCS_AUDIT_REPORT critical #7); ③ `/dashboard/audience` consumes `/api/v1/analytics` + `/api/v1/analytics/filters` (no `/realtime` endpoint exists); ④ `/dashboard/api-status` consumes `/api/v1/status/history` (no `/api/v1/status` route); ⑤ §4.1's "all handler fetches include `X-Tenant-ID`" holds only for the category page; ⑥ ~90 component files (not ~150); ⑦ `.roo/` does not exist.
 
 ---
 
 ## 1. System Overview
 
-`treishvaam-finance-frontend` is the public presentation tier of the Treishvaam Finance platform. It is a **Next.js 14 (App Router)** application served from **Cloudflare Pages** (Edge SSR runtime), fronted by the **`treishfin-seo-worker`** Cloudflare Edge Worker, which acts as the sole HTTP entry point for `treishvaamfinance.com`. Authentication is handled via **Keycloak OIDC** (`keycloak-js`, realm `treishvaam`, client `finance-app`). All backend traffic is proxied through the Worker with **HMAC-SHA-512 AEGIS Edge Signatures** to the Spring Boot `finance-api` behind Cloudflare Tunnel, Nginx/ModSecurity, and the AEGIS 9-Layer Zero-Trust filter chain.
+`treishvaam-finance-frontend` is the public presentation tier of the Treishvaam Finance platform. It is a **Next.js 14 (App Router)** application served from **Cloudflare Pages** (Edge SSR runtime), fronted by the **`treishfin-seo-worker`** Cloudflare Edge Worker, which acts as the sole HTTP entry point for `treishvaamfinance.com`. Authentication is handled via **Keycloak OIDC** (`keycloak-js`, realm `treishvaam`, client `finance-app`). All backend traffic is proxied through the Worker with **HMAC-SHA-512 AEGIS Edge Signatures** to the Spring Boot `finance-api` behind Cloudflare Tunnel, OpenResty nginx (JA3 Lua — *ModSecurity was stripped from the origin; `nginx/modsecurity/whitelist.conf` is an unmounted leftover*), and the AEGIS 9-Layer Zero-Trust filter chain.
 
 The application is a **hybrid migration artifact**: a fully migrated Next.js App Router shell (`app/`) that wraps a legacy Create React App component tree (`src/`), bridged by `react-router-shim.js`. This dual-layer model is a documented architectural invariant, not debt to be "cleaned" without a migration plan (see FE-01 §4).
 
@@ -42,7 +45,7 @@ All routes are defined exclusively by `app/**` files. `next.config.mjs` enforces
 
 | Route | App Router Source | Rendered Component | Rendering | Auth | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `/` | `app/page.tsx` | Landing (self-contained wrapper) | Edge SSR + hydration | Public | Canonical apex URL |
+| `/` | `app/page.tsx` | `src/pages/BlogPage.js` (*corrected 2026-08-23 — identical to `/home`; `LandingPage.js` is only reachable from the dead CRA entry `src/App.js`) | Edge SSR + hydration | Public | Canonical apex URL |
 | `/home` | `app/home/page.tsx` | `src/pages/BlogPage.js` | — | Public | **301 → `/`** enforced by `middleware.ts` (apex canonicalization) |
 | `/about` | `app/about/page.tsx` | `src/pages/AboutPage.js` | Static metadata | Public | |
 | `/contact` | `app/contact/page.tsx` | `src/pages/ContactPage.js` | Static metadata | Public | |
@@ -56,8 +59,8 @@ All routes are defined exclusively by `app/**` files. `next.config.mjs` enforces
 | `/dashboard/blog/new` | `app/dashboard/blog/new/page.tsx` | `src/pages/BlogEditorPage.js` | Client | PUBLISHER+ | Tiptap v3 CMS editor |
 | `/dashboard/blog/edit/[userFriendlySlug]/[id]` | `app/dashboard/blog/edit/.../page.tsx` | `src/pages/BlogEditorPage.js` (edit mode) | Client | EDITOR+ | Optimistic-lock `version` field |
 | `/dashboard/manage-posts` | `app/dashboard/manage-posts/page.tsx` | `src/pages/ManagePostsPage.js` | Client | EDITOR+ | Hash-based view state (`#drafts`, `#scheduled`, `#published`) |
-| `/dashboard/audience` | `app/dashboard/audience/page.tsx` | `src/pages/AudiencePage.js` | Client | ADMIN | `/api/v1/analytics` + `/realtime` |
-| `/dashboard/api-status` | `app/dashboard/api-status/page.tsx` | `src/pages/ApiStatusPage.js` | Client | ADMIN | `/api/v1/status` |
+| `/dashboard/audience` | `app/dashboard/audience/page.tsx` | `src/pages/AudiencePage.js` | Client | ADMIN | `/api/v1/analytics` + `/api/v1/analytics/filters` (*corrected 2026-08-23 — no `/realtime` endpoint exists in the codebase*) |
+| `/dashboard/api-status` | `app/dashboard/api-status/page.tsx` | `src/pages/ApiStatusPage.js` | Client | ADMIN | `/api/v1/status/history` — fetched once on mount + manual refresh button (*corrected 2026-08-23*) |
 | `/dashboard/profile` | `app/dashboard/profile/page.tsx` | `src/pages/ProfilePage.js` | Client | Authenticated | |
 | 404 (any) | `app/not-found.tsx` | Custom 404 | — | Public | Worker SPA-fallback may override 404→200 for known routes |
 
@@ -70,7 +73,7 @@ All routes are defined exclusively by `app/**` files. `next.config.mjs` enforces
 | `/ontology.json` | `app/ontology.json/route.ts` | `GET /api/public/geo/ontology.json` | `application/json` | JSON-LD ontology graph |
 | `/opensearch.xml` | `app/opensearch.xml/route.ts` | Self-contained (generated inline) | `application/opensearchdescription+xml` | Browser search discovery |
 
-All backend fetches from these handlers include `X-Tenant-ID: finance`.
+**Tenant-header reality (corrected 2026-08-23):** only the article page's server fetch sends `X-Tenant-ID: finance` (`app/category/.../page.tsx:119`). The three GEO route handlers send only their signature headers (`X-Aegis-Timestamp` + `X-Aegis-Edge-Signature` — the 2-part OP-18 bug), and `/market/[ticker]`'s `generateMetadata` fetch sends **no custom headers at all**. The Worker remains the component that injects `X-Tenant-ID: finance` unconditionally on every proxied browser request.
 
 ### 4.2 Middleware Coverage
 
@@ -82,7 +85,7 @@ All backend fetches from these handlers include `X-Tenant-ID: finance`.
 treishvaam-finance-frontend/
 ├── app/                      # Next.js App Router routes (TSX/TS only — URL surface)
 ├── src/
-│   ├── components/           # ~150 UI components (client-side, imported by app/ wrappers)
+│   ├── components/           # ~90 UI component files (client-side, imported by app/ wrappers) — *count corrected 2026-08-23; +16 page components, 5 contexts, 2 layouts, 2 hooks ≈ 115 src files total*
 │   │   ├── BlogPage/  BlogEditor/  market/  market-detail/  news/
 │   │   ├── annotations/  manage-posts/
 │   ├── pages/                # Legacy CRA page components (NOT routes)
@@ -95,8 +98,8 @@ treishvaam-finance-frontend/
 ├── public/                   # robots.txt, sitemaps, manifest.json, silent-check-sso.html, .well-known/security.txt
 ├── middleware.ts             # CSP nonce + apex redirect (Edge)
 ├── next.config.mjs  tailwind.config.js  tsconfig.json  jsconfig.json
-├── wrangler.toml             # Root wrangler config ⚠ Requires clarification (canonical Worker config is worker/wrangler.toml)
-└── github/java-upgrade/, .roo/  # Tooling artifacts — non-runtime
+├── wrangler.toml             # Root wrangler config — Pages project config (resolved: see FE-07 §2; canonical Worker config remains worker/wrangler.toml)
+└── github/java-upgrade/      # Tooling artifacts — non-runtime (*.roo/ does not exist in the repo — corrected 2026-08-23*)
 ```
 
 ## 6. Conventions Used Throughout This Suite

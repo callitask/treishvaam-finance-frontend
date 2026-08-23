@@ -97,7 +97,7 @@ Copy `.env.example` to `.env` for local development:
 
 **Only the `NEXT_PUBLIC_*` prefix is valid.** `REACT_APP_*` is dead CRA convention and does nothing in this application.
 
-> ⚠ **Template gap:** `.env.example` currently omits `NEXT_PUBLIC_AUTH_URL` and `NEXT_PUBLIC_FARO_URL`. Add them to your local `.env` manually, and add the lines to `.env.example` in your next commit — without `NEXT_PUBLIC_AUTH_URL`, the auth layer fatally halts on boot.
+> ✅ **Template gap closed (verified 2026-08-23):** `.env.example` now contains **all 8 variables** including `NEXT_PUBLIC_AUTH_URL` and `NEXT_PUBLIC_FARO_URL` — the earlier warning about them being missing is stale. Fresh clones can bootstrap directly from the template.
 
 ### Content Security Policy
 
@@ -305,7 +305,7 @@ Three independent pipelines — all no-PII by design (IPs are handled at the Edg
 Payload includes session ID (per-tab `crypto.randomUUID()`), URL/path/referrer, device class, browser, OS, screen resolution, and **High-Entropy Client Hints** (`platformVersion` — the only native way to distinguish Windows 11 from the frozen UA string). Analytics failures are silently swallowed — telemetry must never disrupt UX.
 
 ### 3. AEGIS L5-BIE Biometric Telemetry
-`src/components/AegisTelemetry.tsx` passively records mouse, scroll, and keydown entropy — hashed **client-side** with WebCrypto SHA3-256 (`src/lib/aegis-biometrics.ts`) before transmission to `/api/v1/aegis/telemetry`. Raw keystrokes and coordinates never leave the browser.
+`src/components/AegisTelemetry.tsx` passively records **mousemove and keydown** entropy (no scroll listener — verified 2026-08-23) — hashed **client-side** with WebCrypto **SHA-256** (`src/lib/aegis-biometrics.ts:87`) before transmission to `/api/v1/aegis/telemetry` (15 s cadence). **Privacy reality:** the raw vector is **also transmitted by default** (`X-Aegis-Biometric-Raw` header + `biometricRaw` body field) unless `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY=true`; raw keystrokes/coordinates leave the browser in the default configuration. *(Both facts corrected 2026-08-23 — earlier text claimed SHA3-256 and "raw never leaves".)*
 
 ---
 
@@ -313,8 +313,8 @@ Payload includes session ID (per-tab `crypto.randomUUID()`), URL/path/referrer, 
 
 | Item | Impact | Disposition |
 | :--- | :--- | :--- |
-| `.env.example` omits `NEXT_PUBLIC_AUTH_URL` and `NEXT_PUBLIC_FARO_URL` | Fresh clones hit a fatal auth halt on boot | Add both keys to `.env.example` |
-| `src/App.js` / `src/index.js` CRA entry points | None — verified dead code, not imported, never bundled | Retained deliberately; harmless |
+| ~~`.env.example` omits `NEXT_PUBLIC_AUTH_URL` and `NEXT_PUBLIC_FARO_URL`~~ | **Resolved 2026-08-23** — both are present in the template now | Closed |
+| `src/App.js` / `src/index.js` CRA entry points | None — verified dead code, not imported, never bundled (note: `App.js` is the **only** mount point of `ThirdPartyScripts.js` — see FE-01 §7.4) | Retained deliberately; harmless |
 | Stale `homepage` field in `package.json` | Cosmetic | Update opportunistically |
 
 ---

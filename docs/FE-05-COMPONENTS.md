@@ -2,17 +2,17 @@
 
 **Project:** `treishvaam-finance-frontend`
 **Classification:** Internal — Engineering Reference
-**Verified against:** `src/components/**` (Parts 3–5 excerpts), `src/pages/**`, FIN-02 (verified 2026-05-29), Tailwind class usage analysis across all provided components
+**Verified against:** `src/components/**` (Parts 3–5 excerpts), `src/pages/**`, FIN-02 (verified 2026-05-29), Tailwind class usage analysis across all provided components — **and re-verified against the full file tree on 2026-08-23** (every named component file confirmed present; count corrected; `ThirdPartyScripts` live-chrome claim corrected).
 
 ---
 
 ## 1. Component Model
 
-~150 components organized in domain families under `src/components/`, consumed by `app/` route wrappers and `src/pages/` legacy page components. Components are JavaScript (CRA legacy) with targeted TypeScript islands (`AegisTelemetry.tsx`, `WebVitalsTracker.tsx`, `aegis-biometrics.ts`, `cloudflareImageLoader.ts`).
+**~90 component files** organized in domain families under `src/components/` (+16 page components in `src/pages/`, 5 contexts, 2 layouts, 2 hooks — *count corrected 2026-08-23; earlier editions said "~150"*), consumed by `app/` route wrappers and `src/pages/` legacy page components. Components are JavaScript (CRA legacy) with targeted TypeScript islands (`AegisTelemetry.tsx`, `WebVitalsTracker.tsx`, `aegis-biometrics.ts`, `cloudflareImageLoader.ts`).
 
 ```mermaid
 flowchart TD
-    ROOT["app/layout.tsx — server shell"] --> CHROME["Navbar · Footer · AegisTelemetry · WebVitalsTracker · ThirdPartyScripts"]
+    ROOT["app/layout.tsx — server shell"] --> CHROME["Navbar · Footer · AegisTelemetry · WebVitalsTracker (GA4 loads via next/script in layout — ThirdPartyScripts.js is mounted only by the dead src/App.js; corrected 2026-08-23)"]
     ROOT --> PROV["providers.tsx — Auth · Theme · Watchlist"]
     ROOT --> CHILDREN["{children} — route pages"]
     CHILDREN --> PUBLIC["Public pages — MainLayout"]

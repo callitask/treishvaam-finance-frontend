@@ -2,7 +2,10 @@
 
 **Project:** `treishvaam-finance-frontend`
 **Classification:** Internal — Engineering Reference — **Security-Critical**
-**Verified against:** `middleware.ts`, `next.config.mjs`, `src/context/AuthContext.js` (full immutable history), `src/components/PrivateRoute.js`, `AegisTelemetry.tsx`, `src/lib/aegis-biometrics.ts` (per FIN-01/02), `dompurify` usage in `SinglePostPage`
+**Verified against:** `middleware.ts`, `next.config.mjs`, `src/context/AuthContext.js` (full immutable history), `src/components/PrivateRoute.js`, `AegisTelemetry.tsx`, `src/lib/aegis-biometrics.ts` (per FIN-01/02), `dompurify` usage in `SinglePostPage` — **and re-verified against the full repository on 2026-08-23**.
+
+> [!WARNING]
+> **2026-08-23 correction summary (all code-evidenced, security-relevant):** ① biometric hashing is WebCrypto **SHA-256**, not SHA3-256 (`aegis-biometrics.ts:87`); ② the **raw biometric vector is transmitted by default** (`X-Aegis-Biometric-Raw` + `biometricRaw` body field unless `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY=true`, which ships as `"false"`) — the "raw vectors never leave the browser" claim was wrong; ③ article HTML is **not** DOMPurify-sanitized on insertion — see §7 for the actual (weaker) mechanism; ④ the Worker's COOP/CORP matrix row corrected (`same-origin-allow-popups`, CORP deleted — mirrors middleware); ⑤ telemetry listeners are **mousemove + keydown only** (no scroll); ⑥ the Worker is the primary but **not sole** HMAC signer (Next.js server layer also signs — see §1.1/FE-03 §4).
 
 ---
 
@@ -17,8 +20,8 @@ Client-side code is the **weakest link by definition** — it runs on hostile ma
 | L1 — PQC (Dilithium5) | Backend-enforced on root identity/admin tokens. No client-side PQC code exists or is required. |
 | L2 — ZKP Admin Gating | Enforced server-side on `/api/v1/admin/**` via Go ZKP microservice. No client proof generation in provided frontend code — ⚠ Requires clarification on the admin-console interaction path. |
 | L3 — L4-ADA Deception | Worker KV block/tarpit gating (FE-02 §6); clients see 403 or tarpit behavior only. |
-| L4 — Edge Signatures | Worker `generateEdgeSignature()` — sole signing authority. |
-| L5 — Entropy/Behavioral | **`AegisTelemetry.tsx`** client-side biometric hashing (§7); backend `ShannonEntropyCalculator` remains authoritative. |
+| L4 — Edge Signatures | Worker `generateEdgeSignature()` — primary signer (*correction 2026-08-23: not the sole one — the Next.js server layer signs too: the category SSR page correctly (3-part, `clientIp='127.0.0.1'`, `X-Aegis-Edge-Timestamp`); the GEO route handlers incorrectly (2-part + `X-Aegis-Timestamp` → 403, backend OP-18)*). |
+| L5 — Entropy/Behavioral | **`AegisTelemetry.tsx`** client-side biometric hashing (§9); backend `ShannonEntropyCalculator` remains authoritative. |
 | L6 — PQC-JWT + RBAC | Keycloak realm roles (`realm_access.roles`) checked in `PrivateRoute`/dashboard gating; authoritative RBAC at backend. |
 | L7 — Rate Limiting | Redis/Bucket4j at backend; no client-side limiter by design. |
 | L8 — Sanitization | **DOMPurify** client-side render sanitization (§7) + backend dual-stage sanitization. |
@@ -118,8 +121,8 @@ Breaker states clear on successful authentication or explicit user reset (`sessi
 
 | Vector | Defense |
 | :--- | :--- |
-| Tiptap-rendered article HTML | `DOMPurify.sanitize()` before insertion (`SinglePostPage`) |
-| Worker JSON injection | `safeStringify()` escaping `<`, `>`, `&` in `window.__PRELOADED_STATE__` |
+| Tiptap-rendered article HTML | **⚠ CORRECTED 2026-08-23 — no DOMPurify on the insertion path.** `SinglePostPage.js:147-150` only regex-strips `src="[object Object]"`, then `AnnotatableProse.js:209` renders via raw `dangerouslySetInnerHTML`. DOMPurify **is** in the dependency tree but is used only in `src/utils/blogUtils.js:13` for plain-text extraction (`ALLOWED_TAGS: []`). Content trust currently rests on the **backend publish pipeline** (server-side sanitization at L8 + `content_signature` integrity HMAC) — if frontend defense-in-depth is required, wrap article HTML in `DOMPurify.sanitize()` before the `dangerouslySetInnerHTML` call (tracked as a security gap, not a verified behavior) |
+| Worker JSON injection | `safeStringify()` escaping `<`, `>`, `&` in `window.__PRELOADED_STATE__` (verified) |
 | Annotation/reader tools | Fully client-side; zero third-party script evaluation; snipping tool excludes `.treish-no-capture` elements |
 | SSR SSG artifact | `#server-content` div removed on mount (stale-HTML purge) |
 
@@ -128,19 +131,22 @@ Breaker states clear on successful authentication or explicit user reset (`sessi
 | Header | middleware.ts | next.config.mjs | Worker `addSecurityHeaders()` |
 | :--- | :--- | :--- | :--- |
 | Content-Security-Policy | ✅ nonce-based | — | Report-Only variant deleted |
-| Cross-Origin-Opener-Policy | `same-origin-allow-popups` | `same-origin-allow-popups` | `same-origin` (documented asymmetry — FE-02 §11) |
-| Cross-Origin-Resource-Policy | deleted | `same-site` | `same-site` |
+| Cross-Origin-Opener-Policy | `same-origin-allow-popups` | `same-origin-allow-popups` | **`same-origin-allow-popups`** (*corrected 2026-08-23 — `worker.js:320`; the old "same-origin asymmetry" no longer exists*) |
+| Cross-Origin-Resource-Policy | deleted | `same-site` | **deleted (not set)** (*corrected 2026-08-23 — `worker.js:321`*) |
 | X-Permitted-Cross-Domain-Policies | `none` | `none` | `none` |
-| HSTS / nosniff / XSS-Protection / Referrer-Policy / Permissions-Policy | — | — | ✅ full set |
+| HSTS / nosniff / XSS-Protection / Referrer-Policy / Permissions-Policy | — | — | ✅ full set (HSTS `max-age=63072000; includeSubDomains; preload`) |
+
+> [!WARNING]
+> **Static override risk (added 2026-08-23):** `public/_headers` still ships `COOP: same-origin`, `CORP: same-site`, `HSTS: max-age=31536000` — overriding the table above for any asset Cloudflare Pages applies it to. See FE-02 §11.
 
 ## 9. AEGIS Client Telemetry (L5-BIE)
 
-`AegisTelemetry.tsx` (`'use client'`, never SSR): passive mouse/scroll/keydown listeners; behavioral vectors hashed **client-side** via WebCrypto SHA3-256 (`src/lib/aegis-biometrics.ts`); only hashed entropy is transmitted to `POST /api/v1/aegis/telemetry`. Raw biometric vectors never leave the browser. Feeds backend behavioral/entropy engines (L5).
+`AegisTelemetry.tsx` (`'use client'`, never SSR): passive **mousemove + keydown** listeners (*corrected 2026-08-23 — no scroll listener, `aegis-biometrics.ts:124-125`*); behavioral vectors hashed **client-side** via WebCrypto **SHA-256** (`aegis-biometrics.ts:87` — `crypto.subtle.digest('SHA-256', …)`; *earlier SHA3-256 claims in this doc and the README were wrong*). **Transmission reality (corrected):** the hash goes in `X-Aegis-Biometric-Hash`, and **by default the raw vector is also transmitted** — `X-Aegis-Biometric-Raw` header + `biometricRaw` body field — unless `NEXT_PUBLIC_ENFORCE_STRICT_PRIVACY=true` (the worker's `[vars]` ships it as `"false"`). So "raw biometric vectors never leave the browser" only holds in strict-privacy mode. Endpoint: `POST /api/v1/aegis/telemetry` every 15 s. Feeds backend behavioral/entropy engines (L5).
 
 ## 10. Secrets & Environment Hygiene
 
 - Only `NEXT_PUBLIC_*` variables are legal (Next.js). `REACT_APP_*` is prohibited and non-functional.
-- No API URL, backend origin, secret, or publisher ID may be hardcoded (LICENSE §2.4; enforced by convention and review).
+- No API URL, backend origin, secret, or publisher ID may be hardcoded (LICENSE §2.4; enforced by convention and review). **⚠ Deviation exists (noted 2026-08-23):** `apiConfig.js:20`, `faroConfig.js:38`, `aegis-biometrics.ts:91`, the three GEO route handlers, and both `generateMetadata` pages all carry a hardcoded fallback `https://backend.treishvaamgroup.com` — reconcile the rule with reality (remove the fallbacks or amend the rule).
 - `.env` is git-ignored; only `.env.example` (value-free template) is committed. All production values live in Cloudflare Pages/Worker environment stores (FE-07 §4).
 - Attempting to derive HMAC keys or Edge Signature seeds from the repository or traffic is an explicit license violation and an AEGIS-monitored attack pattern.
 
@@ -153,6 +159,8 @@ Breaker states clear on successful authentication or explicit user reset (`sessi
 
 | # | Item |
 | :--- | :--- |
-| 1 | Explicit CSRF token mechanism (if any) for cookie-bearing endpoints (§3) |
-| 2 | Client-side participation in ZKP admin gating (§1.1) |
-| 3 | `X-Request-ID` generation point for browser-originated API calls |
+| 1 | Explicit CSRF token mechanism (if any) for cookie-bearing endpoints (§3) — *backend confirmed CSRF-disabled + stateless Bearer (BE-02 §2), so this is closed: no CSRF tokens exist by design* |
+| 2 | Client-side participation in ZKP admin gating (§1.1) — still open; no client proof generation exists in the repo |
+| 3 | ~~`X-Request-ID` generation point~~ — **closed 2026-08-23:** backend `RequestIdFilter` generates it server-side; the frontend/Worker never set it |
+| 4 | **NEW** — article HTML rendered via `dangerouslySetInnerHTML` without DOMPurify on the insertion path (§7) |
+| 5 | **NEW** — raw biometric vector transmitted by default unless strict-privacy mode (§9) |

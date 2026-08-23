@@ -2,13 +2,13 @@
 
 **Project:** `treishvaam-finance-frontend`
 **Classification:** Internal — Engineering Reference
-**Verified against:** `next.config.mjs`, `middleware.ts`, `package.json` / `package-lock.json`, `app/layout.tsx` structure, `src/sw.ts`, FIN-01 (verified 2026-05-29)
+**Verified against:** `next.config.mjs`, `middleware.ts`, `package.json` / `package-lock.json`, `app/layout.tsx` structure, `src/sw.ts`, FIN-01 (verified 2026-05-29) — **and re-verified directly against the full repository on 2026-08-23** (corrections: component count, GA4 loading path, root-wrangler open item, SW strategy table, hydration-invariant wording).
 
 ---
 
 ## 1. Executive Summary
 
-The frontend is a **thin-server / thick-client hybrid** built on Next.js 14 App Router. A minimal React Server Component layer (`app/layout.tsx`, `generateMetadata()` routes, GEO route handlers) executes on the **Cloudflare Edge Runtime**; the substantive application — 150+ components in `src/` — is client-rendered React inherited from the CRA migration. The `treishfin-seo-worker` (FE-02) sits in front of everything, so the Next.js layer never receives raw public traffic.
+The frontend is a **thin-server / thick-client hybrid** built on Next.js 14 App Router. A minimal React Server Component layer (`app/layout.tsx`, `generateMetadata()` routes, GEO route handlers) executes on the **Cloudflare Edge Runtime**; the substantive application — **~90 component files** in `src/` (+16 pages, 5 contexts, 2 layouts, 2 hooks; *count corrected 2026-08-23 — earlier editions said "150+", which inflated the tally*) — is client-rendered React inherited from the CRA migration. The `treishfin-seo-worker` (FE-02) sits in front of everything, so the Next.js layer never receives raw public traffic.
 
 > [!IMPORTANT]
 > ### Hosting Model — Static Export → Edge SSR
@@ -98,7 +98,7 @@ Supporting mechanisms:
 **Hydration safety invariants (non-negotiable):**
 
 1. `suppressHydrationWarning` on `<html>` and `<body>` — prevents crashes from `ThemeProvider` localStorage reads and async Keycloak DOM mutation.
-2. Deterministic initial state in all contexts (`useState(false)` / `'light'` / `[]`), with `mounted` flags flipping only inside `useEffect` — the standard SSR/CSR parity pattern used by `SmartMediaRenderer`, `ThemeContext`, `WatchlistContext`, `FloatingDockContext`.
+2. Deterministic initial state in all contexts (`useState(false)` / `'light'` / `[]`), with `mounted` flags flipping only inside `useEffect` — the standard SSR/CSR parity pattern used by `SmartMediaRenderer`, `ThemeContext`, `WatchlistContext`, `FloatingDockContext`. (*Nuance 2026-08-23: `AuthContext` deliberately initializes `loading: true` — see its own immutable history — so "always `false`" is a pattern, not a law.*)
 3. `AuthContext` uses a **global singleton shield** (`globalKeycloak` / `globalInitPromise`) so React 18 remounts attach to the live OAuth promise instead of burning the authorization code (full detail in FE-04).
 
 ## 6. Middleware & Header Layer
@@ -126,15 +126,18 @@ Self-hosted `@fontsource-variable/inter`, imported in `layout.tsx` with a mandat
 
 | Resource | Strategy |
 | :--- | :--- |
-| API responses | `NetworkFirst` (freshness) |
+| API responses | `NetworkFirst` (freshness) — *auth/login/dashboard/admin routes are excluded with `NetworkOnly`-style pass-through (`sw.ts:48-103`), added to the table 2026-08-23* |
+| GEO payloads (`/llms.txt`, `/ai-feed.md`, `/ontology.json`) | `NetworkFirst` |
 | Static assets | `CacheFirst` (offline reliability) |
-| HTML pages | `StaleWhileRevalidate` |
+| HTML pages | `StaleWhileRevalidate` via Serwist `defaultCache` (not an explicit handler) |
 
 Build constraints: line 1 must be `/// <reference lib="webworker" />`; handlers must be **instantiated classes** (`new NetworkFirst()`), never string handlers — strings cause fatal `RouteHandler` type errors.
 
 ### 7.4 Third-Party Scripts
 
-`ThirdPartyScripts.js` defers GA4/Ads/AdSense injection until first interaction (scroll / mousemove / touchstart / 7-second idle fallback) → **0 ms Thread-Blocking Time**. All IDs come from `NEXT_PUBLIC_*` env vars; hardcoding publisher IDs is prohibited.
+**Correction 2026-08-23:** in the live app, GA4/Ads are injected directly by `app/layout.tsx:296-319` via `next/script` `strategy="afterInteractive"` — immediate post-hydration, **not** interaction-deferred. `ThirdPartyScripts.js` (whose internals do implement the scroll/mousemove/touchstart/7 s deferral described below) is mounted **only by the dead CRA entry `src/App.js`** — its logic is currently unreachable. If the interaction-deferral behavior is a requirement, it must be re-wired into the Next.js layout; as shipped, third-party scripts load after hydration.
+
+All IDs come from `NEXT_PUBLIC_*` env vars; hardcoding publisher IDs is prohibited.
 
 ## 8. Observability Hooks (Frontend)
 
@@ -154,7 +157,7 @@ Build constraints: line 1 must be `/// <reference lib="webworker" />`; handlers 
 | `react-helmet-async` legacy usage in unmigrated `src/pages/*` | `package.json` | Low |
 | Stale `homepage` field referencing legacy domain | `package.json` | Low |
 | `PostCard.js` imports `react-router-dom` directly while the dependency is absent from `package.json` | `src/components/BlogPage/PostCard.js` | Medium — verify whether component is reachable; sibling cards migrated to `next/link` |
-| Root `wrangler.toml` coexists with canonical `worker/wrangler.toml` | repo root | Low — ⚠ Requires clarification on root file's purpose |
+| Root `wrangler.toml` coexists with canonical `worker/wrangler.toml` | repo root | **Resolved 2026-08-23** (FE-07 §2): root file is the *Cloudflare Pages* project config (`pages_build_output_dir`, `compatibility_date 2024-11-20`, `nodejs_compat`) — not a duplicate worker config |
 
 ## 11. Cross-References
 
