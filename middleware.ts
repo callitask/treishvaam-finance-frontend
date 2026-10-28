@@ -40,6 +40,9 @@
  * • Relaxed `Cross-Origin-Opener-Policy` to `same-origin-allow-popups` and removed `Cross-Origin-Resource-Policy`.
  * • Why: The strict COOP/CORP headers were violently blocking the Keycloak OIDC silent-check-sso iframe from communicating with the frontend window across origins, trapping unauthenticated users in an infinite `CSP_BLOCK_OR_UNDEFINED` loop.
  *
+ * - EDITED (Edge Security Hardening - CVE-2025-29927 & CVE-2025-55182 Mitigation - 2026-10-27):
+ *   Added zero-trust header rejection for `x-middleware-subrequest` (CVE-2025-29927 middleware bypass) and `next-action` (CVE-2025-55182 React2Shell Server Action probes), and stripped unverified `x-middleware-prefetch` headers to prevent cache-poisoning DoS.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY must never be deleted, truncated, or regenerated.
  */
@@ -47,6 +50,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+    // Zero-Trust Edge Gate: Block CVE-2025-29927 subrequest spoofing & CVE-2025-55182 Server Action RCE probes
+    if (
+        request.headers.has('x-middleware-subrequest') ||
+        request.headers.has('next-action')
+    ) {
+        return new NextResponse('Forbidden', { status: 403 });
+    }
+
     // Enforce Canonical Apex URL: Redirect /home to /
     if (request.nextUrl.pathname === '/home') {
         return NextResponse.redirect(new URL('/', request.url), 301);
@@ -72,6 +83,10 @@ export function middleware(request: NextRequest) {
     ].join('; ');
 
     const requestHeaders = new Headers(request.headers);
+    // Neutralize external x-middleware-prefetch cache-poisoning DoS
+    if (requestHeaders.has('x-middleware-prefetch') && !requestHeaders.has('next-router-prefetch')) {
+        requestHeaders.delete('x-middleware-prefetch');
+    }
     // Pass nonce to layout.tsx Server Component via request header
     requestHeaders.set('x-nonce', nonce);
 
