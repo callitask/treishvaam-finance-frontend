@@ -3,6 +3,12 @@ import { getNewsHighlights } from '../../apiConfig';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
+const resolveNewsImage = (url) => {
+    if (!url || typeof url !== 'string') return '/logo.webp';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) return url;
+    return `/${url}`;
+};
+
 const MarketNewsFeed = () => {
     const [news, setNews] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -45,7 +51,7 @@ const MarketNewsFeed = () => {
                             {/* Tiny Thumbnail */}
                             <div className="flex-shrink-0 w-16 h-16 bg-slate-100 rounded-md overflow-hidden">
                                 <img
-                                    src={item.imageUrl || '/logo.webp'}
+                                    src={resolveNewsImage(item.imageUrl)}
                                     alt=""
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                                     onError={(e) => e.target.src = '/logo.webp'}

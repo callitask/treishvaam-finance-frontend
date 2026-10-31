@@ -214,7 +214,7 @@ const TermsPage = () => {
                         </p>
                         <p className="mt-2">
                             Before initiating legal proceedings, you agree to attempt to resolve disputes informally by
-                            contacting us at treishvaam@gmail.com. We will attempt to resolve the dispute within 30 days.
+                            contacting us at treishvaam [at] gmail.com. We will attempt to resolve the dispute within 30 days.
                         </p>
                     </section>
 
@@ -223,7 +223,7 @@ const TermsPage = () => {
                         <h2 className="text-xl font-bold text-gray-800 mb-3">13. Contact Information</h2>
                         <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <p><strong>Treishvaam Group</strong></p>
-                            <p>Email: treishvaam@gmail.com</p>
+                            <p>Email: treishvaam [at] gmail.com</p>
                             <p>Address: Bangalore, Karnataka, India</p>
                             <p className="mt-2 text-sm text-gray-500">
                                 For legal notices, please use the email above with subject line &quot;Legal Notice — Treishvaam Finance&quot;.

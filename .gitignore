@@ -106,3 +106,7 @@ postcss.config.js
 # ============================================================
 # Roo Code session state (AI rules are kept, session state is local-only)
 .roo/state/
+
+# Serwist generated service worker (build artifact)
+/public/sw.js
+/public/swe-worker-*.js

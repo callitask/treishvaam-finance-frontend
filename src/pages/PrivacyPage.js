@@ -261,7 +261,7 @@ const PrivacyPage = () => {
                         <div className="mt-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <p><strong>Grievance Officer:</strong> Amitsagar Kandpal</p>
                             <p><strong>Organization:</strong> Treishvaam Group</p>
-                            <p><strong>Email:</strong> treishvaam@gmail.com</p>
+                            <p><strong>Email:</strong> treishvaam [at] gmail.com</p>
                             <p><strong>Address:</strong> Bangalore, Karnataka, India</p>
                             <p className="mt-2 text-sm text-gray-500">
                                 We will acknowledge your grievance within 24 hours and resolve it within 30 days of receipt.

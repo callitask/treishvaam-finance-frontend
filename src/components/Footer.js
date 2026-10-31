@@ -14,7 +14,7 @@
  * • Added "use client" directive and wired "Publisher Access" directly to Keycloak `login()` via AuthContext, completely bypassing the user-facing `/login` view.
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 
@@ -35,6 +35,8 @@ import { useAuth } from '../context/AuthContext';
 const Footer = ({ className }) => {
   const currentYear = new Date().getFullYear();
   const { login } = useAuth() || {};
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Modern Instagram SVG
   const InstagramIcon = ({ width = 24, height = 24 }) => (
@@ -96,7 +98,14 @@ const Footer = ({ className }) => {
                   Publisher Access
                 </button>
               </li>
-              <li className="pt-2">Email: <a href="mailto:treishvaam@gmail.com" className="hover:text-sky-400 transition duration-300 font-medium">treishvaam@gmail.com</a></li>
+              <li className="pt-2" suppressHydrationWarning>
+                Email:{' '}
+                {mounted ? (
+                  <a href="mailto:treishvaam@gmail.com" className="hover:text-sky-400 transition duration-300 font-medium">treishvaam@gmail.com</a>
+                ) : (
+                  <span>treishvaam [at] gmail.com</span>
+                )}
+              </li>
             </ul>
           </div>
 
@@ -120,7 +129,7 @@ const Footer = ({ className }) => {
 
         {/* Bottom Bar */}
         <div className="text-center text-sm border-t border-gray-700 pt-8">
-          <p>&copy; {currentYear} Treishvaam Finance. All Rights Reserved.</p>
+          <p suppressHydrationWarning>&copy; {currentYear} Treishvaam Finance. All Rights Reserved.</p>
           {/* ACCESSIBILITY FIX: Lightened disclaimer text for contrast */}
           <p className="mt-2 text-xs max-w-3xl mx-auto text-gray-300">
             <strong>Disclaimer:</strong> The content on this website is for educational and informational purposes only. Treishvaam Finance is not a financial adviser. Please consult with a qualified professional before making any investment decisions.
