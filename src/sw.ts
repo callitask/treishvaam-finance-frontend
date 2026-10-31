@@ -27,8 +27,13 @@
  * • Added explicit `NetworkOnly` routing matcher for `/login`, `/auth`, `/dashboard`, `silent-check-sso.html`, `/api/v1/auth`, and `/api/v1/admin`.
  * • Why: Eradicates `Uncaught (in promise) no-response` on `/login`. Guarantees live OIDC authentication and admin actions are never intercepted or broken by offline cache strategies.
  *
- * - DO-NOT-DELETE RULE (ABSOLUTE):
- * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
+ * - EDITED (Phase 7 - Service Worker Cross-Origin Bypass - 2026-11-01):
+ * • Added `sameOrigin` guard to every `runtimeCaching` matcher so third-party origins
+ *   (googletagmanager.com, static.cloudflareinsights.com, fonts.googleapis.com, external news
+ *   images) are NEVER intercepted by sw.ts, eliminating CSP `connect-src` / `no-response` errors.
+ * • Added `cleanupOutdatedCaches: true` alongside existing `skipWaiting`/`clientsClaim`.
+ *
+ * - DO-NOT-DELETE RULE (ABSOLUTE): * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import { defaultCache } from '@serwist/next/worker';
@@ -42,11 +47,13 @@ const serwist = new Serwist({
     precacheEntries: self.__SW_MANIFEST,
     skipWaiting: true,
     clientsClaim: true,
+    cleanupOutdatedCaches: true,
     navigationPreload: true,
     runtimeCaching: [
         // Auth, Login, and Admin routes — NetworkOnly (never cache)
         {
-            matcher: ({ url }) => {
+            matcher: ({ url, sameOrigin }) => {
+                if (!sameOrigin) return false;
                 const pathname = url.pathname;
                 return (
                     pathname.startsWith('/login') ||
@@ -59,9 +66,10 @@ const serwist = new Serwist({
             },
             handler: new NetworkOnly(),
         },
-        // Public blog posts — NetworkFirst with 24h cache fallback
+        // Public blog posts — NetworkFirst with 24h cache fallback (same-origin only)
         {
-            matcher: ({ request, url }) => !!url.href.match(/^https:\/\/.*\/api\/v1\/posts\//) && request.method === 'GET',
+            matcher: ({ request, url, sameOrigin }) =>
+                sameOrigin && !!url.href.match(/^https:\/\/.*\/api\/v1\/posts\//) && request.method === 'GET',
             handler: new NetworkFirst({
                 cacheName: 'blog-posts-cache',
                 networkTimeoutSeconds: 5,
@@ -73,9 +81,9 @@ const serwist = new Serwist({
                 ],
             }),
         },
-        // Market data — NetworkFirst with 5-minute cache fallback
+        // Market data — NetworkFirst with 5-minute cache fallback (same-origin only)
         {
-            matcher: /^https:\/\/.*\/api\/v1\/market\//,
+            matcher: ({ url, sameOrigin }) => sameOrigin && /^https:\/\/.*\/api\/v1\/market\//.test(url.href),
             handler: new NetworkFirst({
                 cacheName: 'market-data-cache',
                 networkTimeoutSeconds: 3,
@@ -87,9 +95,9 @@ const serwist = new Serwist({
                 ],
             }),
         },
-        // GEO AI Payloads — NetworkFirst for offline vector intelligence
+        // GEO AI Payloads — NetworkFirst for offline vector intelligence (same-origin only)
         {
-            matcher: /^https?:\/\/.*\/(llms\.txt|ai-feed\.md|ontology\.json)$/,
+            matcher: ({ url, sameOrigin }) => sameOrigin && /^https?:\/\/.*\/(llms\.txt|ai-feed\.md|ontology\.json)$/.test(url.href),
             handler: new NetworkFirst({
                 cacheName: 'geo-ai-payloads',
                 networkTimeoutSeconds: 3,
@@ -101,9 +109,9 @@ const serwist = new Serwist({
                 ],
             }),
         },
-        // Static assets (images from MinIO) — CacheFirst
+        // Static assets (images from MinIO) — CacheFirst (same-origin only)
         {
-            matcher: /^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg|ico)$/,
+            matcher: ({ url, sameOrigin }) => sameOrigin && /^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg|ico)$/.test(url.href),
             handler: new CacheFirst({
                 cacheName: 'images-cache',
                 plugins: [

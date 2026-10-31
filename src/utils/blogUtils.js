@@ -10,7 +10,7 @@ export const categoryStyles = {
 
 export const createSnippet = (html, length = 155) => {
     if (!html) return '';
-    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] });
+    const plainText = DOMPurify.sanitize(html, { ALLOWED_TAGS: [], FORBID_ATTR: ['style'] });
     if (plainText.length <= length) return plainText;
     const trimmed = plainText.substring(0, length);
     return trimmed.substring(0, Math.min(trimmed.length, trimmed.lastIndexOf(' '))) + '...';
@@ -22,6 +22,6 @@ export const formatDateTime = (dateString) => {
     if (isNaN(dateObj)) return { isNew: false, displayDate: 'Date not available' };
     const now = new Date();
     const diffHours = (now - dateObj) / (1000 * 60 * 60);
-    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' }).format(dateObj);
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(dateObj);
     return { isNew: diffHours < 48, displayDate };
 };

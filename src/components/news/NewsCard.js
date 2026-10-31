@@ -76,7 +76,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-impact-content">
                         <span className="nc-impact-kicker">{article.source || 'Top Story'}</span>
                         <h3 className="nc-impact-headline">{article.title}</h3>
-                        <div className="nc-impact-meta">{getMeta()}</div>
+                        <div className="nc-impact-meta" suppressHydrationWarning>{getMeta()}</div>
                     </div>
                 </article>
                 <div className="hairline-divider"></div>
@@ -102,7 +102,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                         />
                     </div>
                     <h3 className="nc-snap-headline">{article.title}</h3>
-                    <div className="nc-std-meta mt-2">{getMeta()}</div>
+                    <div className="nc-std-meta mt-2" suppressHydrationWarning>{getMeta()}</div>
                 </article>
                 <div className="hairline-divider"></div>
             </a>
@@ -130,7 +130,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                     <div className="nc-rank-number">{rank ? String(rank).padStart(2, '0') : '#'}</div>
                     <div className="nc-ranked-content">
                         <h3 className="text-sm font-bold leading-tight">{article.title}</h3>
-                        <div className="nc-std-meta mt-1">{getMeta()}</div>
+                        <div className="nc-std-meta mt-1" suppressHydrationWarning>{getMeta()}</div>
                     </div>
                 </article>
                 <div className="hairline-divider"></div>
@@ -146,7 +146,7 @@ const NewsCard = ({ article, variant = 'standard', rank }) => {
                 <div className="nc-std-content">
                     <span className="nc-std-kicker">{article.source || 'Markets'}</span>
                     <h3 className="nc-std-headline">{article.title}</h3>
-                    <div className="nc-std-meta">{getMeta()}</div>
+                    <div className="nc-std-meta" suppressHydrationWarning>{getMeta()}</div>
                 </div>
                 {!imgError && article.imageUrl && (
                     <div className="nc-std-thumbnail">

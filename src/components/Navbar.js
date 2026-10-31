@@ -31,7 +31,7 @@ const Navbar = () => {
     const pathname = usePathname();
 
     const today = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
     });
 
     const handleLogout = () => {
@@ -171,7 +171,7 @@ const Navbar = () => {
             <div className="hidden md:flex fixed top-0 w-full z-[50] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs border-b border-slate-200 dark:border-slate-700 items-center">
                 <div className="container mx-auto px-6 h-9 flex justify-between items-center">
                     <div className="flex items-center space-x-4 font-medium tracking-wide">
-                        <span>{today}</span>
+                        <span suppressHydrationWarning>{today}</span>
                         <span className="w-px h-3 bg-slate-300 dark:bg-slate-600"></span>
                         <div className="flex items-center gap-2">
                             <FaCircle className={`w-2 h-2 ${marketStatus.color}`} />

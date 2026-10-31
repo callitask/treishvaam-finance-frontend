@@ -69,10 +69,10 @@ export function middleware(request: NextRequest) {
     const cspDirectives = [
         `default-src 'self'`,
         `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://www.googletagmanager.com https://cloudflareinsights.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com`,
-        `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+        `style-src 'self' 'nonce-${nonce}' 'sha256-3pRED1tOXas1FXFoPb9TGCjmYe9XQsmO9OV23khV2nY=' https://fonts.googleapis.com`,
         `font-src 'self' data: https://fonts.gstatic.com`,
         `img-src 'self' data: blob: https:`,
-        `connect-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com https://www.google-analytics.com https://analytics.google.com https://cloudflareinsights.com https://pagead2.googlesyndication.com`,
+        `connect-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com https://www.googletagmanager.com https://*.google-analytics.com https://www.google-analytics.com https://analytics.google.com https://stats.g.doubleclick.net https://cloudflareinsights.com https://static.cloudflareinsights.com https://pagead2.googlesyndication.com https://fonts.googleapis.com https://fonts.gstatic.com`,
         `frame-src 'self' https://*.treishvaamgroup.com https://backend.treishvaamgroup.com`,
         `media-src 'self' https:`,
         `frame-ancestors 'self'`,

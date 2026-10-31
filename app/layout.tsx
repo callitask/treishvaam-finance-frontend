@@ -298,6 +298,7 @@ export default function RootLayout({
                         <Script
                             strategy="afterInteractive"
                             src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+                            nonce={nonce}
                         />
                         <Script
                             id="google-analytics"

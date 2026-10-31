@@ -18,7 +18,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
     const hasThumbnails = article.thumbnails && article.thumbnails.length > 0;
     const isStory = hasThumbnails && article.thumbnails.length > 1;
     const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
-    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(new Date(article.updatedAt || article.createdAt));
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' }).format(new Date(article.updatedAt || article.createdAt));
     const categoryName = article.category?.name || 'Uncategorized';
     const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
 
@@ -82,7 +82,7 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                         {categoryName}
                     </button>
                     <span className="text-gray-300">|</span>
-                    <span className="text-gray-500 font-medium uppercase tracking-wide">{displayDate}</span>
+                    <span className="text-gray-500 font-medium uppercase tracking-wide" suppressHydrationWarning>{displayDate}</span>
                     {isNew && <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded ml-auto md:ml-0">NEW</span>}
                 </div>
 

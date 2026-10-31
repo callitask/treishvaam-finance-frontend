@@ -116,9 +116,9 @@ const LandingPage = () => {
                                             {(currentArticle.publishedAt || currentArticle.createdAt) && (
                                                 <span className="flex items-center gap-1.5">
                                                     <FaRegClock className="text-slate-400" />
-                                                    <time dateTime={currentArticle.publishedAt || currentArticle.createdAt}>
+                                                    <time suppressHydrationWarning dateTime={currentArticle.publishedAt || currentArticle.createdAt}>
                                                         {new Date(currentArticle.publishedAt || currentArticle.createdAt).toLocaleString(undefined, {
-                                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                                                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC'
                                                         })}
                                                     </time>
                                                 </span>

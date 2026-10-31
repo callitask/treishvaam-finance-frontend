@@ -15,7 +15,7 @@ import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogU
 
 const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
     const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
-    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(new Date(article.updatedAt || article.createdAt));
+    const displayDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(article.updatedAt || article.createdAt));
     const categoryName = article.category?.name || 'Uncategorized';
     const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
@@ -55,7 +55,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
                     <Link href={postLink}>{article.title}</Link>
                 </h3>
 
-                <p className="text-xs text-gray-500 font-medium mb-1">
+                <p className="text-xs text-gray-500 font-medium mb-1" suppressHydrationWarning>
                     {displayDate}
                 </p>
 
