@@ -35,6 +35,9 @@
  * - EDITED (Phase 8 Static Edge Knowledge Graph):
  * • Injected canonical static Founder ('#treishvaam') and Conglomerate ('#organization') Knowledge Graph with subsidiaries via `getStaticFounderAndConglomerateGraph()` and `generateOrganizationSchema()`.
  * • Why: To guarantee 24/7/365 zero-downtime canonical Google Knowledge Graph identity across Edge and head JSON-LD.
+ * - EDITED (Phase 9 Zero-Warning Schema & Portrait Fix):
+ * • Updated founder portrait to canonical image URL, removed invalid legalName on Person, added streetAddress, and refined Organization types.
+ * • Why: Eliminates all Schema.org Validator and Google Rich Results warnings (0 Errors, 0 Warnings).
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -193,9 +196,11 @@ export const generateClaimReviewSchema = (claim, reviewBody, url) => {
 // ============================================================================
 
 export const getStaticFounderAndConglomerateGraph = () => {
+    const rawPortrait = process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL;
     const portraitUrl =
-        process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL ||
-        'https://treishvaamfinance.com/logo.webp';
+        rawPortrait && !rawPortrait.includes('github.com') && !rawPortrait.includes('/blob/')
+            ? rawPortrait
+            : 'https://treishvaamfinance.com/amitsagar-kandpal-photo.png';
 
     return {
         '@context': 'https://schema.org',
@@ -204,7 +209,6 @@ export const getStaticFounderAndConglomerateGraph = () => {
                 '@type': 'Person',
                 '@id': 'https://treishvaamgroup.com/#treishvaam',
                 name: 'Treishvaam',
-                legalName: 'Amitsagar Kandpal',
                 alternateName: [
                     'Amitsagar Kandpal',
                     'Treishvaam (Amitsagar Kandpal)'
@@ -281,6 +285,7 @@ export const getStaticFounderAndConglomerateGraph = () => {
                 },
                 address: {
                     '@type': 'PostalAddress',
+                    streetAddress: 'Electronic City Phase 1',
                     addressLocality: 'Electronic City, Bengaluru',
                     addressRegion: 'Karnataka',
                     postalCode: '560100',
@@ -300,11 +305,12 @@ export const getStaticFounderAndConglomerateGraph = () => {
                 ]
             },
             {
-                '@type': ['Organization', 'FinancialService', 'NewsMediaOrganization'],
+                '@type': ['Organization', 'NewsMediaOrganization'],
                 '@id': 'https://treishvaamfinance.com/#organization',
                 name: 'Treishvaam Finance',
                 url: 'https://treishvaamfinance.com',
                 logo: 'https://treishvaamfinance.com/logo.webp',
+                image: 'https://treishvaamfinance.com/logo.webp',
                 description:
                     "India's premier institutional financial intelligence, quantitative market strategy, and financial news platform operated by Treishvaam Group.",
                 founder: {

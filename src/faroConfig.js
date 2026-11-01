@@ -28,11 +28,17 @@
  *   • Added safe environment validation ensuring zero crashes if environment variables are unset.
  * - EDITED (Regression Fix — Exit Intent Event Type):
  *   • Reverted accidental 'mouseenter' registration back to 'mouseleave'; the mismatch broke exit-intent detection and defeated the once-per-session removal guard.
+ * - EDITED (Phase 9 GSC Googlebot Crawler Guard):
+ *   • Added bot/crawler guard to `initFaro` and `postEvent` to prevent firing analytics beacons for Googlebot and automated crawlers.
+ *   • Why: Eliminates Google Search Console "Googlebot blocked by robots.txt" errors on `/api/v1/analytics/event`.
  */
 import { initializeFaro } from '@grafana/faro-web-sdk';
 import { API_URL } from './apiConfig';
 
 export function initFaro() {
+    if (typeof navigator !== 'undefined' && (/bot|crawl|spider|googlebot|inspectiontool|adsbot|bingbot|slurp/i.test(navigator.userAgent || '') || navigator.webdriver)) {
+        return;
+    }
     // Only initialize in production and on the client to save bandwidth and prevent Edge SSR crashes
     if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
         const faroEndpoint = process.env.NEXT_PUBLIC_FARO_URL || 'https://backend.treishvaamgroup.com/faro/collect';
@@ -73,6 +79,9 @@ const extractHighEntropyPlatform = async () => {
 
 export const postEvent = async (eventType, extraPayload = {}) => {
     if (typeof window === 'undefined') return;
+    if (typeof navigator !== 'undefined' && (/bot|crawl|spider|googlebot|inspectiontool|adsbot|bingbot|slurp/i.test(navigator.userAgent || '') || navigator.webdriver)) {
+        return;
+    }
 
     try {
         const platformVersion = await extractHighEntropyPlatform();

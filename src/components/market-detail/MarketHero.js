@@ -6,6 +6,7 @@
  * - EDITED: Integrated `formatSmartPrice` to ensure intelligent currency formatting.
  * - EDITED: Extracted raw fields defensively to prevent NaNs on payload variation.
  * - EDITED: Added Zero-Trust Fallback Pattern (`quoteData`, `marketData`). This prevents the company name, ticker, and exchange from disappearing when the 30-second live polling interval overwrites the `quoteData` state with a lightweight price-only payload.
+ * - EDITED (Phase 9): Updated breadcrumb HOME route from '/home' to canonical apex '/'.
  */
 import React from 'react';
 import Link from 'next/link';
@@ -40,7 +41,7 @@ const MarketHero = ({ quote, quoteData, marketData, ticker: fallbackTicker }) =>
     return (
         <div className="pb-4 border-b border-gray-200 dark:border-slate-700 transition-colors duration-300">
             <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                <Link href="/home" className="hover:text-blue-600 dark:hover:text-blue-400">HOME</Link>
+                <Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400">HOME</Link>
                 <span className="mx-2">&gt;</span>
                 <span className="text-gray-700 dark:text-gray-300">{displayTicker}</span>
             </div>

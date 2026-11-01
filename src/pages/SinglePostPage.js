@@ -27,6 +27,9 @@
  * - EDITED (Phase 8.9 - Native Event Synchronization Support):
  * • Removed inline synthetic `mouseup` handlers. Relies strictly on the externally imported `AnnotatableProse.js` component to handle native `document.addEventListener` bindings for mathematically flawless highlight tracking.
  *
+ * - EDITED (Phase 9):
+ * • Updated 'Back to Feed' and breadcrumb Home links from '/home' to canonical apex '/'.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -197,7 +200,7 @@ const SinglePostPage = () => {
                 <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-8 rounded-2xl max-w-md text-center border border-red-100 dark:border-red-800">
                     <h2 className="text-2xl font-bold mb-3">Article Not Found</h2>
                     <p className="mb-6 opacity-80">{error || "This article could not be loaded."}</p>
-                    <Link href="/home" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
+                    <Link href="/" className="inline-flex items-center text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300 font-bold bg-white dark:bg-slate-800 px-6 py-2 rounded-full shadow-sm">
                         <ArrowLeft size={16} className="mr-2" /> Back to Feed
                     </Link>
                 </div>
@@ -260,7 +263,7 @@ const SinglePostPage = () => {
                         {/* 2. MAIN ARTICLE */}
                         <article className="flex-1 min-w-0 relative max-w-3xl" ref={articleRef}>
                             <nav className="flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 space-x-2">
-                                <Link href="/home" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
+                                <Link href="/" className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors">Home</Link>
                                 <span>/</span>
                                 <span className="text-sky-700 dark:text-sky-500">{categoryName}</span>
                             </nav>

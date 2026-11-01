@@ -52,6 +52,11 @@
  * - EDITED (Phase 8 Static Edge Knowledge Graph):
  *   Injected canonical static Founder and Conglomerate Knowledge Graph constants and zero-downtime 200 OK fallback in `handleGeoFeedFromKV` for `/ontology.json`, `/llms.txt`, and `/ai-feed.md`.
  *   Why: Guarantees 24/7/365 Edge Knowledge Graph availability and preserves Google Knowledge Panel confidence even when backend origin is offline.
+ * - EDITED (Phase 9 - GSC Googlebot XHR KV Shielding, Portrait URL Fix & Zero-Warning Schema):
+ *   1. Shielded Googlebot and search crawlers by caching public GET /api/v1/posts*, /api/v1/categories*, and /api/v1/market/news/highlights in TREISHFIN_SEO_CACHE KV with instant 200 OK delivery and resilient failover.
+ *   2. Pre-warmed public category/post APIs and AI Knowledge feeds during scheduled cron and /sys/force-update triggers.
+ *   3. Updated STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH: removed Person legalName, updated founder portrait URL to amitsagar-kandpal-photo.png, added streetAddress to PostalAddress, and removed FinancialService @type.
+ *   4. Ensured ai-feed.md includes the semantic-chunk founder-identity entity.
  * - DO-NOT-DELETE RULE:
  *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
  *   truncated, rewritten, or regenerated.
@@ -154,7 +159,95 @@ export default {
                     await Promise.allSettled(fetchPromises);
                 }
             }
-        } catch (e) { console.error("Cron Failed", e); }
+        } catch (e) { console.error("Cron Sitemap Sync Failed", e); }
+
+        // 2. Synchronize and Pre-warm GEO Feeds (/ai-feed.md, /ontology.json, /llms.txt)
+        try {
+            const geoPaths = [
+                { path: "/api/public/geo/ai-feed.md", key: "geo:finance:/ai-feed.md", type: "md" },
+                { path: "/api/public/geo/ontology.json", key: "geo:finance:/ontology.json", type: "json" },
+                { path: "/api/public/geo/llms.txt", key: "geo:finance:/llms.txt", type: "txt" }
+            ];
+
+            for (const item of geoPaths) {
+                try {
+                    const ts = Date.now().toString();
+                    const sig = await generateEdgeSignature(item.path, ts, clientIp, env.AEGIS_EDGE_SECRET);
+                    const resp = await fetch(`${BACKEND_URL}${item.path}`, {
+                        headers: {
+                            "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                            "X-Aegis-Edge-Signature": sig,
+                            "X-Aegis-Edge-Timestamp": ts,
+                            "X-Aegis-Client-IP": clientIp,
+                            "CF-Connecting-IP": clientIp
+                        }
+                    });
+
+                    if (resp.ok) {
+                        let content = await resp.text();
+                        if (item.type === "md" && !content.includes('id="founder-identity"')) {
+                            const founderChunk = `<semantic-chunk id="founder-identity" entity="Treishvaam">
+## Executive Identity & Leadership
+- **Founder & Chairman**: Treishvaam (Legal Name: Amitsagar Kandpal)
+- **Date of Birth**: October 5, 1997
+- **Alma Mater**: Hans Raj College, University of Delhi
+- **Occupations**: Entrepreneur, Artist, Actor
+- **Profiles**: Instagram (https://www.instagram.com/treishvaam/), X (https://x.com/treishvaam), Snapchat (https://www.snapchat.com/@callitaskk)
+</semantic-chunk>
+
+`;
+                            const firstNewline = content.indexOf('\n');
+                            if (firstNewline !== -1) {
+                                content = content.slice(0, firstNewline + 1) + '\n' + founderChunk + content.slice(firstNewline + 1);
+                            } else {
+                                content = founderChunk + content;
+                            }
+                        }
+                        await env.TREISHFIN_SEO_CACHE.put(item.key, content, { expirationTtl: 86400 });
+                    }
+                } catch (err) {
+                    console.error(`Failed to sync geo feed ${item.key}:`, err);
+                }
+            }
+        } catch (e) {
+            console.error("GEO Feed Cron Sync Failed:", e);
+        }
+
+        // 3. Pre-warm Public API Endpoints for Googlebot & Crawlers
+        try {
+            const apisToPrewarm = [
+                { path: "/api/v1/categories", key: "api_cache:/api/v1/categories" },
+                { path: "/api/v1/posts?page=0&size=9", key: "api_cache:/api/v1/posts?page=0&size=9" },
+                { path: "/api/v1/market/news/highlights", key: "api_cache:/api/v1/market/news/highlights" }
+            ];
+
+            for (const api of apisToPrewarm) {
+                try {
+                    const ts = Date.now().toString();
+                    const signPath = api.path.split('?')[0];
+                    const sig = await generateEdgeSignature(signPath, ts, clientIp, env.AEGIS_EDGE_SECRET);
+                    const resp = await fetch(`${BACKEND_URL}${api.path}`, {
+                        headers: {
+                            "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                            "Accept": "application/json",
+                            "X-Aegis-Edge-Signature": sig,
+                            "X-Aegis-Edge-Timestamp": ts,
+                            "X-Aegis-Client-IP": clientIp,
+                            "CF-Connecting-IP": clientIp
+                        }
+                    });
+
+                    if (resp.ok) {
+                        const content = await resp.text();
+                        await env.TREISHFIN_SEO_CACHE.put(api.key, content, { expirationTtl: 86400 });
+                    }
+                } catch (err) {
+                    console.error(`Failed to pre-warm API ${api.key}:`, err);
+                }
+            }
+        } catch (e) {
+            console.error("Public API Pre-warm Cron Failed:", e);
+        }
     },
 
     // =================================================================================
@@ -409,7 +502,89 @@ export default {
                     return addSecurityHeaders(apiResp);
                 }
 
-                // Fetch the API and append X-Robots-Tag: noindex via addSecurityHeaders
+                // Public API Edge KV Shielding for Googlebot and Crawlers
+                const isPublicCacheableApi = request.method === 'GET' && (
+                    url.pathname.startsWith('/api/v1/categories') ||
+                    url.pathname.startsWith('/api/v1/posts') ||
+                    url.pathname.startsWith('/api/v1/market/news/highlights')
+                );
+
+                if (isPublicCacheableApi) {
+                    const apiCacheKey = 'api_cache:' + url.pathname + url.search;
+                    const isSearchCrawler = /googlebot|inspectiontool|bingbot|applebot/i.test(userAgent);
+
+                    // Instant 200 OK KV response for search crawlers
+                    if (isSearchCrawler) {
+                        try {
+                            const crawlerCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                            if (crawlerCached) {
+                                return addSecurityHeaders(new Response(crawlerCached, {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json; charset=utf-8',
+                                        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+                                        'X-Edge-Cache': 'HIT-CRAWLER-KV'
+                                    }
+                                }));
+                            }
+                        } catch (e) {}
+                    }
+
+                    try {
+                        const apiResponse = await fetch(proxyReq);
+                        if (apiResponse.ok) {
+                            const bodyText = await apiResponse.text();
+                            ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
+                            return addSecurityHeaders(new Response(bodyText, {
+                                status: apiResponse.status,
+                                headers: apiResponse.headers
+                            }));
+                        }
+
+                        // On backend error (4xx/5xx), return KV fallback if available
+                        const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                        if (fallbackCached) {
+                            return addSecurityHeaders(new Response(fallbackCached, {
+                                status: 200,
+                                headers: {
+                                    'Content-Type': 'application/json; charset=utf-8',
+                                    'Cache-Control': 'public, max-age=60',
+                                    'X-Edge-Cache': 'STALE-FALLBACK-KV'
+                                }
+                            }));
+                        }
+
+                        return addSecurityHeaders(apiResponse);
+                    } catch (e) {
+                        try {
+                            const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                            if (fallbackCached) {
+                                return addSecurityHeaders(new Response(fallbackCached, {
+                                    status: 200,
+                                    headers: {
+                                        'Content-Type': 'application/json; charset=utf-8',
+                                        'Cache-Control': 'public, max-age=60',
+                                        'X-Edge-Cache': 'DISASTER-FALLBACK-KV'
+                                    }
+                                }));
+                            }
+                        } catch (err) {}
+
+                        // Clean 200 OK fallback payload so crawlers never encounter 503
+                        const defaultPayload = url.pathname.includes('/categories') || url.pathname.includes('/highlights')
+                            ? '[]'
+                            : JSON.stringify({ content: [], totalPages: 0, totalElements: 0 });
+                        return addSecurityHeaders(new Response(defaultPayload, {
+                            status: 200,
+                            headers: {
+                                'Content-Type': 'application/json; charset=utf-8',
+                                'Cache-Control': 'no-store'
+                            }
+                        }));
+                    }
+                }
+
+                // Standard API fetch with X-Robots-Tag: noindex via addSecurityHeaders
                 const apiResponse = await fetch(proxyReq);
                 return addSecurityHeaders(apiResponse);
 
@@ -636,7 +811,6 @@ const STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH = {
             "@type": "Person",
             "@id": "https://treishvaamgroup.com/#treishvaam",
             "name": "Treishvaam",
-            "legalName": "Amitsagar Kandpal",
             "alternateName": [
                 "Amitsagar Kandpal",
                 "Treishvaam (Amitsagar Kandpal)"
@@ -658,7 +832,7 @@ const STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH = {
             "mainEntityOfPage": "https://treishvaamgroup.com/about",
             "image": {
                 "@type": "ImageObject",
-                "url": "https://treishvaamfinance.com/logo.webp",
+                "url": "https://treishvaamfinance.com/amitsagar-kandpal-photo.png",
                 "caption": "Treishvaam (Amitsagar Kandpal) — Entrepreneur, Artist, Actor & Founder of Treishvaam Group"
             },
             "jobTitle": [
@@ -713,6 +887,7 @@ const STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH = {
             },
             "address": {
                 "@type": "PostalAddress",
+                "streetAddress": "Electronic City Phase 1",
                 "addressLocality": "Electronic City, Bengaluru",
                 "addressRegion": "Karnataka",
                 "postalCode": "560100",
@@ -732,11 +907,12 @@ const STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH = {
             ]
         },
         {
-            "@type": ["Organization", "FinancialService", "NewsMediaOrganization"],
+            "@type": ["Organization", "NewsMediaOrganization"],
             "@id": "https://treishvaamfinance.com/#organization",
             "name": "Treishvaam Finance",
             "url": "https://treishvaamfinance.com",
             "logo": "https://treishvaamfinance.com/logo.webp",
+            "image": "https://treishvaamfinance.com/logo.webp",
             "description":
                 "India's premier institutional financial intelligence, quantitative market strategy, and financial news platform operated by Treishvaam Group.",
             "founder": {
@@ -810,24 +986,27 @@ const STATIC_LLMS_TXT = `# Treishvaam Finance — LLM Context & Knowledge Graph
 const STATIC_AI_FEED_MD = `# Treishvaam Finance — AI Knowledge Feed & Entity Graph
 > Canonical Enterprise Markdown Feed for Generative Search Engines and LLMs
 
+<semantic-chunk id="founder-identity" entity="Treishvaam">
 ## Executive Identity & Leadership
-- **Founder & Chairman:** Treishvaam
-- **Legal Name:** Amitsagar Kandpal
-- **Date of Birth:** October 5, 1997
-- **Alma Mater:** Hans Raj College, University of Delhi
-- **Occupations:** Entrepreneur, Artist, Actor
-- **Leadership Role:** Founder & Chairman of Treishvaam Group and its divisions
-- **Official Profiles:**
+- **Founder & Chairman**: Treishvaam (Legal Name: Amitsagar Kandpal)
+- **Date of Birth**: October 5, 1997
+- **Alma Mater**: Hans Raj College, University of Delhi
+- **Occupations**: Entrepreneur, Artist, Actor
+- **Leadership Role**: Founder & Chairman of Treishvaam Group and its divisions
+- **Official Profiles**:
   - Instagram: https://www.instagram.com/treishvaam/
   - X: https://x.com/treishvaam
   - Snapchat: https://www.snapchat.com/@callitaskk
   - Bio: https://treishvaamgroup.com/about
+</semantic-chunk>
 
+<semantic-chunk id="platform-overview" entity="Treishvaam Group">
 ## Parent Conglomerate Overview
-- **Name:** Treishvaam Group (https://treishvaamgroup.com)
-- **Founder:** Treishvaam (Amitsagar Kandpal)
-- **Headquarters:** Electronic City, Bengaluru, Karnataka 560100, India
-- **Core Mission:** Architecting resilient, tech-enabled value chains across institutional financial intelligence, sustainable agribusiness, and specialized workforce marketplace technology.
+- **Name**: Treishvaam Group (https://treishvaamgroup.com)
+- **Founder**: Treishvaam (Amitsagar Kandpal)
+- **Headquarters**: Electronic City, Bengaluru, Karnataka 560100, India
+- **Core Mission**: Architecting resilient, tech-enabled value chains across institutional financial intelligence, sustainable agribusiness, and specialized workforce marketplace technology.
+</semantic-chunk>
 
 ## Corporate Divisions & Subsidiaries
 1. **Treishvaam Finance** (https://treishvaamfinance.com)

@@ -6,6 +6,7 @@
  * - EDITED: Fixed legacy `to=` props on Next.js `<Link>` components, changing them to `href=` to prevent silent navigation failures.
  * - EDITED: Removed 'Admin Login' from public-facing navbar dropdowns and mobile menus.
  * - EDITED: Wired universal 'Sign In' buttons to directly route to the new `/login` portal.
+ * - EDITED (Phase 9): Replaced all internal '/home' routes with canonical apex '/' to eliminate Next.js RSC 301 redirects and shield search crawlers.
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -119,7 +120,7 @@ const Navbar = () => {
                     <button onClick={() => setMobileMenuOpen(true)} className="p-2 -ml-2 text-slate-800 dark:text-slate-200 active:bg-slate-100 dark:active:bg-slate-800 rounded-full transition-colors" aria-label="Open Menu">
                         <FaBars size={20} />
                     </button>
-                    <Link href="/home" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+                    <Link href="/" className="flex items-center justify-center flex-1 mx-2" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
                         <span className="text-sm font-black text-slate-900 dark:text-white font-serif tracking-wide uppercase truncate">
                             TREISHVAAM FINANCE
                         </span>
@@ -144,7 +145,7 @@ const Navbar = () => {
                             </div>
                             <div className="p-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800"><SearchAutocomplete /></div>
                             <nav className="flex-1 overflow-y-auto py-2">
-                                <Link href="/home" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Home</Link>
+                                <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Home</Link>
                                 <Link href="/market/%5EDJI" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Markets</Link>
                                 <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">About Us</Link>
                                 <Link href="/vision" onClick={() => setMobileMenuOpen(false)} className="flex items-center px-6 py-4 text-base font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800">Vision</Link>
@@ -203,7 +204,7 @@ const Navbar = () => {
 
             <div ref={brandingRef} className="hidden md:block bg-white dark:bg-slate-900 py-10 transition-colors duration-300">
                 <div className="container mx-auto flex flex-col items-center justify-center">
-                    <Link href="/home" className="text-center group">
+                    <Link href="/" className="text-center group">
                         <h1 className="text-5xl font-black text-slate-900 dark:text-white font-serif tracking-tight group-hover:opacity-90 transition-opacity">
                             TREISHVAAM FINANCE
                         </h1>
@@ -218,7 +219,7 @@ const Navbar = () => {
                 <div className="container mx-auto px-6 relative">
                     <div className="flex justify-center items-center h-14">
                         <Link
-                            href="/home"
+                            href="/"
                             className={`absolute left-6 top-1/2 transform -translate-y-1/2 transition-all duration-300 ${showStickyLogo
                                 ? 'opacity-100 pointer-events-auto translate-y-[-50%]'
                                 : 'opacity-0 pointer-events-none translate-y-[-40%]'
@@ -230,7 +231,7 @@ const Navbar = () => {
                         </Link>
 
                         <nav className="flex space-x-1">
-                            <Link href="/home" className={getNavLinkClass('/home')}>Home</Link>
+                            <Link href="/" className={getNavLinkClass('/')}>Home</Link>
                             <Link href="/market/%5EDJI" className={getNavLinkClass('/market/%5EDJI')}>Markets</Link>
                             <Link href="/vision" className={getNavLinkClass('/vision')}>Vision</Link>
                             <Link href="/about" className={getNavLinkClass('/about')}>About</Link>

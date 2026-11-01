@@ -8,6 +8,8 @@
  * - Backend: getNewsHighlights (from ../../src/apiConfig)
  * - Auth: useAuth (from ../../src/context/AuthContext)
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - EDITED (Phase 9):
+ * • Updated 'Explore as Guest' link from '/home' to canonical apex '/'.
  * - EDITED (Current Phase):
  * • Replaced metaphorical hero copy with literal, professional text emphasizing journalism, analysis, views, network, and community.
  * - EDITED (Previous Phase):
@@ -217,7 +219,7 @@ export default function LoginPage() {
                             </button>
 
                             <div className="mt-8 text-center">
-                                <Link href="/home" className="text-xs font-bold text-slate-500 hover:text-sky-700 uppercase tracking-widest transition-colors inline-flex items-center gap-2 group">
+                                <Link href="/" className="text-xs font-bold text-slate-500 hover:text-sky-700 uppercase tracking-widest transition-colors inline-flex items-center gap-2 group">
                                     Explore as Guest
                                     <span className="w-4 h-[1px] bg-slate-300 group-hover:w-6 group-hover:bg-sky-700 transition-all"></span>
                                 </Link>

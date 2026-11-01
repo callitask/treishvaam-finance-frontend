@@ -18,6 +18,7 @@ import { FaGoogle, FaFacebookF, FaLinkedinIn, FaTwitter, FaChartLine, FaArrowRig
  * - EDITED: Replaced simulated terminal with Live News Flasher (getNewsHighlights).
  * - EDITED: Removed mock data/fake fallbacks to enforce enterprise data integrity.
  * - EDITED: Revamped left column to premium editorial layout (light theme, pristine whitespace, Bloomberg/Mint style).
+ * - EDITED (Phase 9): Updated guest and article navigation links from '/home' to canonical apex '/'.
  */
 const LandingPage = () => {
     const [news, setNews] = useState([]);
@@ -103,7 +104,7 @@ const LandingPage = () => {
                                 </div>
                             ) : currentArticle ? (
                                 <article key={newsIndex} className="animate-fade-in-right absolute left-6 right-0">
-                                    <Link href="/home" className="group block">
+                                    <Link href="/" className="group block">
                                         <h3 className="text-xl lg:text-[1.65rem] font-serif font-medium text-slate-900 group-hover:text-sky-800 transition-colors leading-[1.3] line-clamp-3">
                                             {currentArticle.title || currentArticle.headline}
                                         </h3>
@@ -175,7 +176,7 @@ const LandingPage = () => {
                             </button>
 
                             <div className="mt-8 text-center">
-                                <Link href="/home" className="text-xs font-bold text-slate-500 hover:text-sky-700 uppercase tracking-widest transition-colors inline-flex items-center gap-2 group">
+                                <Link href="/" className="text-xs font-bold text-slate-500 hover:text-sky-700 uppercase tracking-widest transition-colors inline-flex items-center gap-2 group">
                                     Explore as Guest
                                     <span className="w-4 h-[1px] bg-slate-300 group-hover:w-6 group-hover:bg-sky-700 transition-all"></span>
                                 </Link>

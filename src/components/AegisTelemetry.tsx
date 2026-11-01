@@ -1,36 +1,43 @@
-"use client";
-
-/**
- * AI-CONTEXT:
- *
- * Purpose:
- * - Client-side wrapper for the AEGIS L5-BIE biometric telemetry engine.
- * * Scope:
- * - Mounts the WebCrypto hashing listener strictly in the browser environment.
- * * Critical Dependencies:
- * - src/lib/aegis-biometrics.ts
- * * Security Constraints:
- * - Must be a "use client" component.
- * - Must unmount listeners gracefully to prevent memory leaks or dual-firing.
- * * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
- * - ADDED:
- * • Created isolated client component to allow Next.js Edge SSR to render the global layout without failing on WebCrypto `window` references.
- */
-
-import { useEffect } from 'react';
-import { initializeAegisTelemetry } from '../lib/aegis-biometrics';
-
-export default function AegisTelemetry() {
-    useEffect(() => {
-        // Initializes the passive DOM listeners for Jitter Entropy extraction
-        const cleanup = initializeAegisTelemetry();
-
-        return () => {
-            // Guarantee teardown if the component unmounts
-            if (cleanup) cleanup();
-        };
-    }, []);
-
-    // Purely passive telemetry layer. Emits no UI.
-    return null;
+"use client";
+
+/**
+ * AI-CONTEXT:
+ *
+ * Purpose:
+ * - Client-side wrapper for the AEGIS L5-BIE biometric telemetry engine.
+ * * Scope:
+ * - Mounts the WebCrypto hashing listener strictly in the browser environment.
+ * * Critical Dependencies:
+ * - src/lib/aegis-biometrics.ts
+ * * Security Constraints:
+ * - Must be a "use client" component.
+ * - Must unmount listeners gracefully to prevent memory leaks or dual-firing.
+ * * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
+ * - ADDED:
+ * • Created isolated client component to allow Next.js Edge SSR to render the global layout without failing on WebCrypto `window` references.
+ * - UPDATED (Phase 9):
+ * • Added bot/crawler shield to bypass telemetry initialization for Googlebot and headless crawlers.
+ */
+
+import { useEffect } from 'react';
+import { initializeAegisTelemetry } from '../lib/aegis-biometrics';
+
+export default function AegisTelemetry() {
+    useEffect(() => {
+        // Shield automated crawlers, headless bots, and Googlebot inspection tools from triggering telemetry
+        if (typeof navigator !== 'undefined' && (/bot|crawl|spider|googlebot|inspectiontool|adsbot|bingbot|slurp/i.test(navigator.userAgent || '') || navigator.webdriver)) {
+            return;
+        }
+
+        // Initializes the passive DOM listeners for Jitter Entropy extraction
+        const cleanup = initializeAegisTelemetry();
+
+        return () => {
+            // Guarantee teardown if the component unmounts
+            if (cleanup) cleanup();
+        };
+    }, []);
+
+    // Purely passive telemetry layer. Emits no UI.
+    return null;
 }
