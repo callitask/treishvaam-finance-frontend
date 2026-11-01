@@ -16,6 +16,9 @@ import { NextResponse } from 'next/server';
  * - EDITED (GEO Provenance Update):
  * • Implemented native `crypto.subtle` HMAC-SHA-512 signing using `AEGIS_EDGE_SECRET`.
  * • Why: Validates the request with the backend `AegisEdgeValidationFilter` to maintain zero-trust integrity.
+ * - EDITED (Phase 8 Static Edge Knowledge Graph):
+ * • Added comprehensive static Founder & Conglomerate fallback for zero-downtime 200 OK AI feed ingestion.
+ * • Why: Guarantees AI crawlers receive full identity context even when the backend VM is offline.
  */
 
 export const runtime = 'edge';
@@ -35,6 +38,36 @@ async function generateEdgeSignature(path: string, timestamp: string, secret: st
     return signatureArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const STATIC_AI_FEED_MD = `# Treishvaam Finance — AI Knowledge Feed & Entity Graph
+> Canonical Enterprise Markdown Feed for Generative Search Engines and LLMs
+
+## Executive Identity & Leadership
+- **Founder & Chairman:** Treishvaam
+- **Legal Name:** Amitsagar Kandpal
+- **Date of Birth:** October 5, 1997
+- **Alma Mater:** Hans Raj College, University of Delhi
+- **Occupations:** Entrepreneur, Artist, Actor
+- **Leadership Role:** Founder & Chairman of Treishvaam Group and its divisions
+- **Official Profiles:**
+  - Instagram: https://www.instagram.com/treishvaam/
+  - X: https://x.com/treishvaam
+  - Snapchat: https://www.snapchat.com/@callitaskk
+  - Bio: https://treishvaamgroup.com/about
+
+## Parent Conglomerate Overview
+- **Name:** Treishvaam Group (https://treishvaamgroup.com)
+- **Founder:** Treishvaam (Amitsagar Kandpal)
+- **Headquarters:** Electronic City, Bengaluru, Karnataka 560100, India
+- **Core Mission:** Architecting resilient, tech-enabled value chains across institutional financial intelligence, sustainable agribusiness, and specialized workforce marketplace technology.
+
+## Corporate Divisions & Subsidiaries
+1. **Treishvaam Finance** (https://treishvaamfinance.com)
+   - Institutional Financial Intelligence, Quantitative Analysis, Real-Time Market Telemetry, and Financial News.
+2. **Treishvaam Agro** (https://treishvaamagro.com)
+   - Sustainable B2B Agribusiness, Solar-Dried Dehydrated Superfood Powders, Herbal Extracts, and Traceable Agricultural Commodities.
+3. **Treishvaam Hiring Marketplace (THM)** (https://treishvaamgroup.com/about)
+   - Specialized Enterprise Workforce and Talent Marketplace engineered for direct high-performance team placement.
+`;
 export async function GET() {
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || "https://backend.treishvaamgroup.com";
     const edgeSecret = process.env.AEGIS_EDGE_SECRET;
@@ -54,15 +87,31 @@ export async function GET() {
             headers,
             next: { revalidate: 3600 }
         });
-        const text = await res.text();
 
-        return new NextResponse(text, {
+        if (res.ok) {
+            const text = await res.text();
+            return new NextResponse(text, {
+                headers: {
+                    'Content-Type': 'text/markdown; charset=utf-8',
+                    'Cache-Control': 'public, s-maxage=86400, max-age=3600'
+                }
+            });
+        }
+
+        return new NextResponse(STATIC_AI_FEED_MD, {
+            status: 200,
             headers: {
                 'Content-Type': 'text/markdown; charset=utf-8',
-                'Cache-Control': 'public, s-maxage=86400, max-age=3600'
+                'Cache-Control': 'public, max-age=3600, s-maxage=86400'
             }
         });
     } catch (error) {
-        return new NextResponse("GEO Feed Unavailable", { status: 503 });
+        return new NextResponse(STATIC_AI_FEED_MD, {
+            status: 200,
+            headers: {
+                'Content-Type': 'text/markdown; charset=utf-8',
+                'Cache-Control': 'public, max-age=3600, s-maxage=86400'
+            }
+        });
     }
 }

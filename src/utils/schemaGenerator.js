@@ -32,6 +32,9 @@
  * • Why: To guarantee search engines and LLMs deterministically link the brand name directly to Amitsagar Kandpal.
  * - EDITED (Phase 8 GEO Full Execution):
  * • Implemented robust export functions for `Dataset` and `ClaimReview` to map pure structured context explicitly for Enterprise AI integration (DeepSeek, GPT-4o).
+ * - EDITED (Phase 8 Static Edge Knowledge Graph):
+ * • Injected canonical static Founder ('#treishvaam') and Conglomerate ('#organization') Knowledge Graph with subsidiaries via `getStaticFounderAndConglomerateGraph()` and `generateOrganizationSchema()`.
+ * • Why: To guarantee 24/7/365 zero-downtime canonical Google Knowledge Graph identity across Edge and head JSON-LD.
  */
 
 export const generatePostSchema = (post, authorName, pageUrl, imageUrl) => {
@@ -183,4 +186,167 @@ export const generateClaimReviewSchema = (claim, reviewBody, url) => {
         },
         "url": url
     };
+};
+
+// ============================================================================
+// CANONICAL STATIC FOUNDER & CONGLOMERATE KNOWLEDGE GRAPH (EDGE & HEAD JSON-LD)
+// ============================================================================
+
+export const getStaticFounderAndConglomerateGraph = () => {
+    const portraitUrl =
+        process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL ||
+        'https://treishvaamfinance.com/logo.webp';
+
+    return {
+        '@context': 'https://schema.org',
+        '@graph': [
+            {
+                '@type': 'Person',
+                '@id': 'https://treishvaamgroup.com/#treishvaam',
+                name: 'Treishvaam',
+                legalName: 'Amitsagar Kandpal',
+                alternateName: [
+                    'Amitsagar Kandpal',
+                    'Treishvaam (Amitsagar Kandpal)'
+                ],
+                givenName: 'Amitsagar',
+                familyName: 'Kandpal',
+                additionalName: 'Treishvaam',
+                birthDate: '1997-10-05',
+                gender: 'Male',
+                nationality: {
+                    '@type': 'Country',
+                    name: 'India'
+                },
+                disambiguatingDescription:
+                    'Indian entrepreneur, artist, actor, and Founder & Chairman of the eponymous Treishvaam Group and its subsidiaries Treishvaam Finance, Treishvaam Agro, and Treishvaam Hiring Marketplace (THM).',
+                description:
+                    'Treishvaam (legal name Amitsagar Kandpal, born October 5, 1997) is an Indian entrepreneur, artist, and actor. He is the Founder and Chairman of Treishvaam Group, an enterprise conglomerate operating across financial intelligence (Treishvaam Finance), sustainable agribusiness (Treishvaam Agro), and workforce technology (Treishvaam Hiring Marketplace).',
+                url: 'https://treishvaamgroup.com/about',
+                mainEntityOfPage: 'https://treishvaamgroup.com/about',
+                image: {
+                    '@type': 'ImageObject',
+                    url: portraitUrl,
+                    caption: 'Treishvaam (Amitsagar Kandpal) — Entrepreneur, Artist, Actor & Founder of Treishvaam Group'
+                },
+                jobTitle: [
+                    'Founder & Chairman',
+                    'Entrepreneur',
+                    'Artist',
+                    'Actor'
+                ],
+                hasOccupation: [
+                    { '@type': 'Occupation', name: 'Entrepreneur' },
+                    { '@type': 'Occupation', name: 'Artist' },
+                    { '@type': 'Occupation', name: 'Actor' }
+                ],
+                alumniOf: [
+                    {
+                        '@type': 'CollegeOrUniversity',
+                        name: 'Hans Raj College, University of Delhi',
+                        sameAs: [
+                            'https://www.hansrajcollege.ac.in/',
+                            'https://en.wikipedia.org/wiki/Hansraj_College'
+                        ]
+                    }
+                ],
+                worksFor: {
+                    '@id': 'https://treishvaamgroup.com/#organization'
+                },
+                owns: [
+                    { '@id': 'https://treishvaamgroup.com/#organization' },
+                    { '@id': 'https://treishvaamfinance.com/#organization' },
+                    { '@id': 'https://treishvaamagro.com/#organization' },
+                    { '@id': 'https://treishvaamgroup.com/#thm' }
+                ],
+                sameAs: [
+                    'https://www.instagram.com/treishvaam/',
+                    'https://x.com/treishvaam',
+                    'https://www.snapchat.com/@callitaskk',
+                    'https://treishvaamgroup.com/about',
+                    'https://treishvaamfinance.com/about',
+                    'https://treishvaamagro.com'
+                ]
+            },
+            {
+                '@type': 'Organization',
+                '@id': 'https://treishvaamgroup.com/#organization',
+                name: 'Treishvaam Group',
+                url: 'https://treishvaamgroup.com',
+                logo: 'https://treishvaamfinance.com/logo.webp',
+                description:
+                    'Global enterprise conglomerate founded by Treishvaam (Amitsagar Kandpal), architecting resilient value chains across Institutional Financial Intelligence (Treishvaam Finance), Sustainable Agribusiness (Treishvaam Agro), and Workforce Technology (Treishvaam Hiring Marketplace).',
+                founder: {
+                    '@id': 'https://treishvaamgroup.com/#treishvaam'
+                },
+                address: {
+                    '@type': 'PostalAddress',
+                    addressLocality: 'Electronic City, Bengaluru',
+                    addressRegion: 'Karnataka',
+                    postalCode: '560100',
+                    addressCountry: 'IN'
+                },
+                subOrganization: [
+                    { '@id': 'https://treishvaamfinance.com/#organization' },
+                    { '@id': 'https://treishvaamagro.com/#organization' },
+                    { '@id': 'https://treishvaamgroup.com/#thm' }
+                ],
+                sameAs: [
+                    'https://treishvaamgroup.com',
+                    'https://treishvaamfinance.com',
+                    'https://treishvaamagro.com',
+                    'https://www.instagram.com/treishvaam/',
+                    'https://x.com/treishvaam'
+                ]
+            },
+            {
+                '@type': ['Organization', 'FinancialService', 'NewsMediaOrganization'],
+                '@id': 'https://treishvaamfinance.com/#organization',
+                name: 'Treishvaam Finance',
+                url: 'https://treishvaamfinance.com',
+                logo: 'https://treishvaamfinance.com/logo.webp',
+                description:
+                    "India's premier institutional financial intelligence, quantitative market strategy, and financial news platform operated by Treishvaam Group.",
+                founder: {
+                    '@id': 'https://treishvaamgroup.com/#treishvaam'
+                },
+                parentOrganization: {
+                    '@id': 'https://treishvaamgroup.com/#organization'
+                }
+            },
+            {
+                '@type': 'Organization',
+                '@id': 'https://treishvaamagro.com/#organization',
+                name: 'Treishvaam Agro',
+                url: 'https://treishvaamagro.com',
+                description:
+                    'Enterprise B2B sustainable agribusiness and nutritional ingredient manufacturer under Treishvaam Group, producing solar-dried, low-temperature dehydrated fruit and vegetable powders, herbal extracts, and organic spices with farm-to-FOB QR traceability.',
+                founder: {
+                    '@id': 'https://treishvaamgroup.com/#treishvaam'
+                },
+                parentOrganization: {
+                    '@id': 'https://treishvaamgroup.com/#organization'
+                }
+            },
+            {
+                '@type': 'Organization',
+                '@id': 'https://treishvaamgroup.com/#thm',
+                name: 'Treishvaam Hiring Marketplace',
+                alternateName: ['THM', 'Treishvaam Hiring'],
+                url: 'https://treishvaamgroup.com/about',
+                description:
+                    'Direct-access workforce and talent marketplace division under Treishvaam Group engineered for matching high-performance teams and specialized enterprise talent.',
+                founder: {
+                    '@id': 'https://treishvaamgroup.com/#treishvaam'
+                },
+                parentOrganization: {
+                    '@id': 'https://treishvaamgroup.com/#organization'
+                }
+            }
+        ]
+    };
+};
+
+export const generateOrganizationSchema = () => {
+    return getStaticFounderAndConglomerateGraph();
 };

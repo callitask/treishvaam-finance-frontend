@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getStaticFounderAndConglomerateGraph } from '../../src/utils/schemaGenerator';
 
 /**
  * AI-CONTEXT:
@@ -16,6 +17,9 @@ import { NextResponse } from 'next/server';
  * - EDITED (GEO Provenance Update):
  * • Implemented native `crypto.subtle` HMAC-SHA-512 signing using `AEGIS_EDGE_SECRET`.
  * • Why: Validates the request with the backend `AegisEdgeValidationFilter` to maintain zero-trust integrity.
+ * - EDITED (Phase 8 Static Edge Knowledge Graph):
+ * • Added static Founder & Conglomerate fallback via `getStaticFounderAndConglomerateGraph()` when backend origin is offline/unreachable.
+ * • Why: Guarantees zero-downtime 200 OK JSON-LD for Google Knowledge Graph and AI crawlers.
  */
 
 export const runtime = 'edge';
@@ -54,15 +58,46 @@ export async function GET() {
             headers,
             next: { revalidate: 3600 }
         });
-        const text = await res.text();
 
-        return new NextResponse(text, {
+        if (res.ok) {
+            const data = await res.json();
+            const staticGraph = getStaticFounderAndConglomerateGraph();
+            let merged = data;
+            if (data && Array.isArray(data['@graph'])) {
+                const existingIds = new Set(data['@graph'].map((n: any) => n['@id']));
+                for (const node of staticGraph['@graph']) {
+                    if (!existingIds.has(node['@id'])) {
+                        data['@graph'].push(node);
+                    }
+                }
+                merged = data;
+            } else {
+                merged = staticGraph;
+            }
+
+            return NextResponse.json(merged, {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/ld+json; charset=utf-8',
+                    'Cache-Control': 'public, max-age=3600, s-maxage=86400'
+                }
+            });
+        }
+
+        return NextResponse.json(getStaticFounderAndConglomerateGraph(), {
+            status: 200,
             headers: {
-                'Content-Type': 'application/json; charset=utf-8',
-                'Cache-Control': 'public, s-maxage=86400, max-age=3600'
+                'Content-Type': 'application/ld+json; charset=utf-8',
+                'Cache-Control': 'public, max-age=3600, s-maxage=86400'
             }
         });
     } catch (error) {
-        return new NextResponse("GEO Feed Unavailable", { status: 503 });
+        return NextResponse.json(getStaticFounderAndConglomerateGraph(), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/ld+json; charset=utf-8',
+                'Cache-Control': 'public, max-age=3600, s-maxage=86400'
+            }
+        });
     }
 }
