@@ -263,11 +263,27 @@ export default {
 
         if (url.pathname === '/sys/purge-cache') {
             try {
+                const cache = caches.default;
+                const endpoints = [
+                    "https://treishvaamfinance.com/ontology.json",
+                    "https://treishvaamfinance.com/ai-feed.md",
+                    "https://treishvaamfinance.com/llms.txt",
+                    "https://treishvaamfinance.com/",
+                    "https://treishvaamfinance.com/api/v1/categories",
+                    "https://treishvaamfinance.com/api/v1/posts?page=0&size=9",
+                    "https://treishvaamfinance.com/api/v1/market/news/highlights"
+                ];
+                for (const ep of endpoints) {
+                    try {
+                        await cache.delete(new Request(ep));
+                    } catch (err) {}
+                }
+
                 const listed = await env.TREISHFIN_SEO_CACHE.list();
                 for (const key of listed.keys) {
                     await env.TREISHFIN_SEO_CACHE.delete(key.name);
                 }
-                return new Response("Enterprise KV Cache Purged Successfully! All stale records annihilated.", { status: 200 });
+                return new Response("Enterprise KV Cache and Edge Cache Purged Successfully! All stale records annihilated.", { status: 200 });
             } catch (e) {
                 return new Response("Purge failed: " + e.message, { status: 500 });
             }
