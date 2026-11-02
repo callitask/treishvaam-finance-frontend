@@ -13,6 +13,8 @@
  * - EDITED (Vol 3 - Search String Hydration Shield):
  * • ROOT CAUSE: Inline evaluation of `searchParams.toString()` caused SSR/CSR HTML mismatch (#425) when OAuth parameters were present in the URL, violently unmounting the app mid-authentication.
  * • FIX: Deferred `search` string population to a post-mount `useEffect` hook, completing the 100% byte-for-byte SSR/CSR hydration parity.
+ * - EDITED (Phase 12.2 - Clean Params Handling):
+ * • Hardened useParams() so empty route params return a clean {} without dangling undefined keys, while preserving id, userFriendlySlug, and urlArticleId for edit routes.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -56,11 +58,15 @@ export const useLocation = () => {
 
 export const useParams = () => {
     const params = useNextParams() || {};
-    return {
-        ...params,
-        urlArticleId: params.urlArticleId ?? params.id,
-        userFriendlySlug: params.userFriendlySlug ?? params.postSlug,
-    };
+    const res = { ...params };
+    if (params.id !== undefined) {
+        res.id = params.id;
+        res.urlArticleId = params.urlArticleId ?? params.id;
+    }
+    if (params.userFriendlySlug !== undefined || params.postSlug !== undefined) {
+        res.userFriendlySlug = params.userFriendlySlug ?? params.postSlug;
+    }
+    return res;
 };
 
 // Next.js returns a read-only URLSearchParams object. React Router returns an array tuple.

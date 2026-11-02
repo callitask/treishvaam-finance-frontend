@@ -8,11 +8,14 @@
  * - EDITED:
  * • Replaced `ResponsiveAuthImage` with `SmartMediaRenderer` to natively support video covers in the LCP slot.
  * • Date/Phase: Phase 2 (Smart Media Engine)
+ *
+ * - EDITED (Phase 12.1 - Video Thumbnail Resolution):
+ * • Used resolvePostMediaUrl to dynamically resolve hero media across thumbnails, cover, and in-content video.
  */
 import React from 'react';
 import Link from 'next/link';
 import SmartMediaRenderer from './SmartMediaRenderer';
-import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
+import { categoryStyles, createSnippet, formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 
 const HeroSection = ({ featuredPost }) => {
     if (!featuredPost) return null;
@@ -22,9 +25,7 @@ const HeroSection = ({ featuredPost }) => {
     const categoryClass = categoryStyles[categoryName] || categoryStyles["Default"];
     const postLink = `/category/${featuredPost.category?.slug || 'uncategorized'}/${featuredPost.userFriendlySlug}/${featuredPost.urlArticleId}`;
 
-    const heroMedia = featuredPost.thumbnails && featuredPost.thumbnails.length > 0
-        ? featuredPost.thumbnails[0].imageUrl
-        : featuredPost.coverImageUrl;
+    const heroMedia = resolvePostMediaUrl(featuredPost);
 
     return (
         <div className="mb-10 pb-10 border-b border-gray-200 group">

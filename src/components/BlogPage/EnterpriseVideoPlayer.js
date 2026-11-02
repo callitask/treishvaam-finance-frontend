@@ -27,6 +27,11 @@
  * • Injected absolute URL resolution to prevent route-relative resolution failures (`[object%20Object]`).
  * • Configured enterprise adaptive buffer bounds (`maxBufferLength: 30`, `maxMaxBufferLength: 60`, `maxBufferSize: 30000000`) for YouTube-style segmented streaming without monolithic downloads.
  *
+ * - EDITED (Phase 12.1 - Prop Normalization & Master Fallback):
+ * • Added support for `src || videoUrl || url` props and rejected `[object Object]`.
+ * • Normalized `/uploads/...` paths to `/api/v1/uploads/...`.
+ * • Added automated variant fallback to `master.m3u8` on fatal network error.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -36,7 +41,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { useFloatingDock } from '../../context/FloatingDockContext';
 
-const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = false }) => {
+const EnterpriseVideoPlayer = ({ src, videoUrl, url, alt = 'Video', className = '', autoPlay = false }) => {
     const videoRef = useRef(null);
     const hlsRef = useRef(null);
     const [levels, setLevels] = useState([]);
@@ -53,9 +58,13 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
     }, []);
 
     // Path normalization: Guarantee absolute pathing to prevent route-relative resolution
-    const cleanSrc = typeof src === 'string' && !src.includes('[object Object]')
-        ? (src.startsWith('http') || src.startsWith('/') ? src : `/${src}`)
+    const raw = src || videoUrl || url;
+    let cleanSrc = typeof raw === 'string' && !raw.includes('[object Object]')
+        ? (raw.startsWith('http') || raw.startsWith('/') ? raw : `/${raw}`)
         : '';
+    if (cleanSrc.startsWith('/uploads/')) {
+        cleanSrc = `/api/v1${cleanSrc}`;
+    }
 
     useEffect(() => {
         if (!mounted || !cleanSrc) return;
@@ -84,6 +93,14 @@ const EnterpriseVideoPlayer = ({ src, alt = 'Video', className = '', autoPlay = 
                 if (data.fatal) {
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
+                            if (cleanSrc.endsWith('.m3u8') && !cleanSrc.endsWith('master.m3u8')) {
+                                const masterFallback = cleanSrc.replace(/(360p|480p|720p|1080p)\.m3u8$/i, 'master.m3u8');
+                                if (masterFallback !== cleanSrc) {
+                                    hls.loadSource(masterFallback);
+                                    hls.startLoad();
+                                    break;
+                                }
+                            }
                             hls.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:

@@ -4,8 +4,11 @@
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
  * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`,
- * changed `rounded-xl` to `rounded`, tightened cell padding from `px-6 py-4` to `px-3 py-1.5`,
+ * changed `rounded-xl` to `rounded`, tightened cell padding from `px-3 py-1.5` to `px-3 py-1.5`,
  * and reduced typography scale to `text-[11px]` for a high-density data grid.
+ * - EDITED (Phase 12.2 - Slug Fallbacks & Video Thumbnail Support):
+ * • Added fallback slugs for Edit (/draft/) and Live View (/general/) links to prevent double-slash router crashes.
+ * • Rendered clean VID badge in thumbnail cell when mediaUrl is video (.m3u8, .mp4, /hls/, /raw/) instead of passing video URL to ResponsiveAuthImage.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
@@ -111,87 +114,106 @@ const PostTable = ({
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-100">
-                        {posts.map((post) => (
-                            <tr key={post.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(post.id) ? 'bg-slate-50/80' : ''}`}>
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded-sm border-slate-300 text-slate-800 focus:ring-slate-500 h-3 w-3"
-                                        checked={selectedIds.includes(post.id)}
-                                        onChange={() => onSelectOne(post.id)}
-                                    />
-                                </td>
-                                <td className="px-3 py-2">
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-7 w-7 flex-shrink-0 bg-slate-100 rounded-sm overflow-hidden border border-slate-200">
-                                            {post.thumbnails && post.thumbnails.length > 0 ? (
-                                                <ResponsiveAuthImage
-                                                    baseName={post.thumbnails[0].imageUrl}
-                                                    className="h-full w-full object-cover"
-                                                />
-                                            ) : (
-                                                <div className="h-full w-full flex items-center justify-center text-slate-400 text-[8px] font-bold">IMG</div>
-                                            )}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <div className="text-[11px] font-bold text-slate-800 line-clamp-1 max-w-[200px]" title={post.title}>
-                                                {post.title}
+                        {posts.map((post) => {
+                            const rawMediaUrl = (post.thumbnails && post.thumbnails.length > 0 && typeof post.thumbnails[0].imageUrl === 'string' && !post.thumbnails[0].imageUrl.includes('[object Object]'))
+                                ? post.thumbnails[0].imageUrl
+                                : (typeof post.coverImageUrl === 'string' && !post.coverImageUrl.includes('[object Object]') ? post.coverImageUrl : '');
+
+                            const isVideoMedia = Boolean(
+                                rawMediaUrl && (
+                                    rawMediaUrl.endsWith('.m3u8') ||
+                                    rawMediaUrl.endsWith('.mp4') ||
+                                    rawMediaUrl.endsWith('.webm') ||
+                                    rawMediaUrl.endsWith('.mov') ||
+                                    rawMediaUrl.includes('/hls/') ||
+                                    rawMediaUrl.includes('/raw/')
+                                )
+                            );
+
+                            return (
+                                <tr key={post.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.includes(post.id) ? 'bg-slate-50/80' : ''}`}>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                        <input
+                                            type="checkbox"
+                                            className="rounded-sm border-slate-300 text-slate-800 focus:ring-slate-500 h-3 w-3"
+                                            checked={selectedIds.includes(post.id)}
+                                            onChange={() => onSelectOne(post.id)}
+                                        />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-7 w-7 flex-shrink-0 bg-slate-100 rounded-sm overflow-hidden border border-slate-200 flex items-center justify-center">
+                                                {isVideoMedia ? (
+                                                    <span className="text-[8px] font-bold text-sky-700 bg-sky-50 px-1 py-0.5 rounded border border-sky-200">VID</span>
+                                                ) : rawMediaUrl ? (
+                                                    <ResponsiveAuthImage
+                                                        baseName={rawMediaUrl}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="h-full w-full flex items-center justify-center text-slate-400 text-[8px] font-bold">IMG</div>
+                                                )}
                                             </div>
-                                            <div className="text-[9px] text-slate-500 uppercase tracking-wide mt-0.5">{post.author || 'Unknown'}</div>
+                                            <div className="min-w-0">
+                                                <div className="text-[11px] font-bold text-slate-800 line-clamp-1 max-w-[200px]" title={post.title}>
+                                                    {post.title}
+                                                </div>
+                                                <div className="text-[9px] text-slate-500 uppercase tracking-wide mt-0.5">{post.author || 'Unknown'}</div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-[11px] text-slate-600 font-medium">
-                                    {post.category?.name || 'Uncategorized'}
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap">
-                                    <StatusBadge status={post.status} />
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-[10px] text-slate-500 font-mono">
-                                    {new Date(post.updatedAt || post.createdAt).toLocaleDateString()}
-                                    <span className="block text-[9px] text-slate-400 mt-0.5">
-                                        {new Date(post.updatedAt || post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                </td>
-                                <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
-                                    <div className="flex items-center justify-end space-x-2">
-                                        <Link
-                                            href={`/dashboard/blog/edit/${post.userFriendlySlug}/${post.id}`}
-                                            className={`flex items-center gap-1 transition-colors ${isDraftView ? 'text-slate-800 font-bold hover:text-sky-700' : 'text-slate-400 hover:text-slate-800'}`}
-                                            title="Edit"
-                                        >
-                                            <FaEdit size={12} />
-                                            {isDraftView && <span className="text-[10px]">Edit</span>}
-                                        </Link>
-                                        <button
-                                            onClick={() => onDuplicate(post.id)}
-                                            className="text-slate-400 hover:text-slate-800 transition-colors p-1"
-                                            title="Duplicate"
-                                        >
-                                            <FaCopy size={11} />
-                                        </button>
-                                        {post.status === 'PUBLISHED' && (
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-[11px] text-slate-600 font-medium">
+                                        {post.category?.name || 'Uncategorized'}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap">
+                                        <StatusBadge status={post.status} />
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-[10px] text-slate-500 font-mono">
+                                        {new Date(post.updatedAt || post.createdAt).toLocaleDateString()}
+                                        <span className="block text-[9px] text-slate-400 mt-0.5">
+                                            {new Date(post.updatedAt || post.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-right font-medium">
+                                        <div className="flex items-center justify-end space-x-2">
                                             <Link
-                                                href={`/category/${post.category?.slug}/${post.userFriendlySlug}/${post.urlArticleId}`}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="text-slate-400 hover:text-emerald-600 transition-colors p-1"
-                                                title="View Live"
+                                                href={`/dashboard/blog/edit/${post.userFriendlySlug || post.slug || 'draft'}/${post.id}`}
+                                                className={`flex items-center gap-1 transition-colors ${isDraftView ? 'text-slate-800 font-bold hover:text-sky-700' : 'text-slate-400 hover:text-slate-800'}`}
+                                                title="Edit"
                                             >
-                                                <FaEye size={12} />
+                                                <FaEdit size={12} />
+                                                {isDraftView && <span className="text-[10px]">Edit</span>}
                                             </Link>
-                                        )}
-                                        <button
-                                            onClick={() => onDelete(post.id)}
-                                            className="text-slate-400 hover:text-red-600 transition-colors p-1 ml-1"
-                                            title="Delete"
-                                        >
-                                            <FaTrash size={11} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                                            <button
+                                                onClick={() => onDuplicate(post.id)}
+                                                className="text-slate-400 hover:text-slate-800 transition-colors p-1"
+                                                title="Duplicate"
+                                            >
+                                                <FaCopy size={11} />
+                                            </button>
+                                            {post.status === 'PUBLISHED' && (
+                                                <Link
+                                                    href={`/category/${post.category?.slug || 'general'}/${post.userFriendlySlug || post.slug || 'post'}/${post.urlArticleId || post.id}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="text-slate-400 hover:text-emerald-600 transition-colors p-1"
+                                                    title="View Live"
+                                                >
+                                                    <FaEye size={12} />
+                                                </Link>
+                                            )}
+                                            <button
+                                                onClick={() => onDelete(post.id)}
+                                                className="text-slate-400 hover:text-red-600 transition-colors p-1 ml-1"
+                                                title="Delete"
+                                            >
+                                                <FaTrash size={11} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

@@ -102,6 +102,9 @@
  * - EDITED (Current Phase - Nonce Validation Compatibility & Library Version Mismatch Fix):
  *   ROOT CAUSE: The user encountered `[KEYCLOAK] Invalid nonce, clearing token` and `CSP_BLOCK_OR_UNDEFINED` even after clearing all cookies/history and testing in Incognito mode. The root cause is a version incompatibility between `keycloak-js@23.0.0` on the frontend and the Keycloak 25.0.0 OIDC server. In Keycloak 25, standard OIDC authorization code exchanges handle nonce claims differently than older SDKs expect, causing local validation (`if (idTokenParsed.nonce !== oauth.nonce)`) in older keycloak-js adapters to fail and reject the init promise with `undefined`.
  *   FIX: Injected `useNonce: false` into `initOptions` to bypass client-side nonce verification incompatibility against Keycloak 25. Upgraded `keycloak-js` dependency in `package.json` from `^23.0.0` to `^25.0.0` to align client and server SDK versions.
+ * - EDITED (Phase 12.2 - Auth Token Race & Ready Flag):
+ *   ROOT CAUSE: Consumers of useAuth had divergent destructuring patterns (nested auth object vs flat properties), and some consumers attempted API requests before the Keycloak token was actively bound to apiConfig.js.
+ *   FIX: Exposed token, isAuthReady (!loading && isAuthenticated), and flat auth properties alongside the nested auth object on AuthContext.Provider.
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  *   This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  *   It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -481,8 +484,21 @@ export const AuthProvider = ({ children }) => {
     return () => clearInterval(intervalId);
   }, [keycloak, isAuthenticated, logout]);
 
+  const isAuthReady = !loading && isAuthenticated;
+
   return (
-    <AuthContext.Provider value={{ auth: { user, isAuthenticated, token, fatalError, fatalErrorMsg }, login, logout, loading }}>
+    <AuthContext.Provider value={{
+      auth: { user, isAuthenticated, token, fatalError, fatalErrorMsg, isAuthReady },
+      user,
+      isAuthenticated,
+      token,
+      isAuthReady,
+      fatalError,
+      fatalErrorMsg,
+      login,
+      logout,
+      loading
+    }}>
       {fatalError ? (
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', padding: '20px' }}>
           <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#fee2e2', color: '#991b1b', border: '1px solid #ef4444', padding: '30px', borderRadius: '12px', fontFamily: 'monospace', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>

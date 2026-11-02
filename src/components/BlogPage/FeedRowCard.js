@@ -1,14 +1,17 @@
 import React from 'react';
 import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
+import SmartMediaRenderer from './SmartMediaRenderer';
 import { FaRegBookmark, FaShareAlt, FaClock } from 'react-icons/fa';
-import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
+import { categoryStyles, createSnippet, formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 
 /**
  * AI-CONTEXT:
  * Purpose: Row card for blog feed.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED (Phase 12.1 - SmartMediaRenderer Video Support):
+ * • Used resolvePostMediaUrl and SmartMediaRenderer to render both image and video thumbnails.
  */
 const FeedRowCard = ({ article, onCategoryClick, categoriesMap }) => {
     const { displayDate } = formatDateTime(article.updatedAt || article.createdAt);
@@ -18,17 +21,18 @@ const FeedRowCard = ({ article, onCategoryClick, categoriesMap }) => {
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
     const readingTime = Math.ceil((article.content?.length || 0) / 1000) + ' min read';
-    const thumbnail = article.thumbnails?.[0] || {};
+    const resolvedMedia = resolvePostMediaUrl(article);
 
     return (
         <div className="group relative flex flex-col md:flex-row gap-6 py-8 border-b border-gray-100 last:border-0 items-start hover:bg-gray-50/50 transition-colors -mx-4 px-4 rounded-lg">
 
             <Link href={postLink} className="block w-full md:w-[260px] shrink-0 aspect-[4/3] overflow-hidden rounded-sm bg-gray-100 relative shadow-sm">
-                {thumbnail.imageUrl ? (
-                    <ResponsiveAuthImage
-                        baseName={thumbnail.imageUrl}
-                        alt={thumbnail.altText || article.title}
+                {resolvedMedia ? (
+                    <SmartMediaRenderer
+                        mediaUrl={resolvedMedia}
+                        alt={article.thumbnails?.[0]?.altText || article.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        layoutContext="grid"
                         width={400}
                     />
                 ) : (

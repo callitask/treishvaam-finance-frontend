@@ -12,6 +12,8 @@
  * • Added `hasRedirected` ref guard and `pathname.startsWith('/login')` check to prevent infinite redirect loops.
  * • Added error boundary UI for `auth.fatalError` to display visible state instead of endlessly redirecting or spinning.
  * • Why: Fixed a race condition where Keycloak init timeout caused PrivateRoute to endlessly redirect back to login.
+ * - EDITED (Phase 12.2 - Auth Context Flattening & Guard Parity):
+ * • Supported both flattened and nested auth state from useAuth, ensuring robust checks across all route transitions.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -20,7 +22,9 @@ import { useAuth } from '../context/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const PrivateRoute = ({ children }) => {
-    const { auth, loading } = useAuth();
+    const { auth, isAuthenticated: flatIsAuth, fatalError: flatFatal, loading } = useAuth();
+    const isAuthenticated = auth?.isAuthenticated ?? flatIsAuth ?? false;
+    const fatalError = auth?.fatalError ?? flatFatal ?? false;
     const router = useRouter();
     const pathname = usePathname();
     const hasRedirected = useRef(false);
@@ -38,11 +42,11 @@ const PrivateRoute = ({ children }) => {
             return;
         }
 
-        if (!loading && !auth.isAuthenticated && !auth.fatalError) {
+        if (!loading && !isAuthenticated && !fatalError) {
             hasRedirected.current = true;
             router.push(`/login?from=${encodeURIComponent(pathname)}`);
         }
-    }, [loading, auth.isAuthenticated, auth.fatalError, router, pathname]);
+    }, [loading, isAuthenticated, fatalError, router, pathname]);
 
     // Only block rendering for PROTECTED routes
     if (loading) {
@@ -56,7 +60,7 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    if (auth.fatalError) {
+    if (fatalError) {
         return (
             <div className="flex h-screen w-full items-center justify-center bg-slate-50">
                 <div className="text-center p-8 bg-white rounded-lg shadow-md max-w-md border border-red-200">
@@ -68,7 +72,7 @@ const PrivateRoute = ({ children }) => {
         );
     }
 
-    if (!auth.isAuthenticated) {
+    if (!isAuthenticated) {
         return null; // Return null while the useEffect handles the redirect
     }
 

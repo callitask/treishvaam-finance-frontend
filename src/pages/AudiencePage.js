@@ -37,8 +37,11 @@
  * • Added `DTO_KEY_MAP` to translate singular frontend filter keys to plural backend DTO keys, restoring dropdown functionality.
  * • Added `startsWith` deduplication to prevent "Apple Apple iPhone" concatenated strings.
  * • Applied maximum-density Cloudflare Radar UI aesthetic (py-1.5, 11px typography, condensed device strings).
+ * - EDITED (Phase 12.2 - Auth Gating & Safe Array Unwrap):
+ * • Gated fetchDataAndOptions on !authLoading && isAuthenticated and unwrapped audience response with extractArray.
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { getGroupedAudienceData, getFilterOptions, refreshGA4Data, healHistoricalAnalytics } from '../apiConfig';
 import {
     FaCalendarAlt, FaMapMarkedAlt, FaRedo, FaExclamationTriangle,
@@ -171,7 +174,16 @@ const formatIST = (isoString) => {
     }
 };
 
+const extractArray = (res) => {
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.content)) return res.data.content;
+    if (Array.isArray(res?.content)) return res.content;
+    return [];
+};
+
 const AudiencePage = () => {
+    const { isAuthenticated, loading: authLoading } = useAuth();
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
     const [optionsLoading, setOptionsLoading] = useState(false);
@@ -220,6 +232,7 @@ const AudiencePage = () => {
     }, [startDate, endDate, filters, targetClientIds, excludeClientIds]);
 
     const fetchDataAndOptions = useCallback(async () => {
+        if (authLoading || !isAuthenticated) return;
         setLoading(true);
         setOptionsLoading(true);
         setError('');
@@ -231,8 +244,8 @@ const AudiencePage = () => {
                 getFilterOptions(params),
                 getGroupedAudienceData(params) // Hit the new Grouped API endpoint
             ]);
-            setFilterOptions(optionsResponse.data);
-            setData(dataResponse.data);
+            setFilterOptions(optionsResponse?.data || {});
+            setData(extractArray(dataResponse));
         } catch (err) {
             console.error('Error fetching audience data:', err);
             setError('Failed to fetch historical audience data.');
@@ -241,12 +254,13 @@ const AudiencePage = () => {
             setLoading(false);
             setOptionsLoading(false);
         }
-    }, [buildApiParams]);
+    }, [buildApiParams, authLoading, isAuthenticated]);
 
     useEffect(() => {
+        if (authLoading || !isAuthenticated) return;
         const timeoutId = setTimeout(() => { fetchDataAndOptions(); }, 500);
         return () => clearTimeout(timeoutId);
-    }, [fetchDataAndOptions]);
+    }, [fetchDataAndOptions, authLoading, isAuthenticated]);
 
     const handleManualRefresh = async () => {
         if (!window.confirm(`Are you sure you want to completely re-sync Google Analytics data between ${startDate} and ${endDate}? This will replace historical entries for these dates. Real-time Faro data will be preserved.`)) return;

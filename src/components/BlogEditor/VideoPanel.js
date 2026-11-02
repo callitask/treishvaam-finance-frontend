@@ -5,6 +5,10 @@
  * - ADDED: Phase 3 - Initial creation for the Enterprise Video Infrastructure.
  *   Features Cloudflare Radar aesthetic (`slate-50`, `border-slate-200`, `text-[11px]`).
  *
+ * - EDITED (Phase 12.1 - Video Normalization & Auto-Cover Sync):
+ * • Added onSetAsCoverVideo action support when previewing a video.
+ * • Standardized video preview controls with defensive styling.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -12,7 +16,7 @@
 import React from 'react';
 import { FaVideo, FaTrash } from 'react-icons/fa';
 
-const VideoPanel = ({ videoPreview, onUploadVideoClick, onRemoveVideo }) => {
+const VideoPanel = ({ videoPreview, onUploadVideoClick, onRemoveVideo, onSetAsCoverVideo }) => {
     return (
         <div className="p-3 border border-slate-200 rounded space-y-3 bg-slate-50">
             <label className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -26,14 +30,26 @@ const VideoPanel = ({ videoPreview, onUploadVideoClick, onRemoveVideo }) => {
                         controls
                         className="w-full h-auto aspect-video"
                     />
-                    <button
-                        type="button"
-                        onClick={onRemoveVideo}
-                        className="absolute top-2 right-2 bg-red-600/90 text-white p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 shadow-sm"
-                        title="Remove Video"
-                    >
-                        <FaTrash size={10} />
-                    </button>
+                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {onSetAsCoverVideo && (
+                            <button
+                                type="button"
+                                onClick={onSetAsCoverVideo}
+                                className="bg-sky-600/90 text-white text-[10px] font-bold px-2 py-1 rounded hover:bg-sky-700 shadow-sm"
+                                title="Set as Cover Video"
+                            >
+                                Set as Cover
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onRemoveVideo}
+                            className="bg-red-600/90 text-white p-1.5 rounded hover:bg-red-700 shadow-sm"
+                            title="Remove Video"
+                        >
+                            <FaTrash size={10} />
+                        </button>
+                    </div>
                 </div>
             )}
 

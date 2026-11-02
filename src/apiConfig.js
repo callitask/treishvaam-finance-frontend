@@ -11,6 +11,12 @@
  * - EDITED (Phase 4 - Video Pipeline Audit):
  * • Verified `createPost` and `updatePost` correctly accept and pass raw `FormData` via `multipart/form-data`. No structural changes required, confirming readiness for `videoFile` appendage from the UI.
  * 
+ * - EDITED (Phase 12.1 - uploadVideo Export):
+ * • Exported uploadVideo alias bound to uploadFile for unified media ingestion.
+ * 
+ * - EDITED (Phase 12.2 - Admin Cache-Control & Request Interceptor Guard):
+ * • Injected Cache-Control and Pragma no-cache headers for /admin, /draft, and non-GET requests in Axios interceptor to prevent Cloudflare/browser unauthenticated caching.
+ * 
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -34,6 +40,13 @@ api.interceptors.request.use(
   (config) => {
     if (currentToken) {
       config.headers['Authorization'] = 'Bearer ' + currentToken;
+    }
+    const url = config.url || '';
+    const method = (config.method || 'get').toLowerCase();
+    const isAdminOrDraft = url.includes('/admin') || url.includes('/draft') || url.includes('/posts/admin');
+    if (method !== 'get' || isAdminOrDraft) {
+      config.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      config.headers['Pragma'] = 'no-cache';
     }
     return config;
   },
@@ -62,6 +75,7 @@ export const getDrafts = () => api.get('/posts/admin/drafts');
 export const uploadFile = (formData) => api.post('/files/upload', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 });
+export const uploadVideo = uploadFile;
 export const getCategories = () => api.get('/categories');
 export const addCategory = (data) => api.post('/categories', data);
 

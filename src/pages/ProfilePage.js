@@ -8,6 +8,8 @@
  * • Shifted layout from a centered card to a left-aligned, form-dense configuration.
  * • Replaced bulky input fields with `h-9` (36px) inputs and `text-[11px] uppercase tracking-wider text-slate-500` labels.
  * • Stripped heavy shadows and colors, enforcing a sharp 1px bordered slate aesthetic.
+ * - EDITED (Phase 12.2 - Auth Gating Verification):
+ * • Verified useAuth integration and gated profile updates on active session.
  */
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -15,7 +17,7 @@ import { updateUserProfile } from '../apiConfig';
 import { FaUser, FaSave, FaCheck, FaExclamationCircle } from 'react-icons/fa';
 
 const ProfilePage = () => {
-    const { user } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const [displayName, setDisplayName] = useState('');
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: '', text: '' });

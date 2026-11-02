@@ -33,6 +33,10 @@
  *   images) are NEVER intercepted by sw.ts, eliminating CSP `connect-src` / `no-response` errors.
  * • Added `cleanupOutdatedCaches: true` alongside existing `skipWaiting`/`clientsClaim`.
  *
+ * - EDITED (Phase 12.1 - Video Stream & Upload NetworkOnly Bypass):
+ * • Added NetworkOnly routing matcher for `/api/v1/uploads`, `/api/v1/video`, `/uploads`, and `.(m3u8|ts|mp4|webm|mov)` files.
+ * • Why: Completely isolates HLS adaptive streaming and HTTP 206 Partial Content range requests from Service Worker Cache API storage failures.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE): * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
@@ -50,6 +54,19 @@ const serwist = new Serwist({
     cleanupOutdatedCaches: true,
     navigationPreload: true,
     runtimeCaching: [
+        // Video Streams, Range Requests & Media Uploads — NetworkOnly (bypasses Cache API to support 206 Partial Content and HLS streams)
+        {
+            matcher: ({ url }) => {
+                const pathname = url.pathname;
+                return (
+                    pathname.startsWith('/api/v1/uploads') ||
+                    pathname.startsWith('/api/v1/video') ||
+                    pathname.startsWith('/uploads') ||
+                    /\.(m3u8|ts|mp4|webm|mov)(\?.*)?$/i.test(pathname)
+                );
+            },
+            handler: new NetworkOnly(),
+        },
         // Auth, Login, and Admin routes — NetworkOnly (never cache)
         {
             matcher: ({ url, sameOrigin }) => {

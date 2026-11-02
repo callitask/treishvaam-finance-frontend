@@ -2,7 +2,8 @@
 import React, { memo, forwardRef } from 'react';
 import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
-import { formatDateTime } from '../../utils/blogUtils';
+import SmartMediaRenderer from './SmartMediaRenderer';
+import { formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 import { FaClock } from 'react-icons/fa';
 
 /**
@@ -10,6 +11,8 @@ import { FaClock } from 'react-icons/fa';
  * Purpose: Mobile layout for Blog Page.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED (Phase 12.1 - SmartMediaRenderer Video Support):
+ * • Used resolvePostMediaUrl and SmartMediaRenderer to render both image and video thumbnails across mobile hero and standard cards.
  */
 const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap, eager = false, isHero = false }, ref) => {
     const { isNew, displayDate } = formatDateTime(article.updatedAt || article.createdAt);
@@ -17,17 +20,18 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
-    const thumbnail = article.thumbnails && article.thumbnails.length > 0 ? article.thumbnails[0] : null;
+    const resolvedMedia = resolvePostMediaUrl(article);
 
     if (isHero) {
         return (
             <div ref={ref} className="relative w-full aspect-video overflow-hidden bg-slate-900 group shadow-md mb-2">
                 <Link href={postLink} aria-label={article.title} className="block w-full h-full relative">
-                    {thumbnail ? (
-                        <ResponsiveAuthImage
-                            baseName={thumbnail.imageUrl}
-                            alt={thumbnail.altText || article.title}
+                    {resolvedMedia ? (
+                        <SmartMediaRenderer
+                            mediaUrl={resolvedMedia}
+                            alt={article.title}
                             className="w-full h-full object-cover opacity-90 transition-transform duration-700 ease-in-out group-active:scale-105"
+                            layoutContext="hero"
                             eager={true}
                             width={600}
                         />
@@ -82,12 +86,13 @@ const MobilePostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMa
                 </div>
             </div>
 
-            {thumbnail && (
+            {resolvedMedia && (
                 <Link href={postLink} className="w-[90px] h-[65px] flex-shrink-0 rounded bg-gray-100 dark:bg-slate-800 shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden relative">
-                    <ResponsiveAuthImage
-                        baseName={thumbnail.imageUrl}
-                        alt={thumbnail.altText || article.title}
+                    <SmartMediaRenderer
+                        mediaUrl={resolvedMedia}
+                        alt={article.title}
                         className="w-full h-full object-cover"
+                        layoutContext="grid"
                         eager={eager}
                         width={200}
                     />

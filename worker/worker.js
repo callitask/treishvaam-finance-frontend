@@ -59,6 +59,10 @@
  *   4. Ensured ai-feed.md includes the semantic-chunk founder-identity entity.
  * - EDITED (Phase 10 - Sub-2s Edge KV SWR for all users):
  *   Expanded Edge KV SWR cache to cover all public read-only market & editorial endpoints for both human browsers and crawlers; added POST batch quote caching with deterministic keys; added background refresh; expanded pre-warm list.
+ * - EDITED (Phase 12.3 - Auth & Binary Media Edge Bypass, Multi-Segment Video/HLS & Legacy Uploads Rewriting):
+ *   1. Guaranteed complete bypass of TREISHFIN_SEO_CACHE KV for all requests containing Authorization, X-Internal-Secret, or X-AEGIS-ZKP-Proof headers, and for administrative paths (/api/v1/posts/admin*, /api/v1/posts/drafts*, /api/v1/posts/all*, /api/v1/admin*, /api/v1/users*, /api/v1/auth*, /api/v1/analytics*, /api/v1/status*, /api/v1/preferences*), returning Cache-Control: no-store, no-cache, must-revalidate.
+ *   2. Streamlined binary and video streaming routes (/api/v1/uploads/*, /api/v1/video/*, .m3u8, .ts, .mp4, .webm, keys) to stream raw bodies with Range and 206 Partial Content support without buffer corruption or image cache contamination.
+ *   3. Routed legacy /uploads/* requests directly to backend /api/v1/uploads/* with fresh AEGIS edge signature matching the rewritten backend URI.
  * - DO-NOT-DELETE RULE:
  *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
  *   truncated, rewritten, or regenerated.
@@ -544,11 +548,26 @@ export default {
             }
         }
 
-        if (url.pathname.startsWith("/api")) {
+        if (url.pathname.startsWith("/api") || url.pathname.startsWith("/uploads/")) {
+            let backendPath = url.pathname;
+            if (url.pathname.startsWith("/uploads/")) {
+                backendPath = "/api/v1" + url.pathname;
+            }
+
             const proxyTargetUrl = new URL(request.url);
             proxyTargetUrl.hostname = backendConfig.hostname;
             proxyTargetUrl.protocol = backendConfig.protocol;
-            proxyTargetUrl.pathname = url.pathname;
+            proxyTargetUrl.pathname = backendPath;
+
+            const proxyHeaders = new Headers(enhancedHeaders);
+            if (backendPath !== url.pathname) {
+                const rewriteTimestamp = Date.now().toString();
+                const rewriteSig = await generateEdgeSignature(backendPath, rewriteTimestamp, clientIp, env.AEGIS_EDGE_SECRET);
+                if (rewriteSig) {
+                    proxyHeaders.set("X-Aegis-Edge-Signature", rewriteSig);
+                    proxyHeaders.set("X-Aegis-Edge-Timestamp", rewriteTimestamp);
+                }
+            }
 
             const isBatchQuotePostEarly = request.method === 'POST' && url.pathname === '/api/v1/market/quotes/batch';
             let batchBodyText = null;
@@ -557,35 +576,98 @@ export default {
             }
 
             const proxyReq = new Request(proxyTargetUrl.toString(), {
-                headers: enhancedHeaders,
+                headers: proxyHeaders,
                 method: request.method,
                 body: isGetOrHead ? null : (isBatchQuotePostEarly ? batchBodyText : request.body),
                 redirect: request.redirect
             });
 
             try {
-                if (url.pathname.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.pathname.includes("/uploads/")) {
-                    const cache = caches.default;
-                    const cacheKey = new Request(url.toString(), request);
-                    const cachedResponse = await cache.match(cacheKey);
+                const hasAuthHeader = request.headers.has('Authorization') ||
+                    request.headers.has('X-Internal-Secret') ||
+                    request.headers.has('X-AEGIS-ZKP-Proof');
 
-                    if (cachedResponse) return addSecurityHeaders(new Response(cachedResponse.body, cachedResponse));
+                const isPrivateOrAdminApi =
+                    url.pathname.startsWith('/api/v1/posts/admin') ||
+                    url.pathname.startsWith('/api/v1/posts/drafts') ||
+                    url.pathname.startsWith('/api/v1/posts/all') ||
+                    url.pathname.startsWith('/api/v1/admin') ||
+                    url.pathname.startsWith('/api/v1/users') ||
+                    url.pathname.startsWith('/api/v1/auth') ||
+                    url.pathname.startsWith('/api/v1/analytics') ||
+                    url.pathname.startsWith('/api/v1/status') ||
+                    url.pathname.startsWith('/api/v1/preferences');
 
+                const isBinaryOrStreamApi =
+                    url.pathname.startsWith('/api/v1/uploads/') ||
+                    url.pathname.startsWith('/api/v1/video/') ||
+                    url.pathname.startsWith('/api/v1/files/') ||
+                    url.pathname.startsWith('/uploads/') ||
+                    /\.(m3u8|ts|mp4|webm|key)$/i.test(url.pathname);
+
+                // Complete KV Cache bypass for Authenticated / Admin APIs
+                if (hasAuthHeader || isPrivateOrAdminApi) {
                     const apiResp = await fetch(proxyReq);
-                    if (apiResp.ok) {
-                        const responseToCache = new Response(apiResp.body, apiResp);
-                        responseToCache.headers.set("Cache-Control", "public, max-age=31536000, immutable");
-                        ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
-                        return addSecurityHeaders(responseToCache);
+                    const respHeaders = new Headers(apiResp.headers);
+                    respHeaders.set("Cache-Control", "no-store, no-cache, must-revalidate");
+                    respHeaders.set("Pragma", "no-cache");
+                    return addSecurityHeaders(new Response(apiResp.body, {
+                        status: apiResp.status,
+                        statusText: apiResp.statusText,
+                        headers: respHeaders
+                    }));
+                }
+
+                // Binary Media & Streaming Pipeline (Video, HLS, Uploads)
+                if (isBinaryOrStreamApi) {
+                    const isStaticImage = /\.(jpg|jpeg|png|gif|webp|svg|ico)$/i.test(backendPath);
+                    if (isStaticImage && isGetOrHead) {
+                        const cache = caches.default;
+                        const cacheKey = new Request(url.toString(), request);
+                        const cachedResponse = await cache.match(cacheKey);
+
+                        if (cachedResponse) return addSecurityHeaders(new Response(cachedResponse.body, cachedResponse));
+
+                        const apiResp = await fetch(proxyReq);
+                        if (apiResp.ok) {
+                            const responseToCache = new Response(apiResp.body, apiResp);
+                            responseToCache.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+                            ctx.waitUntil(cache.put(cacheKey, responseToCache.clone()));
+                            return addSecurityHeaders(responseToCache);
+                        }
+                        return addSecurityHeaders(apiResp);
                     }
-                    return addSecurityHeaders(apiResp);
+
+                    // Streaming media (.m3u8, .ts, .mp4, keys) passes through raw byte stream untouched
+                    const mediaResp = await fetch(proxyReq);
+                    const mediaHeaders = new Headers(mediaResp.headers);
+                    if (backendPath.endsWith('.m3u8')) {
+                        mediaHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
+                        mediaHeaders.set("Cache-Control", "no-cache, must-revalidate");
+                    } else if (backendPath.endsWith('.ts')) {
+                        mediaHeaders.set("Content-Type", "video/mp2t");
+                        mediaHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
+                    } else if (backendPath.endsWith('.mp4') && !mediaHeaders.has("Content-Type")) {
+                        mediaHeaders.set("Content-Type", "video/mp4");
+                    }
+                    return addSecurityHeaders(new Response(mediaResp.body, {
+                        status: mediaResp.status,
+                        statusText: mediaResp.statusText,
+                        headers: mediaHeaders
+                    }));
                 }
 
                 // Public API Edge KV Stale-While-Revalidate (SWR) for ALL visitors (humans + crawlers)
-                const isPublicGetCacheable = request.method === 'GET' && (
+                const isPublicPostsGet = request.method === 'GET' && !hasAuthHeader && (
+                    url.pathname === '/api/v1/posts' ||
+                    url.pathname.startsWith('/api/v1/posts?') ||
+                    url.pathname.startsWith('/api/v1/posts/url/') ||
+                    (/^\/api\/v1\/posts\/[^/]+$/.test(url.pathname) && !url.pathname.startsWith('/api/v1/posts/admin') && !url.pathname.startsWith('/api/v1/posts/drafts') && !url.pathname.startsWith('/api/v1/posts/all'))
+                );
+
+                const isPublicOtherGet = request.method === 'GET' && !hasAuthHeader && (
                     url.pathname === '/api/v1/categories' ||
-                    url.pathname.startsWith('/api/v1/categories') ||
-                    url.pathname.startsWith('/api/v1/posts') ||
+                    url.pathname.startsWith('/api/v1/categories/') ||
                     url.pathname === '/api/v1/market/news/highlights' ||
                     url.pathname.startsWith('/api/v1/market/news/highlights') ||
                     url.pathname === '/api/v1/market/news/archived' ||
@@ -600,6 +682,8 @@ export default {
                     url.pathname.startsWith('/api/v1/market/quote/') ||
                     url.pathname.startsWith('/api/v1/market/data/')
                 );
+
+                const isPublicGetCacheable = isPublicPostsGet || isPublicOtherGet;
 
                 const isBatchQuotePost = request.method === 'POST' && url.pathname === '/api/v1/market/quotes/batch';
 

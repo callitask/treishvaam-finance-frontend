@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import { getAllPostsForAdmin, getDrafts, deletePost, duplicatePost, bulkDeletePosts, getCategories } from '../apiConfig';
 
 /**
@@ -7,9 +8,13 @@ import { getAllPostsForAdmin, getDrafts, deletePost, duplicatePost, bulkDeletePo
  * Purpose: Hook to manage blog posts in dashboard.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/navigation.
+ * - EDITED (Phase 12.2 - Auth Gating & Safe Array Unwrap):
+ * • Gated fetchData on !authLoading && isAuthenticated so admin endpoints only fire after Keycloak token binding.
+ * • Injected extractArray helper to defensively unwrap both flat arrays and Spring Page { content: [...] } structures.
  */
 export const useManagePosts = () => {
     const router = useRouter();
+    const { isAuthenticated, loading: authLoading } = useAuth();
 
     const [rawData, setRawData] = useState([]);
     const [categories, setCategories] = useState([]);
@@ -44,7 +49,16 @@ export const useManagePosts = () => {
         }
     };
 
+    const extractArray = (res) => {
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res?.data)) return res.data;
+        if (Array.isArray(res?.data?.content)) return res.data.content;
+        if (Array.isArray(res?.content)) return res.content;
+        return [];
+    };
+
     const fetchData = useCallback(async () => {
+        if (authLoading || !isAuthenticated) return;
         setLoading(true);
         try {
             const [postsRes, draftsRes, catsRes] = await Promise.all([
@@ -53,14 +67,14 @@ export const useManagePosts = () => {
                 getCategories()
             ]);
 
-            const mainPosts = (postsRes.data || []).map(p => ({ ...p, _type: 'post' }));
-            const drafts = (draftsRes.data || []).map(d => ({ ...d, _type: 'draft', status: 'DRAFT' }));
+            const mainPosts = extractArray(postsRes).map(p => ({ ...p, _type: 'post' }));
+            const drafts = extractArray(draftsRes).map(d => ({ ...d, _type: 'draft', status: 'DRAFT' }));
 
             const allItems = [...mainPosts, ...drafts];
             const uniqueItems = Array.from(new Map(allItems.map(item => [item.id, item])).values());
 
             setRawData(uniqueItems);
-            setCategories(catsRes.data || []);
+            setCategories(extractArray(catsRes));
             setError(null);
         } catch (err) {
             console.error("Data fetch error:", err);
@@ -68,7 +82,7 @@ export const useManagePosts = () => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [authLoading, isAuthenticated]);
 
     useEffect(() => {
         fetchData();

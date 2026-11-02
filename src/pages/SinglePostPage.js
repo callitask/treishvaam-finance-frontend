@@ -30,6 +30,11 @@
  * - EDITED (Phase 9):
  * • Updated 'Back to Feed' and breadcrumb Home links from '/home' to canonical apex '/'.
  *
+ * - EDITED (Phase 12.1 - Hero Video Media Resolution & In-Article [object Object] Replacement):
+ * • Unified hero/cover media resolution via coverImageUrl || thumbnails[0]?.imageUrl.
+ * • Replaced broken in-content `<video src="[object Object]">` tags with canonical video or stripped empty placeholders.
+ * • Allowed video/source attributes in DOMPurify sanitization.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -150,14 +155,31 @@ const SinglePostPage = () => {
 
     const sanitizedContent = useMemo(() => {
         if (!post || !post.content || typeof post.content !== 'string') return '';
-        const replaced = post.content.replace(/src="\[object Object\]"/g, 'src=""');
-        if (typeof window === 'undefined') return replaced;
-        return DOMPurify.sanitize(replaced, {
+        let processed = post.content;
+
+        // If post has a valid video in coverImageUrl and the content has broken [object Object] video:
+        const validCoverVideo = typeof post.coverImageUrl === 'string' && (post.coverImageUrl.endsWith('.m3u8') || post.coverImageUrl.endsWith('.mp4') || post.coverImageUrl.includes('/raw/') || post.coverImageUrl.includes('/hls/')) && !post.coverImageUrl.includes('[object Object]')
+            ? (post.coverImageUrl.startsWith('http') || post.coverImageUrl.startsWith('/') ? post.coverImageUrl : `/${post.coverImageUrl}`)
+            : null;
+
+        if (validCoverVideo) {
+            processed = processed.replace(/<video[^>]*src=["']\[object Object\]["'][^>]*>[\s\S]*?<\/video>/gi, `<video src="${validCoverVideo}" controls class="w-full h-auto rounded-lg shadow-md my-4"><source src="${validCoverVideo}" type="${validCoverVideo.endsWith('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}"></video>`);
+            processed = processed.replace(/src="\[object Object\]"/g, `src="${validCoverVideo}"`);
+        } else {
+            // Strip broken [object Object] video tags completely
+            processed = processed.replace(/<video[^>]*src=["']\[object Object\]["'][^>]*>[\s\S]*?<\/video>/gi, '');
+            processed = processed.replace(/src="\[object Object\]"/g, 'src=""');
+        }
+
+        // Normalize bare /uploads/ in video/source/img tags
+        processed = processed.replace(/(src=["'])\/uploads\//g, '$1/api/v1/uploads/');
+
+        if (typeof window === 'undefined') return processed;
+        return DOMPurify.sanitize(processed, {
             ADD_TAGS: ['video', 'source', 'iframe'],
-            ADD_ATTR: ['src', 'type', 'controls', 'autoplay', 'loop', 'muted', 'playsinline', 'poster', 'data-type', 'data-src', 'data-video-src', 'data-video-id', 'data-title', 'class', 'id', 'allow', 'allowfullscreen'],
-            FORBID_ATTR: ['style']
+            ADD_ATTR: ['src', 'type', 'controls', 'autoplay', 'loop', 'muted', 'playsinline', 'poster', 'data-type', 'data-src', 'data-video-src', 'data-video-id', 'data-video-url', 'data-title', 'class', 'id', 'allow', 'allowfullscreen', 'width', 'height', 'style'],
         });
-    }, [post?.content]);
+    }, [post?.content, post?.coverImageUrl]);
 
     useEffect(() => {
         const handleScroll = () => {
@@ -229,11 +251,11 @@ const SinglePostPage = () => {
 
     const postUrl = clientUrl || `https://treishvaamfinance.com/category/${categorySlug}/${post?.userFriendlySlug}/${post?.urlArticleId}`;
 
-    const activeImage = post?.coverImageUrl || post?.thumbnailUrl;
+    const activeImage = post?.coverImageUrl || post?.thumbnails?.[0]?.imageUrl || post?.thumbnailUrl;
     let coverImageUrl = 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=1200';
-    if (activeImage && typeof activeImage === 'string') {
+    if (activeImage && typeof activeImage === 'string' && !activeImage.includes('[object Object]')) {
         if (activeImage.startsWith('http') || activeImage.startsWith('/')) {
-            coverImageUrl = activeImage;
+            coverImageUrl = activeImage.startsWith('/uploads/') ? `/api/v1${activeImage}` : activeImage;
         } else if (activeImage.endsWith('.mp4') || activeImage.endsWith('.m3u8') || activeImage.includes('/raw/') || activeImage.includes('/hls/')) {
             coverImageUrl = `${API_URL}/${activeImage.replace(/^\/+/, '')}`;
         } else {

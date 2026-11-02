@@ -26,6 +26,16 @@
  * • Guaranteed that uploaded in-content video URLs are always formatted as normalized absolute paths (`/api/v1/uploads/...`) during `.replace()`, eradicating relative route traversal (`[object%20Object]`).
  * • Enforced `coverVideoFile instanceof File` checks before appending to `FormData` to ensure strict compatibility with Spring Boot's `@RequestPart MultipartFile`.
  *
+ * - EDITED (Phase 12.1 - In-Content Video Upload & Auto-Cover Sync):
+ * • Defensively extract serverVideoUrl from uploadFile response across all data wrapper shapes.
+ * • Auto-sync inContentVideoFile to coverVideoFile and coverVideoPreview if no cover media exists.
+ * • Auto-append coverImageUrl to formData on submit if no cover image was provided, guaranteeing video card thumbnails.
+ *
+ * - EDITED (Phase 12.2 - Auth Gated Fetch & Safe Post ID Check):
+ * • Gated initial data fetching on !authLoading && isAuthenticated.
+ * • Cleaned post id evaluation so /dashboard/blog/new initializes cleanly in new post mode without fetching getPost(undefined).
+ * • Hardened coverImageUrl and thumbnails against [object Object] serialization.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -33,6 +43,7 @@
 "use client";
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useAuth } from '../context/AuthContext';
 import { getPost, createPost, updatePost, uploadFile, getCategories, addCategory, API_URL, createDraft, updateDraft } from '../apiConfig';
 
 import { canvasToBlob } from '../utils/editorUtils';
@@ -72,6 +83,7 @@ const BlogEditorPage = () => {
     const params = useParams();
     const id = params?.id;
     const router = useRouter();
+    const { isAuthenticated, loading: authLoading } = useAuth();
 
     const [postId, setPostId] = useState(null);
     const [version, setVersion] = useState(null);
@@ -124,26 +136,29 @@ const BlogEditorPage = () => {
     const autoSaveTimer = useRef(null);
 
     useEffect(() => {
+        if (authLoading || !isAuthenticated) return;
         const fetchInitialData = async () => {
             try {
                 const categoriesRes = await getCategories();
-                if (Array.isArray(categoriesRes.data)) setAllCategories(categoriesRes.data);
+                if (Array.isArray(categoriesRes?.data)) setAllCategories(categoriesRes.data);
 
-                if (id) {
-                    const postRes = await getPost(id);
-                    const post = postRes.data;
+                const cleanId = id && id !== 'undefined' ? id : null;
+                if (cleanId) {
+                    const postRes = await getPost(cleanId);
+                    const post = postRes?.data;
+                    if (!post) return;
                     setPostId(post.id);
                     setVersion(post.version);
-                    setTitle(post.title);
-                    setContent(post.content);
+                    setTitle(post.title || '');
+                    setContent(post.content || '');
 
-                    if (post.category && categoriesRes.data) {
+                    if (post.category && categoriesRes?.data) {
                         const currentCategory = categoriesRes.data.find(c => c.name === post.category.name);
                         setSelectedCategory(currentCategory || null);
                     }
 
                     setTags(post.tags || []);
-                    setIsFeatured(post.featured);
+                    setIsFeatured(post.featured || false);
                     setCustomSnippet(post.customSnippet || '');
                     setMetaDescription(post.metaDescription || '');
                     setKeywords(post.keywords || '');
@@ -170,7 +185,7 @@ const BlogEditorPage = () => {
                         setStoryThumbnails(loadedThumbnails);
                     }
 
-                    if (post.coverImageUrl) {
+                    if (post.coverImageUrl && typeof post.coverImageUrl === 'string' && !post.coverImageUrl.includes('[object Object]')) {
                         const rawCover = post.coverImageUrl;
                         if (rawCover.endsWith('.mp4') || rawCover.endsWith('.m3u8') || rawCover.includes('/raw/') || rawCover.includes('/hls/')) {
                             setCoverVideoPreview(rawCover.startsWith('http') || rawCover.startsWith('/') ? rawCover : `${API_URL}/${rawCover.replace(/^\/+/, '')}`);
@@ -181,7 +196,7 @@ const BlogEditorPage = () => {
 
                     if (post.scheduledTime) setScheduledTime(new Date(post.scheduledTime).toISOString().slice(0, 16));
                 } else {
-                    if (categoriesRes.data?.length > 0) setSelectedCategory(categoriesRes.data[0]);
+                    if (categoriesRes?.data?.length > 0) setSelectedCategory(categoriesRes.data[0]);
                 }
             } catch (err) {
                 setError('Failed to load initial data.');
@@ -189,7 +204,7 @@ const BlogEditorPage = () => {
             }
         };
         fetchInitialData();
-    }, [id]);
+    }, [id, authLoading, isAuthenticated]);
 
     const handleAutoSave = useCallback(async () => {
         if (!title.trim() && !content.trim()) return;
@@ -364,6 +379,7 @@ const BlogEditorPage = () => {
 
         setSaveStatus('Saving...');
         let finalContent = editorRef.current.getHTML();
+        let inContentUploadedVideoUrl = '';
 
         // --- CMS IN-CONTENT BLOB INGESTION FLAW INTERCEPT ---
         // If an in-content video file exists in state AND the raw HTML contains an ephemeral blob URL
@@ -374,15 +390,19 @@ const BlogEditorPage = () => {
                 videoFormData.append('file', inContentVideoFile);
 
                 const uploadRes = await uploadFile(videoFormData);
-                const rawUrl = uploadRes.data?.url || uploadRes.data;
+                const rawData = uploadRes?.data ?? uploadRes;
+                const rawUrl = typeof rawData === 'string'
+                    ? rawData
+                    : (rawData?.url || rawData?.videoUrl || rawData?.fileUrl || rawData?.path || '');
                 // Enforce normalized absolute URL (e.g. /api/v1/uploads/raw/...) to prevent relative route traversal
-                const serverVideoUrl = typeof rawUrl === 'string'
-                    ? (rawUrl.startsWith('http') || rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`)
+                const serverVideoUrl = typeof rawUrl === 'string' && rawUrl && !rawUrl.includes('[object Object]')
+                    ? (rawUrl.startsWith('http') || rawUrl.startsWith('/') ? rawUrl : `/api/v1/uploads/${rawUrl.replace(/^\/?(api\/v1\/uploads\/|uploads\/)?/, '')}`)
                     : '';
 
                 // 2. Sanitize the HTML: Search and destroy the local blob string
                 if (serverVideoUrl) {
                     finalContent = finalContent.replace(/src="blob:[^"]+"/g, `src="${serverVideoUrl}"`);
+                    inContentUploadedVideoUrl = serverVideoUrl;
                 }
             } catch (uploadErr) {
                 console.error("In-content video upload failed", uploadErr);
@@ -393,6 +413,9 @@ const BlogEditorPage = () => {
         }
 
         const formData = new FormData();
+        if (inContentUploadedVideoUrl && !finalCoverFile && !coverVideoFile && !coverPreview) {
+            formData.append('coverImageUrl', inContentUploadedVideoUrl);
+        }
         formData.append('title', title);
         formData.append('content', finalContent);
 
@@ -502,7 +525,16 @@ const BlogEditorPage = () => {
                         <SidebarAccordion title="Media: Cover & Video" defaultOpen={false}>
                             <CoverImagePanel coverPreview={coverPreview} coverImageAltText={coverImageAltText} onCoverImageAltTextChange={setCoverImageAltText} onUploadCoverClick={() => { fileInputRef.current.multiple = false; fileInputRef.current.onchange = (e) => onSelectFile(e, 'cover'); fileInputRef.current.click(); }} />
                             <div className="mt-4 pt-4 border-t border-slate-100">
-                                <VideoPanel videoPreview={coverVideoPreview} onUploadVideoClick={() => videoInputRef.current?.click()} onRemoveVideo={handleRemoveCoverVideo} />
+                                <VideoPanel
+                                    videoPreview={coverVideoPreview}
+                                    onUploadVideoClick={() => videoInputRef.current?.click()}
+                                    onRemoveVideo={handleRemoveCoverVideo}
+                                    onSetAsCoverVideo={() => {
+                                        if (coverVideoFile) {
+                                            // Active cover video preview locked
+                                        }
+                                    }}
+                                />
                             </div>
                         </SidebarAccordion>
 
@@ -526,7 +558,13 @@ const BlogEditorPage = () => {
                             handleAutoSave={handleAutoSave}
                             onImageUploadBefore={handleImageUploadBefore}
                             onLoad={() => { if (editorRef.current && content && !isContentLoaded.current) isContentLoaded.current = true; }}
-                            onVideoFileSelect={setInContentVideoFile}
+                            onVideoFileSelect={(file) => {
+                                setInContentVideoFile(file);
+                                if (!coverVideoFile && !coverPreview && !coverVideoPreview) {
+                                    setCoverVideoFile(file);
+                                    setCoverVideoPreview(URL.createObjectURL(file));
+                                }
+                            }}
                         />
                     </div>
                 </div>

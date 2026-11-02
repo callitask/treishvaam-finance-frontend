@@ -34,6 +34,13 @@
  * - EDITED (Phase 8.1 - React DOM Mutation Fix):
  * • Eliminated vanilla JS classList manipulations. Applied strict React useState boolean toggles to manage opacity fade-in animations on video load, protecting SSR hydration parity.
  *
+ * - EDITED (Phase 12.1 - HLS RegExp, Media Path Normalization & 360p Fallback):
+ * • Corrected double-escaped regex to single-escaped `/(master|1080p|720p|480p)\.m3u8$/i`.
+ * • Normalized `/uploads/...` paths to `/api/v1/uploads/...`.
+ * • Removed static child `<source>` from `<video>` element to prevent MediaSource attachment collision with Hls.js in Chromium.
+ * • Implemented automated fallback to `master.m3u8` with `hls.autoLevelCapping = 0` when `360p.m3u8` returns fatal network/manifest error.
+ * • Added 800ms safety timeout and metadata listeners to prevent permanent `opacity-0` render locks.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -69,20 +76,33 @@ const SmartMediaRenderer = memo(({
 
     useEffect(() => {
         if (!mounted || layoutContext === 'article') return;
-        const normalizedUrl = mediaUrl && (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) ? mediaUrl : (mediaUrl ? `/${mediaUrl}` : '');
+        let normalizedUrl = mediaUrl && (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) ? mediaUrl : (mediaUrl ? `/${mediaUrl}` : '');
+        if (normalizedUrl.startsWith('/uploads/')) {
+            normalizedUrl = `/api/v1${normalizedUrl}`;
+        } else if (normalizedUrl.startsWith('uploads/')) {
+            normalizedUrl = `/api/v1/${normalizedUrl}`;
+        }
+
         const isVideo = !!normalizedUrl && (VIDEO_EXT_REGEX.test(normalizedUrl) || normalizedUrl.includes('/raw/') || normalizedUrl.includes('/hls/'));
         if (!isVideo) return;
         const optimizedVideoUrl = normalizedUrl.endsWith('.m3u8')
-            ? normalizedUrl.replace(/(master|1080p|720p|480p)\\.m3u8$/i, '360p.m3u8')
+            ? normalizedUrl.replace(/(master|1080p|720p|480p)\.m3u8$/i, '360p.m3u8')
             : normalizedUrl;
 
         const videoEl = videoRefLocal.current;
         if (!videoEl) return;
 
         let hls = null;
-        const startPlayback = (srcUrl) => {
+        const safetyTimer = setTimeout(() => {
+            setIsLoaded(true);
+        }, 800);
+
+        const startPlayback = (srcUrl, isFallback = false) => {
             if (srcUrl.endsWith('.m3u8') && Hls.isSupported()) {
                 hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+                if (isFallback) {
+                    hls.autoLevelCapping = 0;
+                }
                 hls.loadSource(srcUrl);
                 hls.attachMedia(videoEl);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -92,7 +112,7 @@ const SmartMediaRenderer = memo(({
                 hls.on(Hls.Events.ERROR, (_event, data) => {
                     if (data.fatal && srcUrl !== normalizedUrl) {
                         if (hls) hls.destroy();
-                        startPlayback(normalizedUrl);
+                        startPlayback(normalizedUrl, true);
                     }
                 });
             } else {
@@ -104,6 +124,7 @@ const SmartMediaRenderer = memo(({
 
         startPlayback(optimizedVideoUrl);
         return () => {
+            clearTimeout(safetyTimer);
             if (hls) hls.destroy();
         };
     }, [mounted, mediaUrl, layoutContext]);
@@ -113,9 +134,12 @@ const SmartMediaRenderer = memo(({
     }
 
     // Path normalization: Ensure absolute URL structure
-    const normalizedUrl = mediaUrl.startsWith('http') || mediaUrl.startsWith('/')
+    let normalizedUrl = mediaUrl.startsWith('http') || mediaUrl.startsWith('/')
         ? mediaUrl
         : `/${mediaUrl}`;
+    if (normalizedUrl.startsWith('/uploads/')) {
+        normalizedUrl = `/api/v1${normalizedUrl}`;
+    }
 
     const isVideo = VIDEO_EXT_REGEX.test(normalizedUrl) || normalizedUrl.includes('/raw/') || normalizedUrl.includes('/hls/');
 
@@ -144,11 +168,6 @@ const SmartMediaRenderer = memo(({
         );
     }
 
-    // Strict 360p URL locking for Free-Tier Bandwidth Optimization
-    const optimizedVideoUrl = normalizedUrl.endsWith('.m3u8')
-        ? normalizedUrl.replace(/(master|1080p|720p|480p)\.m3u8$/i, '360p.m3u8')
-        : normalizedUrl;
-
     return (
         <video
             ref={videoRef}
@@ -164,9 +183,7 @@ const SmartMediaRenderer = memo(({
             disablePictureInPicture
             disableRemotePlayback
             aria-label={alt}
-        >
-            <source src={optimizedVideoUrl} type={optimizedVideoUrl.endsWith('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'} />
-        </video>
+        />
     );
 });
 

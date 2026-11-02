@@ -7,11 +7,14 @@
  * • Replaced `react-router-dom` with `next/link` to fix compiler crash.
  * • Replaced `ResponsiveAuthImage` with `SmartMediaRenderer` to support video covers.
  * • Date/Phase: Phase 2 (Smart Media Engine)
+ *
+ * - EDITED (Phase 12.1 - Video Thumbnail Resolution):
+ * • Used resolvePostMediaUrl to dynamically resolve thumbnail vs cover video vs in-content video.
  */
 import React, { memo, forwardRef } from 'react';
 import Link from 'next/link';
 import SmartMediaRenderer from './SmartMediaRenderer';
-import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
+import { categoryStyles, createSnippet, formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 
 const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
     const { isNew } = formatDateTime(article.updatedAt || article.createdAt);
@@ -21,9 +24,7 @@ const GridPostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap 
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
-    const mediaUrl = (article.thumbnails && article.thumbnails.length > 0)
-        ? article.thumbnails[0].imageUrl
-        : article.coverImageUrl;
+    const mediaUrl = resolvePostMediaUrl(article);
 
     return (
         <div ref={ref} className="flex flex-col h-full bg-white border-b border-gray-100 pb-4 mb-4 last:mb-0 last:pb-0 last:border-0 group">

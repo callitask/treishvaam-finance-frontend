@@ -47,6 +47,12 @@
  * • Injected `onVideoFileSelect` prop to pass the raw video binary up to `BlogEditorPage.js` for the master `FormData` append.
  * • Generated ephemeral `URL.createObjectURL(file)` to render the local preview instantly in Tiptap.
  *
+ * - EDITED (Phase 12.1 - Video Insertion Defensiveness):
+ * • Hardened handleVideoFileChange to validate file and pass clean previewUrl to setVideo.
+ *
+ * - EDITED (Phase 12.2 - Tiptap immediatelyRender SSR Guard):
+ * • Added immediatelyRender: false to useEditor options to ensure 100% hydration/SSR safety under Next.js 14 and Tiptap v3.
+ *
  * - DO-NOT-DELETE RULE (ABSOLUTE):
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -213,6 +219,7 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const editor = useEditor({
+        immediatelyRender: false,
         extensions,
         content: isMounted ? content : '',
         onUpdate: ({ editor: ed }) => {
@@ -321,7 +328,9 @@ const EditorForm = ({ content, setContent, editorRef, handleAutoSave, onImageUpl
 
             // Step 2: Generate an ephemeral local preview for the Tiptap canvas
             const previewUrl = URL.createObjectURL(file);
-            editor.chain().focus().setVideo({ src: previewUrl }).run();
+            if (previewUrl && typeof previewUrl === 'string') {
+                editor.chain().focus().setVideo(previewUrl).run();
+            }
         }
         e.target.value = '';
     };

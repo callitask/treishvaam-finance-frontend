@@ -8,6 +8,8 @@
  * - EDITED (Phase 7 - Cloudflare UI Overhaul):
  * • Compacted KPI ribbon, removing heavily rounded corners and colored backgrounds in favor of a dense, monochromatic slate palette.
  * • Condensed Quick Navigation and System Alerts into a high-density vertical list with 1px borders and text-[11px] tracking.
+ * - EDITED (Phase 12.2 - Auth Gating & Safe Array Unwrap):
+ * • Gated fetchPostsForStats on !authLoading && isAuthenticated and safely unwrapped response payload with extractArray.
  */
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
@@ -16,8 +18,16 @@ import { FaLinkedin, FaFileAlt, FaPlus, FaNewspaper, FaClock, FaCheckCircle, FaE
 import Link from 'next/link';
 import ApiStatusPanel from '../components/ApiStatusPanel';
 
+const extractArray = (res) => {
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    if (Array.isArray(res?.data?.content)) return res.data.content;
+    if (Array.isArray(res?.content)) return res.content;
+    return [];
+};
+
 const DashboardPage = () => {
-    const { user } = useAuth();
+    const { user, isAuthenticated, loading: authLoading } = useAuth();
     const [posts, setPosts] = useState([]);
     const [error, setError] = useState('');
     const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://backend.treishvaamgroup.com';
@@ -25,10 +35,11 @@ const DashboardPage = () => {
     const linkedInAuthUrl = `${API_URL}/api/v1/oauth2/authorization/linkedin`;
 
     useEffect(() => {
+        if (authLoading || !isAuthenticated) return;
         const fetchPostsForStats = async () => {
             try {
                 const response = await getPosts();
-                setPosts(response.data);
+                setPosts(extractArray(response));
             } catch (err) {
                 setError('Could not load dashboard data.');
                 console.error(err);
@@ -37,11 +48,11 @@ const DashboardPage = () => {
         fetchPostsForStats();
         const intervalId = setInterval(fetchPostsForStats, 30000);
         return () => clearInterval(intervalId);
-    }, []);
+    }, [authLoading, isAuthenticated]);
 
-    const totalPublished = useMemo(() => posts.filter(p => p.status === 'PUBLISHED').length, [posts]);
-    const totalScheduled = useMemo(() => posts.filter(p => p.status === 'SCHEDULED').length, [posts]);
-    const totalDrafts = useMemo(() => posts.filter(p => p.status === 'DRAFT').length, [posts]);
+    const totalPublished = useMemo(() => Array.isArray(posts) ? posts.filter(p => p.status === 'PUBLISHED').length : 0, [posts]);
+    const totalScheduled = useMemo(() => Array.isArray(posts) ? posts.filter(p => p.status === 'SCHEDULED').length : 0, [posts]);
+    const totalDrafts = useMemo(() => Array.isArray(posts) ? posts.filter(p => p.status === 'DRAFT').length : 0, [posts]);
 
     return (
         <div className="p-4 md:p-6 max-w-[1600px] mx-auto space-y-6 font-sans text-slate-900 bg-white min-h-screen">

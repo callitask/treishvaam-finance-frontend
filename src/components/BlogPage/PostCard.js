@@ -1,8 +1,9 @@
 import React, { memo, forwardRef, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
+import SmartMediaRenderer from './SmartMediaRenderer';
 import Slider from "react-slick";
-import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogUtils';
+import { categoryStyles, createSnippet, formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 
 /**
  * AI-CONTEXT:
@@ -11,6 +12,9 @@ import { categoryStyles, createSnippet, formatDateTime } from '../../utils/blogU
  * IMMUTABLE CHANGE HISTORY (DO NOT DELETE):
  * - EDITED:
  * • Changed title heading from H3 to H2 to fix Accessibility hierarchy (H1 -> H2)
+ *
+ * - EDITED (Phase 12.1 - SmartMediaRenderer & Video Thumbnail Support):
+ * • Unified thumbnail rendering via resolvePostMediaUrl and SmartMediaRenderer for seamless HLS/MP4 video card playback.
  */
 
 const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, ref) => {
@@ -28,9 +32,9 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
 
-    const ThumbnailDisplay = () => {
-        if (!hasThumbnails) return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300 text-xs">No Image</div>;
+    const resolvedMedia = resolvePostMediaUrl(article);
 
+    const ThumbnailDisplay = () => {
         if (isStory) {
             return (
                 <div className="w-full h-full bg-gray-100 group overflow-hidden">
@@ -52,17 +56,23 @@ const PostCard = memo(forwardRef(({ article, onCategoryClick, categoriesMap }, r
                 </div>
             );
         }
-        return (
-            <Link to={postLink} className="block w-full h-full bg-gray-100 group overflow-hidden" aria-label={`Read ${article.title}`}>
-                <ResponsiveAuthImage
-                    baseName={article.thumbnails[0].imageUrl}
-                    alt={article.thumbnails[0].altText || article.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    width={400}
-                    height={300}
-                />
-            </Link>
-        );
+
+        if (resolvedMedia) {
+            return (
+                <Link to={postLink} className="block w-full h-full bg-gray-100 group overflow-hidden" aria-label={`Read ${article.title}`}>
+                    <SmartMediaRenderer
+                        mediaUrl={resolvedMedia}
+                        alt={article.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        width={400}
+                        height={300}
+                        layoutContext="grid"
+                    />
+                </Link>
+            );
+        }
+
+        return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300 text-xs">No Image</div>;
     };
 
     return (

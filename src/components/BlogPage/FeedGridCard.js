@@ -1,31 +1,37 @@
 import React from 'react';
 import Link from 'next/link';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
-import { formatDateTime } from '../../utils/blogUtils';
+import SmartMediaRenderer from './SmartMediaRenderer';
+import { formatDateTime, resolvePostMediaUrl } from '../../utils/blogUtils';
 
 /**
  * AI-CONTEXT:
  * Purpose: Grid card for blog feed.
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated from react-router-dom to next/link.
+ * - EDITED (Phase 12.1 - SmartMediaRenderer Video Support):
+ * • Used resolvePostMediaUrl and SmartMediaRenderer to render both image and video thumbnails.
  */
 const FeedGridCard = ({ article, onCategoryClick, categoriesMap }) => {
     const { displayDate } = formatDateTime(article.updatedAt || article.createdAt);
     const categoryName = article.category?.name || 'Uncategorized';
     const categorySlug = categoriesMap[categoryName] || 'uncategorized';
     const postLink = `/category/${categorySlug}/${article.userFriendlySlug}/${article.urlArticleId}`;
-    const thumbnail = article.thumbnails?.[0] || {};
+    const resolvedMedia = resolvePostMediaUrl(article);
 
     return (
         <div className="group flex flex-col h-full bg-white border-b border-gray-100 pb-6 mb-6 last:border-0">
             <Link href={postLink} className="block w-full aspect-video overflow-hidden rounded-sm bg-gray-100 mb-3 relative">
-                {thumbnail.imageUrl && (
-                    <ResponsiveAuthImage
-                        baseName={thumbnail.imageUrl}
-                        alt={thumbnail.altText || article.title}
+                {resolvedMedia ? (
+                    <SmartMediaRenderer
+                        mediaUrl={resolvedMedia}
+                        alt={article.thumbnails?.[0]?.altText || article.title}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        layoutContext="grid"
                         width={400}
                     />
+                ) : (
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300 text-xs">No Image</div>
                 )}
                 <div className="absolute top-2 right-2 bg-black/50 backdrop-blur text-white text-[9px] font-bold px-1.5 py-0.5 rounded-sm">
                     {categoryName}

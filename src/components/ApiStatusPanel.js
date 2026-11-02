@@ -4,33 +4,40 @@
  * IMMUTABLE CHANGE HISTORY:
  * - EDITED: Migrated to Cloudflare Radar enterprise aesthetic. Replaced `gray-*` palette with `slate-*`, 
  * changed `rounded-xl` to `rounded`, reduced padding from `p-6` to `p-4`, and removed soft shadows.
+ * - EDITED (Phase 12.2 - Auth Gating & Safe Array Unwrap):
+ * • Gated fetchLogs on !authLoading && isAuthenticated and safely unwrapped logs array.
  *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions.
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { getApiStatusHistory, refreshMovers, refreshIndices, flushMovers, flushIndices } from '../apiConfig';
 import ApiStatusBlock from './ApiStatusBlock';
 import PasswordPromptModal from './PasswordPromptModal';
 
 const ApiStatusPanel = () => {
+    const { isAuthenticated, loading: authLoading } = useAuth();
     const [logs, setLogs] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [modalState, setModalState] = useState({ isOpen: false, onConfirm: null, title: '' });
     const [isActionLoading, setIsActionLoading] = useState(false);
 
     const fetchLogs = useCallback(async () => {
+        if (authLoading || !isAuthenticated) return;
         setIsLoading(true);
         try {
             const response = await getApiStatusHistory();
-            setLogs(response.data);
+            const raw = response?.data ?? response;
+            setLogs(Array.isArray(raw) ? raw : (Array.isArray(raw?.content) ? raw.content : []));
         } catch (error) {
             console.error("Failed to fetch API status history:", error);
+            setLogs([]);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [authLoading, isAuthenticated]);
 
     useEffect(() => {
         fetchLogs();

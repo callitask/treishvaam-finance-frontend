@@ -21,6 +21,10 @@
  * - EDITED (Phase 5 - Editor UX & Native Resizing):
  * • Injected native CSS resize handles (`resize: 'horizontal'`, `overflow: 'hidden'`, `minWidth: '250px'`, `maxWidth: '100%'`) into the NodeViewWrapper.
  * • Why: Grants CMS authors the ability to natively drag-resize video elements directly in the DOM without introducing heavy third-party dependencies.
+ *
+ * - EDITED (Phase 12.1 - Video Serialization & [object Object] Prevention):
+ * • Defensively sanitize parseHTML, renderHTML, and addCommands (setVideo) to reject `[object Object]` strings and accept either string URL or options object.
+ * • Prevented DOM serialization of invalid object refs in rich text canvas.
  */
 
 import { Node, mergeAttributes } from '@tiptap/core';
@@ -29,6 +33,9 @@ import React, { memo } from 'react';
 
 const VideoNodeView = memo(({ node, updateAttributes, selected, editor }) => {
     const { src, width, alignment, controls, float } = node.attrs;
+    const resolvedSrc = typeof src === 'object'
+        ? (src?.src || src?.url || src?.videoUrl || '')
+        : (src && !String(src).includes('[object Object]') ? String(src) : '');
     const isEditable = editor.isEditable;
 
     const alignmentClasses = {
@@ -93,7 +100,7 @@ const VideoNodeView = memo(({ node, updateAttributes, selected, editor }) => {
             )}
             <div style={{ width: width || '100%' }}>
                 <video
-                    src={src}
+                    src={resolvedSrc}
                     controls={controls}
                     className="w-full h-auto rounded-lg shadow-md bg-slate-900 border border-slate-200"
                 />
@@ -123,24 +130,37 @@ export const VideoExtension = Node.create({
         return [
             {
                 tag: 'video',
-                getAttrs: (element) => ({
-                    src: element.getAttribute('src') || element.querySelector('source')?.getAttribute('src'),
-                    width: element.style.width || element.getAttribute('width') || '100%',
-                    alignment: element.getAttribute('data-alignment') || 'center',
-                    float: element.style.float || 'none'
-                })
+                getAttrs: (element) => {
+                    let rawSrc = element.getAttribute('src') || element.querySelector('source')?.getAttribute('src');
+                    if (rawSrc && (rawSrc.includes('[object Object]') || rawSrc === 'null' || rawSrc === 'undefined')) {
+                        rawSrc = null;
+                    }
+                    return {
+                        src: rawSrc,
+                        width: element.style.width || element.getAttribute('width') || '100%',
+                        alignment: element.getAttribute('data-alignment') || 'center',
+                        float: element.style.float || 'none'
+                    };
+                }
             }
         ];
     },
 
     renderHTML({ HTMLAttributes }) {
         const { alignment, width, float, ...rest } = HTMLAttributes;
+        let resolvedSrc = typeof HTMLAttributes.src === 'object'
+            ? (HTMLAttributes.src?.src || HTMLAttributes.src?.url || HTMLAttributes.src?.videoUrl || '')
+            : (HTMLAttributes.src || '');
+        if (typeof resolvedSrc !== 'string' || resolvedSrc.includes('[object Object]')) {
+            resolvedSrc = '';
+        }
+
         return [
             'div',
-            { class: `video-wrapper alignment-${alignment}`, style: `width: ${width}; float: ${float};` },
-            ['video', mergeAttributes(rest, { 'data-alignment': alignment }),
-                ['source', { src: HTMLAttributes.src, type: 'application/x-mpegURL' }],
-                ['source', { src: HTMLAttributes.src, type: 'video/mp4' }]
+            { class: `video-wrapper alignment-${alignment || 'center'}`, style: `width: ${width || '100%'}; float: ${float || 'none'};` },
+            ['video', mergeAttributes(rest, { src: resolvedSrc, 'data-alignment': alignment || 'center' }),
+                ['source', { src: resolvedSrc, type: 'application/x-mpegURL' }],
+                ['source', { src: resolvedSrc, type: 'video/mp4' }]
             ]
         ];
     },
@@ -152,9 +172,28 @@ export const VideoExtension = Node.create({
     addCommands() {
         return {
             setVideo: (options) => ({ commands }) => {
+                let resolvedSrc = '';
+                let extraAttrs = {};
+                if (typeof options === 'string') {
+                    resolvedSrc = options;
+                } else if (options && typeof options === 'object') {
+                    resolvedSrc = typeof options.src === 'object'
+                        ? (options.src?.src || options.src?.url || options.src?.videoUrl || '')
+                        : (options.src || options.url || options.videoUrl || '');
+                    extraAttrs = { ...options };
+                    delete extraAttrs.src;
+                    delete extraAttrs.url;
+                    delete extraAttrs.videoUrl;
+                }
+                if (!resolvedSrc || resolvedSrc.includes('[object Object]')) {
+                    return false;
+                }
                 return commands.insertContent({
                     type: this.name,
-                    attrs: options,
+                    attrs: {
+                        ...extraAttrs,
+                        src: resolvedSrc,
+                    },
                 });
             },
         };
