@@ -57,6 +57,8 @@
  *   2. Pre-warmed public category/post APIs and AI Knowledge feeds during scheduled cron and /sys/force-update triggers.
  *   3. Updated STATIC_FOUNDER_AND_CONGLOMERATE_GRAPH: removed Person legalName, updated founder portrait URL to amitsagar-kandpal-photo.png, added streetAddress to PostalAddress, and removed FinancialService @type.
  *   4. Ensured ai-feed.md includes the semantic-chunk founder-identity entity.
+ * - EDITED (Phase 10 - Sub-2s Edge KV SWR for all users):
+ *   Expanded Edge KV SWR cache to cover all public read-only market & editorial endpoints for both human browsers and crawlers; added POST batch quote caching with deterministic keys; added background refresh; expanded pre-warm list.
  * - DO-NOT-DELETE RULE:
  *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
  *   truncated, rewritten, or regenerated.
@@ -218,7 +220,12 @@ export default {
             const apisToPrewarm = [
                 { path: "/api/v1/categories", key: "api_cache:/api/v1/categories" },
                 { path: "/api/v1/posts?page=0&size=9", key: "api_cache:/api/v1/posts?page=0&size=9" },
-                { path: "/api/v1/market/news/highlights", key: "api_cache:/api/v1/market/news/highlights" }
+                { path: "/api/v1/market/news/highlights", key: "api_cache:/api/v1/market/news/highlights" },
+                { path: "/api/v1/market/news/archived", key: "api_cache:/api/v1/market/news/archived" },
+                { path: "/api/v1/market/top-gainers", key: "api_cache:/api/v1/market/top-gainers" },
+                { path: "/api/v1/market/top-losers", key: "api_cache:/api/v1/market/top-losers" },
+                { path: "/api/v1/market/most-active", key: "api_cache:/api/v1/market/most-active" },
+                { path: "/api/v1/market/widget?ticker=%5EDJI", key: "api_cache:/api/v1/market/widget?ticker=%5EDJI" }
             ];
 
             for (const api of apisToPrewarm) {
@@ -243,6 +250,42 @@ export default {
                     }
                 } catch (err) {
                     console.error(`Failed to pre-warm API ${api.key}:`, err);
+                }
+            }
+
+            // Pre-warm POST batch quote endpoints for default tab tickers
+            const batchBodies = [
+                JSON.stringify(["^GSPC","^IXIC","^NSEI","GC=F","CL=F","BTC-INR"]),
+                JSON.stringify(["^DJI","^GSPC","^IXIC","^RUT","^VIX"])
+            ];
+            for (const body of batchBodies) {
+                try {
+                    const ts = Date.now().toString();
+                    const signPath = "/api/v1/market/quotes/batch";
+                    const sig = await generateEdgeSignature(signPath, ts, clientIp, env.AEGIS_EDGE_SECRET);
+                    const resp = await fetch(`${BACKEND_URL}${signPath}`, {
+                        method: "POST",
+                        headers: {
+                            "User-Agent": "Treishvaam-Worker-Crawler/1.0",
+                            "Accept": "application/json",
+                            "Content-Type": "application/json",
+                            "X-Aegis-Edge-Signature": sig,
+                            "X-Aegis-Edge-Timestamp": ts,
+                            "X-Aegis-Client-IP": clientIp,
+                            "CF-Connecting-IP": clientIp
+                        },
+                        body: body
+                    });
+                    if (resp.ok) {
+                        const content = await resp.text();
+                        let tickers = [];
+                        try { tickers = JSON.parse(body); } catch (e) { tickers = []; }
+                        const sorted = [...tickers].map(String).sort();
+                        const key = "api_cache:/api/v1/market/quotes/batch:" + sorted.join(',');
+                        await env.TREISHFIN_SEO_CACHE.put(key, content, { expirationTtl: 86400 });
+                    }
+                } catch (err) {
+                    console.error("Failed to pre-warm batch quotes:", err);
                 }
             }
         } catch (e) {
@@ -518,37 +561,97 @@ export default {
                     return addSecurityHeaders(apiResp);
                 }
 
-                // Public API Edge KV Shielding for Googlebot and Crawlers
-                const isPublicCacheableApi = request.method === 'GET' && (
+                // Public API Edge KV Stale-While-Revalidate (SWR) for ALL visitors (humans + crawlers)
+                const isPublicGetCacheable = request.method === 'GET' && (
+                    url.pathname === '/api/v1/categories' ||
                     url.pathname.startsWith('/api/v1/categories') ||
                     url.pathname.startsWith('/api/v1/posts') ||
-                    url.pathname.startsWith('/api/v1/market/news/highlights')
+                    url.pathname === '/api/v1/market/news/highlights' ||
+                    url.pathname.startsWith('/api/v1/market/news/highlights') ||
+                    url.pathname === '/api/v1/market/news/archived' ||
+                    url.pathname.startsWith('/api/v1/market/news/archived') ||
+                    url.pathname === '/api/v1/market/top-gainers' ||
+                    url.pathname.startsWith('/api/v1/market/top-gainers') ||
+                    url.pathname === '/api/v1/market/top-losers' ||
+                    url.pathname.startsWith('/api/v1/market/top-losers') ||
+                    url.pathname === '/api/v1/market/most-active' ||
+                    url.pathname.startsWith('/api/v1/market/most-active') ||
+                    url.pathname.startsWith('/api/v1/market/widget') ||
+                    url.pathname.startsWith('/api/v1/market/quote/') ||
+                    url.pathname.startsWith('/api/v1/market/data/')
                 );
 
-                if (isPublicCacheableApi) {
-                    const apiCacheKey = 'api_cache:' + url.pathname + url.search;
-                    const isSearchCrawler = /googlebot|inspectiontool|bingbot|applebot/i.test(userAgent);
+                const isBatchQuotePost = request.method === 'POST' && url.pathname === '/api/v1/market/quotes/batch';
 
-                    // Instant 200 OK KV response for search crawlers
-                    if (isSearchCrawler) {
+                if (isPublicGetCacheable || isBatchQuotePost) {
+                    // Build deterministic cache key
+                    let apiCacheKey;
+                    let requestBodyText = null;
+                    if (isBatchQuotePost) {
                         try {
-                            const crawlerCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
-                            if (crawlerCached) {
-                                return addSecurityHeaders(new Response(crawlerCached, {
-                                    status: 200,
-                                    headers: {
-                                        'Content-Type': 'application/json; charset=utf-8',
-                                        'Cache-Control': 'public, max-age=3600, s-maxage=86400',
-                                        'X-Edge-Cache': 'HIT-CRAWLER-KV'
-                                    }
-                                }));
-                            }
-                        } catch (e) {}
+                            requestBodyText = await request.clone().text();
+                            let tickers = [];
+                            try { tickers = JSON.parse(requestBodyText); } catch (e) { tickers = []; }
+                            if (!Array.isArray(tickers)) tickers = [];
+                            const sorted = [...tickers].map(String).sort();
+                            apiCacheKey = 'api_cache:/api/v1/market/quotes/batch:' + sorted.join(',');
+                        } catch (e) {
+                            apiCacheKey = 'api_cache:/api/v1/market/quotes/batch:' + url.search;
+                        }
+                    } else {
+                        apiCacheKey = 'api_cache:' + url.pathname + url.search;
                     }
 
+                    // SWR: if cached payload exists, return immediately and refresh in background
                     try {
-                        const apiResponse = await fetch(proxyReq);
-                        if (apiResponse.ok) {
+                        const cachedPayload = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                        if (cachedPayload) {
+                            ctx.waitUntil((async () => {
+                                try {
+                                    let refreshReq;
+                                    if (isBatchQuotePost && requestBodyText !== null) {
+                                        refreshReq = new Request(proxyTargetUrl.toString(), {
+                                            headers: enhancedHeaders,
+                                            method: 'POST',
+                                            body: requestBodyText,
+                                            redirect: request.redirect
+                                        });
+                                    } else {
+                                        refreshReq = proxyReq;
+                                    }
+                                    const freshResp = await fetch(refreshReq, { signal: AbortSignal.timeout(8000) });
+                                    if (freshResp && freshResp.ok) {
+                                        const freshBody = await freshResp.text();
+                                        await env.TREISHFIN_SEO_CACHE.put(apiCacheKey, freshBody, { expirationTtl: 86400 });
+                                    }
+                                } catch (e) {}
+                            })());
+                            return addSecurityHeaders(new Response(cachedPayload, {
+                                status: 200,
+                                headers: {
+                                    'Content-Type': 'application/json; charset=utf-8',
+                                    'Cache-Control': 'public, max-age=60, s-maxage=86400',
+                                    'X-Edge-Cache': 'HIT-SWR'
+                                }
+                            }));
+                        }
+                    } catch (e) {}
+
+                    // Cold miss: fetch from origin with timeout
+                    try {
+                        let fetchReq;
+                        if (isBatchQuotePost && requestBodyText !== null) {
+                            fetchReq = new Request(proxyTargetUrl.toString(), {
+                                headers: enhancedHeaders,
+                                method: 'POST',
+                                body: requestBodyText,
+                                redirect: request.redirect
+                            });
+                        } else {
+                            fetchReq = proxyReq;
+                        }
+                        const apiResponse = await fetch(fetchReq, { signal: AbortSignal.timeout(8000) });
+                        if (apiResponse && apiResponse.ok) {
                             const bodyText = await apiResponse.text();
                             ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
                             return addSecurityHeaders(new Response(bodyText, {
@@ -557,7 +660,7 @@ export default {
                             }));
                         }
 
-                        // On backend error (4xx/5xx), return KV fallback if available
+                        // On backend error, return KV fallback if available
                         const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
                         if (fallbackCached) {
                             return addSecurityHeaders(new Response(fallbackCached, {
@@ -570,7 +673,17 @@ export default {
                             }));
                         }
 
-                        return addSecurityHeaders(apiResponse);
+                        // Clean empty fallback
+                        const defaultPayload = url.pathname.includes('/categories') || url.pathname.includes('/highlights')
+                            ? '[]'
+                            : JSON.stringify({ content: [], totalPages: 0, totalElements: 0 });
+                        return addSecurityHeaders(new Response(defaultPayload, {
+                            status: 200,
+                            headers: {
+                                'Content-Type': 'application/json; charset=utf-8',
+                                'Cache-Control': 'no-store'
+                            }
+                        }));
                     } catch (e) {
                         try {
                             const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
@@ -586,7 +699,6 @@ export default {
                             }
                         } catch (err) {}
 
-                        // Clean 200 OK fallback payload so crawlers never encounter 503
                         const defaultPayload = url.pathname.includes('/categories') || url.pathname.includes('/highlights')
                             ? '[]'
                             : JSON.stringify({ content: [], totalPages: 0, totalElements: 0 });

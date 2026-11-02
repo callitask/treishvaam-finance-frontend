@@ -33,8 +33,12 @@ import React from 'react';
 import Image from 'next/image';
 
 export default function AboutPage() {
-    // Dynamic asset loading with a fallback to the local file
-    const portraitUrl = process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL || "/amitsagar-kandpal-photo.png";
+    // Dynamic asset loading with a fallback to the local file (rewrite broken github.com/blob URLs)
+    const rawPortraitUrl = process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL;
+    const portraitUrl =
+        rawPortraitUrl && !rawPortraitUrl.includes('github.com') && !rawPortraitUrl.includes('/blob/')
+            ? rawPortraitUrl
+            : '/amitsagar-kandpal-photo.png';
 
     return (
         <main className="min-h-screen bg-[#FCFBF8] text-slate-900 font-serif selection:bg-slate-300 selection:text-slate-900 pb-24 pt-24 lg:pt-32">
@@ -59,6 +63,7 @@ export default function AboutPage() {
                                     className="object-cover grayscale"
                                     sizes="(max-width: 768px) 100vw, 25vw"
                                     priority
+                                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/logo.webp'; }}
                                 />
                             </figure>
                             <h3 className="font-bold text-xl mb-1 text-slate-900">Amitsagar Kandpal</h3>

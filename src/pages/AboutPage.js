@@ -46,6 +46,10 @@
  * - EDITED (2026-05-15 Next.js Build Fix):
  * • Added `"use client";` directive at the top of the file.
  *
+ * - EDITED (Phase 10):
+ * �?� Rewrote portrait URL resolution to rewrite broken github.com/blob URLs to /amitsagar-kandpal-photo.png and added onError fallback to /logo.webp.
+ * �?� Why: To fix broken Founder portrait on /about.
+ *
  * - DO-NOT-DELETE RULE:
  * This IMMUTABLE CHANGE HISTORY section must never be deleted,
  * truncated, rewritten, or regenerated.
@@ -57,6 +61,11 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 import { ShieldCheck, Users, TrendingUp, Lightbulb, Linkedin, ArrowRight } from 'lucide-react';
 
 const AboutPage = () => {
+    const rawPortraitUrl = process.env.NEXT_PUBLIC_CHAIRMAN_PORTRAIT_URL;
+    const chairmanPortraitUrl =
+        rawPortraitUrl && !rawPortraitUrl.includes('github.com') && !rawPortraitUrl.includes('/blob/')
+            ? rawPortraitUrl
+            : '/amitsagar-kandpal-photo.png';
     return (
         <main className="min-h-screen bg-white selection:bg-slate-200 selection:text-slate-900">
             {/* --- Semantic Header / Hero --- */}
@@ -82,10 +91,11 @@ const AboutPage = () => {
                         <div className="lg:col-span-5 w-full">
                             <figure className="relative bg-slate-100 border border-slate-200 p-2 shadow-sm">
                                 <LazyLoadImage
-                                    src="/amitsagar-kandpal-photo.png"
+                                    src={chairmanPortraitUrl}
                                     alt="Amitsagar Kandpal, Founder of Treishvaam Finance"
                                     className="object-cover w-full h-auto grayscale hover:grayscale-0 transition-all duration-500"
                                     effect="blur"
+                                    onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = '/logo.webp'; }}
                                 />
                                 <figcaption className="bg-white border-t border-slate-200 px-6 py-4">
                                     <h2 className="text-xl font-bold text-slate-900">Amitsagar Kandpal</h2>

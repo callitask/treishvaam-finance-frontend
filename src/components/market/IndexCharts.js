@@ -91,19 +91,25 @@ const IndexCharts = () => {
     const isPos = rawChangeAmt >= 0;
 
     const chartData = useMemo(() => {
-        if (!widgetData || !widgetData.historicalData) return [];
+        if (!widgetData || !Array.isArray(widgetData.historicalData) || widgetData.historicalData.length === 0) {
+            return [];
+        }
+        const normalized = widgetData.historicalData
+            .map(item => {
+                let t = item.priceDate;
+                if (Array.isArray(t) && t.length >= 3) {
+                    t = `${t[0]}-${String(t[1]).padStart(2, '0')}-${String(t[2]).padStart(2, '0')}`;
+                } else if (typeof t === 'string') {
+                    t = t.split('T')[0];
+                }
+                const val = parseFloat(item.closePrice);
+                if (!t || isNaN(val)) return null;
+                return { time: t, value: val };
+            })
+            .filter(Boolean)
+            .sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
 
-        // DEFAULT TO 1 MONTH (30 Days) view to match Google Finance specificity
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - 30);
-
-        return [...widgetData.historicalData]
-            .filter(item => new Date(item.priceDate) >= cutoffDate) // Apply 1M filter
-            .sort((a, b) => new Date(a.priceDate) - new Date(b.priceDate))
-            .map(item => ({
-                time: item.priceDate,
-                value: parseFloat(item.closePrice)
-            }));
+        return normalized.slice(-30);
     }, [widgetData]);
 
     const handleMouseDown = (e) => {

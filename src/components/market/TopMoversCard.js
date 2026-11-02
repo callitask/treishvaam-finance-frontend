@@ -64,10 +64,10 @@ const TopMoversCard = ({ title, fetchData, type }) => {
                                 onClick={() => setSelectedStock(isSelected ? null : stock.ticker)}
                                 className={`flex items-center py-2.5 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors group ${isSelected ? 'bg-gray-50' : ''}`}
                             >
-                                {/* Ticker & Name */}
+                                {/* Name & Ticker */}
                                 <div className="w-[45%] pr-2">
-                                    <div className="font-bold text-sm text-gray-800 font-mono group-hover:text-blue-600 transition-colors">{stock.ticker}</div>
-                                    <div className="text-[10px] text-gray-400 truncate">{stock.name}</div>
+                                    <div className="font-bold text-sm text-gray-800 group-hover:text-blue-600 transition-colors truncate">{stock.name || stock.ticker}</div>
+                                    <div className="text-[10px] text-gray-400 font-mono truncate">{stock.ticker}</div>
                                 </div>
 
                                 {/* Price */}

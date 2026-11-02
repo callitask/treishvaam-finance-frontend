@@ -53,7 +53,7 @@ const MarketCard = ({ title, data, cardType }) => {
                                             {stock.ticker}
                                         </Link>
                                     </td>
-                                    <td className="py-2 px-3 text-slate-600 dark:text-slate-400 truncate max-w-[100px]">{stock.name}</td>
+                                    <td className="py-2 px-3 font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[100px]">{stock.name || stock.ticker}</td>
 
                                     {/* DYNAMIC CURRENCY APPLICATION */}
                                     <td className="py-2 px-3 text-right font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">
