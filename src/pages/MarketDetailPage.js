@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { getMarketData, getQuoteData } from '../apiConfig';
+import { getMarketData, getQuoteData, getWidgetData } from '../apiConfig';
 
 import MarketHero from '../components/market-detail/MarketHero';
 import MainChart from '../components/market-detail/MainChart';
@@ -45,13 +45,23 @@ const MarketDetailPage = () => {
                     getQuoteData(ticker).catch(e => { console.warn("Live quote fetch failed", e); return { data: null }; })
                 ]);
 
-                const resolvedMarketData = marketRes.data?.quoteData
-                    ? marketRes.data  
+                let resolvedMarketData = marketRes.data?.quoteData
+                    ? marketRes.data
                     : marketRes.data;
 
-                const resolvedQuoteData = quoteRes.data?.ticker
-                    ? quoteRes.data  
+                let resolvedQuoteData = quoteRes.data?.ticker
+                    ? quoteRes.data
                     : marketRes.data?.quoteData ?? null;
+
+                if (!resolvedMarketData?.quoteData && !resolvedQuoteData) {
+                    try {
+                        const widgetRes = await getWidgetData(ticker);
+                        if (widgetRes.data) {
+                            resolvedMarketData = widgetRes.data;
+                            resolvedQuoteData = widgetRes.data.quoteData ?? resolvedQuoteData;
+                        }
+                    } catch (e) {}
+                }
 
                 if (!resolvedMarketData && !resolvedQuoteData) {
                     throw new Error("Asset not found or no data available.");

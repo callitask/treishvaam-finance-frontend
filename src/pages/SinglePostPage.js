@@ -39,6 +39,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getPostByUrlId, API_URL } from '../apiConfig';
+import DOMPurify from 'dompurify';
 import { Calendar, User, ArrowLeft, Clock, Share2, Tag, Loader2, BookmarkPlus } from 'lucide-react';
 import ShareModal from '../components/ShareModal';
 import ReadingProgressBar from '../components/ReadingProgressBar';
@@ -52,7 +53,7 @@ import AnnotatableProse from '../components/annotations/AnnotatableProse';
 
 const SinglePostPage = () => {
     const params = useParams();
-    const id = params?.id;
+    const id = params?.urlArticleId || params?.id;
 
     const [post, setPost] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -149,7 +150,13 @@ const SinglePostPage = () => {
 
     const sanitizedContent = useMemo(() => {
         if (!post || !post.content || typeof post.content !== 'string') return '';
-        return post.content.replace(/src="\[object Object\]"/g, 'src=""');
+        const replaced = post.content.replace(/src="\[object Object\]"/g, 'src=""');
+        if (typeof window === 'undefined') return replaced;
+        return DOMPurify.sanitize(replaced, {
+            ADD_TAGS: ['video', 'source', 'iframe'],
+            ADD_ATTR: ['src', 'type', 'controls', 'autoplay', 'loop', 'muted', 'playsinline', 'poster', 'data-type', 'data-src', 'data-video-src', 'data-video-id', 'data-title', 'class', 'id', 'allow', 'allowfullscreen'],
+            FORBID_ATTR: ['style']
+        });
     }, [post?.content]);
 
     useEffect(() => {

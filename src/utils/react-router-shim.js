@@ -55,7 +55,12 @@ export const useLocation = () => {
 };
 
 export const useParams = () => {
-    return useNextParams() || {};
+    const params = useNextParams() || {};
+    return {
+        ...params,
+        urlArticleId: params.urlArticleId ?? params.id,
+        userFriendlySlug: params.userFriendlySlug ?? params.postSlug,
+    };
 };
 
 // Next.js returns a read-only URLSearchParams object. React Router returns an array tuple.

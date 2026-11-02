@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { getWidgetData } from '../../apiConfig';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import { formatSmartPrice } from '../../utils/marketFormatter';
+import { formatSmartPrice, convertValueForDisplay } from '../../utils/marketFormatter';
 
 const TradingViewChart = React.lazy(() => import('./TradingViewChart'));
 
@@ -55,6 +55,7 @@ const IndexCharts = () => {
     const [activeIndex, setActiveIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [widgetData, setWidgetData] = useState(null);
+    const [timeframe, setTimeframe] = useState('1M');
     const tabsRef = useRef(null);
 
     const indicesToShow = MARKET_INDICES[activeMarket] || [];
@@ -94,6 +95,7 @@ const IndexCharts = () => {
         if (!widgetData || !Array.isArray(widgetData.historicalData) || widgetData.historicalData.length === 0) {
             return [];
         }
+        const quote = widgetData.quoteData;
         const normalized = widgetData.historicalData
             .map(item => {
                 let t = item.priceDate;
@@ -102,15 +104,41 @@ const IndexCharts = () => {
                 } else if (typeof t === 'string') {
                     t = t.split('T')[0];
                 }
-                const val = parseFloat(item.closePrice);
+                const val = convertValueForDisplay(parseFloat(item.closePrice), quote?.currency, activeIndexData?.symbol);
                 if (!t || isNaN(val)) return null;
                 return { time: t, value: val };
             })
-            .filter(Boolean)
-            .sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+            .filter(Boolean);
 
-        return normalized.slice(-30);
-    }, [widgetData]);
+        // dedupe by time
+        const seen = new Set();
+        const deduped = normalized.filter(p => {
+            if (seen.has(p.time)) return false;
+            seen.add(p.time);
+            return true;
+        }).sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+
+        if (deduped.length === 0) return [];
+
+        const maxTimeMs = new Date(deduped[deduped.length - 1].time).getTime();
+        let cutoff = 0;
+        switch (timeframe) {
+            case '1W': cutoff = maxTimeMs - 7 * 86400000; break;
+            case '1M': cutoff = maxTimeMs - 30 * 86400000; break;
+            case '3M': cutoff = maxTimeMs - 90 * 86400000; break;
+            case '6M': cutoff = maxTimeMs - 180 * 86400000; break;
+            case '1Y': cutoff = maxTimeMs - 365 * 86400000; break;
+            case '5Y': cutoff = maxTimeMs - 5 * 365 * 86400000; break;
+            case 'Max': cutoff = 0; break;
+            default: cutoff = maxTimeMs - 30 * 86400000;
+        }
+
+        let filtered = timeframe === 'Max' ? deduped : deduped.filter(p => new Date(p.time).getTime() >= cutoff);
+        if (filtered.length < 2 && deduped.length >= 2) {
+            filtered = deduped.slice(-Math.max(5, filtered.length));
+        }
+        return filtered;
+    }, [widgetData, timeframe, activeIndexData]);
 
     const handleMouseDown = (e) => {
         const ele = tabsRef.current;
@@ -161,7 +189,15 @@ const IndexCharts = () => {
                         {loading ? "Loading market data..." : "Data Unavailable"}
                     </div>
                 ) : (
-                    <Link href={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
+                    <div>
+                        <div className="flex gap-1 mb-2 flex-wrap">
+                            {['1W', '1M', '3M', '6M', '1Y', '5Y', 'Max'].map(tf => (
+                                <button key={tf} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTimeframe(tf); }} className={`px-2 py-0.5 text-[10px] font-bold rounded ${timeframe === tf ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                    {tf}
+                                </button>
+                            ))}
+                        </div>
+                        <Link href={`/market/${encodeURIComponent(activeIndexData.symbol)}`} className="block group">
                         <div className="flex items-baseline justify-between mb-2">
                             <span className="text-2xl font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                                 {formatSmartPrice(rawPrice, quote.currency, activeIndexData.symbol)}
@@ -191,6 +227,7 @@ const IndexCharts = () => {
                             <div className="flex justify-between"><span>Low</span><span className="font-medium text-slate-900 dark:text-slate-200">{formatSmartPrice(quote.dayLow, quote.currency, activeIndexData.symbol)}</span></div>
                         </div>
                     </Link>
+                    </div>
                 )}
             </div>
         </div>

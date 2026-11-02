@@ -8,6 +8,7 @@
  */
 import React, { useState, useMemo } from 'react';
 import TradingViewChart from '../market/TradingViewChart';
+import { convertValueForDisplay } from '../../utils/marketFormatter';
 import './MainChart.css';
 
 const timeframes = [
@@ -20,28 +21,39 @@ const timeframes = [
     { label: 'Max', days: 99999 },
 ];
 
-const MainChart = ({ historicalData, marketData }) => {
+const MainChart = ({ historicalData, marketData, quoteData, ticker }) => {
     const [activeTimeframe, setActiveTimeframe] = useState('1Y');
+
+    const currency = quoteData?.currency || marketData?.currency || marketData?.quoteData?.currency || 'USD';
+    const tkr = ticker || quoteData?.ticker || marketData?.ticker || '';
 
     // 1. Transform Data for TradingView (Defensive extraction)
     const fullChartData = useMemo(() => {
         const activeData = historicalData || marketData?.historicalData || [];
         if (!activeData || activeData.length === 0) return [];
-        
-        return [...activeData]
+
+        const normalized = [...activeData]
             .map(item => {
-                // Defensively scan for date and price keys
                 const rawTime = item.priceDate || item.date || item.timestamp || item.time;
+                let t = rawTime;
+                if (Array.isArray(t) && t.length >= 3) {
+                    t = `${t[0]}-${String(t[1]).padStart(2, '0')}-${String(t[2]).padStart(2, '0')}`;
+                } else if (typeof t === 'string') {
+                    t = t.split('T')[0];
+                }
                 const rawValue = item.closePrice ?? item.close ?? item.value;
-                
-                return {
-                    time: rawTime,
-                    value: parseFloat(rawValue)
-                };
+                const val = convertValueForDisplay(parseFloat(rawValue), currency, tkr);
+                return { time: t, value: val };
             })
-            .filter(item => item.time && !isNaN(item.value)) // Safely drop unparseable nodes
-            .sort((a, b) => new Date(a.time) - new Date(b.time));
-    }, [historicalData, marketData]);
+            .filter(item => item.time && !isNaN(item.value));
+
+        const seen = new Set();
+        return normalized.filter(p => {
+            if (seen.has(p.time)) return false;
+            seen.add(p.time);
+            return true;
+        }).sort((a, b) => (a.time > b.time ? 1 : a.time < b.time ? -1 : 0));
+    }, [historicalData, marketData, currency, tkr]);
 
     // 2. Filter Data based on Timeframe
     const filteredData = useMemo(() => {
@@ -50,16 +62,22 @@ const MainChart = ({ historicalData, marketData }) => {
         const tf = timeframes.find(t => t.label === activeTimeframe);
         if (!tf) return fullChartData;
 
-        const now = new Date();
-        let cutoffDate = new Date();
-
+        const maxTimeMs = new Date(fullChartData[fullChartData.length - 1].time).getTime();
+        let cutoff = 0;
         if (tf.type === 'ytd') {
-            cutoffDate = new Date(now.getFullYear(), 0, 1);
+            const d = new Date(maxTimeMs);
+            cutoff = new Date(d.getFullYear(), 0, 1).getTime();
+        } else if (tf.label === 'Max') {
+            cutoff = 0;
         } else {
-            cutoffDate.setDate(now.getDate() - tf.days);
+            cutoff = maxTimeMs - tf.days * 86400000;
         }
 
-        return fullChartData.filter(item => new Date(item.time) >= cutoffDate);
+        let filtered = tf.label === 'Max' ? fullChartData : fullChartData.filter(item => new Date(item.time).getTime() >= cutoff);
+        if (filtered.length < 2 && fullChartData.length >= 2) {
+            filtered = fullChartData.slice(-Math.max(5, filtered.length || 5));
+        }
+        return filtered;
     }, [fullChartData, activeTimeframe]);
 
     // 3. Determine Chart Color

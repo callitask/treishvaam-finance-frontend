@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { getQuotesBatch } from '../../apiConfig';
 import Link from 'next/link';
-import { formatEnterpriseTicker } from '../../utils/marketFormatter';
+import { formatEnterpriseTicker, formatSmartPrice, updateFxRatesFromQuotes, getUserDisplayCurrency, setUserDisplayCurrency } from '../../utils/marketFormatter';
 
 const formatChange = (change) => {
     if (change == null || isNaN(change)) return '0.00%';
@@ -49,7 +49,7 @@ const TickerCard = ({ quote }) => {
             </div>
             <div className={`flex items-baseline gap-2 ${color} text-xs`}>
                 <span className="font-bold tabular-nums tracking-tight">
-                    {rawPrice !== null ? Number(rawPrice).toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 }) : '...'}
+                    {rawPrice !== null ? formatSmartPrice(rawPrice, quote.currency, quote.ticker) : '...'}
                 </span>
                 <span className="font-bold text-[10px]">
                     {parsedChange >= 0 ? '+' : ''}{formatChange(parsedChange)}
@@ -63,6 +63,14 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
     const [activeTab, setActiveTab] = useState('Markets');
     const [quotes, setQuotes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [displayCurrency, setDisplayCurrency] = useState('USD');
+
+    useEffect(() => {
+        setDisplayCurrency(getUserDisplayCurrency());
+        const handler = () => setDisplayCurrency(getUserDisplayCurrency());
+        window.addEventListener('currencyChange', handler);
+        return () => window.removeEventListener('currencyChange', handler);
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -75,6 +83,7 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                 const response = await getQuotesBatch(tickers);
 
                 if (isMounted && response.data) {
+                    updateFxRatesFromQuotes(response.data);
                     const orderedQuotes = tickers.map(ticker =>
                         response.data.find(q => q.ticker === ticker)
                     ).filter(Boolean);
@@ -115,6 +124,13 @@ const GlobalMarketTicker = ({ mobileMode = false }) => {
                             {tabName}
                         </button>
                     ))}
+                    <div className="ml-auto flex items-center gap-1 px-2">
+                        {['INR', 'USD', 'EUR', 'GBP'].map(c => (
+                            <button key={c} onClick={() => { setUserDisplayCurrency(c); setDisplayCurrency(c); }} className={`px-2 py-1 text-[10px] font-bold rounded ${displayCurrency === c ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                {c === 'INR' ? '\u20B9' : c === 'USD' ? '$' : c === 'EUR' ? '\u20AC' : '\u00A3'} {c}
+                            </button>
+                        ))}
+                    </div>
                 </div>
                 <div className="w-full overflow-x-auto no-scrollbar bg-white dark:bg-slate-900">
                     <div className="flex items-center min-w-max h-[72px]">

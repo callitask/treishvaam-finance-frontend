@@ -26,7 +26,7 @@ const DataSummary = ({ quote, quoteData, marketData }) => {
         { label: 'Day\'s Range', value: formatRange(activeQuote.dayLow, activeQuote.dayHigh, activeQuote.currency, activeQuote.ticker) },
         { label: '52 Week Range', value: formatRange(activeQuote.fiftyTwoWeekLow, activeQuote.fiftyTwoWeekHigh, activeQuote.currency, activeQuote.ticker) },
         { label: 'Volume', value: formatCompactNumber(activeQuote.volume) },
-        { label: 'Market Cap', value: formatCompactNumber(activeQuote.marketCap) },
+        { label: 'Market Cap', value: formatSmartPrice(activeQuote.marketCap, activeQuote.currency, activeQuote.ticker) },
         { label: 'P/E Ratio (TTM)', value: activeQuote.peRatio ? activeQuote.peRatio.toFixed(2) : 'N/A' },
         { label: 'Dividend Yield', value: activeQuote.dividendYield ? `${(activeQuote.dividendYield * 100).toFixed(2)}%` : 'N/A' },
     ];

@@ -12,7 +12,7 @@ import React from 'react';
 import Link from 'next/link';
 import { TrendingUp, TrendingDown, Share2, Star } from 'lucide-react';
 import { useWatchlist } from '../../context/WatchlistContext';
-import { formatEnterpriseTicker, formatSmartPrice } from '../../utils/marketFormatter';
+import { formatEnterpriseTicker, formatSmartPrice, convertValueForDisplay, parseSafeDate } from '../../utils/marketFormatter';
 
 const MarketHero = ({ quote, quoteData, marketData, ticker: fallbackTicker }) => {
     // 1. Scan for active live data (prioritize the freshest quote)
@@ -78,13 +78,13 @@ const MarketHero = ({ quote, quoteData, marketData, ticker: fallbackTicker }) =>
 
                 <div className={`flex items-center text-2xl font-medium mt-1 ${color}`}>
                     {isPos ? <TrendingUp size={24} className="mr-1" /> : <TrendingDown size={24} className="mr-1" />}
-                    <span>{rawChangeAmt >= 0 ? '+' : ''}{rawChangeAmt.toFixed(2)}</span>
+                    <span>{rawChangeAmt >= 0 ? '+' : ''}{formatSmartPrice(Math.abs(rawChangeAmt), currency, ticker)}</span>
                     <span className="ml-3">
                         ({rawChangePct >= 0 ? '+' : ''}{rawChangePct.toFixed(2)}%)
                     </span>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {activeQuote.lastUpdated ? `As of ${new Date(activeQuote.lastUpdated).toLocaleString()}` : 'Data as of last update'}
+                    {parseSafeDate(activeQuote.lastUpdated) ? `As of ${parseSafeDate(activeQuote.lastUpdated).toLocaleString()}` : 'Data as of last update'}
                 </div>
             </div>
         </div>

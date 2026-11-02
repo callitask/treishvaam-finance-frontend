@@ -40,6 +40,7 @@
  */
 
 import React, { memo, useEffect, useState, useRef } from 'react';
+import Hls from 'hls.js';
 import ResponsiveAuthImage from '../ResponsiveAuthImage';
 import EnterpriseVideoPlayer from './EnterpriseVideoPlayer';
 
@@ -63,6 +64,49 @@ const SmartMediaRenderer = memo(({
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    const videoRefLocal = videoRef;
+
+    useEffect(() => {
+        if (!mounted || layoutContext === 'article') return;
+        const normalizedUrl = mediaUrl && (mediaUrl.startsWith('http') || mediaUrl.startsWith('/')) ? mediaUrl : (mediaUrl ? `/${mediaUrl}` : '');
+        const isVideo = !!normalizedUrl && (VIDEO_EXT_REGEX.test(normalizedUrl) || normalizedUrl.includes('/raw/') || normalizedUrl.includes('/hls/'));
+        if (!isVideo) return;
+        const optimizedVideoUrl = normalizedUrl.endsWith('.m3u8')
+            ? normalizedUrl.replace(/(master|1080p|720p|480p)\\.m3u8$/i, '360p.m3u8')
+            : normalizedUrl;
+
+        const videoEl = videoRefLocal.current;
+        if (!videoEl) return;
+
+        let hls = null;
+        const startPlayback = (srcUrl) => {
+            if (srcUrl.endsWith('.m3u8') && Hls.isSupported()) {
+                hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+                hls.loadSource(srcUrl);
+                hls.attachMedia(videoEl);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    setIsLoaded(true);
+                    videoEl.play().catch(() => {});
+                });
+                hls.on(Hls.Events.ERROR, (_event, data) => {
+                    if (data.fatal && srcUrl !== normalizedUrl) {
+                        if (hls) hls.destroy();
+                        startPlayback(normalizedUrl);
+                    }
+                });
+            } else {
+                videoEl.src = srcUrl;
+                videoEl.play().catch(() => {});
+                setIsLoaded(true);
+            }
+        };
+
+        startPlayback(optimizedVideoUrl);
+        return () => {
+            if (hls) hls.destroy();
+        };
+    }, [mounted, mediaUrl, layoutContext]);
 
     if (!mounted || !mediaUrl || typeof mediaUrl !== 'string' || mediaUrl.includes('[object Object]')) {
         return <div className={`bg-slate-200 dark:bg-slate-800 animate-pulse ${className}`} style={{ width, height }} />;
@@ -108,9 +152,10 @@ const SmartMediaRenderer = memo(({
     return (
         <video
             ref={videoRef}
-            src={optimizedVideoUrl}
-            className={`w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'} starting:opacity-0 [mask-image:linear-gradient(to_bottom,black_50%,transparent_100%)] ${className}`}
+            className={`w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${isLoaded ? 'opacity-100' : 'opacity-0'} ${className}`}
             onLoadedData={() => setIsLoaded(true)}
+            onLoadedMetadata={() => setIsLoaded(true)}
+            onCanPlay={() => setIsLoaded(true)}
             autoPlay
             muted
             loop

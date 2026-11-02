@@ -300,6 +300,20 @@ export default {
         const url = new URL(request.url);
 
         if (url.pathname === '/sys/force-update') {
+            try {
+                const listed = await env.TREISHFIN_SEO_CACHE.list();
+                for (const key of listed.keys) {
+                    if (key.name.startsWith('api_cache:/api/v1/posts/url/')) {
+                        const val = await env.TREISHFIN_SEO_CACHE.get(key.name);
+                        let bad = false;
+                        try {
+                            const parsed = JSON.parse(val || '{}');
+                            if (!parsed || !parsed.id || !parsed.title) bad = true;
+                        } catch (e) { bad = true; }
+                        if (bad) await env.TREISHFIN_SEO_CACHE.delete(key.name);
+                    }
+                }
+            } catch (e) {}
             await this.scheduled(null, env, ctx);
             return new Response("Manual Update Triggered! Sitemaps are regenerating.", { status: 200 });
         }
@@ -660,7 +674,18 @@ export default {
 
                         if (apiResponse && apiResponse.ok) {
                             const bodyText = await apiResponse.text();
-                            ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
+                            let shouldCache = true;
+                            if (url.pathname.startsWith('/api/v1/posts/url/') || /^\/api\/v1\/posts\/[^/]+$/.test(url.pathname)) {
+                                try {
+                                    const parsed = JSON.parse(bodyText);
+                                    if (!parsed || !parsed.id || !parsed.title) shouldCache = false;
+                                } catch (e) {
+                                    shouldCache = false;
+                                }
+                            }
+                            if (shouldCache) {
+                                ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
+                            }
                             return addSecurityHeaders(new Response(bodyText, {
                                 status: apiResponse.status,
                                 headers: apiResponse.headers
@@ -681,9 +706,9 @@ export default {
                         }
 
                         // Clean empty fallback
-                        const defaultPayload = url.pathname.includes('/categories') || url.pathname.includes('/highlights')
-                            ? '[]'
-                            : JSON.stringify({ content: [], totalPages: 0, totalElements: 0 });
+                        const defaultPayload = (url.pathname === '/api/v1/posts' || url.pathname.startsWith('/api/v1/posts?'))
+                            ? JSON.stringify({ content: [], totalPages: 0, totalElements: 0 })
+                            : (url.pathname.startsWith('/api/v1/posts/') ? JSON.stringify({}) : '[]');
                         return addSecurityHeaders(new Response(defaultPayload, {
                             status: 200,
                             headers: {
@@ -706,9 +731,9 @@ export default {
                             }
                         } catch (err) {}
 
-                        const defaultPayload = url.pathname.includes('/categories') || url.pathname.includes('/highlights')
-                            ? '[]'
-                            : JSON.stringify({ content: [], totalPages: 0, totalElements: 0 });
+                        const defaultPayload = (url.pathname === '/api/v1/posts' || url.pathname.startsWith('/api/v1/posts?'))
+                            ? JSON.stringify({ content: [], totalPages: 0, totalElements: 0 })
+                            : (url.pathname.startsWith('/api/v1/posts/') ? JSON.stringify({}) : '[]');
                         return addSecurityHeaders(new Response(defaultPayload, {
                             status: 200,
                             headers: {
