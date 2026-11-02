@@ -536,10 +536,16 @@ export default {
             proxyTargetUrl.protocol = backendConfig.protocol;
             proxyTargetUrl.pathname = url.pathname;
 
+            const isBatchQuotePostEarly = request.method === 'POST' && url.pathname === '/api/v1/market/quotes/batch';
+            let batchBodyText = null;
+            if (isBatchQuotePostEarly) {
+                try { batchBodyText = await request.text(); } catch (e) { batchBodyText = '[]'; }
+            }
+
             const proxyReq = new Request(proxyTargetUrl.toString(), {
                 headers: enhancedHeaders,
                 method: request.method,
-                body: isGetOrHead ? null : request.body,
+                body: isGetOrHead ? null : (isBatchQuotePostEarly ? batchBodyText : request.body),
                 redirect: request.redirect
             });
 
@@ -589,7 +595,7 @@ export default {
                     let requestBodyText = null;
                     if (isBatchQuotePost) {
                         try {
-                            requestBodyText = await request.clone().text();
+                            requestBodyText = batchBodyText !== null ? batchBodyText : '[]';
                             let tickers = [];
                             try { tickers = JSON.parse(requestBodyText); } catch (e) { tickers = []; }
                             if (!Array.isArray(tickers)) tickers = [];
@@ -651,6 +657,7 @@ export default {
                             fetchReq = proxyReq;
                         }
                         const apiResponse = await fetch(fetchReq, { signal: AbortSignal.timeout(8000) });
+
                         if (apiResponse && apiResponse.ok) {
                             const bodyText = await apiResponse.text();
                             ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
