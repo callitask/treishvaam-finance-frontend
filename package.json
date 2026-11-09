@@ -2,7 +2,7 @@
   "name": "treishvaam-finance-frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://treishfin.treishvaamgroup.com",
+  "homepage": "https://treishvaamfinance.com",
   "dependencies": {
     "@fontsource-variable/inter": "^5.1.0",
     "@grafana/faro-web-sdk": "^2.0.2",

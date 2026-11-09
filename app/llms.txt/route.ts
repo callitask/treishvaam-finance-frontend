@@ -50,7 +50,7 @@ const STATIC_LLMS_TXT = `# Treishvaam Finance — LLM Context & Knowledge Graph
 - **Official Profiles:**
   - Instagram: https://www.instagram.com/treishvaam/
   - X: https://x.com/treishvaam
-  - Snapchat: https://www.snapchat.com/@callitaskk
+  - Snapchat: https://www.snapchat.com/@treishvaam
   - Personal Biography: https://treishvaamgroup.com/about
 
 ## Parent Conglomerate

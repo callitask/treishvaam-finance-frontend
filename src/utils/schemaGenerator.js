@@ -228,6 +228,13 @@ export const getStaticFounderAndConglomerateGraph = () => {
                     'Treishvaam (legal name Amitsagar Kandpal, born October 5, 1997) is an Indian entrepreneur, artist, and actor. He is the Founder and Chairman of Treishvaam Group, an enterprise conglomerate operating across financial intelligence (Treishvaam Finance), sustainable agribusiness (Treishvaam Agro), and workforce technology (Treishvaam Hiring Marketplace).',
                 url: 'https://treishvaamgroup.com/about',
                 mainEntityOfPage: 'https://treishvaamgroup.com/about',
+                affiliation: [
+                    { '@id': 'https://treishvaamgroup.com/#organization' },
+                    { '@id': 'https://treishvaamfinance.com/#organization' },
+                    { '@id': 'https://treishvaamagro.com/#organization' },
+                    { '@id': 'https://thm.treishvaamgroup.com/#organization' }
+                ],
+                knowsAbout: ['Corporate Strategy', 'Financial Markets', 'Macroeconomics', 'Sustainable Agriculture', 'Solar Dehydration', 'Enterprise Architecture', 'Performing Arts'],
                 image: {
                     '@type': 'ImageObject',
                     url: portraitUrl,
@@ -317,7 +324,10 @@ export const getStaticFounderAndConglomerateGraph = () => {
                     '@id': 'https://treishvaamgroup.com/#treishvaam'
                 },
                 parentOrganization: {
-                    '@id': 'https://treishvaamgroup.com/#organization'
+                    '@type': 'Organization',
+                    '@id': 'https://treishvaamgroup.com/#organization',
+                    name: 'Treishvaam Group',
+                    url: 'https://treishvaamgroup.com'
                 }
             },
             {
@@ -331,7 +341,10 @@ export const getStaticFounderAndConglomerateGraph = () => {
                     '@id': 'https://treishvaamgroup.com/#treishvaam'
                 },
                 parentOrganization: {
-                    '@id': 'https://treishvaamgroup.com/#organization'
+                    '@type': 'Organization',
+                    '@id': 'https://treishvaamgroup.com/#organization',
+                    name: 'Treishvaam Group',
+                    url: 'https://treishvaamgroup.com'
                 }
             },
             {
@@ -346,7 +359,10 @@ export const getStaticFounderAndConglomerateGraph = () => {
                     '@id': 'https://treishvaamgroup.com/#treishvaam'
                 },
                 parentOrganization: {
-                    '@id': 'https://treishvaamgroup.com/#organization'
+                    '@type': 'Organization',
+                    '@id': 'https://treishvaamgroup.com/#organization',
+                    name: 'Treishvaam Group',
+                    url: 'https://treishvaamgroup.com'
                 }
             }
         ]

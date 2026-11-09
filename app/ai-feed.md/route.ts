@@ -51,7 +51,7 @@ const STATIC_AI_FEED_MD = `# Treishvaam Finance — AI Knowledge Feed & Entity G
 - **Official Profiles:**
   - Instagram: https://www.instagram.com/treishvaam/
   - X: https://x.com/treishvaam
-  - Snapchat: https://www.snapchat.com/@callitaskk
+  - Snapchat: https://www.snapchat.com/@treishvaam
   - Bio: https://treishvaamgroup.com/about
 
 ## Parent Conglomerate Overview
