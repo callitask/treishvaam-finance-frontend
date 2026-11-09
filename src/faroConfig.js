@@ -31,6 +31,10 @@
  * - EDITED (Phase 9 GSC Googlebot Crawler Guard):
  *   • Added bot/crawler guard to `initFaro` and `postEvent` to prevent firing analytics beacons for Googlebot and automated crawlers.
  *   • Why: Eliminates Google Search Console "Googlebot blocked by robots.txt" errors on `/api/v1/analytics/event`.
+ * - EDITED (Phase 13.1 - Offline Analytics Queue & Auto-Sync):
+ *   • Added `localStorage` FIFO queue (`treishvaam_offline_analytics_v1`, max 100) for `202 queued_offline` and network failures, preserving original client `timestamp`/`url`/`path`.
+ *   • Added `flushOfflineAnalyticsQueue()` on 3s page-load delay and `online` event; dequeues only on `200 OK`.
+ *   • Why: First-party analytics auto-syncs when backend returns; GA4 continues always-on via Edge.
  */
 import { initializeFaro } from '@grafana/faro-web-sdk';
 import { API_URL } from './apiConfig';
@@ -63,6 +67,62 @@ export function initFaro() {
 // Generate a simple session ID valid for the current tab lifecycle
 const SESSION_ID = typeof window !== 'undefined' ? crypto.randomUUID() : 'ssr-session';
 const pageLoadTime = Date.now();
+
+// ------------------------------------------------------------------
+// Phase 13.1: Enterprise Offline Analytics Queue (localStorage FIFO)
+// ------------------------------------------------------------------
+const OFFLINE_QUEUE_KEY = 'treishvaam_offline_analytics_v1';
+const OFFLINE_QUEUE_MAX = 100;
+
+function loadOfflineQueue() {
+    try {
+        if (typeof localStorage === 'undefined') return [];
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+}
+
+function enqueueOfflineEvent(payload) {
+    try {
+        if (typeof localStorage === 'undefined') return;
+        const queue = loadOfflineQueue();
+        queue.push({ ...payload, _queuedAt: Date.now() });
+        while (queue.length > OFFLINE_QUEUE_MAX) queue.shift();
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    } catch (e) {}
+}
+
+export async function flushOfflineAnalyticsQueue() {
+    try {
+        if (typeof window === 'undefined') return;
+        const queue = loadOfflineQueue();
+        if (queue.length === 0) return;
+        const remaining = [];
+        for (const item of queue) {
+            try {
+                const { _queuedAt, ...payload } = item;
+                const res = await fetch(`${API_URL}/api/v1/analytics/event`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    keepalive: true,
+                });
+                if (res.status === 202 || !res.ok) remaining.push(item);
+            } catch (e) { remaining.push(item); }
+        }
+        try {
+            if (remaining.length === 0) localStorage.removeItem(OFFLINE_QUEUE_KEY);
+            else localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+        } catch (e) {}
+    } catch (e) {}
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', () => { flushOfflineAnalyticsQueue(); });
+    setTimeout(() => { flushOfflineAnalyticsQueue(); }, 3000);
+}
 
 // Asynchronous helper to fetch High-Entropy Client Hints without blocking render
 const extractHighEntropyPlatform = async () => {
@@ -106,18 +166,23 @@ export const postEvent = async (eventType, extraPayload = {}) => {
         // Use sendBeacon for all non-blocking exit contexts to prevent HTTP 499 client aborts
         if (eventType === 'exit_intent' || eventType === 'page_unload' || eventType === 'visibility_hidden') {
             const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-            navigator.sendBeacon(`${API_URL}/api/v1/analytics/event`, blob);
+            let beaconOk = false;
+            try { beaconOk = navigator.sendBeacon(`${API_URL}/api/v1/analytics/event`, blob); } catch (e) {}
+            if (!beaconOk) enqueueOfflineEvent(payload);
         } else {
-            await fetch(`${API_URL}/api/v1/analytics/event`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                // Important: Do not keep connection alive, fire and forget
-                keepalive: true
-            });
+            try {
+                const res = await fetch(`${API_URL}/api/v1/analytics/event`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    keepalive: true
+                });
+                if (res.status === 202) enqueueOfflineEvent(payload);
+            } catch (e) { enqueueOfflineEvent(payload); }
         }
     } catch (error) {
-        // Silent catch: Analytics failure must never disrupt UX
+        // Silent catch: Analytics failure must never disrupt UX — queue for later sync
+        try { enqueueOfflineEvent(extraPayload); } catch (e) {}
         console.warn('First-party analytics dispatch failed', error);
     }
 };

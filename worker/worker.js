@@ -63,6 +63,8 @@
  *   1. Guaranteed complete bypass of TREISHFIN_SEO_CACHE KV for all requests containing Authorization, X-Internal-Secret, or X-AEGIS-ZKP-Proof headers, and for administrative paths (/api/v1/posts/admin*, /api/v1/posts/drafts*, /api/v1/posts/all*, /api/v1/admin*, /api/v1/users*, /api/v1/auth*, /api/v1/analytics*, /api/v1/status*, /api/v1/preferences*), returning Cache-Control: no-store, no-cache, must-revalidate.
  *   2. Streamlined binary and video streaming routes (/api/v1/uploads/*, /api/v1/video/*, .m3u8, .ts, .mp4, .webm, keys) to stream raw bodies with Range and 206 Partial Content support without buffer corruption or image cache contamination.
  *   3. Routed legacy /uploads/* requests directly to backend /api/v1/uploads/* with fresh AEGIS edge signature matching the rewritten backend URI.
+ * - EDITED (Phase 13.1 - 3-Tier L0/L1/L2 Edge Caching, 6h KV Throttle, 3.5s Timeout, Analytics Offline, Uploads Edge Cache):
+ *   L0 in-isolate mtdMemoryCache (5-min) + ipThreatMemoryCache (2000, 5-min) + static-asset AEGIS_THREAT_KV bypass; L1 caches.default-first for public GETs + synthetic batch GET key (cache.treishvaamfinance.com) with Cache-Control s-maxage=120, SWR=86400, stale-if-error=604800; KV write-through throttle KV_WRITE_COOLDOWN_MS=21600000 via __kvUpdatedAt envelope + isKvEligibleApi whitelist (~30 keys); 3500ms AbortController for public GETs with HIT-OFFLINE-VAULT fallback; POST /api/v1/analytics/event, /aegis/telemetry, /faro/collect 2500ms + 202 queued_offline; GET /api/v1/uploads/* cf.cacheEverything + 7-day edge headers; all KV get/put try/catch with graceful caches.default fallback. No security layer weakened.
  * - DO-NOT-DELETE RULE:
  *   This IMMUTABLE CHANGE HISTORY section must never be deleted,
  *   truncated, rewritten, or regenerated.
@@ -82,6 +84,104 @@ const internal = "Treishvaam-Worker-Crawler";
 
 const GLOBAL_CRAWLER_MATRIX = new RegExp(`(${searchEngines}|${googleEcosystem}|${aiAndLlms}|${socialAndUnfurl}|${newsAndFeeds}|${archiversAndAcademic}|${internal})`, "i");
 const aiBotsOnly = new RegExp(`(${aiAndLlms})`, "i");
+
+// =================================================================================
+// Phase 13.1 — 3-Tier Edge Caching (L0 In-Isolate Memory, L1 Edge Cache, 6h KV Throttle)
+// =================================================================================
+const KV_WRITE_COOLDOWN_MS = 6 * 60 * 60 * 1000; // Strict 6-hour KV write throttle
+const KV_CACHE_TTL = 86400;
+
+let mtdMemoryCache = { data: null, expiresAt: 0 };
+const ipThreatMemoryCache = new Map(); // ip -> { data, expiresAt }, max 2000 entries, 5-min TTL
+const lastKvWriteAt = new Map(); // key -> timestamp (isolate-memory throttle)
+
+function isStaticAssetPath(pathname) {
+    return pathname.startsWith('/_next/') || pathname.startsWith('/static/')
+        || /\.(js|css|png|jpg|jpeg|webp|svg|ico|woff2|woff)$/i.test(pathname)
+        || pathname === '/sw.js' || pathname === '/manifest.json' || pathname.startsWith('/_next/static');
+}
+
+function isCacheableGet(pathname) {
+    return pathname.startsWith('/api/v1/posts') || pathname.startsWith('/api/v1/categories')
+        || pathname.startsWith('/api/v1/market/') || pathname.startsWith('/api/public/geo/')
+        || pathname === '/llms.txt' || pathname === '/ai-feed.md' || pathname === '/ontology.json'
+        || pathname.startsWith('/sitemap') || pathname.startsWith('/sitemap-dynamic/');
+}
+
+function isKvEligibleApi(pathname, search) {
+    const qs = search || '';
+    if (pathname === '/api/v1/categories' && (qs === '' || qs === '?')) return true;
+    if (pathname === '/api/v1/posts' && (qs === '' || qs.includes('page=0') && (qs.includes('size=50') || qs.includes('size=9') || qs.includes('size=5') || qs === ''))) return true;
+    if (pathname === '/api/v1/posts' || pathname === '/api/v1/market/news/highlights' || pathname === '/api/v1/market/news/archived' || pathname === '/api/v1/market/top-gainers' || pathname === '/api/v1/market/top-losers' || pathname === '/api/v1/market/most-active') {
+        if (!qs || qs.includes('page=0')) return true;
+        return false;
+    }
+    if (pathname === '/api/v1/posts/url/' || pathname.startsWith('/api/v1/posts/url/')) return true;
+    if (pathname === '/api/v1/market/quotes/batch') return true;
+    if ((pathname === '/api/v1/market/widget' || pathname === '/api/v1/market/data') && ['^DJI','^GSPC','^IXIC','^NSEI','^BSESN','GC=F','CL=F','USDINR=X','BTC-INR'].some(t => qs.includes(encodeURIComponent(t)) || qs.includes(t))) return true;
+    if (pathname === '/api/public/geo/llms.txt' || pathname === '/api/public/geo/ai-feed.md' || pathname === '/api/public/geo/ontology.json' || pathname.startsWith('/sitemap')) return true;
+    if (pathname === '/api/v1/market/news/highlights' || pathname === '/api/v1/market/news/archived') {
+        if (!qs || qs.includes('page=0&size=12') || qs.includes('page=0&size=20') || qs.includes('page=0')) return true;
+    }
+    return false;
+}
+
+async function kvGetSafe(env, key) {
+    try { return await env.TREISHFIN_SEO_CACHE.get(key); } catch (e) { return null; }
+}
+
+async function kvPutThrottled(env, ctx, key, value, options, isForce) {
+    try {
+        if (!isForce) {
+            const last = lastKvWriteAt.get(key) || 0;
+            if (Date.now() - last < KV_WRITE_COOLDOWN_MS) return false;
+            try {
+                let existingAt = 0;
+                if (env.TREISHFIN_SEO_CACHE.getWithMetadata) {
+                    const withMeta = await env.TREISHFIN_SEO_CACHE.getWithMetadata(key);
+                    const metaAt = withMeta?.metadata?.updatedAt || 0;
+                    const envelopeAt = (() => { try { const p = JSON.parse(withMeta?.value || 'null'); return p?.__kvUpdatedAt || 0; } catch (e) { return 0; } })();
+                    existingAt = Math.max(metaAt, envelopeAt);
+                } else {
+                    const existing = await env.TREISHFIN_SEO_CACHE.get(key);
+                    if (existing) {
+                        try { const p = JSON.parse(existing); existingAt = p?.__kvUpdatedAt || 0; } catch (e) { existingAt = Date.now(); }
+                    }
+                }
+                if (existingAt && (Date.now() - existingAt < KV_WRITE_COOLDOWN_MS)) {
+                    lastKvWriteAt.set(key, existingAt);
+                    return false;
+                }
+            } catch (e) {}
+        }
+        const envelope = value;
+        const payload = JSON.stringify({ __kvUpdatedAt: Date.now(), payload: envelope });
+        await env.TREISHFIN_SEO_CACHE.put(key, payload, options || { expirationTtl: KV_CACHE_TTL });
+        lastKvWriteAt.set(key, Date.now());
+        return true;
+    } catch (e) { return false; }
+}
+
+async function kvGetUnwrap(env, key) {
+    const raw = await kvGetSafe(env, key);
+    if (!raw) return null;
+    try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === 'object' && '__kvUpdatedAt' in parsed && 'payload' in parsed) return parsed.payload; } catch (e) {}
+    return raw;
+}
+
+async function fetchWithTimeout(input, init, timeoutMs) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const merged = { ...(init || {}), signal: controller.signal };
+        if (input instanceof Request) {
+            if (init && init.cf) merged.cf = init.cf;
+            const req = new Request(input, merged);
+            return await fetch(req);
+        }
+        return await fetch(input, merged);
+    } finally { clearTimeout(id); }
+}
 
 async function generateEdgeSignature(path, timestamp, ip, secret) {
     if (!secret) return "";
@@ -366,21 +466,44 @@ export default {
 
         try {
             const threatKv = env.AEGIS_THREAT_KV || env.TREISHFIN_SEO_CACHE;
-            const mtdManifestStr = await threatKv.get("aegis:mtd:manifest");
-            if (mtdManifestStr) {
-                mtdManifest = JSON.parse(mtdManifestStr);
-            }
+            // Phase 13.1 L0: skip threat KV entirely on static assets (0 KV ops)
+            if (!isStaticAssetPath(url.pathname)) {
+                const now = Date.now();
+                if (mtdMemoryCache.data !== null && now < mtdMemoryCache.expiresAt) {
+                    mtdManifest = mtdMemoryCache.data;
+                } else {
+                    try {
+                        const mtdManifestStr = await threatKv.get("aegis:mtd:manifest");
+                        if (mtdManifestStr) {
+                            mtdManifest = JSON.parse(mtdManifestStr);
+                            mtdMemoryCache = { data: mtdManifest, expiresAt: now + 5 * 60 * 1000 };
+                        } else {
+                            mtdMemoryCache = { data: null, expiresAt: now + 5 * 60 * 1000 };
+                        }
+                    } catch (e) {}
+                }
 
-            if (!isVerifiedCrawler) {
-                const attackerBlock = await threatKv.get(`aegis:block:${clientIp}`);
-                if (attackerBlock) {
-                    if (attackerBlock.includes("TARPIT")) {
-                        isTarpit = true;
+                if (!isVerifiedCrawler) {
+                    let attackerBlock = null;
+                    const cachedIp = ipThreatMemoryCache.get(clientIp);
+                    if (cachedIp && now < cachedIp.expiresAt) {
+                        attackerBlock = cachedIp.data;
                     } else {
-                        return new Response(JSON.stringify({
-                            error: "Access Denied",
-                            _aegis_integrity: "blocked-by-edge-consensus"
-                        }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+                        try {
+                            attackerBlock = await threatKv.get(`aegis:block:${clientIp}`);
+                        } catch (e) {}
+                        if (ipThreatMemoryCache.size > 2000) ipThreatMemoryCache.clear();
+                        ipThreatMemoryCache.set(clientIp, { data: attackerBlock, expiresAt: now + 5 * 60 * 1000 });
+                    }
+                    if (attackerBlock) {
+                        if (attackerBlock.includes("TARPIT")) {
+                            isTarpit = true;
+                        } else {
+                            return new Response(JSON.stringify({
+                                error: "Access Denied",
+                                _aegis_integrity: "blocked-by-edge-consensus"
+                            }), { status: 403, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+                        }
                     }
                 }
             }
@@ -605,6 +728,23 @@ export default {
                     url.pathname.startsWith('/uploads/') ||
                     /\.(m3u8|ts|mp4|webm|key)$/i.test(url.pathname);
 
+                const isAnalyticsPost = request.method === 'POST' && (
+                    url.pathname === '/api/v1/analytics/event' || url.pathname === '/api/v1/aegis/telemetry' || url.pathname === '/faro/collect'
+                );
+
+                // Phase 13.1 Analytics offline queue (no 502/504 leakage, bounded 2500ms origin timeout)
+                if (isAnalyticsPost) {
+                    try {
+                        const resp = await fetch(proxyReq, { signal: AbortSignal.timeout(2500) });
+                        if (resp.status === 502 || resp.status === 503 || resp.status === 504 || resp.status === 521 || resp.status === 522 || resp.status === 524) {
+                            return new Response(JSON.stringify({ status: 'queued_offline', offline: true }), { status: 202, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+                        }
+                        return addSecurityHeaders(resp);
+                    } catch (e) {
+                        return new Response(JSON.stringify({ status: 'queued_offline', offline: true }), { status: 202, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+                    }
+                }
+
                 // Complete KV Cache bypass for Authenticated / Admin APIs
                 if (hasAuthHeader || isPrivateOrAdminApi) {
                     const apiResp = await fetch(proxyReq);
@@ -638,17 +778,32 @@ export default {
                         return addSecurityHeaders(apiResp);
                     }
 
-                    // Streaming media (.m3u8, .ts, .mp4, keys) passes through raw byte stream untouched
-                    const mediaResp = await fetch(proxyReq);
+                    // Streaming media (.m3u8, .ts, .mp4, uploads) — Phase 13.1 CDN edge cache (no KV)
+                    // Public GET /api/v1/uploads/* uses cf.cacheEverything + 7-day edge TTL so recent
+                    // blog videos (.mp4/.m3u8/.ts) and thumbnails serve even when the VM is offline.
+                    let mediaResp;
+                    const hasRange = request.headers.has('Range');
+                    const isPublicUploadsGet = request.method === 'GET' && (url.pathname.startsWith('/api/v1/uploads/') || url.pathname.startsWith('/uploads/'));
+                    try {
+                        mediaResp = await fetch(proxyReq, { cf: { cacheEverything: true, cacheTtl: 604800 } });
+                    } catch (e) {
+                        mediaResp = await fetch(proxyReq);
+                    }
                     const mediaHeaders = new Headers(mediaResp.headers);
+                    if (isPublicUploadsGet && !hasRange) {
+                        mediaHeaders.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000');
+                    }
                     if (backendPath.endsWith('.m3u8')) {
                         mediaHeaders.set("Content-Type", "application/vnd.apple.mpegurl");
-                        mediaHeaders.set("Cache-Control", "no-cache, must-revalidate");
+                        if (!isPublicUploadsGet) mediaHeaders.set("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000");
                     } else if (backendPath.endsWith('.ts')) {
                         mediaHeaders.set("Content-Type", "video/mp2t");
-                        mediaHeaders.set("Cache-Control", "public, max-age=31536000, immutable");
+                        mediaHeaders.set("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000");
                     } else if (backendPath.endsWith('.mp4') && !mediaHeaders.has("Content-Type")) {
                         mediaHeaders.set("Content-Type", "video/mp4");
+                        mediaHeaders.set("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000");
+                    } else if (isPublicUploadsGet) {
+                        mediaHeaders.set("Cache-Control", "public, max-age=604800, stale-while-revalidate=2592000, stale-if-error=2592000");
                     }
                     return addSecurityHeaders(new Response(mediaResp.body, {
                         status: mediaResp.status,
@@ -706,9 +861,31 @@ export default {
                         apiCacheKey = 'api_cache:' + url.pathname + url.search;
                     }
 
+                    // Phase 13.1 Tier 1: caches.default first (0 KV ops, unlimited free reads/writes)
+                    // On edge hit return immediately and refresh in background; on KV hit write through to edge.
+                    try {
+                        let edgeKey;
+                        if (isBatchQuotePost) {
+                            let tickers = [];
+                            try { tickers = JSON.parse(requestBodyText || '[]'); } catch (e) { tickers = []; }
+                            const sorted = [...tickers].map(String).sort();
+                            edgeKey = new Request(`https://cache.treishvaamfinance.com/api/v1/market/quotes/batch?tickers=${encodeURIComponent(sorted.join(','))}`, { method: 'GET' });
+                        } else {
+                            edgeKey = new Request(request.url, { method: 'GET' });
+                        }
+                        const edgeHit = await caches.default.match(edgeKey);
+                        if (edgeHit) {
+                            const headers = new Headers(edgeHit.headers);
+                            headers.set('X-Cache', 'HIT-EDGE-CACHE');
+                            headers.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=86400, stale-if-error=604800');
+                            headers.set('X-Edge-Cache', 'HIT-EDGE-CACHE');
+                            return addSecurityHeaders(new Response(edgeHit.body, { status: edgeHit.status, headers }));
+                        }
+                    } catch (e) {}
+
                     // SWR: if cached payload exists, return immediately and refresh in background
                     try {
-                        const cachedPayload = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                        const cachedPayload = await kvGetUnwrap(env, apiCacheKey);
                         if (cachedPayload) {
                             ctx.waitUntil((async () => {
                                 try {
@@ -723,13 +900,25 @@ export default {
                                     } else {
                                         refreshReq = proxyReq;
                                     }
-                                    const freshResp = await fetch(refreshReq, { signal: AbortSignal.timeout(8000) });
+                                    const freshResp = await fetch(refreshReq, { signal: AbortSignal.timeout(3500) });
                                     if (freshResp && freshResp.ok) {
                                         const freshBody = await freshResp.text();
-                                        await env.TREISHFIN_SEO_CACHE.put(apiCacheKey, freshBody, { expirationTtl: 86400 });
+                                        try {
+                                            const edgeKey2 = isBatchQuotePost ? new Request(`https://cache.treishvaamfinance.com/api/v1/market/quotes/batch?tickers=${encodeURIComponent((() => { try { return JSON.parse(requestBodyText || '[]').map(String).sort().join(','); } catch (e) { return ''; } })())}`, { method: 'GET' }) : new Request(request.url, { method: 'GET' });
+                                            const edgeResp = new Response(freshBody, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=86400, stale-if-error=604800' } });
+                                            ctx.waitUntil(caches.default.put(edgeKey2, edgeResp.clone()));
+                                        } catch (e) {}
+                                        if (isKvEligibleApi(url.pathname, url.search)) {
+                                            try { await kvPutThrottled(env, ctx, apiCacheKey, freshBody, { expirationTtl: 86400 }, false); } catch (e) {}
+                                        }
                                     }
                                 } catch (e) {}
                             })());
+                            try {
+                                const edgeKeyKv = isBatchQuotePost ? new Request(`https://cache.treishvaamfinance.com/api/v1/market/quotes/batch?tickers=${encodeURIComponent((() => { try { return JSON.parse(requestBodyText || '[]').map(String).sort().join(','); } catch (e) { return ''; } })())}`, { method: 'GET' }) : new Request(request.url, { method: 'GET' });
+                                const edgeWarm = new Response(cachedPayload, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=86400, stale-if-error=604800' } });
+                                ctx.waitUntil(caches.default.put(edgeKeyKv, edgeWarm.clone()));
+                            } catch (e) {}
                             return addSecurityHeaders(new Response(cachedPayload, {
                                 status: 200,
                                 headers: {
@@ -754,7 +943,7 @@ export default {
                         } else {
                             fetchReq = proxyReq;
                         }
-                        const apiResponse = await fetch(fetchReq, { signal: AbortSignal.timeout(8000) });
+                        const apiResponse = await fetch(fetchReq, { signal: AbortSignal.timeout(3500) });
 
                         if (apiResponse && apiResponse.ok) {
                             const bodyText = await apiResponse.text();
@@ -768,7 +957,23 @@ export default {
                                 }
                             }
                             if (shouldCache) {
-                                ctx.waitUntil(env.TREISHFIN_SEO_CACHE.put(apiCacheKey, bodyText, { expirationTtl: 86400 }));
+                                try {
+                                    let edgeKey3;
+                                    if (isBatchQuotePost) {
+                                        let tickers = [];
+                                        try { tickers = JSON.parse(requestBodyText || '[]'); } catch (e) { tickers = []; }
+                                        edgeKey3 = new Request(`https://cache.treishvaamfinance.com/api/v1/market/quotes/batch?tickers=${encodeURIComponent(tickers.map(String).sort().join(','))}`, { method: 'GET' });
+                                    } else {
+                                        edgeKey3 = new Request(request.url, { method: 'GET' });
+                                    }
+                                    const edgeResp = new Response(bodyText, { headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=120, stale-while-revalidate=86400, stale-if-error=604800' } });
+                                    ctx.waitUntil(caches.default.put(edgeKey3, edgeResp.clone()));
+                                } catch (e) {}
+                                try {
+                                    if (isKvEligibleApi(url.pathname, url.search) || isBatchQuotePost) {
+                                        ctx.waitUntil(kvPutThrottled(env, ctx, apiCacheKey, bodyText, { expirationTtl: 86400 }, false));
+                                    }
+                                } catch (e) {}
                             }
                             return addSecurityHeaders(new Response(bodyText, {
                                 status: apiResponse.status,
@@ -776,8 +981,19 @@ export default {
                             }));
                         }
 
-                        // On backend error, return KV fallback if available
-                        const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                        // On backend error, return offline vault (caches.default then KV)
+                        let fallbackCached = null;
+                        try {
+                            const edgeKeyF = isBatchQuotePost ? new Request(`https://cache.treishvaamfinance.com/api/v1/market/quotes/batch?tickers=${encodeURIComponent((() => { try { return JSON.parse(requestBodyText || '[]').map(String).sort().join(','); } catch (e) { return ''; } })())}`, { method: 'GET' }) : new Request(request.url, { method: 'GET' });
+                            const edgeFallback = await caches.default.match(edgeKeyF);
+                            if (edgeFallback) {
+                                const h = new Headers(edgeFallback.headers);
+                                h.set('X-Cache', 'HIT-OFFLINE-VAULT');
+                                h.set('X-Edge-Cache', 'HIT-OFFLINE-VAULT');
+                                return addSecurityHeaders(new Response(edgeFallback.body, { status: 200, headers: h }));
+                            }
+                        } catch (e) {}
+                        fallbackCached = await kvGetUnwrap(env, apiCacheKey);
                         if (fallbackCached) {
                             return addSecurityHeaders(new Response(fallbackCached, {
                                 status: 200,
@@ -802,7 +1018,7 @@ export default {
                         }));
                     } catch (e) {
                         try {
-                            const fallbackCached = await env.TREISHFIN_SEO_CACHE.get(apiCacheKey);
+                            const fallbackCached = await kvGetUnwrap(env, apiCacheKey);
                             if (fallbackCached) {
                                 return addSecurityHeaders(new Response(fallbackCached, {
                                     status: 200,

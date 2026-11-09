@@ -36,6 +36,9 @@
  * - EDITED (Phase 12.1 - Video Stream & Upload NetworkOnly Bypass):
  * • Added NetworkOnly routing matcher for `/api/v1/uploads`, `/api/v1/video`, `/uploads`, and `.(m3u8|ts|mp4|webm|mov)` files.
  * • Why: Completely isolates HLS adaptive streaming and HTTP 206 Partial Content range requests from Service Worker Cache API storage failures.
+ * - EDITED (Phase 13.1 - Service Worker defaultCache Same-Origin Fix):
+ * • Wrapped `...defaultCache` spread with per-handler matcher guard requiring same-origin (`url.origin === self.location.origin`).
+ * • Why: Eliminates cross-origin fetch interception for external news images (bnnbloomberg.ca, livemint.com), resolving CSP `connect-src` / `no-response` errors. External images now load natively via `<img>` under `img-src https:`.
  *
  * - DO-NOT-DELETE RULE (ABSOLUTE): * This IMMUTABLE CHANGE HISTORY section acts as the institutional memory for future AI sessions. 
  * It must never be deleted, truncated, rewritten, or regenerated. Future AI must append only.
@@ -139,8 +142,22 @@ const serwist = new Serwist({
                 ],
             }),
         },
-        // Default: use serwist defaults for everything else
-        ...defaultCache,
+        // Default: serwist defaults for same-origin ONLY (Phase 13.1 — never intercept cross-origin)
+        // Wrap each default handler so cross-origin requests (e.g. bnnbloomberg.ca, livemint.com news images)
+        // load natively under img-src without CSP connect-src violations.
+        ...defaultCache.map((entry) => ({
+            ...entry,
+            matcher: (args) => {
+                try {
+                    const { url, sameOrigin } = args;
+                    if (sameOrigin === false) return false;
+                    if (url && url.origin !== self.location.origin) return false;
+                } catch (e) {}
+                const m = entry.matcher;
+                if (typeof m === 'function') return m(args);
+                return true;
+            },
+        })),
     ],
 });
 
