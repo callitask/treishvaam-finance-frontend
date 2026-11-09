@@ -15,8 +15,8 @@ const IndianMarketWidget = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // List of key Indian stocks to track.
-    const symbolsToTrack = ['RELIANCE.BSE', 'TCS.BSE', 'HDFCBANK.BSE', 'INFY.BSE'];
+    // List of key Indian stocks to track (.NS suffix matches Yahoo Finance / SUPPORTED_ETFS — hits pre-warmed caches).
+    const symbolsToTrack = ['RELIANCE.NS', 'TCS.NS', 'HDFCBANK.NS', 'INFY.NS'];
     const fallbackSymbols = ['^NSEI', '^BSESN', '^NSEBANK', '^CNXIT'];
 
     useEffect(() => {
@@ -58,7 +58,7 @@ const IndianMarketWidget = () => {
             <div key={symbol} className="flex justify-between items-center text-sm border-b border-gray-200/80 py-2.5 last:border-b-0">
                 <div className="flex flex-col pr-2 truncate">
                     <span className="font-semibold text-gray-800 truncate">{displayName}</span>
-                    <span className="text-[10px] text-gray-400 font-mono">{String(symbol).replace('.BSE', '')}</span>
+                    <span className="text-[10px] text-gray-400 font-mono">{String(symbol).replace(/\.(BSE|NS)$/i, '')}</span>
                 </div>
                 <div className="flex flex-col items-end">
                     <span className="font-medium text-gray-900">{price}</span>
