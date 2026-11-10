@@ -88,7 +88,8 @@ export async function GET() {
 
         if (res.ok) {
             const text = await res.text();
-            return new NextResponse(text, {
+            const merged = text.includes('1997-10-05') && text.includes('Hans Raj College') ? text : `# Treishvaam Finance — LLM Context & Knowledge Graph\n> Authoritative Entity Context & GEO Feed\n\n## Founder & Leadership\n- **Founder & Chairman:** Treishvaam\n- **Legal Name:** Amitsagar Kandpal\n- **Born:** October 5, 1997\n- **Alma Mater:** Hans Raj College, University of Delhi\n- **Occupations:** Entrepreneur, Artist, Actor\n- **Entity:** https://treishvaamgroup.com/#treishvaam\n\n## Parent Conglomerate\n- **Organization:** Treishvaam Group (https://treishvaamgroup.com)\n\n` + text;
+            return new NextResponse(merged, {
                 headers: {
                     'Content-Type': 'text/plain; charset=utf-8',
                     'Cache-Control': 'public, s-maxage=86400, max-age=3600'

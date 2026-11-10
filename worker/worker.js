@@ -259,6 +259,118 @@ async function fetchWithTimeout(input, init, timeoutMs) {
     } finally { clearTimeout(id); }
 }
 
+// =================================================================================
+// Phase 13.7 — Non-Destructive Entity Merge Shield (Edge)
+// Guarantees Founder (#treishvaam) + Parent Org (#organization) + Finance org are
+// never lost/overwritten even if backend returns older/partial payload (VM offline
+// or older container image). Dynamic nodes are preserved.
+// =================================================================================
+const CANONICAL_PERSON_NODE = {
+    "@type": "Person",
+    "@id": "https://treishvaamgroup.com/#treishvaam",
+    "name": "Treishvaam",
+    "legalName": "Amitsagar Kandpal",
+    "alternateName": ["Amitsagar Kandpal", "Amit Kandpal", "Amit Sagar Kandpal", "Amitsagar", "Treishvaam", "Treishvam", "Trishvam"],
+    "birthDate": "1997-10-05",
+    "gender": "Male",
+    "nationality": { "@type": "Country", "name": "India" },
+    "jobTitle": "Founder & Chairman",
+    "worksFor": { "@id": "https://treishvaamgroup.com/#organization" },
+    "alumniOf": { "@type": "CollegeOrUniversity", "name": "Hans Raj College, University of Delhi", "sameAs": "https://en.wikipedia.org/wiki/Hansraj_College" },
+    "hasOccupation": [{ "@type": "Occupation", "name": "Entrepreneur" }, { "@type": "Occupation", "name": "Artist" }, { "@type": "Occupation", "name": "Actor" }],
+    "description": "Amitsagar Kandpal (known professionally and artistically as Treishvaam) is an Indian entrepreneur, artist, and actor, and the Founder & Chairman of Treishvaam Group, Treishvaam Finance, Treishvaam Agro, and Treishvaam Hiring Marketplace.",
+    "mainEntityOfPage": "https://treishvaamgroup.com/about",
+    "affiliation": [{ "@id": "https://treishvaamgroup.com/#organization" }, { "@id": "https://treishvaamfinance.com/#organization" }, { "@id": "https://treishvaamagro.com/#organization" }, { "@id": "https://thm.treishvaamgroup.com/#organization" }],
+    "knowsAbout": ["Corporate Strategy", "Financial Markets", "Macroeconomics", "Sustainable Agriculture", "Solar Dehydration", "Enterprise Architecture", "Performing Arts"],
+    "image": "https://treishvaamfinance.com/amitsagar-kandpal-photo.png",
+    "sameAs": ["https://www.instagram.com/treishvaam/", "https://x.com/treishvaam", "https://www.snapchat.com/@treishvaam", "https://www.linkedin.com/in/amitsagarkandpal", "https://treishvaamgroup.com/about", "https://treishvaamfinance.com/about"]
+};
+const CANONICAL_ORG_NODE = {
+    "@type": "Organization",
+    "@id": "https://treishvaamgroup.com/#organization",
+    "name": "Treishvaam Group",
+    "legalName": "Treishvaam Group",
+    "alternateName": ["Treishvam Group", "Treshvam Group", "Trishvam Group", "Treishvaam Enterprise", "Treishvaam", "Treishvam", "Trishvam"],
+    "url": "https://treishvaamgroup.com",
+    "logo": "https://treishvaamgroup.com/logo512.webp",
+    "description": "Treishvaam Group is a diversified enterprise conglomerate innovating across finance, agriculture, and technology.",
+    "foundingDate": "2024",
+    "address": { "@type": "PostalAddress", "streetAddress": "Electronic City", "addressLocality": "Bangalore", "addressRegion": "Karnataka", "postalCode": "560100", "addressCountry": "IN" },
+    "knowsAbout": ["Financial Services", "Market Intelligence", "Algorithmic Wealth Management", "Sustainable Agriculture", "Solar Dehydration Technology", "B2B Nutraceuticals", "Human Capital Marketplace", "Enterprise Technology"],
+    "contactPoint": { "@type": "ContactPoint", "contactType": "customer service", "email": "treishvaamgroup@gmail.com", "telephone": "+918178529633" },
+    "founder": { "@id": "https://treishvaamgroup.com/#treishvaam" },
+    "sameAs": ["https://www.linkedin.com/company/treishvaamgroup", "https://twitter.com/treishvaamgroup", "https://x.com/treishvaam", "https://www.instagram.com/treishvaam/"],
+    "subOrganization": [
+        { "@type": "FinancialService", "@id": "https://treishvaamfinance.com/#organization", "name": "Treishvaam Finance", "url": "https://treishvaamfinance.com", "parentOrganization": { "@id": "https://treishvaamgroup.com/#organization" }, "founder": { "@id": "https://treishvaamgroup.com/#treishvaam" } },
+        { "@type": "Organization", "@id": "https://treishvaamagro.com/#organization", "name": "Treishvaam Agro", "url": "https://treishvaamagro.com", "parentOrganization": { "@id": "https://treishvaamgroup.com/#organization" }, "founder": { "@id": "https://treishvaamgroup.com/#treishvaam" } },
+        { "@type": "Organization", "@id": "https://thm.treishvaamgroup.com/#organization", "name": "Treishvaam Hiring Marketplace", "url": "https://thm.treishvaamgroup.com", "parentOrganization": { "@id": "https://treishvaamgroup.com/#organization" }, "founder": { "@id": "https://treishvaamgroup.com/#treishvaam" } }
+    ]
+};
+const CANONICAL_FINANCE_NODE = {
+    "@type": ["Organization", "NewsMediaOrganization"],
+    "@id": "https://treishvaamfinance.com/#organization",
+    "name": "Treishvaam Finance",
+    "url": "https://treishvaamfinance.com",
+    "logo": "https://treishvaamfinance.com/logo.webp",
+    "image": "https://treishvaamfinance.com/logo.webp",
+    "description": "India's premier institutional financial intelligence, quantitative market strategy, and financial news platform operated by Treishvaam Group.",
+    "founder": { "@id": "https://treishvaamgroup.com/#treishvaam" },
+    "parentOrganization": { "@type": "Organization", "@id": "https://treishvaamgroup.com/#organization", "name": "Treishvaam Group", "url": "https://treishvaamgroup.com" }
+};
+const CANONICAL_CHUNKS = `<semantic-chunk id="founder-identity" entity="Treishvaam">
+## Executive Identity & Leadership
+- **Founder & Chairman**: Treishvaam (Legal Name: Amitsagar Kandpal)
+- **Date of Birth**: 1997-10-05
+- **Alma Mater**: Hans Raj College, University of Delhi
+- **Occupations**: Entrepreneur, Artist, Actor
+- **Entity**: https://treishvaamgroup.com/#treishvaam
+</semantic-chunk>
+
+<semantic-chunk id="conglomerate-overview" entity="Treishvaam Group">
+## Parent Conglomerate Overview
+- **Name**: Treishvaam Group (https://treishvaamgroup.com/#organization)
+- **Divisions**: Treishvaam Finance (https://treishvaamfinance.com), Treishvaam Agro (https://treishvaamagro.com), Treishvaam Hiring Marketplace (https://thm.treishvaamgroup.com)
+</semantic-chunk>
+
+<semantic-chunk id="aeo-faq" entity="Treishvaam Finance">
+## AEO FAQ
+- Who is founder/owner? Amitsagar Kandpal / Treishvaam (1997-10-05, Hans Raj College, Entrepreneur/Artist/Actor).
+- Divisions? Finance https://treishvaamfinance.com, Agro https://treishvaamagro.com, THM https://thm.treishvaamgroup.com.
+</semantic-chunk>
+
+`;
+
+function mergeOntologyJson(text) {
+    try {
+        const parsed = JSON.parse(text);
+        if (!parsed || !Array.isArray(parsed['@graph'])) return text;
+        const nodes = parsed['@graph'];
+        const byId = new Map(nodes.map(n => [n && n['@id'], n]));
+        const canonicals = [CANONICAL_PERSON_NODE, CANONICAL_ORG_NODE, CANONICAL_FINANCE_NODE];
+        for (const c of canonicals) {
+            const existing = byId.get(c['@id']);
+            if (existing) {
+                // Non-destructive merge: fill missing fields from canonical without overwriting dynamic data
+                for (const k of Object.keys(c)) {
+                    if (existing[k] === undefined || existing[k] === null) existing[k] = c[k];
+                }
+            } else {
+                nodes.push(c);
+                byId.set(c['@id'], c);
+            }
+        }
+        return JSON.stringify(parsed);
+    } catch (e) {
+        return text;
+    }
+}
+
+function ensureCanonicalText(text) {
+    if (typeof text !== 'string') return text;
+    if (text.includes('1997-10-05') && text.includes('Hans Raj College')) return text;
+    return CANONICAL_CHUNKS + text;
+}
+
 async function generateEdgeSignature(path, timestamp, ip, secret) {
     if (!secret) return "";
     try {
@@ -1603,7 +1715,8 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
     if (url.pathname.endsWith('.json')) contentType = "application/json; charset=utf-8";
 
     if (cachedKv) {
-        const kvResponse = new Response(cachedKv, { headers: { "Content-Type": contentType, "Cache-Control": "public, s-maxage=86400, max-age=3600" } });
+        const mergedKv = url.pathname.endsWith('.json') ? mergeOntologyJson(cachedKv) : ensureCanonicalText(cachedKv);
+        const kvResponse = new Response(mergedKv, { headers: { "Content-Type": contentType, "Cache-Control": "public, s-maxage=86400, max-age=3600" } });
         ctx.waitUntil(cache.put(cacheRequest, kvResponse.clone()));
         return kvResponse;
     }
@@ -1626,7 +1739,9 @@ async function handleGeoFeedFromKV(request, url, env, ctx, backendUrl, clientIp)
         }));
 
         if (backendResp.ok) {
-            const newResp = new Response(backendResp.body, backendResp);
+            const rawText = await backendResp.text();
+            const mergedText = url.pathname.endsWith('.json') ? mergeOntologyJson(rawText) : ensureCanonicalText(rawText);
+            const newResp = new Response(mergedText, backendResp);
             newResp.headers.set("Content-Type", contentType);
             newResp.headers.set("Cache-Control", "public, s-maxage=86400, max-age=3600");
 

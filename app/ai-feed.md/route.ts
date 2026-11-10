@@ -90,7 +90,8 @@ export async function GET() {
 
         if (res.ok) {
             const text = await res.text();
-            return new NextResponse(text, {
+            const merged = text.includes('1997-10-05') && text.includes('Hans Raj College') ? text : `# Treishvaam Finance — AI Knowledge Feed & Entity Graph\n\n<semantic-chunk id="founder-identity" entity="Treishvaam">\n## Executive Identity & Leadership\n- **Founder & Chairman**: Treishvaam (Legal Name: Amitsagar Kandpal)\n- **Date of Birth**: October 5, 1997\n- **Alma Mater**: Hans Raj College, University of Delhi\n- **Occupations**: Entrepreneur, Artist, Actor\n- **Entity**: https://treishvaamgroup.com/#treishvaam\n</semantic-chunk>\n\n` + text;
+            return new NextResponse(merged, {
                 headers: {
                     'Content-Type': 'text/markdown; charset=utf-8',
                     'Cache-Control': 'public, s-maxage=86400, max-age=3600'

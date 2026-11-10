@@ -65,8 +65,15 @@ export async function GET() {
             let merged = data;
             if (data && Array.isArray(data['@graph'])) {
                 const existingIds = new Set(data['@graph'].map((n: any) => n['@id']));
-                for (const node of staticGraph['@graph']) {
-                    if (!existingIds.has(node['@id'])) {
+                const staticNodes = getStaticFounderAndConglomerateGraph()['@graph'];
+                for (const node of staticNodes) {
+                    const existing = data['@graph'].find((n: any) => n && n['@id'] === node['@id']);
+                    if (existing) {
+                        // Non-destructive merge: fill missing keys from canonical
+                        for (const k of Object.keys(node)) {
+                            if (existing[k] === undefined || existing[k] === null) existing[k] = (node as any)[k];
+                        }
+                    } else {
                         data['@graph'].push(node);
                     }
                 }
